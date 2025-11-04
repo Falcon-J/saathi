@@ -16,15 +16,16 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { LogOut, Users, BarChart3, Calendar, Crown } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useNotifications } from "@/hooks/use-notifications"
 import { WorkspaceNameInlineEditor } from "@/components/workspace-name-inline-editor"
+import { NotificationCenter } from "@/components/notification-center"
 
 
 export default function Dashboard() {
   const [user, setUser] = useState<{ email: string; username: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const { toast } = useToast()
+  const { success, error, info } = useNotifications()
 
 
 
@@ -36,6 +37,14 @@ export default function Dashboard() {
           router.replace("/login")
         } else {
           setUser(session)
+          // Welcome notification - only show once per session
+          const hasShownWelcome = sessionStorage.getItem('welcomeShown')
+          if (!hasShownWelcome) {
+            setTimeout(() => {
+              info("Welcome back!", `Hello ${session.username}, ready to collaborate?`)
+              sessionStorage.setItem('welcomeShown', 'true')
+            }, 1000)
+          }
         }
       } catch (error) {
         console.error("Dashboard auth check failed:", error)
@@ -45,6 +54,23 @@ export default function Dashboard() {
       }
     }
     checkAuth()
+
+    // Check auth periodically to handle session changes
+    const interval = setInterval(checkAuth, 5000)
+
+    // Listen for storage events to handle multiple tabs/accounts
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth-change') {
+        checkAuth()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [router])
 
   const {
@@ -71,11 +97,7 @@ export default function Dashboard() {
 
   const handleAuthError = async (error: any) => {
     if (error?.message?.includes('Authentication') || error?.name === 'AuthenticationError') {
-      toast({
-        title: "Session expired",
-        description: "Please log in again to continue",
-        variant: "destructive"
-      })
+      error("Session expired", "Please log in again to continue")
       router.push("/login")
       return true
     }
@@ -85,61 +107,78 @@ export default function Dashboard() {
   const handleAddTask = async (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string) => {
     try {
       const result = await addTask(title, description, priority, dueDate)
+      success("Task created", `"${title}" has been added to your workspace`)
       return result
-    } catch (error) {
-      const authHandled = await handleAuthError(error)
+    } catch (err) {
+      const authHandled = await handleAuthError(err)
       if (authHandled) return { error: "Authentication required" }
-      throw error
+      error("Failed to create task", "Please try again or check your connection")
+      throw err
     }
   }
 
   const handleToggleTask = async (id: string) => {
     try {
+      const task = tasks.find(t => t.id === id)
       const result = await toggleTask(id)
+      const status = task?.completed ? "reopened" : "completed"
+      success(`Task ${status}`, task ? `"${task.title}" has been ${status}` : "Task status updated")
       return result
-    } catch (error) {
-      const authHandled = await handleAuthError(error)
+    } catch (err) {
+      const authHandled = await handleAuthError(err)
       if (authHandled) return { error: "Authentication required" }
-      throw error
+      error("Failed to update task", "Please try again or check your connection")
+      throw err
     }
   }
 
   const handleEditTask = async (id: string, updates: any) => {
     try {
       const result = await editTask(id, updates)
+      success("Task updated", "Task has been successfully updated")
       return result
-    } catch (error) {
-      const authHandled = await handleAuthError(error)
+    } catch (err) {
+      const authHandled = await handleAuthError(err)
       if (authHandled) return { error: "Authentication required" }
-      throw error
+      error("Failed to update task", "Please try again or check your connection")
+      throw err
     }
   }
 
   const handleDeleteTask = async (id: string) => {
     try {
+      const task = tasks.find(t => t.id === id)
       const result = await deleteTask(id)
+      success("Task deleted", task ? `"${task.title}" has been deleted` : "Task has been deleted")
       return result
-    } catch (error) {
-      const authHandled = await handleAuthError(error)
+    } catch (err) {
+      const authHandled = await handleAuthError(err)
       if (authHandled) return { error: "Authentication required" }
-      throw error
+      error("Failed to delete task", "Please try again or check your connection")
+      throw err
     }
   }
 
   const handleAssignTask = async (id: string, assigneeEmail: string | null) => {
     try {
       const result = await assignTask(id, assigneeEmail || "")
+      const task = tasks.find(t => t.id === id)
+      const assignee = assigneeEmail ?
+        currentWorkspace?.members.find(m => m.email === assigneeEmail)?.username || assigneeEmail :
+        "Unassigned"
+      success("Task assigned", task ? `"${task.title}" assigned to ${assignee}` : "Task assignment updated")
       return result
-    } catch (error) {
-      const authHandled = await handleAuthError(error)
+    } catch (err) {
+      const authHandled = await handleAuthError(err)
       if (authHandled) return { error: "Authentication required" }
-      throw error
+      error("Failed to assign task", "Please try again or check your connection")
+      throw err
     }
   }
 
   const handleLogout = async () => {
     await logout()
-    toast({ title: "Logged out successfully" })
+    info("Logged out", "You have been successfully logged out")
     router.push("/login")
   }
 
@@ -188,9 +227,11 @@ export default function Dashboard() {
                 <div className="text-right">
                   <p className="text-sm font-semibold text-foreground">{user.username}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
+                  <p className="text-xs text-blue-500">Session: {user.email.split('@')[0]}</p>
                 </div>
               </div>
               <Separator orientation="vertical" className="h-8 hidden sm:block" />
+              <NotificationCenter />
               <Button
                 onClick={handleLogout}
                 variant="outline"

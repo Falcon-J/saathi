@@ -9,12 +9,14 @@ import {
   removeMemberFromWorkspace,
   type Workspace
 } from "@/app/actions/workspaces"
+import { useNotifications } from "@/hooks/use-notifications"
 
 export function useWorkspaces(userEmail?: string) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const { success, error, info } = useNotifications()
 
   // Load user workspaces
   useEffect(() => {
@@ -80,13 +82,15 @@ export function useWorkspaces(userEmail?: string) {
         const newWorkspace = await createWorkspaceAction(name)
         setWorkspaces(prev => [...prev, newWorkspace])
         setCurrentWorkspaceId(newWorkspace.id)
+        success("Workspace created", `"${name}" workspace has been created successfully`)
         return newWorkspace
       } catch (error) {
         console.error("[Saathi] Failed to create workspace:", error)
+        error("Failed to create workspace", "Please try again with a different name")
         throw error
       }
     },
-    [userEmail],
+    [userEmail, success, error],
   )
 
   const handleAddTask = useCallback(
@@ -231,14 +235,17 @@ export function useWorkspaces(userEmail?: string) {
 
       try {
         await inviteMemberToWorkspace(currentWorkspaceId, email)
+        success("Invitation sent", `Invitation sent to ${email}. They will receive a notification to join the workspace.`)
         // Note: Member won't be added until they accept the invitation
         // No need to refresh workspaces here
       } catch (error) {
         console.error("[Saathi] Failed to send invitation:", error)
+        const errorMessage = error instanceof Error ? error.message : "Failed to send invitation"
+        error("Failed to send invitation", errorMessage)
         throw error
       }
     },
-    [currentWorkspaceId, userEmail],
+    [currentWorkspaceId, userEmail, success, error],
   )
 
   // Add function to refresh workspaces (for when invitations are accepted)
@@ -288,19 +295,30 @@ export function useWorkspaces(userEmail?: string) {
         // select the first available workspace or clear selection
         const workspaceStillExists = updatedWorkspaces.some(w => w.id === currentWorkspaceId)
         if (!workspaceStillExists) {
+          info("Workspace deleted", "You were the last member, so the workspace has been deleted")
           if (updatedWorkspaces.length > 0) {
             setCurrentWorkspaceId(updatedWorkspaces[0].id)
           } else {
             setCurrentWorkspaceId(null)
             setTasks([])
           }
+        } else {
+          const isCurrentUser = memberEmail === userEmail
+          success(
+            isCurrentUser ? "Left workspace" : "Member removed",
+            isCurrentUser ?
+              "You have left the workspace" :
+              `${memberEmail} has been removed from the workspace`
+          )
         }
       } catch (error) {
         console.error("[Saathi] Failed to remove member:", error)
+        const errorMessage = error instanceof Error ? error.message : "Failed to remove member"
+        error("Failed to remove member", errorMessage)
         throw error
       }
     },
-    [currentWorkspaceId, userEmail],
+    [currentWorkspaceId, userEmail, success, error, info],
   )
 
   return {
