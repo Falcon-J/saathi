@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback, useMemo } from "react"
 import { useToast } from "./use-toast"
 
 type NotificationType = 'success' | 'error' | 'info' | 'warning'
@@ -14,7 +15,7 @@ interface NotificationOptions {
 export function useNotifications() {
     const { toast } = useToast()
 
-    const notify = ({ title, description, type = 'info', duration = 5000 }: NotificationOptions) => {
+    const notify = useCallback(({ title, description, type = 'info', duration = 5000 }: NotificationOptions) => {
         // Show toast
         toast({
             title,
@@ -28,32 +29,32 @@ export function useNotifications() {
             (window as any).addNotification({
                 title,
                 description,
-                type
+            type
             })
         }
-    }
+    }, [toast])
 
-    const success = (title: string, description: string) => {
+    const success = useCallback((title: string, description: string) => {
         notify({ title, description, type: 'success' })
-    }
+    }, [notify])
 
-    const error = (title: string, description: string) => {
+    const error = useCallback((title: string, description: string) => {
         notify({ title, description, type: 'error', duration: 8000 })
-    }
+    }, [notify])
 
-    const info = (title: string, description: string) => {
+    const info = useCallback((title: string, description: string) => {
         notify({ title, description, type: 'info' })
-    }
+    }, [notify])
 
-    const warning = (title: string, description: string) => {
+    const warning = useCallback((title: string, description: string) => {
         notify({ title, description, type: 'warning' })
-    }
+    }, [notify])
 
-    return {
+    return useMemo(() => ({
         notify,
         success,
         error,
         info,
         warning
-    }
+    }), [notify, success, error, info, warning])
 }

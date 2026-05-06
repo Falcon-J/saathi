@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Invite New Member - Saathi</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#292931",
+                        "surface": "#12131a",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-container": "#1e1f26",
+                        "surface-tint": "#4edea3",
+                        "secondary-container": "#474649",
+                        "on-secondary-fixed-variant": "#474649",
+                        "background": "#12131a",
+                        "inverse-surface": "#e3e1ec",
+                        "on-secondary-container": "#b7b4b7",
+                        "on-tertiary-fixed": "#410005",
+                        "on-tertiary-container": "#711419",
+                        "tertiary": "#ffb3af",
+                        "surface-container-low": "#1a1b22",
+                        "on-primary": "#003824",
+                        "inverse-on-surface": "#2f3038",
+                        "on-primary-fixed-variant": "#005236",
+                        "outline": "#86948a",
+                        "primary-fixed-dim": "#4edea3",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "surface-bright": "#383941",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "primary": "#4edea3",
+                        "surface-container-highest": "#33343c",
+                        "primary-container": "#10b981",
+                        "on-primary-container": "#00422b",
+                        "secondary": "#c8c6c8",
+                        "on-background": "#e3e1ec",
+                        "secondary-fixed": "#e5e1e4",
+                        "surface-dim": "#12131a",
+                        "on-tertiary": "#650911",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#33343c",
+                        "primary-fixed": "#6ffbbe",
+                        "error-container": "#93000a",
+                        "on-surface": "#e3e1ec",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-primary-fixed": "#002113",
+                        "tertiary-container": "#fc7c78",
+                        "outline-variant": "#3c4a42",
+                        "surface-container-lowest": "#0d0e15",
+                        "inverse-primary": "#006c49",
+                        "on-secondary": "#313032",
+                        "on-surface-variant": "#bbcabf",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "on-error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "16px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "sm": "8px",
+                        "xl": "40px",
+                        "unit": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "code-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-modal {
+            background-color: rgba(41, 41, 49, 0.8);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            box-shadow: 0px 20px 50px rgba(0,0,0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex items-center justify-center relative overflow-hidden">
+<!-- Background element to represent the underlying app UI slightly blurred -->
+<div class="absolute inset-0 pointer-events-none opacity-20" data-alt="A dark, abstract background resembling a highly structured, code-like digital workspace. Minimalist grid lines and soft, diffused light create a sense of deep technical space. The palette is dominated by deep blacks and dark grays, typical of a modern developer environment, with subtle, out-of-focus elements hinting at a complex user interface." style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc'); background-size: cover; background-position: center;"></div>
+<!-- Modal Backdrop -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-md">
+<!-- Modal Container -->
+<div class="glass-modal rounded-xl w-full max-w-lg border border-white/10 z-50 flex flex-col">
+<!-- Modal Header -->
+<div class="flex justify-between items-center p-lg border-b border-white/10">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
+<img alt="Workspace Logo" class="w-full h-full object-cover" data-alt="A minimalist logo or icon for a digital workspace, featuring a stark, high-contrast design. The image uses sharp geometric shapes, primarily squares and lines, rendered in bright, luminous white and the signature Emerald green accent against a pure black background. It conveys a sense of precision and modern software tools." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Invite New Member</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Saathi Workspace</p>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors rounded-full p-2 hover:bg-surface-variant/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-lg flex flex-col gap-gutter">
+<!-- Email Input -->
+<div class="flex flex-col gap-sm">
+<label class="font-label-md text-label-md text-on-surface-variant" for="email">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">mail</span>
+<input class="w-full bg-surface/50 border border-white/10 rounded-lg py-2 pl-10 pr-3 font-body-md text-on-surface focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-on-surface-variant/50" id="email" placeholder="colleague@example.com" type="email"/>
+</div>
+</div>
+<!-- Role Selection -->
+<div class="flex flex-col gap-sm">
+<label class="font-label-md text-label-md text-on-surface-variant" for="role">Workspace Role</label>
+<div class="relative">
+<select class="w-full bg-surface/50 border border-white/10 rounded-lg py-2 pl-3 pr-10 font-body-md text-on-surface appearance-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all" id="role">
+<option value="member">Member</option>
+<option value="admin">Admin</option>
+<option value="guest">Guest</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px] pointer-events-none">expand_more</span>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant/70 mt-1">Members have full access to workspace projects.</p>
+</div>
+<!-- Custom Message -->
+<div class="flex flex-col gap-sm">
+<label class="font-label-md text-label-md text-on-surface-variant" for="message">Custom Message (Optional)</label>
+<textarea class="w-full bg-surface/50 border border-white/10 rounded-lg p-3 font-body-md text-on-surface focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-on-surface-variant/50 resize-none" id="message" placeholder="Welcome to the team! Here's your invite to our Saathi workspace." rows="3"></textarea>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="p-lg border-t border-white/10 flex justify-between items-center bg-surface-container-lowest/50 rounded-b-xl">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<kbd class="font-code-sm text-code-sm px-2 py-1 bg-surface rounded border border-white/10 text-on-surface">CMD</kbd>
+<span class="font-code-sm text-code-sm">+</span>
+<kbd class="font-code-sm text-code-sm px-2 py-1 bg-surface rounded border border-white/10 text-on-surface">Enter</kbd>
+<span class="font-label-md text-label-md ml-2">to send</span>
+</div>
+<div class="flex gap-md">
+<button class="px-4 py-2 rounded-lg font-label-md text-label-md text-on-surface bg-transparent border border-white/10 hover:bg-surface-variant/50 transition-colors">
+                        Cancel
+                    </button>
+<button class="px-4 py-2 rounded-lg font-label-md text-label-md text-on-primary bg-primary hover:bg-primary-fixed transition-colors flex items-center gap-2">
+<span>Send Invite</span>
+<span class="material-symbols-outlined text-[16px]">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

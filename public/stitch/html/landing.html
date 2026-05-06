@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Engineered for Flow</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#ffdad6",
+                      "on-surface": "#e3e1ec",
+                      "on-primary-fixed": "#002113",
+                      "tertiary-container": "#fc7c78",
+                      "background": "#12131a",
+                      "on-secondary": "#313032",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "surface-container-highest": "#33343c",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-bright": "#383941",
+                      "error-container": "#93000a",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "surface-dim": "#12131a",
+                      "on-primary-container": "#00422b",
+                      "on-tertiary-container": "#711419",
+                      "on-secondary-container": "#b7b4b7",
+                      "surface": "#12131a",
+                      "inverse-primary": "#006c49",
+                      "surface-container-lowest": "#0d0e15",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "tertiary": "#ffb3af",
+                      "inverse-on-surface": "#2f3038",
+                      "surface-variant": "#33343c",
+                      "on-primary": "#003824",
+                      "primary-fixed": "#6ffbbe",
+                      "on-tertiary": "#650911",
+                      "on-tertiary-fixed": "#410005",
+                      "surface-container": "#1e1f26",
+                      "on-secondary-fixed-variant": "#474649",
+                      "primary-container": "#10b981",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "inverse-surface": "#e3e1ec",
+                      "secondary": "#c8c6c8",
+                      "error": "#ffb4ab",
+                      "on-surface-variant": "#bbcabf",
+                      "outline": "#86948a",
+                      "surface-tint": "#4edea3",
+                      "outline-variant": "#3c4a42",
+                      "primary-fixed-dim": "#4edea3",
+                      "secondary-fixed": "#e5e1e4",
+                      "on-background": "#e3e1ec",
+                      "secondary-container": "#474649",
+                      "surface-container-low": "#1a1b22",
+                      "primary": "#4edea3",
+                      "on-primary-fixed-variant": "#005236",
+                      "surface-container-high": "#292931"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "margin": "32px",
+                      "xl": "40px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "code-sm": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "code-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(30, 31, 38, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .hero-glow {
+            background: radial-gradient(circle at 50% 0%, rgba(78, 222, 163, 0.15) 0%, rgba(18, 19, 26, 0) 50%);
+        }
+        .text-gradient {
+            background: linear-gradient(to right, #e3e1ec, #bbcabf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased selection:bg-primary/30 selection:text-primary-fixed">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin h-16 bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md text-on-surface dark:text-on-surface font-bold tracking-tight">Saathi</span>
+</div>
+<div class="hidden md:flex items-center gap-margin font-body-lg text-body-lg">
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Features</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Team</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">Pricing</a>
+</div>
+<div class="flex items-center">
+<button class="bg-surface-variant text-on-surface px-lg py-sm rounded-lg font-label-md text-label-md hover:bg-surface-variant/80 transition-all border border-white/5">
+                Sign In
+            </button>
+</div>
+</nav>
+<!-- Hero Section -->
+<main class="relative pt-32 pb-xl overflow-hidden hero-glow min-h-screen flex flex-col justify-center">
+<div class="max-w-4xl mx-auto px-margin text-center z-10 relative">
+<div class="inline-flex items-center gap-sm px-sm py-xs rounded-full border border-primary/20 bg-primary/5 text-primary mb-lg">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-code-sm text-code-sm">v2.0 Beta Live</span>
+</div>
+<h1 class="font-display-lg text-display-lg font-bold tracking-tight mb-lg text-gradient leading-tight">
+                Engineered for Flow.
+            </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-xl">
+                High-performance project management built on an event-driven architecture. Experience sub-50ms latency collaboration, real-time presence, and a frictionless interface designed for power users.
+            </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-md">
+<button class="bg-primary text-on-primary-fixed px-xl py-md rounded-lg font-label-md text-label-md font-bold hover:bg-primary-fixed-dim transition-all shadow-[0_0_20px_rgba(78,222,163,0.3)] w-full sm:w-auto">
+                    Get Started
+                </button>
+<div class="flex items-center gap-sm px-lg py-md rounded-lg border border-white/10 bg-surface/50 text-on-surface-variant font-code-sm text-code-sm w-full sm:w-auto justify-center">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+<span>npm create saathi-app</span>
+<span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-primary ml-2">content_copy</span>
+</div>
+</div>
+</div>
+<!-- Dashboard Mockup -->
+<div class="w-full max-w-6xl mx-auto px-margin mt-24 z-10 perspective-1000">
+<div class="glass-panel rounded-xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform translate-y-4 hover:translate-y-0 transition-transform duration-700 ease-out border-t border-white/10">
+<!-- Mac-like Header -->
+<div class="h-10 border-b border-white/5 flex items-center px-md gap-sm bg-surface-container-lowest/50">
+<div class="w-3 h-3 rounded-full bg-surface-variant border border-white/10"></div>
+<div class="w-3 h-3 rounded-full bg-surface-variant border border-white/10"></div>
+<div class="w-3 h-3 rounded-full bg-surface-variant border border-white/10"></div>
+<div class="flex-1 flex justify-center">
+<div class="bg-surface-container/50 border border-white/5 rounded-md px-xl py-xs flex items-center gap-sm">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">search</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant/50">cmd + k</span>
+</div>
+</div>
+</div>
+<!-- Mockup Body -->
+<div class="flex h-[400px]">
+<!-- Sidebar -->
+<div class="w-64 border-r border-white/5 p-md flex flex-col gap-sm bg-surface-container-low/30 hidden md:flex">
+<div class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest mb-xs text-[10px]">Workspaces</div>
+<div class="flex items-center gap-sm p-xs rounded-md bg-surface-variant/30 text-on-surface">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+<span class="font-body-md text-body-md">Engineering Core</span>
+</div>
+<div class="flex items-center gap-sm p-xs rounded-md text-on-surface-variant hover:bg-surface-variant/20 transition-colors">
+<span class="material-symbols-outlined text-[18px]">design_services</span>
+<span class="font-body-md text-body-md">Design System</span>
+</div>
+</div>
+<!-- Main Content -->
+<div class="flex-1 p-lg bg-surface/20 flex flex-col gap-md">
+<div class="flex justify-between items-center mb-md border-b border-white/5 pb-md">
+<div class="flex items-center gap-md">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Active Sprint</h3>
+<div class="px-sm py-xs bg-surface-variant/50 rounded text-on-surface-variant font-code-sm text-[11px]">4 issues</div>
+</div>
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full bg-surface-variant border-2 border-background flex items-center justify-center relative">
+<span class="material-symbols-outlined text-[16px] text-on-surface">person</span>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary border border-background"></span>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant border-2 border-background flex items-center justify-center relative">
+<span class="material-symbols-outlined text-[16px] text-on-surface">person_2</span>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary border border-background"></span>
+</div>
+</div>
+</div>
+<!-- Task List -->
+<div class="flex flex-col gap-xs">
+<div class="flex items-center gap-md p-sm rounded-lg hover:bg-surface-variant/20 group transition-colors border border-transparent hover:border-white/5">
+<span class="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant w-16">ENG-142</span>
+<span class="font-body-md text-body-md text-on-surface flex-1 line-through opacity-50">Implement SSE for real-time presence</span>
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[14px]">more_horiz</span>
+</div>
+</div>
+<div class="flex items-center gap-md p-sm rounded-lg bg-surface-variant/20 border border-white/5 relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">radio_button_unchecked</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant w-16">ENG-143</span>
+<span class="font-body-md text-body-md text-on-surface flex-1">Optimize Redis cache hit ratio for dashboard</span>
+<div class="flex items-center gap-xs px-xs py-[2px] rounded bg-tertiary-container/10 text-tertiary border border-tertiary/20">
+<span class="material-symbols-outlined text-[12px]">keyboard_double_arrow_up</span>
+<span class="font-label-md text-[10px]">High</span>
+</div>
+</div>
+<div class="flex items-center gap-md p-sm rounded-lg hover:bg-surface-variant/20 group transition-colors border border-transparent hover:border-white/5">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">radio_button_unchecked</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant w-16">ENG-144</span>
+<span class="font-body-md text-body-md text-on-surface flex-1">Design System: Glassmorphism tokens</span>
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[14px]">more_horiz</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Tech Stack Strip -->
+<div class="border-y border-white/5 py-lg bg-surface-container-lowest overflow-hidden">
+<div class="flex justify-center gap-margin text-on-surface-variant/60 font-code-sm text-code-sm uppercase tracking-widest px-margin">
+<span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">bolt</span> Next.js</span>
+<span class="hidden sm:flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">database</span> Redis</span>
+<span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">sync</span> Server-Sent Events</span>
+<span class="hidden md:flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">code</span> TypeScript</span>
+<span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">rocket_launch</span> Vistualized</span>
+</div>
+</div>
+<!-- Features Section -->
+<section class="py-xl px-margin max-w-7xl mx-auto">
+<div class="mb-xl text-center">
+<h2 class="font-headline-md text-headline-md font-bold mb-sm text-on-surface">Architecture of Speed</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl mx-auto">We abandoned traditional polling. Saathi uses persistent connections to deliver UI updates faster than human perception.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Feature 1 -->
+<div class="glass-panel p-lg rounded-xl flex flex-col gap-sm group hover:border-primary/30 transition-colors">
+<div class="w-10 h-10 rounded-lg bg-surface-variant border border-white/10 flex items-center justify-center text-primary mb-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">speed</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Real-time UI via SSE</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Server-Sent Events push updates to the client the millisecond a mutation occurs. No loaders, no stale data.</p>
+</div>
+<!-- Feature 2 -->
+<div class="glass-panel p-lg rounded-xl flex flex-col gap-sm group hover:border-primary/30 transition-colors">
+<div class="w-10 h-10 rounded-lg bg-surface-variant border border-white/10 flex items-center justify-center text-primary mb-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">memory</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Redis Event Bus</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">All workspace actions are routed through an in-memory datastore, ensuring distributed synchronization across global teams.</p>
+</div>
+<!-- Feature 3 -->
+<div class="glass-panel p-lg rounded-xl flex flex-col gap-sm group hover:border-primary/30 transition-colors md:col-span-2 lg:col-span-1">
+<div class="w-10 h-10 rounded-lg bg-surface-variant border border-white/10 flex items-center justify-center text-primary mb-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group_work</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Live Presence</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">See exactly which issue your teammates are viewing or editing in real-time. Avoid merge conflicts before they happen.</p>
+</div>
+<!-- Feature 4 -->
+<div class="glass-panel p-lg rounded-xl flex flex-col gap-sm group hover:border-primary/30 transition-colors md:col-span-2 lg:col-span-1">
+<div class="w-10 h-10 rounded-lg bg-surface-variant border border-white/10 flex items-center justify-center text-primary mb-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">keyboard</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Command Driven</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Navigate the entire application without touching your mouse. The universal command palette (CMD+K) handles routing, creation, and search.</p>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="w-full py-lg px-margin flex flex-col md:flex-row justify-between items-center gap-md bg-surface-container-lowest dark:bg-surface-container-lowest border-t border-white/5">
+<div class="font-body-md text-body-md text-on-surface font-semibold tracking-tight">
+            Saathi
+        </div>
+<div class="flex gap-lg font-label-md text-label-md">
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Status</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
+</div>
+<div class="font-label-md text-label-md text-on-surface-variant">
+            © 2024 Saathi Precision. All rights reserved.
+        </div>
+</footer>
+</body></html>

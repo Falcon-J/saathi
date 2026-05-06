@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Project Board - Active Drag State</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error": "#690005",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#3c4a42",
+                      "surface-container-lowest": "#0d0e15",
+                      "inverse-primary": "#006c49",
+                      "on-secondary": "#313032",
+                      "on-surface-variant": "#bbcabf",
+                      "on-surface": "#e3e1ec",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "on-primary-fixed": "#002113",
+                      "tertiary-container": "#fc7c78",
+                      "on-primary-container": "#00422b",
+                      "secondary": "#c8c6c8",
+                      "on-background": "#e3e1ec",
+                      "secondary-fixed": "#e5e1e4",
+                      "surface-dim": "#12131a",
+                      "on-tertiary": "#650911",
+                      "error": "#ffb4ab",
+                      "surface-variant": "#33343c",
+                      "primary-fixed": "#6ffbbe",
+                      "error-container": "#93000a",
+                      "surface-container-highest": "#33343c",
+                      "primary-container": "#10b981",
+                      "on-primary-fixed-variant": "#005236",
+                      "outline": "#86948a",
+                      "primary-fixed-dim": "#4edea3",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "surface-bright": "#383941",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "primary": "#4edea3",
+                      "surface-tint": "#4edea3",
+                      "secondary-container": "#474649",
+                      "on-secondary-fixed-variant": "#474649",
+                      "background": "#12131a",
+                      "inverse-surface": "#e3e1ec",
+                      "on-secondary-container": "#b7b4b7",
+                      "on-tertiary-fixed": "#410005",
+                      "on-tertiary-container": "#711419",
+                      "tertiary": "#ffb3af",
+                      "surface-container-low": "#1a1b22",
+                      "on-primary": "#003824",
+                      "inverse-on-surface": "#2f3038",
+                      "surface-container-high": "#292931",
+                      "surface": "#12131a",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-container": "#1e1f26"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "40px",
+                      "sm": "8px",
+                      "unit": "4px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "margin": "32px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "code-sm": ["Inter"],
+                      "body-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "code-sm": ["13px", {"lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        /* Utilities for hiding scrollbars while allowing scroll */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Glassmorphism ambient glow for dragged card */
+        .drag-glow {
+            box-shadow: 0 30px 60px rgba(0,0,0,0.7), 0 0 40px rgba(78, 222, 163, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md antialiased h-screen w-screen overflow-hidden flex selection:bg-primary/30 selection:text-primary-fixed">
+<!-- SideNavBar Component -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-md z-40 w-64 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 border-r border-white/10 dark:border-white/10">
+<!-- Header -->
+<div class="flex items-center gap-md mb-xl px-sm">
+<img alt="User Workspace" class="w-10 h-10 rounded-lg object-cover border border-white/10" data-alt="A highly detailed, professional avatar showing a stylized, abstract geometric representation of a user profile in a dark minimalist interface. The image features sharp, clean edges with subtle emerald green highlights against a deep charcoal background, exuding a sense of advanced technology and high-performance workflow." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface tracking-tight">Saathi Workspace</span>
+<span class="font-label-md text-label-md text-on-surface-variant opacity-80">High Performance Team</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-md px-sm py-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-lg font-label-md text-label-md transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-on-surface transition-colors">grid_view</span>
+<span>Workspaces</span>
+</a>
+<!-- Active State: Projects -->
+<a class="flex items-center gap-md px-sm py-2 bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md scale-95 transition-transform origin-left" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="font-semibold">Projects</span>
+</a>
+<a class="flex items-center gap-md px-sm py-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-lg font-label-md text-label-md transition-all group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-on-surface transition-colors">assignment_ind</span>
+<span>Assigned to me</span>
+</a>
+</div>
+<!-- Bottom Settings Link -->
+<div class="mt-auto border-t border-white/5 pt-sm">
+<a class="flex items-center gap-md px-sm py-2 text-on-surface-variant hover:text-on-surface transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="ml-64 flex-1 flex flex-col h-full relative">
+<!-- TopAppBar Component -->
+<header class="bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10 flex justify-between items-center w-full px-lg py-sm sticky top-0 z-30">
+<!-- Search Bar (on_left as per JSON) -->
+<div class="flex items-center">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px] group-focus-within:text-primary transition-colors">search</span>
+<input class="bg-surface-container-high/50 border border-white/5 rounded-lg pl-10 pr-4 py-1.5 w-80 font-code-sm text-code-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all backdrop-blur-sm" placeholder="Search tasks, docs, commands..." type="text"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 border border-white/10 rounded px-1.5 py-0.5 bg-surface-container-highest">
+<span class="font-code-sm text-[10px] text-on-surface-variant">CMD K</span>
+</div>
+</div>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-md">
+<div class="flex items-center gap-sm mr-4">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-all hover:text-on-surface focus:ring-2 focus:ring-primary/50 outline-none relative">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border border-surface"></span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-all hover:text-on-surface focus:ring-2 focus:ring-primary/50 outline-none">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+</button>
+</div>
+<button class="bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 px-4 py-1.5 rounded-lg font-label-md text-label-md transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">person_add</span> Invite
+                </button>
+</div>
+</header>
+<!-- Board Canvas -->
+<main class="flex-1 overflow-x-auto overflow-y-hidden p-margin flex gap-lg bg-[#0d0e15] relative isolate scrollbar-hide">
+<!-- Column: Backlog -->
+<section class="w-[340px] flex-shrink-0 flex flex-col gap-md h-full">
+<!-- Column Header -->
+<div class="flex justify-between items-center px-sm">
+<div class="flex items-center gap-sm">
+<h2 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-[0.05em]">Backlog</h2>
+<span class="bg-surface-container-high text-on-surface-variant font-code-sm text-[11px] px-2 py-0.5 rounded-full border border-white/5">5</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-variant/30">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<!-- Column Cards -->
+<div class="flex-1 overflow-y-auto flex flex-col gap-sm pb-xl scrollbar-hide">
+<!-- Standard Card -->
+<div class="bg-surface-container/50 backdrop-blur-sm border border-white/5 rounded-xl p-md flex flex-col gap-sm hover:border-white/10 transition-colors cursor-grab group">
+<div class="flex gap-2">
+<span class="bg-surface-container-highest text-on-surface-variant border border-white/5 font-code-sm text-[11px] px-2 py-0.5 rounded">Q3 Goals</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Design System Token Audit</h3>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 text-[13px]">Review all naming conventions in the JSON against the Figma file to ensure strict alignment.</p>
+<div class="mt-2 pt-3 border-t border-white/5 flex justify-between items-center">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border-2 border-[#12131a] object-cover" data-alt="A macro shot of a complex, glowing emerald green digital circuit board pattern on a dark background. The intricate lines and nodes represent high-performance data processing and task connectivity within a professional dark mode interface." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+</div>
+<div class="flex items-center gap-3 text-on-surface-variant">
+<div class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">chat_bubble</span><span class="font-code-sm text-[11px]">3</span></div>
+</div>
+</div>
+</div>
+<!-- Card with Image Attachment -->
+<div class="bg-surface-container/50 backdrop-blur-sm border border-white/5 rounded-xl p-md flex flex-col gap-sm hover:border-white/10 transition-colors cursor-grab group">
+<img class="w-full h-32 object-cover rounded-lg border border-white/5 mb-1" data-alt="A sleek, minimalist digital illustration showing stacked translucent glass panels with glowing emerald edges floating in a dark void. The image is rendered with high fidelity, emphasizing the glassmorphic aesthetic and calm control intended for a power-user productivity tool." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Update Hero Illustrations</h3>
+<div class="mt-2 pt-3 border-t border-white/5 flex justify-between items-center">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border-2 border-[#12131a] object-cover" data-alt="A detailed headshot avatar placeholder featuring abstract dark geometric shapes illuminated by soft, ambient green light, suitable for a professional high-tech dashboard user profile." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<div class="w-6 h-6 rounded-full border-2 border-[#12131a] bg-surface-container-highest flex items-center justify-center text-[10px] text-on-surface font-label-md">+2</div>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">attachment</span><span class="font-code-sm text-[11px]">1</span></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Column: In Progress (Target Drop Area) -->
+<section class="w-[340px] flex-shrink-0 flex flex-col gap-md h-full relative">
+<!-- Column Header -->
+<div class="flex justify-between items-center px-sm">
+<div class="flex items-center gap-sm">
+<div class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</div>
+<h2 class="font-label-md text-label-md text-primary uppercase tracking-[0.05em]">In Progress</h2>
+<span class="bg-primary/10 text-primary font-code-sm text-[11px] px-2 py-0.5 rounded-full border border-primary/20">2</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-variant/30">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+<!-- Column Content Area -->
+<div class="flex-1 flex flex-col gap-sm pb-xl relative">
+<!-- THE DROP ZONE (Target Placeholder) -->
+<div class="h-40 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2 transition-all duration-200">
+<span class="material-symbols-outlined text-primary/60 text-[24px]">move_down</span>
+<span class="font-label-md text-label-md text-primary/60">Drop card here</span>
+</div>
+<!-- Existing Card in Column -->
+<div class="bg-surface-container/50 backdrop-blur-sm border border-white/5 rounded-xl p-md flex flex-col gap-sm opacity-60 pointer-events-none">
+<div class="flex gap-2">
+<span class="bg-tertiary-container/10 text-tertiary border border-tertiary/20 font-code-sm text-[11px] px-2 py-0.5 rounded">Engineering</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">API Integration Layer</h3>
+<div class="mt-2 pt-3 border-t border-white/5 flex justify-between items-center">
+<img class="w-6 h-6 rounded-full border-2 border-[#12131a] object-cover" data-alt="A stylized, dark and moody macro shot of network cables intertwined, glowing with subtle emerald light, representing complex engineering tasks on a kanban board." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Column: Review -->
+<section class="w-[340px] flex-shrink-0 flex flex-col gap-md h-full opacity-50">
+<!-- Column Header -->
+<div class="flex items-center gap-sm px-sm">
+<h2 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-[0.05em]">In Review</h2>
+<span class="bg-surface-container-high text-on-surface-variant font-code-sm text-[11px] px-2 py-0.5 rounded-full border border-white/5">0</span>
+</div>
+<div class="flex-1 border border-dashed border-white/5 rounded-xl bg-surface-container-lowest/50 flex items-center justify-center">
+<span class="font-label-md text-label-md text-on-surface-variant/50">No tasks in review</span>
+</div>
+</section>
+</main>
+<!-- THE DRAGGED CARD (Absolute positioned, lifted, rotated) -->
+<!-- Placed over the gap between Backlog and In Progress to simulate active dragging -->
+<div class="absolute left-[300px] top-[180px] w-[340px] bg-surface-container-high border border-primary/40 rounded-xl p-md flex flex-col gap-sm cursor-grabbing z-50 transform rotate-[4deg] scale-[1.03] drag-glow backdrop-blur-md transition-transform duration-75 pointer-events-none">
+<div class="flex justify-between items-start">
+<div class="flex gap-2 mb-1">
+<span class="bg-error-container/20 text-error border border-error/20 font-code-sm text-[11px] px-2 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">priority_high</span> High Priority
+                    </span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/50 cursor-grab">drag_indicator</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Refactor State Management</h3>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 text-[13px] leading-relaxed">Migrate the current rigid context setup to a more robust state machine logic to handle complex drag-and-drop interactions across the main board.</p>
+<!-- Progress Bar inside card -->
+<div class="mt-2 flex flex-col gap-1.5">
+<div class="flex justify-between font-code-sm text-[10px] text-on-surface-variant">
+<span>Progress</span>
+<span>30%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[30%] rounded-full"></div>
+</div>
+</div>
+<div class="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border-2 border-surface-container-high object-cover shadow-sm" data-alt="A dark, high-contrast avatar image depicting abstract nodes and connections, perfectly suited for representing an engineering lead in a sleek project management interface." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+</div>
+<div class="flex items-center gap-3 text-on-surface-variant">
+<div class="flex items-center gap-1 text-primary"><span class="material-symbols-outlined text-[14px]">check_circle</span><span class="font-code-sm text-[11px]">2/5</span></div>
+<div class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">format_list_bulleted</span></div>
+</div>
+</div>
+<!-- Visual Drag Indicator underneath cursor (simulated) -->
+<div class="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-primary/20 animate-pulse border border-primary/50 flex items-center justify-center">
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+</div>
+</div>
+</div>
+</body></html>

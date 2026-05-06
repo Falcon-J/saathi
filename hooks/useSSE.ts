@@ -12,8 +12,6 @@ export function useSSE(url: string, options?: {
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const eventSourceRef = useRef<EventSource | null>(null)
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const reconnectInterval = options?.reconnectInterval || 3000
 
     const connect = () => {
         try {
@@ -46,16 +44,6 @@ export function useSSE(url: string, options?: {
                 setIsConnected(false)
                 setError('Connection lost')
                 options?.onError?.(event)
-
-                // Attempt to reconnect after a delay
-                if (reconnectTimeoutRef.current) {
-                    clearTimeout(reconnectTimeoutRef.current)
-                }
-
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    console.log('Attempting to reconnect SSE...')
-                    connect()
-                }, reconnectInterval)
             }
 
         } catch (err) {
@@ -68,11 +56,6 @@ export function useSSE(url: string, options?: {
         if (eventSourceRef.current) {
             eventSourceRef.current.close()
             eventSourceRef.current = null
-        }
-
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current)
-            reconnectTimeoutRef.current = null
         }
 
         setIsConnected(false)

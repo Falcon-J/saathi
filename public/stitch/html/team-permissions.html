@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Team Members</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#ffdad6",
+                        "on-surface": "#e3e1ec",
+                        "on-primary-fixed": "#002113",
+                        "tertiary-container": "#fc7c78",
+                        "background": "#12131a",
+                        "on-secondary": "#313032",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "surface-container-highest": "#33343c",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-bright": "#383941",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "surface-dim": "#12131a",
+                        "on-primary-container": "#00422b",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "surface": "#12131a",
+                        "inverse-primary": "#006c49",
+                        "surface-container-lowest": "#0d0e15",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "tertiary": "#ffb3af",
+                        "inverse-on-surface": "#2f3038",
+                        "surface-variant": "#33343c",
+                        "on-primary": "#003824",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#650911",
+                        "on-tertiary-fixed": "#410005",
+                        "surface-container": "#1e1f26",
+                        "on-secondary-fixed-variant": "#474649",
+                        "primary-container": "#10b981",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "inverse-surface": "#e3e1ec",
+                        "secondary": "#c8c6c8",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#bbcabf",
+                        "outline": "#86948a",
+                        "surface-tint": "#4edea3",
+                        "outline-variant": "#3c4a42",
+                        "primary-fixed-dim": "#4edea3",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-background": "#e3e1ec",
+                        "secondary-container": "#474649",
+                        "surface-container-low": "#1a1b22",
+                        "primary": "#4edea3",
+                        "on-primary-fixed-variant": "#005236",
+                        "surface-container-high": "#292931"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "margin": "32px",
+                        "xl": "40px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen flex selection:bg-primary/30 selection:text-primary">
+<!-- SideNavBar Component -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-md z-40 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 border-r border-white/10 dark:border-white/10 w-64">
+<!-- Header -->
+<div class="flex items-center gap-md px-sm py-md mb-lg">
+<div class="w-8 h-8 rounded bg-primary-container/20 border border-primary/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">workspaces</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi Workspace</h2>
+<p class="font-label-md text-label-md text-on-surface-variant">High Performance Team</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-md px-sm py-sm font-label-md text-label-md bg-primary-container text-on-primary-container rounded-lg scale-95 transition-transform group" href="#">
+<span class="material-symbols-outlined text-on-primary-container group-hover:text-primary transition-colors duration-200">grid_view</span>
+                Workspaces
+            </a>
+<a class="flex items-center gap-md px-sm py-sm font-label-md text-label-md text-on-surface-variant hover:bg-surface-variant/50 rounded-lg hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors duration-200">account_tree</span>
+                Projects
+            </a>
+<a class="flex items-center gap-md px-sm py-sm font-label-md text-label-md text-on-surface-variant hover:bg-surface-variant/50 rounded-lg hover:text-primary transition-all group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors duration-200">assignment_ind</span>
+                Assigned to me
+            </a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="ml-64 flex-1 flex flex-col min-h-screen">
+<!-- TopAppBar Component -->
+<header class="flex justify-between items-center w-full px-lg py-sm bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10 sticky top-0 z-30">
+<!-- Search Bar (on_left) Placeholder to match structure -->
+<div class="flex-1"></div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant/30 rounded-full p-2 transition-colors duration-200 focus:ring-2 focus:ring-primary/50 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant/30 rounded-full p-2 transition-colors duration-200 focus:ring-2 focus:ring-primary/50 transition-all">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="ml-sm bg-primary hover:bg-surface-tint text-on-primary font-label-md text-label-md px-lg py-2 rounded-lg transition-colors focus:ring-2 focus:ring-primary/50 focus:outline-none flex items-center gap-sm">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+                    Invite
+                </button>
+</div>
+</header>
+<!-- Page Content Canvas -->
+<main class="flex-1 px-margin py-xl overflow-y-auto">
+<div class="max-w-5xl mx-auto w-full">
+<!-- Page Header & Command Palette -->
+<div class="mb-xl">
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight mb-xs">Team Members</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-lg max-w-2xl">Manage workspace access, assign roles, and view active collaborators in real-time.</p>
+<div class="relative w-full max-w-2xl group">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container-low/50 border border-white/10 rounded-xl py-md pl-xl pr-margin text-on-surface font-body-md text-body-md focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:outline-none backdrop-blur-md transition-all placeholder:text-on-surface-variant/50" placeholder="Find members by name, role, or email..." type="text"/>
+<div class="absolute right-md top-1/2 -translate-y-1/2 flex items-center gap-xs pointer-events-none">
+<span class="px-2 py-1 bg-surface-variant/50 border border-white/5 rounded text-on-surface-variant font-code-sm text-code-sm">⌘</span>
+<span class="px-2 py-1 bg-surface-variant/50 border border-white/5 rounded text-on-surface-variant font-code-sm text-code-sm">K</span>
+</div>
+</div>
+</div>
+<!-- Members List Container -->
+<div class="bg-surface-container-lowest rounded-xl border border-white/5 overflow-hidden">
+<!-- Table Header -->
+<div class="grid grid-cols-12 gap-sm px-lg py-md border-b border-white/5 bg-surface-container-low/30">
+<div class="col-span-5 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Member</div>
+<div class="col-span-3 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Role</div>
+<div class="col-span-3 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</div>
+<div class="col-span-1 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Actions</div>
+</div>
+<!-- Member Row 1 (Online) -->
+<div class="grid grid-cols-12 gap-sm items-center px-lg py-md border-b border-white/5 hover:bg-surface-container-high/20 transition-colors group">
+<div class="col-span-5 flex items-center gap-md">
+<div class="relative">
+<img alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-white/10" data-alt="A professional headshot of a young male software engineer in a modern, dark-themed office environment. The lighting is cinematic, casting subtle blue and green highlights that reflect a high-tech, minimalist aesthetic. He is wearing a simple black t-shirt, looking directly at the camera with a calm, confident expression. The background is a soft-focus blur of sleek office furniture and subtle glowing screens, perfectly matching a premium, dark mode UI atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUMT_D34pX3lfejgc0LsR8UJzzERudxNJu1xsy3v-yqBv8HNMoa25sFgAi51MilKKCdXmRyHG0vKk_HDWe_YWSvVdsihcrevBxFdR1n98lyxja9t6mY9uIqzpYUG23ddi2hW_FqjlCeMaBhFrYsjVK47z5b5lkh5n1KAEbp8Hfnuu88aDCQ13mSQk_KGxpYDeApA4Ws3M6RekeTB8gWpwyBBnCVxE1TuXGLCYkW9eTnDLS8b72TsbRsfImcMipue64A4z08CpKTypX"/>
+<span class="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary border-2 border-surface-container-lowest"></span>
+</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface">Alex Rivera</div>
+<div class="font-body-md text-body-md text-on-surface-variant">alex@saathi.io</div>
+</div>
+</div>
+<div class="col-span-3">
+<button class="flex items-center justify-between w-32 px-3 py-1.5 rounded-lg border border-white/10 bg-surface-container-low text-on-surface font-label-md text-label-md hover:bg-surface-variant/80 transition-colors">
+                                Admin
+                                <span class="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<div class="col-span-3">
+<span class="inline-flex items-center gap-xs px-2.5 py-1 rounded-full bg-primary-container/10 border border-primary/20 text-primary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Online
+                            </span>
+</div>
+<div class="col-span-1 flex justify-end">
+<button class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-md hover:bg-surface-variant/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Member Row 2 (Offline) -->
+<div class="grid grid-cols-12 gap-sm items-center px-lg py-md border-b border-white/5 hover:bg-surface-container-high/20 transition-colors group">
+<div class="col-span-5 flex items-center gap-md">
+<div class="relative">
+<img alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-white/10 grayscale opacity-80" data-alt="A high-quality portrait of a female product manager working in a sophisticated, minimalist tech space. She has short dark hair and wears a sharp, tailored charcoal blazer. The ambient light is cool and deliberate, creating a sleek, professional mood. The background features subtle geometric architectural elements and deep shadow tones that blend seamlessly with a dark mode software interface. Her expression is focused and approachable." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdplhvIi7WjFCTmRp9UfU5lq9ULOJt3YAVFAs_4TSZOih1_RPvhRXjiqpJL63Nvx_AMIEFL6tHTTz0WtU3yWGfMUhbZvoHLR3XKyvSMyR0o9d8UGk7L-foglfJLeMd2IcgnXwpv-KGNYH5SpKuL1WE27ACMPkf0wFZUWonsvDDgZP3kyYKRrfgyzDEYJma-OLZPLO0cqJwXagjgVvlgv-SjMe0GZHlCBqQJ6ZT9JL4StgOB7aMNLSPeo9R-_lpxHaXlOFgeAzhnI2M"/>
+<span class="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
+<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-surface-variant border-2 border-surface-container-lowest"></span>
+</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface">Sarah Chen</div>
+<div class="font-body-md text-body-md text-on-surface-variant">sarah@saathi.io</div>
+</div>
+</div>
+<div class="col-span-3">
+<button class="flex items-center justify-between w-32 px-3 py-1.5 rounded-lg border border-white/10 bg-transparent hover:bg-surface-container-low text-on-surface font-label-md text-label-md transition-colors">
+                                Member
+                                <span class="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<div class="col-span-3">
+<span class="inline-flex items-center gap-xs px-2.5 py-1 rounded-full bg-surface-variant/30 text-on-surface-variant font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/50"></span> Offline
+                            </span>
+</div>
+<div class="col-span-1 flex justify-end">
+<button class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-md hover:bg-surface-variant/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Member Row 3 (Online) -->
+<div class="grid grid-cols-12 gap-sm items-center px-lg py-md hover:bg-surface-container-high/20 transition-colors group">
+<div class="col-span-5 flex items-center gap-md">
+<div class="relative">
+<img alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-white/10" data-alt="An elegant, contemporary photograph of a senior UX designer in a modern studio setting. He has a neat beard and glasses, wearing a minimalist gray mock-neck sweater. The scene is lit with soft, diffused studio lighting that emphasizes crisp details against a deeply dark, moody background. Subtle structural lines and muted ambient light in the out-of-focus background suggest a highly organized, premium creative workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOzY1fFPoF99Q-8P5qFp5-XTXntab1l27mCJxK-P5QAVoCNjcmdIpC_HO2d3F9_HfPcqsUnj9zQbVJlphQx-FftY84WitcTosMfOnlLWLQUoR4GYxQgvpmFbn5yLLqbNnY3jNEzCLU4kQWREt4ku6lz1CE5Ism8Bsvyd2dT92Bu7F2VdVBxjD6H-JSZcGxvsFLeriKdbvLhGlMDxwKwIJepLG91DficGmonelflLCq-YGw0JpEkW5yEMFPp06AnUgl5gqMXyE6vL1z"/>
+<span class="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary border-2 border-surface-container-lowest"></span>
+</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface">Marcus Vance</div>
+<div class="font-body-md text-body-md text-on-surface-variant">marcus@saathi.io</div>
+</div>
+</div>
+<div class="col-span-3">
+<button class="flex items-center justify-between w-32 px-3 py-1.5 rounded-lg border border-white/10 bg-transparent hover:bg-surface-container-low text-on-surface font-label-md text-label-md transition-colors">
+                                Guest
+                                <span class="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<div class="col-span-3">
+<span class="inline-flex items-center gap-xs px-2.5 py-1 rounded-full bg-primary-container/10 border border-primary/20 text-primary font-label-md text-label-md">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Online
+                            </span>
+</div>
+<div class="col-span-1 flex justify-end">
+<button class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-md hover:bg-surface-variant/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

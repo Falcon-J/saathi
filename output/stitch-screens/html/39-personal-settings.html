@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Member Profile &amp; Personal Security</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary-fixed": "#002113",
+                "inverse-surface": "#e3e1ec",
+                "background": "#12131a",
+                "on-secondary-fixed-variant": "#474649",
+                "surface-container": "#1e1f26",
+                "outline": "#86948a",
+                "on-error-container": "#ffdad6",
+                "primary-container": "#10b981",
+                "tertiary-container": "#fc7c78",
+                "on-surface-variant": "#bbcabf",
+                "on-secondary-fixed": "#1c1b1d",
+                "outline-variant": "#3c4a42",
+                "on-tertiary-container": "#711419",
+                "secondary": "#c8c6c8",
+                "error-container": "#93000a",
+                "surface-bright": "#383941",
+                "on-secondary-container": "#b7b4b7",
+                "surface-container-lowest": "#0d0e15",
+                "tertiary-fixed-dim": "#ffb3af",
+                "on-tertiary-fixed-variant": "#842225",
+                "surface-tint": "#4edea3",
+                "secondary-fixed": "#e5e1e4",
+                "secondary-container": "#474649",
+                "primary": "#4edea3",
+                "error": "#ffb4ab",
+                "surface-container-highest": "#33343c",
+                "on-surface": "#e3e1ec",
+                "on-background": "#e3e1ec",
+                "surface": "#12131a",
+                "on-tertiary": "#650911",
+                "on-primary": "#003824",
+                "inverse-primary": "#006c49",
+                "tertiary-fixed": "#ffdad7",
+                "inverse-on-surface": "#2f3038",
+                "primary-fixed-dim": "#4edea3",
+                "surface-container-high": "#292931",
+                "surface-dim": "#12131a",
+                "primary-fixed": "#6ffbbe",
+                "on-primary-container": "#00422b",
+                "surface-container-low": "#1a1b22",
+                "secondary-fixed-dim": "#c8c6c8",
+                "on-primary-fixed-variant": "#005236",
+                "tertiary": "#ffb3af",
+                "surface-variant": "#33343c",
+                "on-tertiary-fixed": "#410005",
+                "on-secondary": "#313032",
+                "on-error": "#690005"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "xl": "40px",
+                "gutter": "24px",
+                "unit": "4px",
+                "margin": "32px",
+                "md": "16px",
+                "xs": "4px",
+                "sm": "8px",
+                "lg": "24px",
+                "container-max": "1440px"
+        },
+        "fontFamily": {
+                "body-md": [
+                        "Inter"
+                ],
+                "headline-md": [
+                        "Inter"
+                ],
+                "display-lg": [
+                        "Inter"
+                ],
+                "label-md": [
+                        "Inter"
+                ],
+                "body-lg": [
+                        "Inter"
+                ],
+                "code-sm": [
+                        "Inter"
+                ],
+                "headline-sm": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "1.5",
+                                "letterSpacing": "0em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "1.3",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display-lg": [
+                        "48px",
+                        {
+                                "lineHeight": "1.1",
+                                "letterSpacing": "-0.04em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "label-md": [
+                        "12px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "0.02em",
+                                "fontWeight": "500"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "1.6",
+                                "letterSpacing": "0em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "code-sm": [
+                        "13px",
+                        {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "0em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-sm": [
+                        "18px",
+                        {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+        }
+        /* Custom scrollbar for dark tech theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: theme('colors.surface-container-lowest'); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.surface-variant'); 
+            border-radius: theme('borderRadius.full');
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.outline-variant'); 
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col md:flex-row font-body-lg text-body-lg">
+<!-- TopAppBar (Mobile Only - As per Responsive Pivot rule, side nav handles web) -->
+<header class="md:hidden flex items-center justify-between px-md py-sm w-full bg-surface/80 dark:bg-surface/80 backdrop-blur-xl fixed top-0 z-50 border-b border-outline-variant">
+<div class="flex items-center gap-sm">
+<span class="font-headline-sm text-headline-sm font-bold text-primary">InfraCore</span>
+</div>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-70" data-icon="terminal">terminal</span>
+<span class="material-symbols-outlined text-primary font-bold cursor-pointer active:opacity-70" data-icon="settings">settings</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-70" data-icon="notifications">notifications</span>
+</div>
+</header>
+<!-- SideNavBar (Web Only) -->
+<nav class="hidden md:flex flex-col h-full p-md gap-sm bg-surface-container-low dark:bg-surface-container-low backdrop-blur-lg fixed left-0 top-0 w-64 z-40 border-r border-outline-variant">
+<div class="mb-lg flex items-center gap-sm">
+<img alt="Organization Logo" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="A highly detailed, professional organization logo featuring abstract geometric shapes in deep green tones (#059669, #10B981) against a dark high-performance tech background. The logo signifies connectivity and secure enterprise cloud infrastructure. Lighting is subtle and precise, highlighting the sharp edges of the geometry. The overall mood is authoritative and secure." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface font-bold">Enterprise Cloud</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant">Prod Environment</div>
+</div>
+</div>
+<button class="w-full py-sm px-md mb-md bg-primary-container text-on-primary-container font-label-md text-label-md rounded-lg hover:shadow-[0_0_10px_theme('colors.primary-container')] transition-all duration-200 ease-in-out border border-transparent">
+<div class="flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Resource
+            </div>
+</button>
+<div class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-sm p-sm text-on-surface-variant hover:bg-surface-variant/50 hover:bg-surface-container-highest transition-all duration-200 ease-in-out rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+                Workspaces
+            </a>
+<a class="flex items-center gap-sm p-sm text-on-surface-variant hover:bg-surface-variant/50 hover:bg-surface-container-highest transition-all duration-200 ease-in-out rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="dns">dns</span>
+                Infrastructure
+            </a>
+<a class="flex items-center gap-sm p-sm text-on-surface-variant hover:bg-surface-variant/50 hover:bg-surface-container-highest transition-all duration-200 ease-in-out rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+                Audit Logs
+            </a>
+<!-- Active State: Permissions is closest match for Settings/Profile/Access -->
+<a class="flex items-center gap-sm p-sm bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="security" data-weight="fill" style="font-variation-settings: 'FILL' 1;">security</span>
+                Permissions
+            </a>
+<a class="flex items-center gap-sm p-sm text-on-surface-variant hover:bg-surface-variant/50 hover:bg-surface-container-highest transition-all duration-200 ease-in-out rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="api">api</span>
+                API Keys
+            </a>
+</div>
+<div class="mt-auto flex flex-col gap-xs pt-md border-t border-outline-variant">
+<a class="flex items-center gap-sm p-sm text-on-surface-variant hover:bg-surface-variant/50 hover:bg-surface-container-highest transition-all duration-200 ease-in-out rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+                Help
+            </a>
+<a class="flex items-center gap-sm p-sm text-on-surface-variant hover:bg-surface-variant/50 hover:bg-surface-container-highest transition-all duration-200 ease-in-out rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="check_circle">check_circle</span>
+                Status
+            </a>
+</div>
+</nav>
+<!-- Main Canvas -->
+<main class="flex-1 md:ml-64 mt-16 md:mt-0 p-lg md:p-xl max-w-[container-max] mx-auto w-full">
+<header class="mb-xl flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface mb-xs">Member Profile &amp; Security</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Manage your personal settings, API access, and security credentials.</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="px-md py-sm border border-outline-variant text-on-surface rounded-lg hover:border-primary hover:text-primary transition-all font-label-md text-label-md">View Activity Log</button>
+</div>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-md md:gap-lg auto-rows-min">
+<!-- Profile Info (Spans 4 columns) -->
+<div class="lg:col-span-4 flex flex-col gap-md">
+<div class="bg-surface-container border border-outline-variant rounded-lg p-lg hover:border-primary transition-colors h-full flex flex-col relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-surface-container-highest to-surface border-b border-outline-variant"></div>
+<div class="relative z-10 flex flex-col items-center text-center mt-8">
+<div class="relative">
+<img alt="User Avatar" class="w-24 h-24 rounded-full border-4 border-surface-container object-cover mb-md shadow-lg shadow-black/20" data-alt="A highly detailed portrait avatar of a software engineer, rendered in a professional, high-performance tech style. The subject is well-lit with crisp, high-contrast lighting against a dark slate background, giving a premium 'IDE dark mode' feel. Subtle blue and cyan rim lighting hints at the primary color palette of the application." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<div class="absolute bottom-4 right-0 w-4 h-4 bg-primary-container rounded-full border-2 border-surface-container animate-pulse"></div>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-unit">Alex Chen</h2>
+<div class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-sm py-xs rounded-lg border border-outline-variant mb-md">Senior DevOps Engineer</div>
+<div class="w-full flex flex-col gap-sm mt-md text-left">
+<div class="flex justify-between items-center py-sm border-b border-outline-variant/50">
+<span class="font-body-md text-body-md text-on-surface-variant">Email</span>
+<span class="font-code-sm text-code-sm text-on-surface">a.chen@infracore.io</span>
+</div>
+<div class="flex justify-between items-center py-sm border-b border-outline-variant/50">
+<span class="font-body-md text-body-md text-on-surface-variant">Role</span>
+<span class="font-label-md text-label-md text-on-surface bg-surface-container-highest px-xs py-unit rounded">Admin</span>
+</div>
+<div class="flex justify-between items-center py-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Last Login</span>
+<span class="font-code-sm text-code-sm text-on-surface">Just now (192.168.1.1)</span>
+</div>
+</div>
+<button class="mt-auto pt-md w-full text-primary hover:text-primary-fixed-dim transition-colors font-label-md text-label-md flex justify-center items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">edit</span> Edit Profile
+                        </button>
+</div>
+</div>
+</div>
+<!-- Main Settings Canvas (Spans 8 columns) -->
+<div class="lg:col-span-8 flex flex-col gap-md md:gap-lg">
+<!-- Personal Access Tokens -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-lg hover:border-outline transition-colors">
+<div class="flex justify-between items-start mb-md border-b border-outline-variant pb-sm">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">key</span>
+                                Personal Access Tokens
+                            </h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-unit">Generate tokens for CI/CD pipelines and API access.</p>
+</div>
+<button class="bg-surface-variant text-on-surface font-label-md text-label-md px-md py-sm rounded-lg border border-outline-variant hover:border-primary hover:text-primary transition-all flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">add</span> Generate New Token
+                        </button>
+</div>
+<div class="flex flex-col gap-unit">
+<!-- Token Item 1 -->
+<div class="flex flex-col md:flex-row md:items-center justify-between p-md bg-surface-container-highest/50 border border-outline-variant/50 rounded-lg hover:border-outline-variant transition-colors group">
+<div class="flex-1 mb-sm md:mb-0">
+<div class="flex items-center gap-sm mb-xs">
+<span class="font-label-md text-label-md text-on-surface font-bold">CLI Automation</span>
+<span class="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] uppercase font-code-sm tracking-wider">Active</span>
+</div>
+<div class="flex items-center gap-md font-code-sm text-code-sm text-on-surface-variant">
+<span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[14px]">event</span> Created: Oct 12, 2023</span>
+<span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[14px]">update</span> Expires: Never</span>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<span class="font-code-sm text-code-sm text-on-surface-variant bg-surface-container px-sm py-xs rounded border border-outline-variant/50">inf_pat_**********89a</span>
+<button class="text-on-surface-variant hover:text-error transition-colors p-sm" title="Revoke Token">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+<!-- Token Item 2 -->
+<div class="flex flex-col md:flex-row md:items-center justify-between p-md bg-surface-container-highest/50 border border-outline-variant/50 rounded-lg hover:border-outline-variant transition-colors group">
+<div class="flex-1 mb-sm md:mb-0">
+<div class="flex items-center gap-sm mb-xs">
+<span class="font-label-md text-label-md text-on-surface font-bold">GitHub Actions Prod Deployment</span>
+<span class="bg-error/10 text-error border border-error/20 px-2 py-0.5 rounded text-[10px] uppercase font-code-sm tracking-wider">Expires Soon</span>
+</div>
+<div class="flex items-center gap-md font-code-sm text-code-sm text-on-surface-variant">
+<span class="flex items-center gap-xs"><span class="material-symbols-outlined text-[14px]">event</span> Created: Nov 01, 2023</span>
+<span class="flex items-center gap-xs text-error"><span class="material-symbols-outlined text-[14px]">warning</span> Expires: In 3 Days</span>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<span class="font-code-sm text-code-sm text-on-surface-variant bg-surface-container px-sm py-xs rounded border border-outline-variant/50">inf_pat_**********42f</span>
+<button class="text-on-surface-variant hover:text-error transition-colors p-sm" title="Revoke Token">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 2 Column Split for Password & Notifications -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md md:gap-lg">
+<!-- Password Management -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-lg hover:border-outline transition-colors flex flex-col">
+<div class="flex items-center gap-sm mb-md border-b border-outline-variant pb-sm">
+<span class="material-symbols-outlined text-primary">password</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Password</h3>
+</div>
+<div class="flex flex-col gap-md flex-1">
+<div class="font-body-md text-body-md text-on-surface-variant">
+                                Last changed 45 days ago. We recommend updating your password every 90 days.
+                            </div>
+<form class="flex flex-col gap-sm mt-auto">
+<div>
+<label class="block font-code-sm text-code-sm text-on-surface-variant mb-unit">Current Password</label>
+<input class="w-full bg-surface-dim border-b border-outline-variant border-x-0 border-t-0 focus:border-primary focus:ring-0 text-on-surface font-code-sm py-sm px-0" type="password" value="••••••••••••"/>
+</div>
+<div>
+<label class="block font-code-sm text-code-sm text-on-surface-variant mb-unit mt-sm">New Password</label>
+<input class="w-full bg-surface-dim border-b border-outline-variant border-x-0 border-t-0 focus:border-primary focus:ring-0 text-on-surface font-code-sm py-sm px-0" placeholder="Enter new password" type="password"/>
+</div>
+<button class="mt-md bg-surface-variant text-on-surface font-label-md text-label-md py-sm rounded-lg border border-outline-variant hover:border-primary hover:text-primary transition-all w-full" type="button">
+                                    Update Password
+                                </button>
+</form>
+</div>
+</div>
+<!-- Notification Preferences -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-lg hover:border-outline transition-colors flex flex-col">
+<div class="flex items-center gap-sm mb-md border-b border-outline-variant pb-sm">
+<span class="material-symbols-outlined text-primary">notifications_active</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Notifications</h3>
+</div>
+<div class="flex flex-col gap-md flex-1">
+<label class="flex items-start gap-sm cursor-pointer group">
+<div class="relative flex items-center justify-center mt-1">
+<input checked="" class="peer sr-only" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-variant rounded-full border border-outline-variant peer-checked:bg-primary-container peer-checked:border-primary-container transition-colors"></div>
+<div class="absolute left-1 top-1 w-3 h-3 bg-on-surface-variant rounded-full peer-checked:translate-x-5 peer-checked:bg-on-primary-container transition-transform"></div>
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface group-hover:text-primary transition-colors">Security Alerts</div>
+<div class="font-body-md text-body-md text-on-surface-variant mt-unit">Immediate email on new logins or PAT generation.</div>
+</div>
+</label>
+<label class="flex items-start gap-sm cursor-pointer group">
+<div class="relative flex items-center justify-center mt-1">
+<input checked="" class="peer sr-only" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-variant rounded-full border border-outline-variant peer-checked:bg-primary-container peer-checked:border-primary-container transition-colors"></div>
+<div class="absolute left-1 top-1 w-3 h-3 bg-on-surface-variant rounded-full peer-checked:translate-x-5 peer-checked:bg-on-primary-container transition-transform"></div>
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface group-hover:text-primary transition-colors">Infrastructure Events</div>
+<div class="font-body-md text-body-md text-on-surface-variant mt-unit">Daily digest of workspace changes and deployments.</div>
+</div>
+</label>
+<label class="flex items-start gap-sm cursor-pointer group opacity-60">
+<div class="relative flex items-center justify-center mt-1">
+<input class="peer sr-only" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-variant rounded-full border border-outline-variant peer-checked:bg-primary-container peer-checked:border-primary-container transition-colors"></div>
+<div class="absolute left-1 top-1 w-3 h-3 bg-on-surface-variant rounded-full peer-checked:translate-x-5 peer-checked:bg-on-primary-container transition-transform"></div>
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface group-hover:text-primary transition-colors">Marketing &amp; News</div>
+<div class="font-body-md text-body-md text-on-surface-variant mt-unit">Product updates and newsletters.</div>
+</div>
+</label>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

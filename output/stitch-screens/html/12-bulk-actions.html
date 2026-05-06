@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Project Board Bulk Action</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error": "#690005",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#3c4a42",
+                      "surface-container-lowest": "#0d0e15",
+                      "inverse-primary": "#006c49",
+                      "on-secondary": "#313032",
+                      "on-surface-variant": "#bbcabf",
+                      "on-surface": "#e3e1ec",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "on-primary-fixed": "#002113",
+                      "tertiary-container": "#fc7c78",
+                      "on-primary-container": "#00422b",
+                      "secondary": "#c8c6c8",
+                      "on-background": "#e3e1ec",
+                      "secondary-fixed": "#e5e1e4",
+                      "surface-dim": "#12131a",
+                      "on-tertiary": "#650911",
+                      "error": "#ffb4ab",
+                      "surface-variant": "#33343c",
+                      "primary-fixed": "#6ffbbe",
+                      "error-container": "#93000a",
+                      "surface-container-highest": "#33343c",
+                      "primary-container": "#10b981",
+                      "on-primary-fixed-variant": "#005236",
+                      "outline": "#86948a",
+                      "primary-fixed-dim": "#4edea3",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "surface-bright": "#383941",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "primary": "#4edea3",
+                      "surface-tint": "#4edea3",
+                      "secondary-container": "#474649",
+                      "on-secondary-fixed-variant": "#474649",
+                      "background": "#12131a",
+                      "inverse-surface": "#e3e1ec",
+                      "on-secondary-container": "#b7b4b7",
+                      "on-tertiary-fixed": "#410005",
+                      "on-tertiary-container": "#711419",
+                      "tertiary": "#ffb3af",
+                      "surface-container-low": "#1a1b22",
+                      "on-primary": "#003824",
+                      "inverse-on-surface": "#2f3038",
+                      "surface-container-high": "#292931",
+                      "surface": "#12131a",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-container": "#1e1f26"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "40px",
+                      "sm": "8px",
+                      "unit": "4px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "margin": "32px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "code-sm": ["Inter"],
+                      "body-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "code-sm": ["13px", {"lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 31, 38, 0.4); /* surface-container with opacity */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card-hover {
+            transition: all 0.2s ease;
+        }
+        
+        .card-hover:hover {
+            background-color: theme('colors.surface-variant');
+        }
+
+        .bulk-selected {
+            background-color: rgba(78, 222, 163, 0.1); /* primary with opacity */
+            border-color: theme('colors.primary');
+        }
+
+        /* Custom Checkbox Styling */
+        input[type="checkbox"] {
+            appearance: none;
+            background-color: transparent;
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.15em;
+            height: 1.15em;
+            border: 1.5px solid theme('colors.outline');
+            border-radius: 0.15em;
+            display: grid;
+            place-content: center;
+        }
+
+        input[type="checkbox"]::before {
+            content: "";
+            width: 0.65em;
+            height: 0.65em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em theme('colors.primary-container');
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+
+        input[type="checkbox"]:checked::before {
+            transform: scale(1);
+        }
+
+        input[type="checkbox"]:checked {
+            border-color: theme('colors.primary-container');
+        }
+        
+        /* Command Palette Input */
+        .cmd-input-container {
+            position: relative;
+        }
+        .cmd-input-container input {
+            padding-right: 3rem;
+        }
+        .cmd-input-container .cmd-hint {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="flex bg-background text-on-background font-body-md antialiased overflow-hidden">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-md z-40 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 border-r border-white/10 dark:border-white/10 docked full-height left-0 w-64">
+<!-- Workspace Header -->
+<div class="flex items-center gap-sm mb-margin px-sm">
+<img alt="Saathi Workspace Avatar" class="w-8 h-8 rounded-md object-cover" data-alt="A highly detailed avatar image for a workspace, featuring a minimalist emerald green geometric logo on a dark background. The lighting is subtle, creating a sense of depth and professionalism suitable for a developer tool interface. The style is clean, modern, and perfectly matches a dark-mode UI aesthetic." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi Workspace</h2>
+<p class="font-label-md text-label-md text-on-surface-variant">High Performance Team</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<ul class="flex flex-col gap-unit">
+<li>
+<a class="flex items-center gap-sm px-sm py-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-lg hover:bg-surface-variant/50 transition-all" href="#">
+<span class="material-symbols-outlined font-label-md text-label-md">grid_view</span>
+<span class="font-label-md text-label-md">Workspaces</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-sm px-sm py-2 bg-primary-container text-on-primary-container rounded-lg Active: scale-95 transition-transform hover:bg-surface-variant/50 transition-all" href="#">
+<span class="material-symbols-outlined font-label-md text-label-md">account_tree</span>
+<span class="font-label-md text-label-md font-bold">Projects</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-sm px-sm py-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-lg hover:bg-surface-variant/50 transition-all" href="#">
+<span class="material-symbols-outlined font-label-md text-label-md">assignment_ind</span>
+<span class="font-label-md text-label-md">Assigned to me</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto">
+<!-- Footer Area of Nav -->
+<div class="border-t border-white/10 pt-md px-sm">
+<a class="flex items-center gap-sm text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined font-label-md text-label-md">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 flex flex-col h-screen overflow-hidden relative">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10 docked full-width top-0 sticky z-30">
+<!-- Left: Brand / Context -->
+<div class="flex items-center gap-md">
+<div class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface font-bold">Saathi</div>
+<div class="h-4 w-px bg-white/10"></div>
+<div class="text-on-surface-variant font-body-md text-body-md flex items-center gap-xs">
+<span>Projects</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-primary font-bold">API Gateway V2</span>
+</div>
+</div>
+<!-- Center: Search/Command (Hidden structurally but keeping space or minimal representation if needed based on JSON 'on_left' but typically centered in modern UIs, adjusting to left per JSON slightly) -->
+<div class="flex-1 max-w-md mx-lg cmd-input-container hidden md:block">
+<div class="relative flex items-center w-full h-10 rounded-lg bg-surface-container border border-white/10 focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary transition-all overflow-hidden glass-panel">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant">search</span>
+<input class="w-full h-full bg-transparent border-none text-on-surface font-body-md text-body-md pl-10 focus:ring-0 placeholder-on-surface-variant/50" placeholder="Search or type a command..." type="text"/>
+<div class="cmd-hint px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-code-sm text-code-sm flex items-center gap-1 border border-white/5">
+<span class="material-symbols-outlined text-[14px]">keyboard_command_key</span>K
+                    </div>
+</div>
+</div>
+<!-- Right: Actions -->
+<div class="flex items-center gap-sm">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 Focus: ring-2 ring-primary/50 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 Focus: ring-2 ring-primary/50 transition-all">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="ml-sm px-4 py-2 bg-primary-container text-on-primary-container font-label-md text-label-md rounded-lg hover:opacity-90 transition-opacity flex items-center gap-xs">
+                    Invite
+                </button>
+</div>
+</header>
+<!-- Canvas / Board Area -->
+<div class="flex-1 overflow-auto p-lg relative pb-32"> <!-- Added bottom padding for floating bar -->
+<!-- Board Header -->
+<div class="flex justify-between items-end mb-lg">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface mb-unit">Sprint 42</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Focus: Performance optimization and core routing.</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="px-3 py-1.5 rounded-lg border border-white/10 text-on-surface font-label-md text-label-md hover:bg-surface-variant/50 transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+                        Filter
+                    </button>
+<button class="px-3 py-1.5 rounded-lg border border-white/10 text-on-surface font-label-md text-label-md hover:bg-surface-variant/50 transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">sort</span>
+                        Sort
+                    </button>
+</div>
+</div>
+<!-- Board Columns (Bento-ish Grid layout for tasks) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter items-start">
+<!-- Column: To Do -->
+<div class="flex flex-col gap-sm">
+<div class="flex items-center justify-between px-2 py-1">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-surface-variant"></div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">To Do</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-code-sm text-code-sm">4</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined">add</span></button>
+</div>
+<!-- Task Card: Selected -->
+<div class="glass-panel rounded-xl p-md flex flex-col gap-md border border-primary bg-primary/5 relative bulk-selected group">
+<div class="absolute top-md left-md">
+<input checked="" class="cursor-pointer" type="checkbox"/>
+</div>
+<div class="pl-8">
+<div class="flex justify-between items-start mb-2">
+<span class="font-code-sm text-code-sm text-on-surface-variant">API-101</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">more_horiz</span>
+</div>
+<h4 class="font-body-lg text-body-lg text-on-surface mb-2 leading-tight">Refactor middleware chain for lower latency</h4>
+<div class="flex items-center justify-between mt-4">
+<div class="flex gap-1">
+<span class="px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-label-md text-label-md text-[10px] border border-white/5">Backend</span>
+<span class="px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-label-md text-label-md text-[10px] border border-white/5">P1</span>
+</div>
+<img alt="Assignee Avatar" class="w-6 h-6 rounded-full border border-surface" data-alt="A small circular avatar image showing a professional headshot of a software developer. The background is dark and moody, fitting a dark-mode interface. The lighting highlights the subject's face subtly. Used as a tiny thumbnail in a task management card." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+</div>
+</div>
+</div>
+<!-- Task Card: Unselected -->
+<div class="glass-panel rounded-xl p-md flex flex-col gap-md border border-white/5 hover:border-white/10 card-hover relative group">
+<div class="absolute top-md left-md opacity-0 group-hover:opacity-100 transition-opacity">
+<input class="cursor-pointer" type="checkbox"/>
+</div>
+<div class="pl-8 group-hover:pl-8 transition-all">
+<div class="flex justify-between items-start mb-2">
+<span class="font-code-sm text-code-sm text-on-surface-variant">API-104</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">more_horiz</span>
+</div>
+<h4 class="font-body-lg text-body-lg text-on-surface mb-2 leading-tight">Implement rate limiting per tenant ID</h4>
+<div class="flex items-center justify-between mt-4">
+<div class="flex gap-1">
+<span class="px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-label-md text-label-md text-[10px] border border-white/5">Security</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: In Progress -->
+<div class="flex flex-col gap-sm">
+<div class="flex items-center justify-between px-2 py-1">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(78,222,163,0.6)]"></div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">In Progress</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-code-sm text-code-sm">2</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined">add</span></button>
+</div>
+<!-- Task Card: Selected -->
+<div class="glass-panel rounded-xl p-md flex flex-col gap-md border border-primary bg-primary/5 relative bulk-selected group">
+<div class="absolute top-md left-md">
+<input checked="" class="cursor-pointer" type="checkbox"/>
+</div>
+<div class="pl-8">
+<div class="flex justify-between items-start mb-2">
+<span class="font-code-sm text-code-sm text-on-surface-variant">API-098</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">more_horiz</span>
+</div>
+<h4 class="font-body-lg text-body-lg text-on-surface mb-2 leading-tight">Migrate authentication to JWT v2 spec</h4>
+<div class="flex items-center justify-between mt-4">
+<div class="flex gap-1">
+<span class="px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-label-md text-label-md text-[10px] border border-white/5">Auth</span>
+</div>
+<div class="flex -space-x-2">
+<img alt="Assignee Avatar" class="w-6 h-6 rounded-full border-2 border-surface" data-alt="A small circular avatar image showing a professional headshot of a software developer. The background is dark and moody, fitting a dark-mode interface. The lighting highlights the subject's face subtly. Used as a tiny thumbnail in a task management card." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<div class="w-6 h-6 rounded-full border-2 border-surface bg-surface-variant flex items-center justify-center text-[10px] font-label-md">+1</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Task Card: Selected -->
+<div class="glass-panel rounded-xl p-md flex flex-col gap-md border border-primary bg-primary/5 relative bulk-selected group">
+<div class="absolute top-md left-md">
+<input checked="" class="cursor-pointer" type="checkbox"/>
+</div>
+<div class="pl-8">
+<div class="flex justify-between items-start mb-2">
+<span class="font-code-sm text-code-sm text-on-surface-variant">API-105</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">more_horiz</span>
+</div>
+<h4 class="font-body-lg text-body-lg text-on-surface mb-2 leading-tight">Update API documentation for v2 endpoints</h4>
+<div class="flex items-center justify-between mt-4">
+<div class="flex gap-1">
+<span class="px-2 py-1 rounded bg-surface-variant text-on-surface-variant font-label-md text-label-md text-[10px] border border-white/5">Docs</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Done -->
+<div class="flex flex-col gap-sm">
+<div class="flex items-center justify-between px-2 py-1">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-on-surface-variant/50"></div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Done</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-code-sm text-code-sm">12</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<!-- Task Card: Unselected (Done state) -->
+<div class="glass-panel rounded-xl p-md flex flex-col gap-md border border-white/5 opacity-60 hover:opacity-100 card-hover relative group">
+<div class="absolute top-md left-md opacity-0 group-hover:opacity-100 transition-opacity">
+<input class="cursor-pointer" type="checkbox"/>
+</div>
+<div class="pl-8 group-hover:pl-8 transition-all">
+<div class="flex justify-between items-start mb-2">
+<span class="font-code-sm text-code-sm text-on-surface-variant line-through">API-090</span>
+</div>
+<h4 class="font-body-lg text-body-lg text-on-surface-variant mb-2 leading-tight line-through">Deprecate legacy v1 endpoints</h4>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+<span class="font-label-md text-label-md text-[10px]">Completed</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating Bulk Action Bar -->
+<div class="absolute bottom-lg left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-md glass-panel rounded-xl py-3 px-6 shadow-[0px_20px_50px_rgba(0,0,0,0.5)] border border-primary/30 bg-surface-container-high/90">
+<div class="flex items-center gap-sm pr-md border-r border-white/10">
+<div class="w-6 h-6 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-code-sm text-code-sm font-bold">3</div>
+<span class="font-label-md text-label-md text-on-surface">Tasks selected</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-xs px-3 py-1.5 rounded-lg text-on-surface hover:bg-surface-variant/50 transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+                    Assign
+                </button>
+<button class="flex items-center gap-xs px-3 py-1.5 rounded-lg text-on-surface hover:bg-surface-variant/50 transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                    Move to Done
+                </button>
+<button class="flex items-center gap-xs px-3 py-1.5 rounded-lg text-on-surface hover:bg-surface-variant/50 transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">sell</span>
+                    Labels
+                </button>
+</div>
+<div class="pl-md border-l border-white/10 flex items-center gap-2">
+<button class="flex items-center gap-xs px-3 py-1.5 rounded-lg text-error hover:bg-error/10 transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+                    Delete
+                </button>
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-variant/50 transition-colors ml-sm">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+</main>
+</body></html>

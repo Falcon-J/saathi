@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Workspace - Command Palette</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-high": "#292931",
+                        "on-surface-variant": "#bbcabf",
+                        "on-primary-fixed": "#002113",
+                        "primary-container": "#10b981",
+                        "on-primary-fixed-variant": "#005236",
+                        "tertiary": "#ffb3af",
+                        "on-background": "#e3e1ec",
+                        "inverse-on-surface": "#2f3038",
+                        "outline": "#86948a",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "on-surface": "#e3e1ec",
+                        "surface-tint": "#4edea3",
+                        "tertiary-fixed": "#ffdad7",
+                        "secondary-container": "#474649",
+                        "secondary": "#c8c6c8",
+                        "primary-fixed-dim": "#4edea3",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-secondary": "#313032",
+                        "primary": "#4edea3",
+                        "on-primary-container": "#00422b",
+                        "surface-container-low": "#1a1b22",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "tertiary-container": "#fc7c78",
+                        "background": "#12131a",
+                        "surface": "#12131a",
+                        "inverse-primary": "#006c49",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#e3e1ec",
+                        "on-error": "#690005",
+                        "surface-container": "#1e1f26",
+                        "on-primary": "#003824",
+                        "surface-variant": "#33343c",
+                        "outline-variant": "#3c4a42",
+                        "surface-bright": "#383941",
+                        "on-secondary-fixed-variant": "#474649",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#650911",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#33343c",
+                        "surface-container-lowest": "#0d0e15",
+                        "surface-dim": "#12131a",
+                        "on-tertiary-fixed": "#410005"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "margin": "32px",
+                        "unit": "4px",
+                        "gutter": "24px",
+                        "xl": "40px",
+                        "sm": "8px"
+                    },
+                    fontFamily: {
+                        "code-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    fontSize: {
+                        "code-sm": ["13px", { lineHeight: "1.4", letterSpacing: "0em", fontWeight: "400" }],
+                        "body-lg": ["16px", { lineHeight: "1.6", letterSpacing: "0em", fontWeight: "400" }],
+                        "display-lg": ["48px", { lineHeight: "1.1", letterSpacing: "-0.04em", fontWeight: "700" }],
+                        "label-md": ["12px", { lineHeight: "1.2", letterSpacing: "0.02em", fontWeight: "500" }],
+                        "headline-sm": ["18px", { lineHeight: "1.4", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        "headline-md": ["24px", { lineHeight: "1.3", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "body-md": ["14px", { lineHeight: "1.5", letterSpacing: "0em", fontWeight: "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Ambient shadow for the command palette */
+        .ambient-shadow {
+            box-shadow: 0px 20px 50px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Faint tonal background on hover for list items */
+        .tonal-hover:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen relative overflow-hidden flex justify-center items-center">
+<!-- Background Context (Simulated Workspace Dashboard behind overlay) -->
+<div class="absolute inset-0 opacity-20 pointer-events-none" data-alt="A dark, out-of-focus background representing a complex workspace dashboard. The scene features abstract data visualizations and interface elements bathed in a sophisticated, low-light aesthetic with subtle emerald green highlights. The overall mood is high-tech, professional, and slightly obscure to serve as a backdrop." style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc'); background-size: cover; background-position: center;">
+<!-- Placeholder for background content -->
+<div class="flex h-full w-full">
+<div class="w-64 border-r border-white/10 h-full p-md"></div>
+<div class="flex-1 p-margin">
+<div class="h-16 border-b border-white/10 w-full mb-lg"></div>
+<div class="grid grid-cols-3 gap-lg">
+<div class="h-40 border border-white/10 rounded-lg"></div>
+<div class="h-40 border border-white/10 rounded-lg"></div>
+<div class="h-40 border border-white/10 rounded-lg"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Overlay Backdrop -->
+<div class="fixed inset-0 bg-background/60 backdrop-blur-[20px] z-40 flex justify-center items-start pt-[10vh] px-md">
+<!-- Command Palette Modal -->
+<div class="w-full max-w-2xl bg-surface-container-high/90 backdrop-blur-[30px] rounded-xl border border-white/10 ambient-shadow overflow-hidden flex flex-col">
+<!-- Input Area -->
+<div class="p-lg border-b border-white/10 flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant text-headline-md">search</span>
+<input autofocus="" class="w-full bg-transparent border-none text-headline-sm font-headline-sm text-on-surface focus:ring-0 placeholder:text-on-surface-variant/50 p-0" placeholder="Type a command or search..." type="text"/>
+<div class="flex items-center gap-xs text-on-surface-variant font-code-sm text-code-sm border border-white/10 rounded px-2 py-1 bg-surface/50">
+<span>ESC</span>
+</div>
+</div>
+<!-- Content Area -->
+<div class="max-h-[60vh] overflow-y-auto p-sm">
+<!-- Suggestions Group -->
+<div class="mb-md">
+<h3 class="px-md py-sm font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Suggested Actions</h3>
+<ul class="flex flex-col gap-xs">
+<!-- Action Item 1: Create New Task (Active/Hover State) -->
+<li>
+<button class="w-full flex items-center justify-between p-md rounded-lg bg-surface-variant border border-primary/20 text-left transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded-md bg-primary-container/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">add_box</span>
+</div>
+<span class="font-body-lg text-body-lg text-on-surface">Create New Task</span>
+</div>
+<div class="flex items-center gap-sm">
+<span class="text-on-surface-variant font-code-sm text-code-sm">Jump to Project</span>
+<div class="flex items-center gap-xs text-on-surface-variant font-code-sm text-code-sm border border-white/10 rounded px-1.5 py-0.5 bg-surface/50">
+<span>⌘</span><span>N</span>
+</div>
+</div>
+</button>
+</li>
+<!-- Action Item 2: Go to Audit Logs -->
+<li>
+<button class="w-full flex items-center justify-between p-md rounded-lg tonal-hover border border-transparent text-left transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded-md bg-surface flex items-center justify-center text-on-surface-variant group-hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">history</span>
+</div>
+<span class="font-body-lg text-body-lg text-on-surface-variant group-hover:text-on-surface transition-colors">Go to Audit Logs</span>
+</div>
+<div class="flex items-center gap-sm opacity-50 group-hover:opacity-100 transition-opacity">
+<span class="text-on-surface-variant font-code-sm text-code-sm">Workspace Settings</span>
+<div class="flex items-center gap-xs text-on-surface-variant font-code-sm text-code-sm border border-white/10 rounded px-1.5 py-0.5 bg-surface/50">
+<span>G</span><span>A</span>
+</div>
+</div>
+</button>
+</li>
+<!-- Action Item 3: Manage Permissions -->
+<li>
+<button class="w-full flex items-center justify-between p-md rounded-lg tonal-hover border border-transparent text-left transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded-md bg-surface flex items-center justify-center text-on-surface-variant group-hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+</div>
+<span class="font-body-lg text-body-lg text-on-surface-variant group-hover:text-on-surface transition-colors">Manage Permissions</span>
+</div>
+<div class="flex items-center gap-sm opacity-50 group-hover:opacity-100 transition-opacity">
+<span class="text-on-surface-variant font-code-sm text-code-sm">Workspace Settings</span>
+</div>
+</button>
+</li>
+<!-- Action Item 4: Switch Workspace -->
+<li>
+<button class="w-full flex items-center justify-between p-md rounded-lg tonal-hover border border-transparent text-left transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded-md bg-surface flex items-center justify-center text-on-surface-variant group-hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">swap_horiz</span>
+</div>
+<span class="font-body-lg text-body-lg text-on-surface-variant group-hover:text-on-surface transition-colors">Switch Workspace</span>
+</div>
+<div class="flex items-center gap-sm opacity-50 group-hover:opacity-100 transition-opacity">
+<div class="flex items-center gap-xs text-on-surface-variant font-code-sm text-code-sm border border-white/10 rounded px-1.5 py-0.5 bg-surface/50">
+<span>⌘</span><span>K</span>
+</div>
+</div>
+</button>
+</li>
+</ul>
+</div>
+</div>
+<!-- Footer / Hints -->
+<div class="border-t border-white/10 p-sm px-md flex items-center justify-between bg-surface/50">
+<div class="flex items-center gap-md text-on-surface-variant font-code-sm text-code-sm">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">keyboard_return</span>
+<span>to select</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+<span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+<span>to navigate</span>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<img alt="Small avatar" class="w-6 h-6 rounded-full border border-white/20" data-alt="A small, stylized digital avatar of a professional user. The avatar is rendered in a minimalist, high-tech style with subtle dark green and dark gray tones, matching the sleek aesthetic of the interface. It conveys a sense of quiet authority and focus." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<span class="font-label-md text-label-md text-on-surface-variant">Saathi Precision</span>
+</div>
+</div>
+</div>
+</div>
+</body></html>

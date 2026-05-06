@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { BarChart3 } from "lucide-react"
+import { SaathiLogo } from "@/components/saathi-logo"
 
 export function Footer() {
     return (
@@ -8,9 +8,7 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
-                                <BarChart3 className="w-4 h-4 text-primary-foreground" />
-                            </div>
+                            <SaathiLogo className="h-6 w-6" />
                             <span className="font-bold">Saathi</span>
                         </div>
                         <p className="text-sm text-muted-foreground">

@@ -1,10 +1,11 @@
 import { Redis } from "@upstash/redis"
-import { getRedisConfig, env, isDevelopment } from "./env"
+import { getRedisConfig, isDevelopment } from "./env"
 
-// Enhanced Redis service with proper error handling and retry logic
+// Enhanced Redis service with proper error handling, retry logic, and native Streams support
 class RedisService {
   private redis: Redis | null = null
   private mockStore = new Map<string, string>()
+  private mockStreams = new Map<string, Array<{ id: string; fields: Record<string, string> }>>()
   private isConnected = false
   private maxRetries = 2
   private retryDelay = 500
@@ -23,7 +24,7 @@ class RedisService {
           token,
           retry: {
             retries: this.maxRetries,
-            backoff: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000)
+            backoff: (retryCount: number) => Math.min(1000 * Math.pow(2, retryCount), 10000)
           }
         })
         this.isConnected = true
@@ -112,9 +113,9 @@ class RedisService {
       try {
         return await this.withRetry(async () => {
           if (options?.ex) {
-            return await this.redis!.setex(key, options.ex, serializedValue)
+            return (await this.redis!.setex(key, options.ex, serializedValue)) ?? "OK"
           }
-          return await this.redis!.set(key, serializedValue)
+          return (await this.redis!.set(key, serializedValue)) ?? "OK"
         })
       } catch (error) {
         console.error(`[Saathi] Redis SET failed for key ${key}:`, error)
@@ -151,7 +152,7 @@ class RedisService {
     if (this.isConnected && this.redis) {
       try {
         return await this.withRetry(async () => {
-          return await this.redis!.sadd(key, ...members)
+          return await (this.redis as any).sadd(key, ...members)
         })
       } catch (error) {
         console.error(`[Saathi] Redis SADD failed for key ${key}:`, error)
@@ -187,7 +188,7 @@ class RedisService {
     if (this.isConnected && this.redis) {
       try {
         return await this.withRetry(async () => {
-          return await this.redis!.srem(key, ...members)
+          return await (this.redis as any).srem(key, ...members)
         })
       } catch (error) {
         console.error(`[Saathi] Redis SREM failed for key ${key}:`, error)
@@ -205,10 +206,181 @@ class RedisService {
     return removedCount
   }
 
-  // Note: Redis Streams (XADD, XREAD) are not supported by Upstash REST API
-  // We'll use simple key-value operations for real-time updates instead
+  // ─── Native Redis Streams ──────────────────────────────────────────────────
 
-  // Health check method
+  /**
+   * XADD — Append an entry to a Redis Stream.
+   * Uses native Upstash `xadd` when connected; falls back to in-memory mock.
+   */
+  async xadd(
+    streamKey: string,
+    id: string,
+    fields: Record<string, string>
+  ): Promise<string> {
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          const result = await this.redis!.xadd(streamKey, id, fields)
+          return result as string
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis XADD failed for stream ${streamKey}:`, error)
+      }
+    }
+
+    // Mock fallback — simulate auto-generated ID
+    const mockId = id === "*" ? `${Date.now()}-0` : id
+    const stream = this.mockStreams.get(streamKey) || []
+    stream.push({ id: mockId, fields })
+    // Keep bounded
+    if (stream.length > 1000) stream.splice(0, stream.length - 1000)
+    this.mockStreams.set(streamKey, stream)
+    return mockId
+  }
+
+  /**
+   * XREAD — Read entries from one or more streams after the given ID.
+   * Returns entries newer than `fromId`.  Pass "$" for only new entries.
+   */
+  async xread(
+    streamKey: string,
+    fromId: string,
+    count: number = 50
+  ): Promise<Array<{ id: string; fields: Record<string, string> }>> {
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          // Upstash SDK signature: xread(key, id, options?)
+          const result = await this.redis!.xread(streamKey, fromId, { count }) as any
+
+          if (!result || result.length === 0) return []
+
+          // Response format: [[streamName, [[id, {field: value, ...}], ...]]]
+          const streamData = result[0]
+          if (!streamData || !streamData[1]) return []
+
+          const entries = streamData[1]
+          return entries.map((entry: any) => {
+            const entryId = entry[0]
+            const fieldsObj = entry[1]
+
+            // Upstash may return fields as an object or as a flat array
+            let fields: Record<string, string> = {}
+            if (Array.isArray(fieldsObj)) {
+              for (let i = 0; i < fieldsObj.length; i += 2) {
+                fields[fieldsObj[i]] = fieldsObj[i + 1]
+              }
+            } else if (typeof fieldsObj === 'object' && fieldsObj !== null) {
+              fields = fieldsObj
+            }
+
+            return { id: entryId, fields }
+          })
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis XREAD failed for stream ${streamKey}:`, error)
+      }
+    }
+
+    // Mock fallback
+    const stream = this.mockStreams.get(streamKey) || []
+    if (fromId === "$") return [] // "$" = only new (nothing yet in mock without blocking)
+    const startIdx = fromId === "0" || fromId === "0-0"
+      ? 0
+      : stream.findIndex(e => e.id > fromId)
+    if (startIdx === -1) return []
+    return stream.slice(startIdx, startIdx + count)
+  }
+
+  /**
+   * XRANGE — Read entries in a stream between two IDs.
+   */
+  async xrange(
+    streamKey: string,
+    start: string = "-",
+    end: string = "+",
+    count?: number
+  ): Promise<Array<{ id: string; fields: Record<string, string> }>> {
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          const result = await this.redis!.xrange(streamKey, start, end, count) as any
+          if (!result || result.length === 0) return []
+
+          return result.map((entry: any) => {
+            const entryId = entry[0]
+            const fieldsObj = entry[1]
+
+            let fields: Record<string, string> = {}
+            if (Array.isArray(fieldsObj)) {
+              for (let i = 0; i < fieldsObj.length; i += 2) {
+                fields[fieldsObj[i]] = fieldsObj[i + 1]
+              }
+            } else if (typeof fieldsObj === 'object' && fieldsObj !== null) {
+              fields = fieldsObj
+            }
+
+            return { id: entryId, fields }
+          })
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis XRANGE failed for stream ${streamKey}:`, error)
+      }
+    }
+
+    // Mock fallback
+    const stream = this.mockStreams.get(streamKey) || []
+    const filtered = stream.filter(e => {
+      if (start !== "-" && e.id < start) return false
+      if (end !== "+" && e.id > end) return false
+      return true
+    })
+    return count ? filtered.slice(0, count) : filtered
+  }
+
+  /**
+   * XLEN — Get the number of entries in a stream.
+   */
+  async xlen(streamKey: string): Promise<number> {
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          return await this.redis!.xlen(streamKey)
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis XLEN failed for stream ${streamKey}:`, error)
+      }
+    }
+
+    // Mock fallback
+    return (this.mockStreams.get(streamKey) || []).length
+  }
+
+  /**
+   * XTRIM — Trim a stream to a maximum length.
+   */
+  async xtrim(streamKey: string, maxlen: number): Promise<number> {
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          return await this.redis!.xtrim(streamKey, { strategy: "MAXLEN", threshold: maxlen })
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis XTRIM failed for stream ${streamKey}:`, error)
+      }
+    }
+
+    // Mock fallback
+    const stream = this.mockStreams.get(streamKey) || []
+    const removed = Math.max(0, stream.length - maxlen)
+    if (removed > 0) {
+      this.mockStreams.set(streamKey, stream.slice(-maxlen))
+    }
+    return removed
+  }
+
+  // ─── Health & Status ───────────────────────────────────────────────────────
+
   async ping(): Promise<boolean> {
     if (this.isConnected && this.redis) {
       try {
@@ -223,7 +395,6 @@ class RedisService {
     return false
   }
 
-  // Get connection status
   getStatus(): { connected: boolean; type: 'redis' | 'mock' } {
     return {
       connected: this.isConnected,

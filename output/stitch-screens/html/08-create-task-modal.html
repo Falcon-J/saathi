@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Create Task</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#292931",
+                        "on-surface-variant": "#bbcabf",
+                        "on-primary-fixed": "#002113",
+                        "primary-container": "#10b981",
+                        "on-primary-fixed-variant": "#005236",
+                        "tertiary": "#ffb3af",
+                        "on-background": "#e3e1ec",
+                        "inverse-on-surface": "#2f3038",
+                        "outline": "#86948a",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "on-surface": "#e3e1ec",
+                        "surface-tint": "#4edea3",
+                        "tertiary-fixed": "#ffdad7",
+                        "secondary-container": "#474649",
+                        "secondary": "#c8c6c8",
+                        "primary-fixed-dim": "#4edea3",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-secondary": "#313032",
+                        "primary": "#4edea3",
+                        "on-primary-container": "#00422b",
+                        "surface-container-low": "#1a1b22",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "tertiary-container": "#fc7c78",
+                        "background": "#12131a",
+                        "surface": "#12131a",
+                        "inverse-primary": "#006c49",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#e3e1ec",
+                        "on-error": "#690005",
+                        "surface-container": "#1e1f26",
+                        "on-primary": "#003824",
+                        "surface-variant": "#33343c",
+                        "outline-variant": "#3c4a42",
+                        "surface-bright": "#383941",
+                        "on-secondary-fixed-variant": "#474649",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#650911",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#33343c",
+                        "surface-container-lowest": "#0d0e15",
+                        "surface-dim": "#12131a",
+                        "on-tertiary-fixed": "#410005"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "margin": "32px",
+                        "unit": "4px",
+                        "gutter": "24px",
+                        "xl": "40px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 20px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(41, 41, 49, 0.7); /* surface-container-high with opacity */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background: rgba(18, 19, 26, 0.8); /* surface with opacity */
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md antialiased overflow-hidden selection:bg-primary/30 selection:text-primary">
+<!-- Background Context (Dashboard Mockup) -->
+<div class="fixed inset-0 z-0 opacity-40 pointer-events-none flex">
+<!-- Mock Sidebar -->
+<div class="w-64 h-full border-r border-white/5 p-md flex flex-col gap-md">
+<div class="h-8 w-32 bg-surface-variant rounded"></div>
+<div class="h-4 w-full bg-surface-variant/50 rounded mt-lg"></div>
+<div class="h-4 w-3/4 bg-surface-variant/50 rounded"></div>
+<div class="h-4 w-5/6 bg-surface-variant/50 rounded"></div>
+</div>
+<!-- Mock Content -->
+<div class="flex-1 p-margin flex flex-col gap-lg">
+<div class="h-12 w-full bg-surface-variant/30 rounded-lg border border-white/5"></div>
+<div class="grid grid-cols-3 gap-md">
+<div class="h-32 bg-surface-variant/20 rounded-lg border border-white/5"></div>
+<div class="h-32 bg-surface-variant/20 rounded-lg border border-white/5"></div>
+<div class="h-32 bg-surface-variant/20 rounded-lg border border-white/5"></div>
+</div>
+<div class="flex-1 bg-surface-variant/10 rounded-lg border border-white/5"></div>
+</div>
+</div>
+<!-- Modal Overlay Container -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-md modal-backdrop">
+<!-- Create Task Modal -->
+<div class="glass-panel w-full max-w-[600px] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh]">
+<!-- Modal Header -->
+<div class="flex justify-between items-center px-lg py-md border-b border-white/5">
+<div class="flex items-center gap-sm text-on-surface">
+<span class="material-symbols-outlined" data-icon="add_task">add_task</span>
+<h2 class="font-headline-sm text-headline-sm">Create Task</h2>
+</div>
+<button aria-label="Close" class="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-variant/50">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<!-- Modal Body (Scrollable) -->
+<div class="flex-1 overflow-y-auto p-lg space-y-lg custom-scrollbar">
+<!-- Task Title -->
+<div class="space-y-sm">
+<input autofocus="" class="w-full bg-transparent border-none text-headline-md font-headline-md text-on-surface placeholder-on-surface-variant/50 focus:ring-0 p-0" placeholder="Task Title" type="text"/>
+</div>
+<!-- Command/Details Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Workspace Selection -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Workspace</label>
+<div class="relative group">
+<select class="w-full appearance-none bg-surface-container border border-outline-variant rounded-lg px-md py-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer pr-10">
+<option>Saathi Workspace</option>
+<option>Engineering</option>
+<option>Design</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none group-hover:text-on-surface transition-colors">expand_more</span>
+</div>
+</div>
+<!-- Project Selection -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Project</label>
+<div class="relative group">
+<select class="w-full appearance-none bg-surface-container border border-outline-variant rounded-lg px-md py-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer pr-10">
+<option>Q4 Marketing Campaign</option>
+<option>Website Redesign</option>
+<option>Backend Optimization</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none group-hover:text-on-surface transition-colors">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Description -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">description</span> Description
+                    </label>
+<textarea class="w-full bg-surface-container border border-outline-variant rounded-lg px-md py-sm text-on-surface placeholder-on-surface-variant/50 focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-y font-body-md text-body-md" placeholder="Add more details to this task..." rows="4"></textarea>
+</div>
+<!-- Attributes Row -->
+<div class="flex flex-wrap gap-md items-center pt-sm">
+<!-- Assignee -->
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-outline-variant hover:border-primary hover:bg-surface-variant/30 transition-all group">
+<img alt="Assignee Avatar" class="w-5 h-5 rounded-full object-cover border border-white/10" data-alt="A small, stylized circular avatar placeholder image. The design is minimalist, utilizing a flat emerald green color palette. The avatar implies a professional user profile picture within a dark mode UI environment." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<span class="font-label-md text-label-md text-on-surface group-hover:text-primary transition-colors">Assign</span>
+</button>
+<!-- Priority -->
+<div class="relative inline-block">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-outline-variant hover:border-outline transition-all group bg-surface-container">
+<span class="material-symbols-outlined text-[16px] text-tertiary">flag</span>
+<span class="font-label-md text-label-md text-on-surface">High Priority</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">arrow_drop_down</span>
+</button>
+</div>
+<!-- Due Date -->
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-outline-variant hover:border-outline transition-all group border-dashed">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant group-hover:text-on-surface">calendar_today</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-on-surface">Set Due Date</span>
+</button>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-lg py-md border-t border-white/5 flex justify-between items-center bg-surface-container-highest/50 rounded-b-xl">
+<!-- Hint/Shortcut -->
+<div class="hidden sm:flex items-center gap-2 text-on-surface-variant opacity-70">
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface border border-outline-variant text-[10px]">CMD</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface border border-outline-variant text-[10px]">ENTER</span>
+<span class="font-label-md text-label-md text-[11px]">to create</span>
+</div>
+<!-- Actions -->
+<div class="flex gap-sm w-full sm:w-auto justify-end">
+<button class="px-4 py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 border border-transparent transition-all">
+                        Cancel
+                    </button>
+<button class="px-6 py-2 rounded-lg font-label-md text-label-md bg-primary text-on-primary-fixed hover:bg-primary-fixed transition-colors shadow-[0_0_15px_rgba(78,222,163,0.2)] flex items-center gap-2">
+<span>Create Task</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

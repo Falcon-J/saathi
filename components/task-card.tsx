@@ -27,7 +27,17 @@ export function TaskCard({ id, title, completed, dueDate, categories, onToggle, 
     <>
       {isEditing ? (
         <TaskEditor
-          task={{ id, title, completed, dueDate, categories, createdAt: "" }}
+          task={{
+            id,
+            title,
+            completed,
+            dueDate,
+            categories,
+            createdAt: "",
+            updatedAt: "",
+            workspaceId: "",
+            createdBy: "",
+          }}
           onUpdate={(updates) => onUpdate(id, updates)}
           onClose={() => setIsEditing(false)}
         />

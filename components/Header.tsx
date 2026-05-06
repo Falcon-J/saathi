@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getSession, logout } from "@/lib/auth-simple"
+import { useOnboarding } from "@/context/onboarding-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { SaathiLogo } from "@/components/saathi-logo"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,10 +16,10 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import {
-    BarChart3,
     LogOut,
     Settings,
-    User
+    User,
+    HelpCircle
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -25,6 +27,7 @@ export function Header() {
     const [user, setUser] = useState<{ email: string; username: string } | null>(null)
     const router = useRouter()
     const { toast } = useToast()
+    const { openOnboarding } = useOnboarding()
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -59,9 +62,7 @@ export function Header() {
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                        <BarChart3 className="w-5 h-5 text-primary-foreground" />
-                    </div>
+                    <SaathiLogo className="h-8 w-8" />
                     <span className="font-bold text-xl">Saathi</span>
                 </Link>
 
@@ -109,6 +110,10 @@ export function Header() {
                                 <DropdownMenuItem>
                                     <Settings className="mr-2 h-4 w-4" />
                                     <span>Settings</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={openOnboarding}>
+                                    <HelpCircle className="mr-2 h-4 w-4" />
+                                    <span>Help & Onboarding</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={handleLogout}>

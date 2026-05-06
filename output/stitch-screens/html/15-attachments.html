@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Task Detail - Files and Attachments</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#410005",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "inverse-surface": "#e3e1ec",
+                        "surface-tint": "#4edea3",
+                        "secondary-container": "#474649",
+                        "on-secondary-fixed-variant": "#474649",
+                        "background": "#12131a",
+                        "on-primary": "#003824",
+                        "inverse-on-surface": "#2f3038",
+                        "surface-container-low": "#1a1b22",
+                        "tertiary": "#ffb3af",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-container-high": "#292931",
+                        "surface": "#12131a",
+                        "surface-container": "#1e1f26",
+                        "surface-container-highest": "#33343c",
+                        "primary-container": "#10b981",
+                        "primary-fixed-dim": "#4edea3",
+                        "outline": "#86948a",
+                        "on-primary-fixed-variant": "#005236",
+                        "primary": "#4edea3",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "surface-bright": "#383941",
+                        "on-primary-fixed": "#002113",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-surface": "#e3e1ec",
+                        "tertiary-container": "#fc7c78",
+                        "on-background": "#e3e1ec",
+                        "secondary": "#c8c6c8",
+                        "on-primary-container": "#00422b",
+                        "error-container": "#93000a",
+                        "surface-variant": "#33343c",
+                        "primary-fixed": "#6ffbbe",
+                        "surface-dim": "#12131a",
+                        "on-tertiary": "#650911",
+                        "error": "#ffb4ab",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#006c49",
+                        "surface-container-lowest": "#0d0e15",
+                        "outline-variant": "#3c4a42",
+                        "on-surface-variant": "#bbcabf",
+                        "on-secondary": "#313032"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "xl": "40px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "code-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(30, 31, 38, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .card-hover:hover {
+            background: rgba(51, 52, 60, 0.4);
+            border-color: rgba(78, 222, 163, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md">
+<!-- TopAppBar -->
+<header class="bg-surface/80 backdrop-blur-xl dark:bg-surface/80 docked full-width top-0 sticky border-b border-white/10 dark:border-white/10 flat no shadows flex justify-between items-center w-full px-lg py-sm z-50">
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<div class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md text-label-md hover:bg-primary-fixed-dim transition-colors">
+                Invite
+            </button>
+</div>
+</header>
+<main class="max-w-5xl mx-auto px-margin py-xl flex flex-col gap-xl">
+<!-- Task Header & Meta -->
+<section class="flex flex-col gap-lg">
+<div class="flex items-start justify-between gap-md">
+<div>
+<div class="flex items-center gap-sm mb-2">
+<span class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded-full font-label-md text-label-md uppercase tracking-wider">Design System</span>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded-full font-label-md text-label-md uppercase tracking-wider">TSK-842</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface mb-2">Implement Glassmorphism Components</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+                        Design and integrate the new glassmorphism panels for the task detail view, ensuring the backdrop blur and subtle borders align with the minimalist professional aesthetic. Special attention required for the attachments section.
+                    </p>
+</div>
+<div class="flex gap-2">
+<button class="glass-panel px-4 py-2 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-variant/50 transition-colors flex items-center gap-2 border border-white/5">
+<span class="material-symbols-outlined text-[18px]" data-icon="edit">edit</span> Edit
+                    </button>
+<button class="glass-panel px-4 py-2 rounded-lg font-label-md text-label-md text-primary hover:bg-primary/10 transition-colors flex items-center gap-2 border border-primary/20">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> In Progress
+                    </button>
+</div>
+</div>
+</section>
+<!-- Files and Attachments Section -->
+<section class="flex flex-col gap-lg">
+<div class="flex items-center justify-between border-b border-white/5 pb-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="attach_file">attach_file</span>
+                    Files &amp; Attachments
+                </h2>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-variant px-2 py-1 rounded-full">4 Items</span>
+</div>
+<!-- Upload Drop Zone -->
+<div class="glass-panel border-dashed border-2 border-outline-variant hover:border-primary/50 transition-colors rounded-xl p-xl flex flex-col items-center justify-center text-center cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center mb-md group-hover:bg-primary/20 group-hover:text-primary transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-1">Click to upload or drag and drop</p>
+<p class="font-label-md text-label-md text-on-surface-variant">SVG, PNG, JPG or PDF (max. 10MB)</p>
+</div>
+<!-- Image Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md mt-sm">
+<!-- Image Attachment 1 -->
+<div class="glass-panel rounded-lg overflow-hidden group relative border border-white/5 card-hover transition-all">
+<div class="aspect-video w-full relative overflow-hidden bg-surface-container-highest">
+<img alt="" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="A macro shot of a vibrant emerald green leaf surface, showcasing intricate vein patterns and tiny water droplets catching the light. The lighting is crisp and natural, highlighting the deep greens and bright highlights, fitting perfectly into a dark, professional interface with green accents." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-sm">
+<button class="bg-surface/50 backdrop-blur-md p-1.5 rounded text-on-surface hover:text-primary ml-auto">
+<span class="material-symbols-outlined text-[16px]" data-icon="download">download</span>
+</button>
+</div>
+</div>
+<div class="p-sm flex justify-between items-center">
+<div class="truncate pr-2">
+<p class="font-label-md text-label-md text-on-surface truncate">hero-bg-v2.png</p>
+<p class="font-label-md text-label-md text-on-surface-variant text-[10px]">2.4 MB • Today, 10:42 AM</p>
+</div>
+<button class="text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Image Attachment 2 -->
+<div class="glass-panel rounded-lg overflow-hidden group relative border border-white/5 card-hover transition-all">
+<div class="aspect-video w-full relative overflow-hidden bg-surface-container-highest">
+<img alt="" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="An abstract 3D rendering featuring smooth, dark geometric shapes intersected by glowing emerald green neon lines. The environment is dark and moody, resembling a high-tech server room or a digital void, perfectly complementing a sleek, dark-mode professional dashboard." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-sm">
+<button class="bg-surface/50 backdrop-blur-md p-1.5 rounded text-on-surface hover:text-primary ml-auto">
+<span class="material-symbols-outlined text-[16px]" data-icon="download">download</span>
+</button>
+</div>
+</div>
+<div class="p-sm flex justify-between items-center">
+<div class="truncate pr-2">
+<p class="font-label-md text-label-md text-on-surface truncate">abstract-element-3.jpg</p>
+<p class="font-label-md text-label-md text-on-surface-variant text-[10px]">1.8 MB • Yesterday</p>
+</div>
+<button class="text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Document List -->
+<div class="flex flex-col gap-sm mt-md">
+<!-- Doc Attachment 1 -->
+<div class="glass-panel rounded-lg p-sm flex items-center justify-between border border-white/5 card-hover transition-all">
+<div class="flex items-center gap-md overflow-hidden">
+<div class="w-10 h-10 rounded bg-error-container/20 text-error flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<div class="truncate">
+<p class="font-body-md text-body-md text-on-surface truncate">Design_System_Guidelines_v1.pdf</p>
+<p class="font-label-md text-label-md text-on-surface-variant">4.2 MB • Oct 24, 2023</p>
+</div>
+</div>
+<div class="flex items-center gap-2 shrink-0 ml-4">
+<button class="text-on-surface-variant hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="visibility">visibility</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="download">download</span>
+</button>
+<button class="text-on-surface-variant hover:text-error p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Doc Attachment 2 -->
+<div class="glass-panel rounded-lg p-sm flex items-center justify-between border border-white/5 card-hover transition-all">
+<div class="flex items-center gap-md overflow-hidden">
+<div class="w-10 h-10 rounded bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+</div>
+<div class="truncate">
+<p class="font-body-md text-body-md text-on-surface truncate">Component_Matrix_Notes.docx</p>
+<p class="font-label-md text-label-md text-on-surface-variant">845 KB • Oct 22, 2023</p>
+</div>
+</div>
+<div class="flex items-center gap-2 shrink-0 ml-4">
+<button class="text-on-surface-variant hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="visibility">visibility</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="download">download</span>
+</button>
+<button class="text-on-surface-variant hover:text-error p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest dark:bg-surface-container-lowest border-t border-white/5 flat no shadows w-full py-lg px-margin flex flex-col md:flex-row justify-between items-center gap-md mt-xl">
+<div class="font-body-md text-body-md text-on-surface">© 2024 Saathi Precision. All rights reserved.</div>
+<div class="flex gap-lg">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Status</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
+</div>
+</footer>
+</body></html>

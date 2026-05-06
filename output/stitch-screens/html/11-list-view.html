@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Project Board - List View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error": "#690005",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#3c4a42",
+                      "surface-container-lowest": "#0d0e15",
+                      "inverse-primary": "#006c49",
+                      "on-secondary": "#313032",
+                      "on-surface-variant": "#bbcabf",
+                      "on-surface": "#e3e1ec",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "on-primary-fixed": "#002113",
+                      "tertiary-container": "#fc7c78",
+                      "on-primary-container": "#00422b",
+                      "secondary": "#c8c6c8",
+                      "on-background": "#e3e1ec",
+                      "secondary-fixed": "#e5e1e4",
+                      "surface-dim": "#12131a",
+                      "on-tertiary": "#650911",
+                      "error": "#ffb4ab",
+                      "surface-variant": "#33343c",
+                      "primary-fixed": "#6ffbbe",
+                      "error-container": "#93000a",
+                      "surface-container-highest": "#33343c",
+                      "primary-container": "#10b981",
+                      "on-primary-fixed-variant": "#005236",
+                      "outline": "#86948a",
+                      "primary-fixed-dim": "#4edea3",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "surface-bright": "#383941",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "primary": "#4edea3",
+                      "surface-tint": "#4edea3",
+                      "secondary-container": "#474649",
+                      "on-secondary-fixed-variant": "#474649",
+                      "background": "#12131a",
+                      "inverse-surface": "#e3e1ec",
+                      "on-secondary-container": "#b7b4b7",
+                      "on-tertiary-fixed": "#410005",
+                      "on-tertiary-container": "#711419",
+                      "tertiary": "#ffb3af",
+                      "surface-container-low": "#1a1b22",
+                      "on-primary": "#003824",
+                      "inverse-on-surface": "#2f3038",
+                      "surface-container-high": "#292931",
+                      "surface": "#12131a",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-container": "#1e1f26"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "40px",
+                      "sm": "8px",
+                      "unit": "4px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "margin": "32px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Inter"
+                      ],
+                      "code-sm": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "code-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background antialiased selection:bg-primary/30 selection:text-primary">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-md z-40 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 text-primary dark:text-primary font-label-md text-label-md docked full-height left-0 w-64 border-r border-white/10 dark:border-white/10 flat no shadows hidden md:flex">
+<div class="mb-xl">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold">
+                    S
+                </div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi Workspace</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">High Performance Team</p>
+</div>
+</div>
+</div>
+<ul class="flex-1 flex flex-col gap-sm">
+<li>
+<a class="flex items-center gap-md px-md py-sm bg-primary-container text-on-primary-container rounded-lg Active: scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+                    Projects
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg hover:bg-surface-variant/50 transition-all" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+                    Workspaces
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg hover:bg-surface-variant/50 transition-all" href="#">
+<span class="material-symbols-outlined">assignment_ind</span>
+                    Assigned to me
+                </a>
+</li>
+</ul>
+</nav>
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm ml-64 bg-surface/80 backdrop-blur-xl dark:bg-surface/80 text-primary dark:text-primary font-body-md text-body-md docked full-width top-0 sticky border-b border-white/10 dark:border-white/10 flat no shadows hidden md:flex">
+<div class="flex items-center gap-md w-1/3">
+<span class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface font-bold tracking-tight">Saathi</span>
+<div class="relative w-full max-w-sm">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container border border-white/10 rounded-full pl-[36px] pr-sm py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all font-body-md text-body-md" placeholder="Search tasks, projects..." type="text"/>
+<div class="absolute right-sm top-1/2 -translate-y-1/2 flex items-center gap-1">
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface px-1.5 py-0.5 rounded border border-white/10">⌘</kbd>
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface px-1.5 py-0.5 rounded border border-white/10">K</kbd>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 Focus: ring-2 ring-primary/50 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 Focus: ring-2 ring-primary/50 transition-all">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="bg-primary text-on-primary font-label-md text-label-md px-md py-sm rounded-lg hover:bg-primary-fixed-dim transition-colors ml-sm">
+                Invite
+            </button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-lg px-margin pb-xl min-h-screen">
+<!-- Board Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-xl gap-md">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface font-semibold mb-unit">Alpha Launch Initiative</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Tracking core deliverables for Q3 release.</p>
+</div>
+<div class="flex items-center gap-sm bg-surface-container-low border border-white/10 rounded-lg p-1">
+<button class="px-md py-1.5 font-label-md text-label-md text-on-surface-variant rounded-md hover:text-on-surface transition-colors flex items-center gap-unit">
+<span class="material-symbols-outlined text-[16px]">view_column</span>
+                    Board
+                </button>
+<button class="px-md py-1.5 font-label-md text-label-md bg-surface-variant text-on-surface rounded-md shadow-sm flex items-center gap-unit border border-white/5">
+<span class="material-symbols-outlined text-[16px]">format_list_bulleted</span>
+                    List
+                </button>
+</div>
+</div>
+<!-- High Density Table/List View -->
+<div class="bg-surface-container-lowest border border-white/10 rounded-xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+<!-- Table Header -->
+<div class="grid grid-cols-12 gap-sm px-lg py-sm border-b border-white/10 bg-surface/50 text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
+<div class="col-span-1">ID</div>
+<div class="col-span-5">Task</div>
+<div class="col-span-2">Status</div>
+<div class="col-span-2">Priority</div>
+<div class="col-span-2">Assignee</div>
+</div>
+<!-- Table Body -->
+<div class="flex flex-col">
+<!-- Row 1 -->
+<div class="grid grid-cols-12 gap-sm px-lg py-md border-b border-white/5 hover:bg-surface-variant/30 transition-colors items-center group cursor-pointer">
+<div class="col-span-1 font-code-sm text-code-sm text-on-surface-variant">S-101</div>
+<div class="col-span-5 flex items-center gap-md">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(78,222,163,0.6)]"></div>
+<span class="font-body-md text-body-md text-on-surface font-medium group-hover:text-primary transition-colors">Design System Audit &amp; Update</span>
+</div>
+<div class="col-span-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-surface-variant text-on-surface">In Progress</span>
+</div>
+<div class="col-span-2">
+<div class="flex items-center gap-unit text-error">
+<span class="material-symbols-outlined text-[14px]">keyboard_double_arrow_up</span>
+<span class="font-label-md text-label-md">High</span>
+</div>
+</div>
+<div class="col-span-2 flex items-center gap-sm">
+<img alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." class="w-6 h-6 rounded-full border border-white/20 object-cover" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<span class="font-body-md text-body-md text-on-surface-variant">Alex M.</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 gap-sm px-lg py-md border-b border-white/5 hover:bg-surface-variant/30 transition-colors items-center group cursor-pointer">
+<div class="col-span-1 font-code-sm text-code-sm text-on-surface-variant">S-102</div>
+<div class="col-span-5 flex items-center gap-md">
+<div class="w-2 h-2 rounded-full bg-surface-variant"></div>
+<span class="font-body-md text-body-md text-on-surface font-medium group-hover:text-primary transition-colors">Implement OAuth2 Authentication</span>
+</div>
+<div class="col-span-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary border border-primary/30">Done</span>
+</div>
+<div class="col-span-2">
+<div class="flex items-center gap-unit text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">horizontal_rule</span>
+<span class="font-label-md text-label-md">Medium</span>
+</div>
+</div>
+<div class="col-span-2 flex items-center gap-sm">
+<img alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." class="w-6 h-6 rounded-full border border-white/20 object-cover" data-alt="A striking digital installation art piece featuring glowing, generative geometric shapes suspended in a vast, minimalist gallery space. The room is illuminated by high-key, soft white lighting that creates a bright, modern light-mode aesthetic. The artwork relies on a sophisticated palette of deep blacks and pristine whites, punctuated by intense accents of vibrant red. The mood is serene yet technologically advanced." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<span class="font-body-md text-body-md text-on-surface-variant">Sarah K.</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 gap-sm px-lg py-md border-b border-white/5 hover:bg-surface-variant/30 transition-colors items-center group cursor-pointer opacity-70">
+<div class="col-span-1 font-code-sm text-code-sm text-on-surface-variant">S-103</div>
+<div class="col-span-5 flex items-center gap-md">
+<div class="w-2 h-2 rounded-full border border-on-surface-variant"></div>
+<span class="font-body-md text-body-md text-on-surface font-medium group-hover:text-primary transition-colors">Refactor Data Pipeline Architecture</span>
+</div>
+<div class="col-span-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-surface-bright text-on-surface-variant">Backlog</span>
+</div>
+<div class="col-span-2">
+<div class="flex items-center gap-unit text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">keyboard_arrow_down</span>
+<span class="font-label-md text-label-md">Low</span>
+</div>
+</div>
+<div class="col-span-2 flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full border border-dashed border-on-surface-variant flex items-center justify-center text-[10px] text-on-surface-variant font-medium">Un</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Unassigned</span>
+</div>
+</div>
+</div>
+<!-- Table Footer/Pagination -->
+<div class="flex justify-between items-center px-lg py-sm bg-surface/30 border-t border-white/10">
+<span class="font-label-md text-label-md text-on-surface-variant">Showing 3 of 24 tasks</span>
+<div class="flex gap-unit">
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

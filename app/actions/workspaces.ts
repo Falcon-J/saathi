@@ -2,6 +2,8 @@
 
 import redis from "@/lib/redis"
 import { getSession } from "@/lib/auth-simple"
+import { revalidatePath } from "next/cache"
+import { realtimeService } from "@/lib/realtime"
 
 export interface Member {
   id: string
@@ -95,6 +97,16 @@ export async function createWorkspace(name: string): Promise<Workspace> {
     // Add workspace to user's workspace list
     await redis.sadd(`user:${session.email}:workspaces`, workspaceId)
 
+    // Publish real-time event
+    realtimeService.publishEvent({
+      type: 'workspace-created',
+      workspaceId,
+      userId: session.email,
+      timestamp: Date.now(),
+      data: { workspace }
+    }).catch(err => console.error('[Realtime] workspace-created event failed:', err))
+
+    revalidatePath('/dashboard')
     console.log(`[Saathi] Created workspace ${workspaceId} for ${session.email}`)
     return workspace
   } catch (error) {
@@ -204,6 +216,16 @@ export async function removeMemberFromWorkspace(workspaceId: string, memberEmail
       await redis.sadd(`user:${memberEmail}:workspaces`, ...updatedWorkspaces)
     }
 
+    // Publish real-time event
+    realtimeService.publishEvent({
+      type: 'member-removed',
+      workspaceId,
+      userId: session.email,
+      timestamp: Date.now(),
+      data: { memberEmail }
+    }).catch(err => console.error('[Realtime] member-removed event failed:', err))
+
+    revalidatePath('/dashboard')
     console.log(`[Saathi] Removed ${memberEmail} from workspace ${workspaceId}`)
   } catch (error) {
     console.error("[Saathi] Error removing member from workspace:", error)
@@ -282,8 +304,17 @@ export async function updateWorkspaceName(workspaceId: string, newName: string):
       console.error("[Saathi] Error tracking workspace name update activity:", error)
     }
 
+    // Publish real-time event
+    realtimeService.publishEvent({
+      type: 'workspace-created', // re-use existing event type for name changes
+      workspaceId,
+      userId: session.email,
+      timestamp: Date.now(),
+      data: { workspace, oldName, newName: workspace.name }
+    }).catch(err => console.error('[Realtime] workspace name update event failed:', err))
+
+    revalidatePath('/dashboard')
     console.log(`[Saathi] Updated workspace ${workspaceId} name from "${oldName}" to "${workspace.name}"`)
-    console.log(`[Saathi] Broadcasting workspace name update event to workspace ${workspaceId}`)
   } catch (error) {
     console.error("[Saathi] Error updating workspace name:", error)
     throw error

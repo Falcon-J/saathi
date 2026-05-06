@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Workspace - Dashboard Filter &amp; Sort</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#292931",
+                        "on-surface-variant": "#bbcabf",
+                        "on-primary-fixed": "#002113",
+                        "primary-container": "#10b981",
+                        "on-primary-fixed-variant": "#005236",
+                        "tertiary": "#ffb3af",
+                        "on-background": "#e3e1ec",
+                        "inverse-on-surface": "#2f3038",
+                        "outline": "#86948a",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "on-surface": "#e3e1ec",
+                        "surface-tint": "#4edea3",
+                        "tertiary-fixed": "#ffdad7",
+                        "secondary-container": "#474649",
+                        "secondary": "#c8c6c8",
+                        "primary-fixed-dim": "#4edea3",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-secondary": "#313032",
+                        "primary": "#4edea3",
+                        "on-primary-container": "#00422b",
+                        "surface-container-low": "#1a1b22",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "tertiary-container": "#fc7c78",
+                        "background": "#12131a",
+                        "surface": "#12131a",
+                        "inverse-primary": "#006c49",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#e3e1ec",
+                        "on-error": "#690005",
+                        "surface-container": "#1e1f26",
+                        "on-primary": "#003824",
+                        "surface-variant": "#33343c",
+                        "outline-variant": "#3c4a42",
+                        "surface-bright": "#383941",
+                        "on-secondary-fixed-variant": "#474649",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#650911",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#33343c",
+                        "surface-container-lowest": "#0d0e15",
+                        "surface-dim": "#12131a",
+                        "on-tertiary-fixed": "#410005"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "margin": "32px",
+                        "unit": "4px",
+                        "gutter": "24px",
+                        "xl": "40px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen flex antialiased">
+<!-- SideNavBar -->
+<aside class="hidden md:flex bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 fixed left-0 top-0 h-full flex-col p-md z-40 border-r border-white/10 dark:border-white/10 w-64 docked full-height left-0">
+<div class="mb-lg">
+<div class="flex items-center gap-sm px-sm py-xs">
+<img alt="User Workspace" class="w-8 h-8 rounded-full object-cover" data-alt="A sleek, minimalist avatar image for a user workspace profile. The image features subtle, dark emerald and gray geometric patterns, conveying a professional and high-performance team environment in a modern digital workspace setup." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface truncate">Saathi Workspace</h2>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">High Performance Team</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-xs">
+<a class="flex items-center gap-sm px-md py-sm bg-primary-container text-on-primary-container rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-95 transition-transform">grid_view</span>
+<span class="font-label-md text-label-md">Workspaces</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg group transition-all" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-95 transition-transform">account_tree</span>
+<span class="font-label-md text-label-md">Projects</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg group transition-all" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-95 transition-transform">assignment_ind</span>
+<span class="font-label-md text-label-md">Assigned to me</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen relative">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm sticky top-0 z-30 bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10">
+<div class="flex items-center gap-md">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="bg-surface-container-high border border-white/10 rounded-full pl-10 pr-4 py-1.5 text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-64" placeholder="Search (CMD+K)" type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+</button>
+<button class="ml-2 bg-primary text-on-primary-fixed font-label-md text-label-md px-4 py-1.5 rounded-lg hover:bg-primary-fixed-dim transition-colors">
+                    Invite
+                </button>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="flex-1 p-margin flex flex-col gap-lg max-w-7xl mx-auto w-full relative">
+<!-- Header & Command Bar -->
+<div class="flex justify-between items-end mb-sm">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">Q3 Alpha Delivery</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Active sprint board for core infrastructure.</p>
+</div>
+<div class="flex gap-sm">
+<!-- Filter Dropdown Trigger & Menu (Active State) -->
+<div class="relative">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-high border border-primary/30 text-primary rounded-lg font-label-md text-label-md hover:border-primary transition-colors focus:ring-2 focus:ring-primary/50">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                            Filter
+                            <span class="bg-primary/20 text-primary px-1.5 rounded text-[10px]">3</span>
+</button>
+<!-- Filter Dropdown Panel -->
+<div class="absolute right-0 mt-2 w-64 bg-surface-container-high border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 overflow-hidden backdrop-blur-xl">
+<div class="p-3 border-b border-white/5">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</h3>
+<div class="mt-2 space-y-1">
+<label class="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-variant/50 rounded-md cursor-pointer transition-colors">
+<input checked="" class="form-checkbox bg-transparent border-outline text-primary rounded-sm focus:ring-primary focus:ring-offset-surface-container-high" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Todo</span>
+</label>
+<label class="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-variant/50 rounded-md cursor-pointer transition-colors">
+<input checked="" class="form-checkbox bg-transparent border-outline text-primary rounded-sm focus:ring-primary focus:ring-offset-surface-container-high" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">In Progress</span>
+</label>
+<label class="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-variant/50 rounded-md cursor-pointer transition-colors">
+<input class="form-checkbox bg-transparent border-outline text-primary rounded-sm focus:ring-primary focus:ring-offset-surface-container-high" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Done</span>
+</label>
+</div>
+</div>
+<div class="p-3">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Priority</h3>
+<div class="mt-2 space-y-1">
+<label class="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-variant/50 rounded-md cursor-pointer transition-colors">
+<input checked="" class="form-checkbox bg-transparent border-outline text-primary rounded-sm focus:ring-primary focus:ring-offset-surface-container-high" type="checkbox"/>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="font-body-md text-body-md text-on-surface">High</span>
+</div>
+</label>
+<label class="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-variant/50 rounded-md cursor-pointer transition-colors">
+<input class="form-checkbox bg-transparent border-outline text-primary rounded-sm focus:ring-primary focus:ring-offset-surface-container-high" type="checkbox"/>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-surface-tint"></span>
+<span class="font-body-md text-body-md text-on-surface">Medium</span>
+</div>
+</label>
+<label class="flex items-center gap-3 px-2 py-1.5 hover:bg-surface-variant/50 rounded-md cursor-pointer transition-colors">
+<input class="form-checkbox bg-transparent border-outline text-primary rounded-sm focus:ring-primary focus:ring-offset-surface-container-high" type="checkbox"/>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-on-surface-variant"></span>
+<span class="font-body-md text-body-md text-on-surface">Low</span>
+</div>
+</label>
+</div>
+</div>
+<div class="p-2 border-t border-white/5 bg-surface-container-lowest/50 flex justify-between">
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface px-2 py-1 transition-colors">Clear</button>
+<button class="font-label-md text-label-md text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1 rounded transition-colors">Apply</button>
+</div>
+</div>
+</div>
+<!-- Sort Dropdown Trigger & Menu (Active State) -->
+<div class="relative">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-high border border-white/10 text-on-surface rounded-lg font-label-md text-label-md hover:border-white/20 hover:bg-surface-variant/50 transition-colors">
+<span class="material-symbols-outlined text-[18px]">sort</span>
+                            Sort
+                        </button>
+<!-- Sort Dropdown Panel -->
+<div class="absolute right-0 mt-2 w-48 bg-surface-container-high border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 overflow-hidden backdrop-blur-xl">
+<div class="p-2 space-y-1">
+<button class="w-full flex items-center justify-between px-3 py-2 bg-surface-variant/50 rounded-md text-left group">
+<span class="font-body-md text-body-md text-on-surface">Newest</span>
+<span class="material-symbols-outlined text-[16px] text-primary">check</span>
+</button>
+<button class="w-full flex items-center justify-between px-3 py-2 hover:bg-surface-variant/50 rounded-md text-left text-on-surface-variant hover:text-on-surface transition-colors group">
+<span class="font-body-md text-body-md">Due Date</span>
+</button>
+<button class="w-full flex items-center justify-between px-3 py-2 hover:bg-surface-variant/50 rounded-md text-left text-on-surface-variant hover:text-on-surface transition-colors group">
+<span class="font-body-md text-body-md">Assignee</span>
+</button>
+</div>
+</div>
+</div>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary-fixed rounded-lg font-label-md text-label-md hover:bg-primary-fixed-dim transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        New Task
+                    </button>
+</div>
+</div>
+<!-- Dashboard Content Placeholder (Blurred out slightly to emphasize dropdowns) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md opacity-50 pointer-events-none">
+<!-- Column 1 -->
+<div class="bg-surface-container-low border border-white/5 rounded-xl p-md flex flex-col gap-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface flex items-center justify-between">
+                        Todo <span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded text-xs">4</span>
+</h3>
+<div class="bg-surface border border-white/5 p-sm rounded-lg">
+<div class="flex gap-2 mb-2">
+<span class="px-1.5 py-0.5 bg-error/10 text-error rounded text-[10px] font-mono">HIGH</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">Migrate legacy auth tokens to v2 infrastructure</p>
+</div>
+</div>
+<!-- Column 2 -->
+<div class="bg-surface-container-low border border-white/5 rounded-xl p-md flex flex-col gap-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface flex items-center justify-between">
+                        In Progress <span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded text-xs">2</span>
+</h3>
+<div class="bg-surface border border-white/5 p-sm rounded-lg">
+<p class="font-body-md text-body-md text-on-surface">Implement glassmorphism dropdown components</p>
+<div class="mt-3 flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant border border-surface flex items-center justify-center text-[10px]">JD</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Collaborative Project Board</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#690005",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#3c4a42",
+                        "surface-container-lowest": "#0d0e15",
+                        "inverse-primary": "#006c49",
+                        "on-secondary": "#313032",
+                        "on-surface-variant": "#bbcabf",
+                        "on-surface": "#e3e1ec",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-primary-fixed": "#002113",
+                        "tertiary-container": "#fc7c78",
+                        "on-primary-container": "#00422b",
+                        "secondary": "#c8c6c8",
+                        "on-background": "#e3e1ec",
+                        "secondary-fixed": "#e5e1e4",
+                        "surface-dim": "#12131a",
+                        "on-tertiary": "#650911",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#33343c",
+                        "primary-fixed": "#6ffbbe",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#33343c",
+                        "primary-container": "#10b981",
+                        "on-primary-fixed-variant": "#005236",
+                        "outline": "#86948a",
+                        "primary-fixed-dim": "#4edea3",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "surface-bright": "#383941",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "primary": "#4edea3",
+                        "surface-tint": "#4edea3",
+                        "secondary-container": "#474649",
+                        "on-secondary-fixed-variant": "#474649",
+                        "background": "#12131a",
+                        "inverse-surface": "#e3e1ec",
+                        "on-secondary-container": "#b7b4b7",
+                        "on-tertiary-fixed": "#410005",
+                        "on-tertiary-container": "#711419",
+                        "tertiary": "#ffb3af",
+                        "surface-container-low": "#1a1b22",
+                        "on-primary": "#003824",
+                        "inverse-on-surface": "#2f3038",
+                        "surface-container-high": "#292931",
+                        "surface": "#12131a",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-container": "#1e1f26"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "sm": "8px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "margin": "32px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "code-sm": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code-sm": ["13px", {"lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background antialiased min-h-screen flex flex-col md:flex-row overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex fixed left-0 top-0 h-full flex-col p-md z-40 bg-surface-container-low/80 backdrop-blur-xl border-r border-white/10 w-64">
+<div class="mb-xl px-sm">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">Saathi Workspace</h1>
+<p class="font-label-md text-label-md text-on-surface-variant mt-xs">High Performance Team</p>
+</div>
+<ul class="flex flex-col gap-sm flex-1">
+<li>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">grid_view</span>
+                    Workspaces
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md bg-primary-container text-on-primary-container rounded-lg transition-transform scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+                    Projects
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">assignment_ind</span>
+                    Assigned to me
+                </a>
+</li>
+</ul>
+<div class="mt-auto px-sm pt-lg border-t border-white/5">
+<div class="flex items-center gap-sm">
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-white/10" data-alt="A small, circular avatar portrait of a professional individual in a minimalist, high-contrast dark environment. The lighting is precise, highlighting subtle green tones." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<span class="font-label-md text-label-md text-on-surface">Alex R.</span>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col h-screen">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm bg-surface/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30">
+<div class="flex items-center gap-md">
+<h2 class="font-headline-md text-headline-md text-on-surface font-bold">Project Alpha</h2>
+<div class="flex items-center gap-xs px-sm py-unit bg-surface-container rounded-full border border-white/5">
+<span class="w-2 h-2 rounded-full bg-primary relative flex items-center justify-center">
+<span class="absolute inline-flex w-full h-full rounded-full bg-primary opacity-75 animate-ping"></span>
+</span>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">Live</span>
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<!-- Presence Indicators -->
+<div class="flex items-center -space-x-2">
+<img alt="Collaborator 1" class="w-8 h-8 rounded-full border-2 border-surface relative z-30" data-alt="A circular avatar of a team member in a dark, moody setting, bathed in soft, cool green light indicative of a late-night coding session." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<img alt="Collaborator 2" class="w-8 h-8 rounded-full border-2 border-surface relative z-20" data-alt="A circular avatar of a team member in a dark, moody setting, bathed in soft, cool green light indicative of a late-night coding session." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-surface-variant flex items-center justify-center relative z-10 font-label-md text-label-md text-on-surface-variant">+3</div>
+</div>
+<div class="flex items-center gap-sm border-l border-white/10 pl-lg">
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant/30 rounded-full transition-all focus:ring-2 focus:ring-primary/50">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="px-md py-sm bg-primary text-on-primary font-label-md text-label-md rounded-lg hover:opacity-90 transition-opacity">
+                        Invite
+                    </button>
+</div>
+</div>
+</header>
+<!-- Board Canvas -->
+<div class="flex-1 overflow-x-auto overflow-y-hidden bg-background p-lg">
+<div class="flex gap-lg h-full pb-lg min-w-max">
+<!-- Column: To Do -->
+<div class="w-80 flex flex-col bg-surface-container-lowest/50 rounded-xl border border-white/5 p-sm">
+<div class="flex justify-between items-center mb-md px-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">To Do</h3>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-container px-2 py-1 rounded-full">3</span>
+</div>
+<div class="flex flex-col gap-sm overflow-y-auto pr-sm pb-md">
+<!-- Card 1 -->
+<div class="bg-surface border border-white/10 rounded-lg p-md hover:bg-surface-container-low transition-colors group cursor-grab">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-code-sm text-code-sm text-primary">TSK-102</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">more_horiz</span>
+</div>
+<h4 class="font-body-md text-body-md text-on-surface mb-md">Implement SSE for real-time presence</h4>
+<div class="flex items-center justify-between">
+<div class="flex gap-xs">
+<span class="px-2 py-1 bg-surface-variant text-on-surface-variant font-label-md text-[10px] rounded uppercase tracking-wider">Backend</span>
+</div>
+</div>
+</div>
+<!-- Card 2 (Active Editor) -->
+<div class="bg-surface border border-primary/50 rounded-lg p-md relative cursor-grab">
+<!-- Active Editor Badge -->
+<div class="absolute -top-3 right-2 bg-surface-container-high border border-primary/30 rounded-full px-2 py-1 flex items-center gap-xs shadow-lg backdrop-blur-md">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-md text-[10px] text-primary">Jane is editing...</span>
+</div>
+<div class="flex justify-between items-start mb-sm mt-xs">
+<span class="font-code-sm text-code-sm text-on-surface-variant">TSK-105</span>
+</div>
+<h4 class="font-body-md text-body-md text-on-surface mb-md">Design Glassmorphic modal variants</h4>
+<div class="flex items-center justify-between mt-sm">
+<img alt="Assignee" class="w-6 h-6 rounded-full border border-primary/50" data-alt="Small avatar portrait in dark theme" src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+</div>
+</div>
+</div>
+<button class="mt-auto flex items-center justify-center gap-xs p-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30 rounded-lg transition-all font-label-md text-label-md w-full border border-dashed border-white/10">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        Add Task
+                    </button>
+</div>
+<!-- Column: In Progress -->
+<div class="w-80 flex flex-col bg-surface-container-lowest/50 rounded-xl border border-white/5 p-sm">
+<div class="flex justify-between items-center mb-md px-sm">
+<div class="flex items-center gap-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">In Progress</h3>
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-container px-2 py-1 rounded-full">1</span>
+</div>
+<div class="flex flex-col gap-sm overflow-y-auto pr-sm pb-md">
+<!-- Card 3 -->
+<div class="bg-surface border border-white/10 rounded-lg p-md hover:bg-surface-container-low transition-colors cursor-grab">
+<div class="flex justify-between items-start mb-sm">
+<span class="font-code-sm text-code-sm text-on-surface-variant">TSK-098</span>
+</div>
+<h4 class="font-body-md text-body-md text-on-surface mb-md">Optimize database queries for dashboard load</h4>
+<div class="w-full bg-surface-variant h-1 rounded-full mb-md overflow-hidden">
+<div class="bg-primary h-full w-2/3 rounded-full"></div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex gap-xs">
+<span class="px-2 py-1 bg-tertiary/10 text-tertiary border border-tertiary/20 font-label-md text-[10px] rounded uppercase tracking-wider">High Pri</span>
+</div>
+<img alt="Assignee" class="w-6 h-6 rounded-full border border-white/10" data-alt="Small avatar portrait in dark theme" src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Done -->
+<div class="w-80 flex flex-col bg-surface-container-lowest/50 rounded-xl border border-white/5 p-sm opacity-80">
+<div class="flex justify-between items-center mb-md px-sm">
+<h3 class="font-headline-sm text-headline-sm text-on-surface-variant">Done</h3>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-container px-2 py-1 rounded-full">2</span>
+</div>
+<div class="flex flex-col gap-sm overflow-y-auto pr-sm pb-md">
+<!-- Card 4 -->
+<div class="bg-surface/50 border border-white/5 rounded-lg p-md">
+<div class="flex items-center gap-sm mb-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
+<span class="font-code-sm text-code-sm line-through">TSK-095</span>
+</div>
+<h4 class="font-body-md text-body-md text-on-surface-variant mb-md line-through">Setup project repository</h4>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

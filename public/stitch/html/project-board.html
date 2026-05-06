@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Project Board</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#ffdad6",
+                      "on-surface": "#e3e1ec",
+                      "on-primary-fixed": "#002113",
+                      "tertiary-container": "#fc7c78",
+                      "background": "#12131a",
+                      "on-secondary": "#313032",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "surface-container-highest": "#33343c",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-bright": "#383941",
+                      "error-container": "#93000a",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "surface-dim": "#12131a",
+                      "on-primary-container": "#00422b",
+                      "on-tertiary-container": "#711419",
+                      "on-secondary-container": "#b7b4b7",
+                      "surface": "#12131a",
+                      "inverse-primary": "#006c49",
+                      "surface-container-lowest": "#0d0e15",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "tertiary": "#ffb3af",
+                      "inverse-on-surface": "#2f3038",
+                      "surface-variant": "#33343c",
+                      "on-primary": "#003824",
+                      "primary-fixed": "#6ffbbe",
+                      "on-tertiary": "#650911",
+                      "on-tertiary-fixed": "#410005",
+                      "surface-container": "#1e1f26",
+                      "on-secondary-fixed-variant": "#474649",
+                      "primary-container": "#10b981",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "inverse-surface": "#e3e1ec",
+                      "secondary": "#c8c6c8",
+                      "error": "#ffb4ab",
+                      "on-surface-variant": "#bbcabf",
+                      "outline": "#86948a",
+                      "surface-tint": "#4edea3",
+                      "outline-variant": "#3c4a42",
+                      "primary-fixed-dim": "#4edea3",
+                      "secondary-fixed": "#e5e1e4",
+                      "on-background": "#e3e1ec",
+                      "secondary-container": "#474649",
+                      "surface-container-low": "#1a1b22",
+                      "primary": "#4edea3",
+                      "on-primary-fixed-variant": "#005236",
+                      "surface-container-high": "#292931"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "margin": "32px",
+                      "xl": "40px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "code-sm": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "code-sm": ["13px", {"lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                      "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Subtly hide scrollbar for horizontal scrolling areas to keep clean UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md min-h-screen flex selection:bg-primary/20 selection:text-primary">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low/80 backdrop-blur-xl border-r border-white/10 fixed left-0 top-0 h-full flex flex-col p-md z-40 w-64">
+<div class="flex items-center gap-sm mb-xl px-sm">
+<div class="w-8 h-8 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center font-bold">
+                S
+            </div>
+<div>
+<div class="font-headline-sm text-headline-sm text-on-surface">Saathi Workspace</div>
+<div class="font-label-md text-label-md text-on-surface-variant">High Performance Team</div>
+</div>
+</div>
+<ul class="flex flex-col gap-unit flex-1">
+<li>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg font-label-md text-label-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="grid_view">grid_view</span>
+                    Workspaces
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined text-[20px] fill" data-icon="account_tree" data-weight="fill">account_tree</span>
+                    Projects
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg font-label-md text-label-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="assignment_ind">assignment_ind</span>
+                    Assigned to me
+                </a>
+</li>
+</ul>
+<!-- User Workspace Avatar -->
+<div class="mt-auto pt-lg border-t border-white/5 px-sm">
+<img alt="User Workspace" class="w-8 h-8 rounded-full border border-outline-variant object-cover" data-alt="A tightly cropped, high-resolution portrait photograph of a young professional woman with a calm expression, used as a small circular avatar. The background is a soft, muted grey studio backdrop. The lighting is clean and balanced, highlighting the subject's features clearly. The aesthetic is modern, professional, and understated, fitting seamlessly into a minimalist dark-mode software interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDh18rbuuUWPcoRdZXQmALcuTMDjVYmxaVG2GyJ7CYjFm_19YQ2fnDtulJ1aCTi-v8HAICu6ujzQg-qv_o41tQSQwYwSvKGw4CUJ3z0YUFuMHRU-TUp9jB16_10aY4nquOyVBfT6MYkkl9NaUU890N3VQz5_rDgjLRx4J9wQss3poRm8kOODNkOKWZIQEWm1s4QU-Gl0iEaeFvBjeYk9fHn6e8CfPSP3B3DEHweFpuch_jeEQIwARyHtPoOy1x5HGsPOWMrDBeZY8nh"/>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-surface/80 backdrop-blur-xl border-b border-white/10 flex justify-between items-center w-full px-lg py-sm sticky top-0 z-30">
+<div class="flex items-center gap-md">
+<div class="font-headline-sm text-headline-sm text-on-surface">Saathi</div>
+<!-- Search Bar (on_left) -->
+<div class="ml-lg relative hidden md:block">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="bg-surface-container border border-outline-variant rounded-lg pl-xl pr-md py-1.5 font-code-sm text-code-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 w-64 transition-all placeholder:text-on-surface-variant/50" placeholder="Search tasks, docs..." type="text"/>
+<div class="absolute right-sm top-1/2 -translate-y-1/2 flex items-center gap-1">
+<span class="bg-surface-container-highest rounded px-1.5 py-0.5 text-[10px] text-on-surface-variant border border-outline-variant/30 font-code-sm">⌘</span>
+<span class="bg-surface-container-highest rounded px-1.5 py-0.5 text-[10px] text-on-surface-variant border border-outline-variant/30 font-code-sm">K</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="font-label-md text-label-md text-primary font-bold hover:bg-primary/10 px-md py-1.5 rounded-lg transition-colors">
+                    Invite
+                </button>
+<div class="flex items-center gap-sm">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-all focus:ring-2 focus:ring-primary/50">
+<span class="material-symbols-outlined text-[20px]" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-all focus:ring-2 focus:ring-primary/50">
+<span class="material-symbols-outlined text-[20px]" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Board Canvas -->
+<div class="p-margin flex-1 overflow-x-auto no-scrollbar flex flex-col">
+<!-- Project Header -->
+<div class="mb-lg flex justify-between items-end shrink-0">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface mb-sm tracking-tight">Project Delta</h1>
+<div class="flex items-center gap-md text-on-surface-variant font-body-md text-body-md">
+<span>Q4 Technical Re-architecture</span>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="flex items-center gap-sm">
+<span class="flex gap-1 h-4 items-center">
+<span class="w-1 h-1 bg-tertiary-container rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+<span class="w-1 h-1 bg-tertiary-container rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+<span class="w-1 h-1 bg-tertiary-container rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+</span>
+<span class="text-sm italic">Jane is typing...</span>
+</div>
+</div>
+</div>
+<div class="flex -space-x-2">
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-background z-20 object-cover" data-alt="A closely cropped, small circular profile picture of a young professional woman with a soft smile against a plain grey background, designed for a software interface user avatar. The lighting is bright and flat, characteristic of modern minimalist application design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuALnAHwwr4AyoZjN1YSATmfdivWNC_G2EDoB5ufjMEtbStvFWdp0sY-Vnl2Lt2BoNcYreKO7RhV_k0uldMUevNzuX1CmSGO_-ACAq_0QpONyJceM63cvRyMYe3GC3XajrslzL9ZRBAtJF_8-Vbcl6rNs32JMZMknmozXRuYI8U7oddZDwM6z-XBdmJJdTKPZUCfGad3BZYlhPapr-bcuFJB47ZVhNz68MP4xOZtammfgyzEVEfRIcod0skv2x9uuLnCO0dJHwrhuLUw"/>
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-background z-10 object-cover" data-alt="A closely cropped, small circular profile picture of a middle-aged man with a short beard against a stark dark grey background, designed for a high-performance software application interface. The lighting is somewhat dramatic but professional, fitting a dark-mode theme." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHJu9M0KJ0giRVP-UddnKMDNLbv_07DYIR8q5lMfJOKm7bBKJm0qhrMgvMRJpOmnFRsRzNTg1AtaRR75ah57sP7uhm-Qey583u1oktn1bF67uxInVt3Yam_VHCbMs006WEwRErCgo_kv1JsMH-r7AKQXpzfnS1el3XhMAnbqN7XNy4UfoO58G7yG3jTDO5UQqxSUQ3rYgC2xp8Md_qxThvOE8eq6t809DnkveONR5W_4RqR20CYhSmrDs0sxR9O_GJfxIrrj44SLW8"/>
+<div class="w-8 h-8 rounded-full border-2 border-background bg-surface-variant flex items-center justify-center font-label-md text-label-md text-on-surface-variant z-0">+3</div>
+</div>
+</div>
+<!-- Kanban Grid -->
+<div class="flex gap-lg h-full pb-margin">
+<!-- To Do Column -->
+<div class="w-80 flex flex-col gap-md shrink-0">
+<div class="flex items-center justify-between font-label-md text-label-md text-on-surface-variant uppercase tracking-wider pl-sm border-l-2 border-outline-variant">
+<span>To Do</span>
+<span class="bg-surface-container rounded-md px-2 py-0.5">3</span>
+</div>
+<div class="flex flex-col gap-sm">
+<!-- Task Card: High Priority -->
+<div class="bg-surface-container-low border border-white/5 rounded-xl p-md flex flex-col gap-sm hover:bg-surface-variant/30 hover:border-white/10 transition-all cursor-pointer group shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+<div class="flex justify-between items-start">
+<span class="bg-error/10 text-error border border-error/20 font-code-sm text-code-sm px-2 py-0.5 rounded-md">High</span>
+<button class="text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-[16px]">more_horiz</span></button>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface leading-snug">Migrate Auth Service to OAuth2.0</h3>
+<div class="mt-2 flex items-center justify-between pt-sm border-t border-white/5">
+<div class="flex items-center gap-xs text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+<span>Oct 24</span>
+</div>
+<div class="flex items-center gap-sm">
+<img alt="Assignee" class="w-6 h-6 rounded-full object-cover" data-alt="A small circular profile image of a man used as an assignee indicator on a task card within a dark-mode software interface. The background is neutral grey, and the subject looks focused, conveying a professional tech environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnOnVIeDdluwZd7fYAzKncqpImpvB8U3DOPGTQJzOnD79eit7NOM86tZk1QT5CDhsoaq381ZfzBQqLuysKJeoZg5AGy9RoQxHrYHVD2wtVYgWDF7ssDRVrugi9cW_QPbbHmrSs1hTw51KtT32ymkBIiGSCkeiqlbYT7u8jjyRS4XWjW7jhGqqNSgOEenFjliS-UF8Ze9YAm7MReTgL2mltu9Ioa2Hz6Ebe6RKMRcbyLNBdjsHT_h2YNBx0tLz7ihTpAXZBVHHi37cF"/>
+</div>
+</div>
+</div>
+<!-- Task Card: Normal -->
+<div class="bg-surface-container-low border border-white/5 rounded-xl p-md flex flex-col gap-sm hover:bg-surface-variant/30 hover:border-white/10 transition-all cursor-pointer group shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+<div class="flex justify-between items-start">
+<span class="bg-surface-variant text-on-surface-variant border border-outline-variant font-code-sm text-code-sm px-2 py-0.5 rounded-md">Med</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface leading-snug">Design System Token Audit</h3>
+<div class="mt-2 flex items-center justify-between pt-sm border-t border-white/5">
+<div class="flex items-center gap-xs text-outline font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+<span>Nov 02</span>
+</div>
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-surface-bright border border-outline-variant border-dashed flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">person_add</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- In Progress Column -->
+<div class="w-80 flex flex-col gap-md shrink-0">
+<div class="flex items-center justify-between font-label-md text-label-md text-primary uppercase tracking-wider pl-sm border-l-2 border-primary">
+<div class="flex items-center gap-sm">
+<span>In Progress</span>
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+</div>
+<span class="bg-primary/10 text-primary rounded-md px-2 py-0.5">2</span>
+</div>
+<div class="flex flex-col gap-sm">
+<!-- Task Card: Active -->
+<div class="bg-surface-container-highest border border-primary/30 rounded-xl p-md flex flex-col gap-sm hover:border-primary/60 transition-all cursor-pointer group shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+<div class="flex justify-between items-start">
+<span class="bg-error/10 text-error border border-error/20 font-code-sm text-code-sm px-2 py-0.5 rounded-md">High</span>
+<div class="flex items-center gap-xs text-primary text-xs">
+<span class="material-symbols-outlined text-[14px] animate-spin-slow">sync</span>
+<span class="font-code-sm">Deploying</span>
+</div>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface leading-snug">Implement WebSockets for Live Updates</h3>
+<div class="mt-2 flex items-center justify-between pt-sm border-t border-white/5">
+<div class="flex items-center gap-xs text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+<span>Today</span>
+</div>
+<div class="flex items-center gap-sm relative">
+<div class="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-primary animate-pulse z-10"></div>
+<img alt="Assignee" class="w-6 h-6 rounded-full object-cover relative z-0" data-alt="A small circular profile picture of a woman, serving as an avatar on an active software task card. The aesthetic matches a dark, glassmorphic UI, with subtle highlighting indicating an active state." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7oU9pozfQaChzPMxf8GVd6wb7ZdLOWVLh54lN2oUbpUmax_Thxb3B-isTNEZgWRhejydZd51AbunkEynQTx70sNlKl_wguffj_GYBd2QnceqGv5iqMre3jIQf7uPLOgRPr9lxV0s5R_I3k52otOZT4urJB0GM-KlWKUywA26oR3E5m_YaLOQjpjYWuvgPrBGDLv7R6CqvQfFeN-ocuVXwwdBiPpdc4B1baxUoUbx1_QsBp6ROwkAeEzPjK_osFufP69H-c2wymvND"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Done Column -->
+<div class="w-80 flex flex-col gap-md shrink-0 opacity-70">
+<div class="flex items-center justify-between font-label-md text-label-md text-on-surface-variant uppercase tracking-wider pl-sm border-l-2 border-outline-variant">
+<span>Done</span>
+<span class="bg-surface-container rounded-md px-2 py-0.5">14</span>
+</div>
+<div class="flex flex-col gap-sm">
+<!-- Task Card: Done -->
+<div class="bg-surface-container-low/50 border border-white/5 rounded-xl p-md flex flex-col gap-sm cursor-pointer group">
+<div class="flex justify-between items-start">
+<span class="bg-surface-variant text-on-surface-variant border border-outline-variant font-code-sm text-code-sm px-2 py-0.5 rounded-md">Low</span>
+<span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface-variant line-through leading-snug">Initial wireframes for Dashboard</h3>
+<div class="mt-2 flex items-center justify-between pt-sm border-t border-white/5">
+<div class="flex items-center gap-xs text-outline font-label-md text-label-md">
+<span>Completed Oct 20</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed bottom-margin right-margin bg-primary text-on-primary rounded-full w-14 h-14 flex items-center justify-center shadow-[0_10px_40px_rgba(78,222,163,0.3)] hover:scale-105 hover:bg-primary-fixed transition-all z-50">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+</body></html>

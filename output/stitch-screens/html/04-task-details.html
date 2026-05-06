@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Task Details</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#ffdad6",
+                        "on-surface": "#e3e1ec",
+                        "on-primary-fixed": "#002113",
+                        "tertiary-container": "#fc7c78",
+                        "background": "#12131a",
+                        "on-secondary": "#313032",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "surface-container-highest": "#33343c",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-bright": "#383941",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "surface-dim": "#12131a",
+                        "on-primary-container": "#00422b",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "surface": "#12131a",
+                        "inverse-primary": "#006c49",
+                        "surface-container-lowest": "#0d0e15",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "tertiary": "#ffb3af",
+                        "inverse-on-surface": "#2f3038",
+                        "surface-variant": "#33343c",
+                        "on-primary": "#003824",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#650911",
+                        "on-tertiary-fixed": "#410005",
+                        "surface-container": "#1e1f26",
+                        "on-secondary-fixed-variant": "#474649",
+                        "primary-container": "#10b981",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "inverse-surface": "#e3e1ec",
+                        "secondary": "#c8c6c8",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#bbcabf",
+                        "outline": "#86948a",
+                        "surface-tint": "#4edea3",
+                        "outline-variant": "#3c4a42",
+                        "primary-fixed-dim": "#4edea3",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-background": "#e3e1ec",
+                        "secondary-container": "#474649",
+                        "surface-container-low": "#1a1b22",
+                        "primary": "#4edea3",
+                        "on-primary-fixed-variant": "#005236",
+                        "surface-container-high": "#292931"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "md": "16px",
+                        "margin": "32px",
+                        "xl": "40px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "gutter": "24px"
+                    },
+                    fontFamily: {
+                        "code-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    fontSize: {
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md antialiased overflow-hidden flex h-screen">
+<!-- Shared Component: SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-md z-40 w-64 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 border-r border-white/10 dark:border-white/10 hidden md:flex">
+<!-- Header -->
+<div class="flex items-center gap-md mb-margin px-sm">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center border border-white/5 overflow-hidden">
+<img alt="Team avatar" class="w-full h-full object-cover" data-alt="A macro shot of a sleek, abstract geometric sculpture in dark gunmetal and bright emerald green, softly lit in a minimalist studio setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPFTHpkZxTiKKbw6AJuyEiSxrTW-9CYmic5qY0IgD0boC-g6-ghTXi-XSt-eZe13ZBvNnTmw6H6onG_Hm_mOOpX0qG34wFuidEKhvjFh3tVT-zI6ESjRi4PretQ6_GAXxff0wpDArw6h5FeiisMyGwcnydEjalsdVwNbjcjI74IguXhH8XXeVacHxih265fkz-7SRoOlUnltuqhHC32IkYeeRUPeeH4445D6JkqrWD9Z8hz10Ci_kFcs2mw5_jqGMCwEmXVkhsBbJr"/>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface truncate">Saathi Workspace</h1>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">High Performance Team</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-sm flex-1">
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+                Workspaces
+            </a>
+<a class="flex items-center gap-sm px-md py-sm bg-primary-container text-on-primary-container rounded-lg transition-all font-label-md text-label-md font-medium" href="#">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+                Projects
+            </a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[18px]">assignment_ind</span>
+                Assigned to me
+            </a>
+</div>
+<!-- Bottom Settings -->
+<div class="mt-auto">
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+                Settings
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col relative bg-background">
+<!-- Shared Component: TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm sticky top-0 bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10 z-30">
+<div class="flex items-center gap-md">
+<div class="relative hidden sm:block w-64">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full bg-surface-container-high/50 border border-white/10 rounded-lg py-xs pl-8 pr-sm text-on-surface font-code-sm text-code-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/50" placeholder="Search (CMD+K)" type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-all flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 transition-all flex items-center justify-center">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="bg-primary hover:bg-primary/90 text-on-primary px-md py-xs rounded-lg font-label-md text-label-md transition-colors border border-transparent">
+                    Invite
+                </button>
+</div>
+</header>
+<!-- Dummy Project Board Content (Blurred/Dimmed to simulate context) -->
+<div class="flex-1 p-margin overflow-hidden flex gap-lg opacity-40 blur-[2px] pointer-events-none transition-all duration-500">
+<!-- Column 1 -->
+<div class="w-80 flex flex-col gap-md">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">To Do</h2>
+<span class="bg-surface-container-highest text-on-surface-variant px-2 py-0.5 rounded-full font-code-sm text-code-sm">5</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-md h-32 flex flex-col gap-sm">
+<div class="w-3/4 h-4 bg-surface-variant rounded"></div>
+<div class="w-1/2 h-3 bg-surface-variant/50 rounded mt-auto"></div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-md h-40 flex flex-col gap-sm">
+<div class="w-full h-4 bg-surface-variant rounded"></div>
+<div class="w-2/3 h-4 bg-surface-variant rounded"></div>
+</div>
+</div>
+<!-- Column 2 (Active) -->
+<div class="w-80 flex flex-col gap-md">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                        In Progress
+                    </h2>
+<span class="bg-surface-container-highest text-on-surface-variant px-2 py-0.5 rounded-full font-code-sm text-code-sm">2</span>
+</div>
+<!-- The task that is currently open in the drawer -->
+<div class="bg-primary/5 border border-primary/30 rounded-xl p-md h-48 flex flex-col gap-sm relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none"></div>
+<div class="w-full h-4 bg-surface-variant rounded mb-2"></div>
+<div class="w-3/4 h-4 bg-surface-variant rounded"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- Overlay Background -->
+<div class="fixed inset-0 bg-background/20 backdrop-blur-sm z-40 transition-opacity duration-300"></div>
+<!-- TASK DETAILS DRAWER -->
+<aside class="fixed inset-y-0 right-0 w-full md:w-[600px] bg-surface-container-low/95 backdrop-blur-[30px] border-l border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.6)] z-50 flex flex-col transform transition-transform duration-300 ease-out translate-x-0">
+<!-- Drawer Header -->
+<header class="px-margin pt-margin pb-lg border-b border-white/10 flex flex-col gap-md shrink-0">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<!-- Status Chip -->
+<div class="bg-surface-variant/50 border border-white/5 text-on-surface px-sm py-1 rounded-md font-label-md text-label-md flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(78,222,163,0.8)]"></span>
+                        In Progress
+                    </div>
+<!-- Priority Badge -->
+<div class="bg-tertiary-container/10 border border-tertiary-container/20 text-tertiary-container px-sm py-1 rounded-md font-label-md text-label-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">keyboard_double_arrow_up</span>
+                        High
+                    </div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-2">
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 p-1.5 rounded-lg transition-colors" title="Copy Link">
+<span class="material-symbols-outlined text-[18px]">link</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 p-1.5 rounded-lg transition-colors" title="More actions">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+<div class="w-px h-4 bg-white/10 mx-1"></div>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 p-1.5 rounded-lg transition-colors" title="Close drawer">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface mt-2 leading-tight">
+                Implement WebSockets for Live Updates
+            </h2>
+</header>
+<!-- Drawer Body (Scrollable) -->
+<div class="flex-1 overflow-y-auto p-margin flex flex-col gap-xl">
+<!-- Metadata Grid -->
+<div class="grid grid-cols-2 gap-y-lg gap-x-md border border-white/5 bg-surface/30 rounded-xl p-md">
+<!-- Assignee -->
+<div class="flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-on-surface-variant">Assignee</span>
+<button class="flex items-center gap-2 hover:bg-surface-variant/30 p-1 -ml-1 rounded-lg transition-colors w-fit">
+<img alt="Jane Doe" class="w-6 h-6 rounded-full object-cover border border-white/10" data-alt="A close-up portrait of a professional woman in a softly lit, modern office environment. The lighting is cinematic with deep shadows and subtle cool-toned highlights reflecting off glass surfaces." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAesEwC6yCOb2hwtHRaArOIRwryflXg06A4bqLFYZofzhh1PvcmTgXOdmzTv6Jr9uVkkKZfTIo0HFSyWKbCINy5CPMScplnelPt3I-Rr9mFCgssm6Ii7nXlyL2xtzNlTZXYFJZX04P9hVtoC0lOtsrsQsmc_gFFhWozbpZUYQ6B-D548W3rVOT_St6wEQjLtkTTW8IE7SOQO4uwe-3qlkPY5Zl-w4JDljoOU7ggg1Z_JAMfpZZatbWJY40DJ3xYo0BVBqTaiqYFXrMm"/>
+<span class="font-body-md text-body-md text-on-surface">Jane Doe</span>
+</button>
+</div>
+<!-- Due Date -->
+<div class="flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-on-surface-variant">Due Date</span>
+<button class="flex items-center gap-2 hover:bg-surface-variant/30 p-1 -ml-1 rounded-lg transition-colors w-fit text-error">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-body-md text-body-md">Today</span>
+</button>
+</div>
+<!-- Project/Tag -->
+<div class="flex flex-col gap-xs col-span-2">
+<span class="font-label-md text-label-md text-on-surface-variant">Project</span>
+<button class="flex items-center gap-2 hover:bg-surface-variant/30 p-1 -ml-1 rounded-lg transition-colors w-fit">
+<div class="w-4 h-4 rounded-sm bg-[#6366f1] border border-white/20"></div>
+<span class="font-body-md text-body-md text-on-surface">Core Infrastructure</span>
+</button>
+</div>
+</div>
+<!-- Description -->
+<div class="flex flex-col gap-md">
+<h3 class="font-headline-sm text-headline-sm text-on-surface flex items-center justify-between">
+                    Description
+                    <button class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md">Edit</button>
+</h3>
+<div class="font-body-md text-body-md text-on-surface-variant space-y-4 leading-relaxed">
+<p>We need to transition our current polling mechanism to a WebSocket-based architecture to support true real-time updates on the collaborative canvas.</p>
+<ul class="list-disc pl-5 space-y-1">
+<li>Establish secure WSS connection on client load.</li>
+<li>Implement heartbeat ping/pong to manage connection lifecycle.</li>
+<li>Handle fallback to long-polling if WS fails (Socket.io handles this, but verify configuration).</li>
+</ul>
+<div class="bg-surface-container border border-outline-variant/30 rounded-lg p-sm mt-2 font-code-sm text-code-sm text-secondary-fixed">
+<code>const socket = new WebSocket('wss://api.saathi.dev/v1/stream');</code>
+</div>
+</div>
+</div>
+<hr class="border-white/5"/>
+<!-- Activity Timeline -->
+<div class="flex flex-col gap-lg">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Activity</h3>
+<div class="relative pl-sm">
+<!-- Vertical Line -->
+<div class="absolute left-[11px] top-2 bottom-2 w-px bg-white/10"></div>
+<div class="flex flex-col gap-lg">
+<!-- Timeline Item: Status Change -->
+<div class="relative flex gap-md items-start group">
+<!-- Node -->
+<div class="w-6 h-6 rounded-full bg-surface border-2 border-surface-variant flex items-center justify-center z-10 mt-0.5">
+<span class="material-symbols-outlined text-[12px] text-on-surface-variant">history</span>
+</div>
+<!-- Content -->
+<div class="flex-1 pt-0.5">
+<p class="font-body-md text-body-md text-on-surface-variant">
+<span class="font-medium text-on-surface">System</span> moved to <span class="text-on-surface border border-white/10 rounded px-1 py-0.5 bg-surface-variant/30 text-xs">In Progress</span>
+</p>
+<span class="font-label-md text-label-md text-on-surface-variant/50 block mt-1">2 hours ago</span>
+</div>
+</div>
+<!-- Timeline Item: Comment -->
+<div class="relative flex gap-md items-start group">
+<!-- Node (Avatar) -->
+<div class="w-6 h-6 rounded-full bg-surface z-10 mt-0.5 ring-2 ring-background">
+<img alt="Jane Doe" class="w-full h-full rounded-full object-cover" data-alt="A close-up portrait of a professional woman in a softly lit, modern office environment. The lighting is cinematic with deep shadows and subtle cool-toned highlights reflecting off glass surfaces." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnABVfNH8sZK0P-wAQUvz6pHxX3S3VDw4FlrweXdVmld_2s4RfO6k5qfFayjxgXSQIhNbTWUrWkwobImDrU7YPqQI7DW0U5gBCMVXZ_mORBwo9_244nIFNmwbaBZ7vGvvP-zeHKND_Sx04Ciuv9bN10tdrPz16NfPVoad-B_TrAe1Bg6PUP9UbmPYYS-8pXjTKn46vuvzzJNEWVN5yE9lPJOSI49vG957jMp6wZ1zXZCOpw6lwI8NdOKbERXvWB1atuRMQpzLEovTJ"/>
+</div>
+<!-- Content -->
+<div class="flex-1">
+<div class="flex items-baseline justify-between mb-1">
+<span class="font-medium font-body-md text-body-md text-on-surface">Jane Doe</span>
+<span class="font-label-md text-label-md text-on-surface-variant/50">1 hour ago</span>
+</div>
+<div class="bg-surface-container-highest/50 border border-white/5 rounded-r-xl rounded-bl-xl p-md font-body-md text-body-md text-on-surface-variant">
+                                    I've set up the initial server-side handlers. Currently testing the heartbeat configuration to ensure connections don't drop behind aggressive load balancers.
+                                </div>
+</div>
+</div>
+<!-- Timeline Item: Status Change -->
+<div class="relative flex gap-md items-start group">
+<!-- Node -->
+<div class="w-6 h-6 rounded-full bg-surface border-2 border-surface-variant flex items-center justify-center z-10 mt-0.5">
+<span class="material-symbols-outlined text-[12px] text-on-surface-variant">history</span>
+</div>
+<!-- Content -->
+<div class="flex-1 pt-0.5">
+<p class="font-body-md text-body-md text-on-surface-variant">
+<span class="font-medium text-on-surface">Alex Rivera</span> changed priority to <span class="text-error border border-error/20 rounded px-1 py-0.5 bg-error/5 text-xs">High</span>
+</p>
+<span class="font-label-md text-label-md text-on-surface-variant/50 block mt-1">45 mins ago</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Spacer for bottom padding -->
+<div class="h-4"></div>
+</div>
+<!-- Drawer Footer: Real-time Comments -->
+<footer class="p-margin border-t border-white/10 bg-surface/50 backdrop-blur-xl shrink-0">
+<!-- Real-time Indicator -->
+<div class="flex items-center gap-2 mb-sm pl-1 h-5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(78,222,163,0.8)]"></span>
+<span class="font-label-md text-label-md text-on-surface-variant italic">Alex is typing...</span>
+</div>
+<!-- Input Area -->
+<div class="bg-surface-container-highest/30 border border-white/10 rounded-xl focus-within:border-primary/50 focus-within:bg-surface-container-highest/50 focus-within:shadow-[0_0_15px_rgba(78,222,163,0.1)] transition-all flex flex-col">
+<textarea class="w-full bg-transparent border-none resize-none px-md pt-md pb-2 text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant/40 focus:ring-0" placeholder="Add a comment... (CMD+Enter to send)" rows="2"></textarea>
+<div class="flex items-center justify-between px-sm pb-sm pt-1">
+<div class="flex items-center gap-1">
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 p-1.5 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[18px]">format_bold</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 p-1.5 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[18px]">attach_file</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 p-1.5 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[18px]">alternate_email</span>
+</button>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-on-primary px-lg py-1.5 rounded-lg font-label-md text-label-md transition-colors flex items-center gap-1.5">
+                        Comment
+                        <span class="material-symbols-outlined text-[16px]">send</span>
+</button>
+</div>
+</div>
+</footer>
+</aside>
+</body></html>

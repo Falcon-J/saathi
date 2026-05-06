@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi - Command Palette</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#ffdad6",
+                        "on-surface": "#e3e1ec",
+                        "on-primary-fixed": "#002113",
+                        "tertiary-container": "#fc7c78",
+                        "background": "#12131a",
+                        "on-secondary": "#313032",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "surface-container-highest": "#33343c",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-bright": "#383941",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "surface-dim": "#12131a",
+                        "on-primary-container": "#00422b",
+                        "on-tertiary-container": "#711419",
+                        "on-secondary-container": "#b7b4b7",
+                        "surface": "#12131a",
+                        "inverse-primary": "#006c49",
+                        "surface-container-lowest": "#0d0e15",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "tertiary": "#ffb3af",
+                        "inverse-on-surface": "#2f3038",
+                        "surface-variant": "#33343c",
+                        "on-primary": "#003824",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#650911",
+                        "on-tertiary-fixed": "#410005",
+                        "surface-container": "#1e1f26",
+                        "on-secondary-fixed-variant": "#474649",
+                        "primary-container": "#10b981",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "inverse-surface": "#e3e1ec",
+                        "secondary": "#c8c6c8",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#bbcabf",
+                        "outline": "#86948a",
+                        "surface-tint": "#4edea3",
+                        "outline-variant": "#3c4a42",
+                        "primary-fixed-dim": "#4edea3",
+                        "secondary-fixed": "#e5e1e4",
+                        "on-background": "#e3e1ec",
+                        "secondary-container": "#474649",
+                        "surface-container-low": "#1a1b22",
+                        "primary": "#4edea3",
+                        "on-primary-fixed-variant": "#005236",
+                        "surface-container-high": "#292931"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    spacing: {
+                        md: "16px",
+                        margin: "32px",
+                        xl: "40px",
+                        lg: "24px",
+                        sm: "8px",
+                        xs: "4px",
+                        unit: "4px",
+                        gutter: "24px"
+                    },
+                    fontFamily: {
+                        "code-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    fontSize: {
+                        "code-sm": ["13px", { lineHeight: "1.4", letterSpacing: "0em", fontWeight: "400" }],
+                        "label-md": ["12px", { lineHeight: "1.2", letterSpacing: "0.02em", fontWeight: "500" }],
+                        "headline-md": ["24px", { lineHeight: "1.3", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "body-lg": ["16px", { lineHeight: "1.6", letterSpacing: "0em", fontWeight: "400" }],
+                        "display-lg": ["48px", { lineHeight: "1.1", letterSpacing: "-0.04em", fontWeight: "700" }],
+                        "headline-sm": ["18px", { lineHeight: "1.4", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        "body-md": ["14px", { lineHeight: "1.5", letterSpacing: "0em", fontWeight: "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background h-screen w-full overflow-hidden antialiased">
+<!-- Blurred Background Context (Dashboard Shell) -->
+<div class="fixed inset-0 flex select-none pointer-events-none">
+<!-- SideNavBar Background -->
+<aside class="fixed left-0 top-0 h-full flex flex-col p-md z-40 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 docked full-height left-0 w-64 border-r border-white/10 dark:border-white/10">
+<div class="mb-xl flex items-center gap-md px-sm">
+<div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center border border-white/5">
+<span class="material-symbols-outlined text-primary">domain</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi Workspace</h2>
+<p class="font-label-md text-label-md text-on-surface-variant">High Performance Team</p>
+</div>
+</div>
+<nav class="flex flex-col gap-sm flex-grow">
+<a class="flex items-center gap-md px-md py-sm bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+                    Workspaces
+                </a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+                    Projects
+                </a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">assignment_ind</span>
+                    Assigned to me
+                </a>
+</nav>
+</aside>
+<!-- Main Content Area Background -->
+<main class="ml-64 flex-1 flex flex-col relative opacity-60">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm bg-surface/80 backdrop-blur-xl dark:bg-surface/80 docked full-width top-0 sticky border-b border-white/10 dark:border-white/10">
+<div class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi</div>
+<div class="flex items-center gap-md">
+<button class="px-md py-sm rounded-lg bg-surface-variant text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors">Invite</button>
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 cursor-pointer">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-variant/30 rounded-full p-2 cursor-pointer">account_circle</span>
+</div>
+</header>
+<!-- Dummy Dashboard Content -->
+<div class="p-margin grid grid-cols-3 gap-lg">
+<div class="h-64 rounded-xl border border-white/5 bg-surface-container-low"></div>
+<div class="h-64 rounded-xl border border-white/5 bg-surface-container-low col-span-2"></div>
+<div class="h-96 rounded-xl border border-white/5 bg-surface-container-low col-span-3"></div>
+</div>
+</main>
+</div>
+<!-- Command Palette Overlay -->
+<!-- The backdrop-blur-3xl provides the heavy focus isolation -->
+<div class="fixed inset-0 z-50 flex justify-center items-start pt-[153px] bg-background/60 backdrop-blur-3xl px-margin">
+<!-- Command Palette Modal -->
+<div class="w-full max-w-2xl bg-surface/90 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col flex-shrink-0 animate-in fade-in zoom-in-95 duration-200">
+<!-- Search Input Area -->
+<div class="flex items-center px-lg py-lg border-b border-white/5 relative bg-surface/50">
+<span class="material-symbols-outlined text-on-surface-variant mr-md text-3xl">search</span>
+<input autofocus="" class="w-full bg-transparent border-none outline-none font-headline-md text-headline-md text-on-surface placeholder:text-on-surface-variant/40 focus:ring-0 p-0" placeholder="Search or type a command..." type="text"/>
+<div class="absolute right-lg flex gap-xs">
+<span class="bg-surface-container px-sm py-xs rounded border border-white/5 font-code-sm text-code-sm text-on-surface-variant flex items-center justify-center min-w-[28px]">⌘</span>
+<span class="bg-surface-container px-sm py-xs rounded border border-white/5 font-code-sm text-code-sm text-on-surface-variant flex items-center justify-center min-w-[28px]">K</span>
+</div>
+</div>
+<!-- Results Section -->
+<div class="max-h-[512px] overflow-y-auto p-sm custom-scrollbar">
+<!-- Category: Actions -->
+<div class="mb-sm">
+<h3 class="px-md py-sm font-label-md text-label-md text-on-surface-variant/60 uppercase tracking-widest">Actions</h3>
+<!-- Highlighted State (Emerald Accent) -->
+<div class="flex items-center justify-between px-md py-sm mx-xs rounded-lg cursor-pointer bg-primary-container text-on-primary-container relative overflow-hidden group">
+<div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-center gap-md z-10">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">add_circle</span>
+<span class="font-body-md text-body-md font-medium">Create Task</span>
+</div>
+<div class="flex items-center gap-sm z-10">
+<span class="font-code-sm text-code-sm opacity-60">Action</span>
+<span class="material-symbols-outlined opacity-60 text-sm">subdirectory_arrow_left</span>
+</div>
+</div>
+<div class="flex items-center justify-between px-md py-sm mx-xs rounded-lg cursor-pointer text-on-surface hover:bg-surface-variant/40 transition-colors mt-1">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">person_add</span>
+<span class="font-body-md text-body-md">Invite Member</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant opacity-60">Action</span>
+</div>
+</div>
+<!-- Category: Navigation -->
+<div class="mb-sm">
+<h3 class="px-md py-sm font-label-md text-label-md text-on-surface-variant/60 uppercase tracking-widest mt-sm">Navigation</h3>
+<div class="flex items-center justify-between px-md py-sm mx-xs rounded-lg cursor-pointer text-on-surface hover:bg-surface-variant/40 transition-colors">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">folder_open</span>
+<span class="font-body-md text-body-md">Go to Projects</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="bg-surface-container px-2 py-0.5 rounded border border-white/5 font-code-sm text-code-sm text-on-surface-variant">G</span>
+<span class="bg-surface-container px-2 py-0.5 rounded border border-white/5 font-code-sm text-code-sm text-on-surface-variant">P</span>
+</div>
+</div>
+<div class="flex items-center justify-between px-md py-sm mx-xs rounded-lg cursor-pointer text-on-surface hover:bg-surface-variant/40 transition-colors mt-1">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="bg-surface-container px-2 py-0.5 rounded border border-white/5 font-code-sm text-code-sm text-on-surface-variant">G</span>
+<span class="bg-surface-container px-2 py-0.5 rounded border border-white/5 font-code-sm text-code-sm text-on-surface-variant">S</span>
+</div>
+</div>
+</div>
+<!-- Category: Recent Tasks -->
+<div>
+<h3 class="px-md py-sm font-label-md text-label-md text-on-surface-variant/60 uppercase tracking-widest mt-sm">Recent Tasks</h3>
+<div class="flex items-center justify-between px-md py-sm mx-xs rounded-lg cursor-pointer text-on-surface hover:bg-surface-variant/40 transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-2 h-2 rounded-full bg-tertiary-container"></div>
+<span class="font-body-md text-body-md">Update API Authentication Flow</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant opacity-60">Task-142</span>
+</div>
+<div class="flex items-center justify-between px-md py-sm mx-xs rounded-lg cursor-pointer text-on-surface hover:bg-surface-variant/40 transition-colors mt-1">
+<div class="flex items-center gap-md">
+<div class="w-2 h-2 rounded-full bg-primary-fixed"></div>
+<span class="font-body-md text-body-md">Review Q3 Marketing Assets</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant opacity-60">Task-189</span>
+</div>
+</div>
+</div>
+<!-- Footer Hints -->
+<div class="border-t border-white/5 px-lg py-sm flex justify-between items-center bg-surface-container-lowest/50">
+<div class="flex items-center gap-lg">
+<div class="flex items-center gap-sm font-label-md text-label-md text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">keyboard_return</span>
+<span>to select</span>
+</div>
+<div class="flex items-center gap-sm font-label-md text-label-md text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">arrow_upward</span>
+<span class="material-symbols-outlined text-sm -ml-1">arrow_downward</span>
+<span>to navigate</span>
+</div>
+</div>
+<div class="flex items-center gap-sm font-label-md text-label-md text-on-surface-variant">
+<span class="bg-surface-container px-sm py-xs rounded border border-white/5 font-code-sm">ESC</span>
+<span>to close</span>
+</div>
+</div>
+</div>
+</div>
+<style>
+        /* Custom subtle scrollbar for the modal */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</body></html>

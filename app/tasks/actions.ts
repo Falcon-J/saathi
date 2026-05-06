@@ -58,7 +58,8 @@ async function validateTaskPermission(userEmail: string, taskId: string, action:
     }
 }
 
-// Task types
+// ── Task Types ──────────────────────────────────────────────────────────────
+
 export interface Task {
     id: string
     title: string
@@ -71,9 +72,13 @@ export interface Task {
     updatedAt: string
     workspaceId: string
     createdBy: string
+    categories?: string[]
+    assignedTo?: string
 }
 
-// Server Actions for task management
+// ── Workflow 1: Task Lifecycle (Server Actions) ─────────────────────────────
+// addTask → updateTask → toggleTask → deleteTask → getTasks → assignTask
+
 export async function addTask(
     workspaceId: string,
     title: string,
@@ -119,30 +124,27 @@ export async function addTask(
             createdBy: session.email
         }
 
-        // Batch Redis operations for better performance
+        // Batch Redis operations for performance
         const timestamp = Date.now().toString()
 
-        // Execute Redis operations in parallel
         await Promise.all([
             redis.set(taskId, JSON.stringify(task)),
             redis.sadd(`workspace:${workspaceId}:tasks`, taskId),
             redis.set(`workspace:${workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event asynchronously (completely non-blocking)
-        setImmediate(() => {
-            realtimeService.publishEvent({
-                type: 'task-created',
-                workspaceId,
-                userId: session.email,
-                timestamp: Date.now(),
-                data: { task }
-            }).catch(error => {
-                console.error('[Realtime] Failed to publish task-created event:', error)
-            })
+        // Publish real-time event (non-blocking)
+        realtimeService.publishEvent({
+            type: 'task-created',
+            workspaceId,
+            userId: session.email,
+            timestamp: Date.now(),
+            data: { task }
+        }).catch(error => {
+            console.error('[Realtime] Failed to publish task-created event:', error)
         })
 
-        revalidatePath('/tasks')
+        revalidatePath('/dashboard')
         return { success: true, task }
     } catch (error) {
         console.error("Add task error:", error)
@@ -175,7 +177,7 @@ export async function updateTask(taskId: string, updates: Partial<Task>) {
             updatedAt: new Date().toISOString()
         }
 
-        // Batch Redis operations for better performance
+        // Batch Redis operations
         const timestamp = Date.now().toString()
 
         await Promise.all([
@@ -183,20 +185,18 @@ export async function updateTask(taskId: string, updates: Partial<Task>) {
             redis.set(`workspace:${task.workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event asynchronously (completely non-blocking)
-        setImmediate(() => {
-            realtimeService.publishEvent({
-                type: 'task-updated',
-                workspaceId: task.workspaceId,
-                userId: session.email,
-                timestamp: Date.now(),
-                data: { task: updatedTask, updates }
-            }).catch(error => {
-                console.error('[Realtime] Failed to publish task-updated event:', error)
-            })
+        // Publish real-time event (non-blocking)
+        realtimeService.publishEvent({
+            type: 'task-updated',
+            workspaceId: task.workspaceId,
+            userId: session.email,
+            timestamp: Date.now(),
+            data: { task: updatedTask, updates }
+        }).catch(error => {
+            console.error('[Realtime] Failed to publish task-updated event:', error)
         })
 
-        revalidatePath('/tasks')
+        revalidatePath('/dashboard')
         return { success: true, task: updatedTask }
     } catch (error) {
         console.error("Update task error:", error)
@@ -224,7 +224,7 @@ export async function deleteTask(taskId: string) {
 
         const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask
 
-        // Batch Redis operations for better performance
+        // Batch Redis operations
         const timestamp = Date.now().toString()
 
         await Promise.all([
@@ -233,20 +233,18 @@ export async function deleteTask(taskId: string) {
             redis.set(`workspace:${task.workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event asynchronously (completely non-blocking)
-        setImmediate(() => {
-            realtimeService.publishEvent({
-                type: 'task-deleted',
-                workspaceId: task.workspaceId,
-                userId: session.email,
-                timestamp: Date.now(),
-                data: { taskId, task }
-            }).catch(error => {
-                console.error('[Realtime] Failed to publish task-deleted event:', error)
-            })
+        // Publish real-time event (non-blocking)
+        realtimeService.publishEvent({
+            type: 'task-deleted',
+            workspaceId: task.workspaceId,
+            userId: session.email,
+            timestamp: Date.now(),
+            data: { taskId, task }
+        }).catch(error => {
+            console.error('[Realtime] Failed to publish task-deleted event:', error)
         })
 
-        revalidatePath('/tasks')
+        revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         console.error("Delete task error:", error)
@@ -279,7 +277,7 @@ export async function toggleTask(taskId: string) {
             updatedAt: new Date().toISOString()
         }
 
-        // Batch Redis operations for better performance
+        // Batch Redis operations
         const timestamp = Date.now().toString()
 
         await Promise.all([
@@ -287,26 +285,25 @@ export async function toggleTask(taskId: string) {
             redis.set(`workspace:${task.workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event asynchronously (completely non-blocking)
-        setImmediate(() => {
-            realtimeService.publishEvent({
-                type: 'task-toggled',
-                workspaceId: task.workspaceId,
-                userId: session.email,
-                timestamp: Date.now(),
-                data: { task: updatedTask }
-            }).catch(error => {
-                console.error('[Realtime] Failed to publish task-toggled event:', error)
-            })
+        // Publish real-time event (non-blocking)
+        realtimeService.publishEvent({
+            type: 'task-toggled',
+            workspaceId: task.workspaceId,
+            userId: session.email,
+            timestamp: Date.now(),
+            data: { task: updatedTask }
+        }).catch(error => {
+            console.error('[Realtime] Failed to publish task-toggled event:', error)
         })
 
-        revalidatePath('/tasks')
+        revalidatePath('/dashboard')
         return { success: true, task: updatedTask }
     } catch (error) {
         console.error("Toggle task error:", error)
         return { error: "Failed to toggle task" }
     }
 }
+
 export async function getTasks(workspaceId: string) {
     try {
         const session = await getSession()
@@ -324,15 +321,16 @@ export async function getTasks(workspaceId: string) {
             return { success: true, tasks: [] }
         }
 
-        // Get all tasks
+        // Get all tasks in parallel
         const tasks: Task[] = []
-        for (const taskId of taskIds) {
+        const taskPromises = taskIds.map(async (taskId: string) => {
             const taskData = await redis.get(taskId)
             if (taskData) {
                 const task = typeof taskData === 'string' ? JSON.parse(taskData) : taskData
                 tasks.push(task)
             }
-        }
+        })
+        await Promise.all(taskPromises)
 
         // Sort by creation date (newest first)
         tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -342,4 +340,8 @@ export async function getTasks(workspaceId: string) {
         console.error("Get tasks error:", error)
         return { error: "Failed to load tasks" }
     }
+}
+
+export async function assignTask(taskId: string, assigneeEmail: string) {
+    return updateTask(taskId, { assigneeEmail: assigneeEmail || undefined })
 }

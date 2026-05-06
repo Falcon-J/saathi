@@ -21,33 +21,37 @@ export function useRealtime(options: UseRealtimeOptions) {
     const [error, setError] = useState<string | null>(null)
 
     const eventSourceRef = useRef<EventSource | null>(null)
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const reconnectInterval = 3000
+    const optionsRef = useRef(options)
+
+    useEffect(() => {
+        optionsRef.current = options
+    }, [options])
 
     const handleEvent = useCallback((event: RealtimeEvent) => {
         setLastEvent(event)
+        const currentOptions = optionsRef.current
 
         switch (event.type) {
             case 'task-created':
-                options.onTaskCreated?.(event.data)
+                currentOptions.onTaskCreated?.(event)
                 break
             case 'task-updated':
-                options.onTaskUpdated?.(event.data)
+                currentOptions.onTaskUpdated?.(event)
                 break
             case 'task-deleted':
-                options.onTaskDeleted?.(event.data)
+                currentOptions.onTaskDeleted?.(event)
                 break
             case 'task-toggled':
-                options.onTaskToggled?.(event.data)
+                currentOptions.onTaskToggled?.(event)
                 break
             case 'user-joined':
-                options.onUserJoined?.(event.data)
+                currentOptions.onUserJoined?.(event)
                 break
             case 'user-left':
-                options.onUserLeft?.(event.data)
+                currentOptions.onUserLeft?.(event)
                 break
         }
-    }, [options])
+    }, [])
 
     const connect = useCallback(() => {
         try {
@@ -90,34 +94,19 @@ export function useRealtime(options: UseRealtimeOptions) {
                 console.error('[Realtime] SSE connection error:', event)
                 setIsConnected(false)
                 setError('Connection lost')
-                options.onError?.(event)
-
-                // Attempt to reconnect after a delay
-                if (reconnectTimeoutRef.current) {
-                    clearTimeout(reconnectTimeoutRef.current)
-                }
-
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    console.log('[Realtime] Attempting to reconnect...')
-                    connect()
-                }, reconnectInterval)
+                optionsRef.current.onError?.(event)
             }
 
         } catch (err) {
             console.error('[Realtime] Failed to create SSE connection:', err)
             setError('Failed to connect')
         }
-    }, [options.workspaceId, handleEvent, options])
+    }, [options.workspaceId, handleEvent])
 
     const disconnect = useCallback(() => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close()
             eventSourceRef.current = null
-        }
-
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current)
-            reconnectTimeoutRef.current = null
         }
 
         setIsConnected(false)

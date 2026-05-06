@@ -4,79 +4,87 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.55 0.2 250);
-  --primary-foreground: oklch(0.95 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.55 0.2 250);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.15 0 0);
-  --ring: oklch(0.55 0.2 250);
-  --chart-1: oklch(0.55 0.2 250);
-  --chart-2: oklch(0.65 0.15 200);
-  --chart-3: oklch(0.45 0.18 280);
-  --chart-4: oklch(0.6 0.2 320);
-  --chart-5: oklch(0.5 0.18 180);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.12 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.55 0.2 250);
-  --sidebar-primary-foreground: oklch(0.95 0 0);
-  --sidebar-accent: oklch(0.25 0 0);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.18 0 0);
-  --sidebar-ring: oklch(0.55 0.2 250);
+  --background: #12131a;
+  --foreground: #e3e1ec;
+  --card: #1e1f26;
+  --card-foreground: #e3e1ec;
+  --popover: #292931;
+  --popover-foreground: #e3e1ec;
+  --primary: #4edea3;
+  --primary-foreground: #003824;
+  --secondary: #474649;
+  --secondary-foreground: #e5e1e4;
+  --muted: #292931;
+  --muted-foreground: #bbcabf;
+  --accent: #10b981;
+  --accent-foreground: #002113;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --border: #3c4a42;
+  --input: #1a1b22;
+  --ring: #4edea3;
+  --chart-1: #4edea3;
+  --chart-2: #c8c6c8;
+  --chart-3: #ffb3af;
+  --chart-4: #10b981;
+  --chart-5: #86948a;
+  --radius: 0.75rem;
+  --sidebar: #0d0e15;
+  --sidebar-foreground: #e3e1ec;
+  --sidebar-primary: #4edea3;
+  --sidebar-primary-foreground: #003824;
+  --sidebar-accent: #1e1f26;
+  --sidebar-accent-foreground: #e3e1ec;
+  --sidebar-border: #3c4a42;
+  --sidebar-ring: #4edea3;
+  --surface-lowest: #0d0e15;
+  --surface-low: #1a1b22;
+  --surface: #1e1f26;
+  --surface-high: #292931;
+  --surface-highest: #33343c;
+  --saathi-success: #10b981;
+  --saathi-warning: #c8c6c8;
+  --saathi-danger: #ffb3af;
 }
 
 .dark {
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.55 0.2 250);
-  --primary-foreground: oklch(0.95 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.55 0.2 250);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.15 0 0);
-  --ring: oklch(0.55 0.2 250);
-  --chart-1: oklch(0.55 0.2 250);
-  --chart-2: oklch(0.65 0.15 200);
-  --chart-3: oklch(0.45 0.18 280);
-  --chart-4: oklch(0.6 0.2 320);
-  --chart-5: oklch(0.5 0.18 180);
-  --sidebar: oklch(0.12 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.55 0.2 250);
-  --sidebar-primary-foreground: oklch(0.95 0 0);
-  --sidebar-accent: oklch(0.25 0 0);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.18 0 0);
-  --sidebar-ring: oklch(0.55 0.2 250);
+  --background: #12131a;
+  --foreground: #e3e1ec;
+  --card: #1e1f26;
+  --card-foreground: #e3e1ec;
+  --popover: #292931;
+  --popover-foreground: #e3e1ec;
+  --primary: #4edea3;
+  --primary-foreground: #003824;
+  --secondary: #474649;
+  --secondary-foreground: #e5e1e4;
+  --muted: #292931;
+  --muted-foreground: #bbcabf;
+  --accent: #10b981;
+  --accent-foreground: #002113;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --border: #3c4a42;
+  --input: #1a1b22;
+  --ring: #4edea3;
+  --chart-1: #4edea3;
+  --chart-2: #c8c6c8;
+  --chart-3: #ffb3af;
+  --chart-4: #10b981;
+  --chart-5: #f59e0b;
+  --sidebar: #0d0e15;
+  --sidebar-foreground: #e3e1ec;
+  --sidebar-primary: #4edea3;
+  --sidebar-primary-foreground: #003824;
+  --sidebar-accent: #1e1f26;
+  --sidebar-accent-foreground: #e3e1ec;
+  --sidebar-border: #3c4a42;
+  --sidebar-ring: #4edea3;
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-space-grotesk);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -121,5 +129,48 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    letter-spacing: 0;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 28%, transparent);
+    color: var(--foreground);
+  }
+}
+
+@layer components {
+  .saathi-shell {
+    background:
+      radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--primary) 9%, transparent) 0, transparent 26rem),
+      linear-gradient(180deg, var(--surface-lowest) 0%, var(--background) 50%, var(--surface-lowest) 100%);
+  }
+
+  .saathi-panel {
+    background: color-mix(in srgb, var(--surface) 76%, transparent);
+    border: 1px solid rgb(255 255 255 / 0.1);
+    box-shadow: 0 20px 50px rgb(0 0 0 / 0.22);
+    backdrop-filter: blur(20px);
+  }
+
+  .saathi-panel-soft {
+    background: transparent;
+    border: 1px solid rgb(255 255 255 / 0.09);
+    backdrop-filter: blur(16px);
+  }
+
+  .saathi-label {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .saathi-grid {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--border) 24%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--border) 24%, transparent) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }

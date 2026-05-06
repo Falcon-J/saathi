@@ -1,6 +1,6 @@
 {
-  "name": "my-v0-project",
-  "version": "0.1.0",
+  "name": "saathi",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -10,10 +10,11 @@
     "validate-env": "node scripts/validate-env.js",
     "prebuild": "npm run validate-env",
     "type-check": "tsc --noEmit",
-    "clear-cache": "node scripts/clear-cache.js"
+    "clear-cache": "node scripts/clear-cache.js",
+    "load-test": "npx tsx scripts/load-test.ts"
   },
   "dependencies": {
-    "@auth/core": "latest",
+    "@auth/core": "^0.41.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
@@ -45,6 +46,7 @@
     "@upstash/redis": "latest",
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
+    "baseline-browser-mapping": "^2.10.27",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -53,8 +55,8 @@
     "gsap": "^3.13.0",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "16.0.10",
-    "next-auth": "latest",
+    "next": "^16.2.4",
+    "next-auth": "^1.12.1",
     "next-themes": "^0.4.6",
     "nodemailer": "latest",
     "react": "19.2.0",
@@ -63,10 +65,11 @@
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
+    "scheduler": "^0.25.0",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "vaul": "^0.9.9",
+    "vaul": "^1.0.0",
     "zod": "3.25.76",
     "zustand": "^5.0.8"
   },

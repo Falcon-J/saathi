@@ -50,14 +50,16 @@ export interface TaskUpdate {
 }
 
 export interface SSEEvent {
-    type: 'connected' | 'heartbeat' | 'task-update'
+    type: 'connected' | 'heartbeat' | 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'workspace-created' | 'member-added' | 'member-removed' | 'user-joined' | 'user-left'
     data?: any
     timestamp: number
+    deliveredAt?: number
+    latencyMs?: number | null
 }
 
 // Real-time event types
 export interface RealtimeEvent {
-    type: 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'user-joined' | 'user-left'
+    type: 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'user-joined' | 'user-left' | 'workspace-created' | 'member-added' | 'member-removed'
     workspaceId: string
     userId: string
     timestamp: number

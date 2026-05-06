@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Workspace Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#ffdad6",
+                      "on-surface": "#e3e1ec",
+                      "on-primary-fixed": "#002113",
+                      "tertiary-container": "#fc7c78",
+                      "background": "#12131a",
+                      "on-secondary": "#313032",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "surface-container-highest": "#33343c",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-bright": "#383941",
+                      "error-container": "#93000a",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "surface-dim": "#12131a",
+                      "on-primary-container": "#00422b",
+                      "on-tertiary-container": "#711419",
+                      "on-secondary-container": "#b7b4b7",
+                      "surface": "#12131a",
+                      "inverse-primary": "#006c49",
+                      "surface-container-lowest": "#0d0e15",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "tertiary": "#ffb3af",
+                      "inverse-on-surface": "#2f3038",
+                      "surface-variant": "#33343c",
+                      "on-primary": "#003824",
+                      "primary-fixed": "#6ffbbe",
+                      "on-tertiary": "#650911",
+                      "on-tertiary-fixed": "#410005",
+                      "surface-container": "#1e1f26",
+                      "on-secondary-fixed-variant": "#474649",
+                      "primary-container": "#10b981",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "inverse-surface": "#e3e1ec",
+                      "secondary": "#c8c6c8",
+                      "error": "#ffb4ab",
+                      "on-surface-variant": "#bbcabf",
+                      "outline": "#86948a",
+                      "surface-tint": "#4edea3",
+                      "outline-variant": "#3c4a42",
+                      "primary-fixed-dim": "#4edea3",
+                      "secondary-fixed": "#e5e1e4",
+                      "on-background": "#e3e1ec",
+                      "secondary-container": "#474649",
+                      "surface-container-low": "#1a1b22",
+                      "primary": "#4edea3",
+                      "on-primary-fixed-variant": "#005236",
+                      "surface-container-high": "#292931"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "margin": "32px",
+                      "xl": "40px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "code-sm": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "code-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-md z-40 bg-surface-container-low/80 backdrop-blur-xl dark:bg-surface-container-low/80 border-r border-white/10 dark:border-white/10 docked full-height left-0 w-64">
+<!-- Header -->
+<div class="flex items-center gap-sm mb-margin px-sm">
+<div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-surface-container-high">
+<img alt="Saathi Logo" class="w-full h-full object-contain p-1.5" src="https://placeholder.pics/svg/300"/>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm text-on-surface dark:text-on-surface">Saathi Workspace</h1>
+<p class="font-label-md text-label-md text-on-surface-variant">High Performance Team</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-sm px-sm py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">grid_view</span>
+                Workspaces
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_tree</span>
+                Projects
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm bg-primary-container text-on-primary-container rounded-lg transition-all font-label-md text-label-md scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">assignment_ind</span>
+                Assigned to me
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md mt-lg" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">check_circle</span>
+                Completed
+            </a>
+</div>
+<!-- Bottom Actions -->
+<div class="mt-auto flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-sm py-sm text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+                Settings
+            </a>
+</div>
+</nav>
+<!-- Main Workspace -->
+<div class="flex-1 flex flex-col ml-64 w-full h-screen">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm bg-surface/80 backdrop-blur-xl dark:bg-surface/80 border-b border-white/10 dark:border-white/10 docked full-width top-0 sticky z-30">
+<!-- Command Palette Search -->
+<div class="flex-1 max-w-md relative flex items-center">
+<span class="material-symbols-outlined absolute left-sm text-on-surface-variant pointer-events-none" style="font-variation-settings: 'FILL' 0;">search</span>
+<input class="w-full bg-surface-container-high border border-white/5 rounded-lg pl-xl pr-sm py-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-body-md text-body-md" placeholder="Search or type a command..." type="text"/>
+<div class="absolute right-sm flex items-center gap-xs pointer-events-none">
+<kbd class="font-code-sm text-code-sm bg-surface text-on-surface-variant px-1 rounded border border-white/10">CMD</kbd>
+<kbd class="font-code-sm text-code-sm bg-surface text-on-surface-variant px-1 rounded border border-white/10">K</kbd>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-md ml-auto">
+<div class="flex items-center -space-x-2 mr-md">
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-surface object-cover relative z-10" data-alt="A close up portrait of a young woman with a calm expression. She is illuminated by a soft, cinematic studio light. The background is a stark, minimal dark void. The overall aesthetic aligns with a high performance, dark mode professional workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOnYDYhNkcULxcbdTWgJ-DBuo2OSbO60ROqbvWobMcXIb-4IPKg2k8PnTNytzKrF2ocM6mi9mC1WNlNkflh5UyNT1mkJrHUAN2gGuqAPAn-5_sFZfcvMXeWFmkaYmHfS2G5VNmW6hwMe3avDLdUjROYgDfYVJBBGMvrYN1rUPjRSDP25kipj0yIv8PmA1ackAfSRHlX3LaaRk3OVUos-TmfP3q94bJe1b82-allJ0xZpqGTjjyRmdS_fEblH7eHT6vvCbOTdG1kJhx"/>
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-primary/20 flex items-center justify-center text-primary font-label-md text-label-md relative z-0">
+                        +2
+                    </div>
+</div>
+<button class="bg-primary text-on-primary px-md py-sm rounded-lg font-label-md text-label-md hover:bg-primary-fixed-dim transition-colors">
+                    Invite
+                </button>
+<div class="flex items-center gap-xs text-on-surface-variant">
+<button class="hover:bg-surface-variant/30 rounded-full p-2 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<button class="hover:bg-surface-variant/30 rounded-full p-2 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<main class="flex-1 flex overflow-hidden">
+<!-- My Tasks Canvas -->
+<div class="flex-1 overflow-y-auto p-margin">
+<div class="max-w-4xl mx-auto">
+<div class="flex items-center justify-between mb-xl">
+<h2 class="font-headline-md text-headline-md text-on-surface">Assigned to me</h2>
+<div class="flex items-center gap-sm">
+<button class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-sm py-xs border border-white/10 rounded">Filter</button>
+<button class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-sm py-xs border border-white/10 rounded">Sort</button>
+</div>
+</div>
+<!-- Bento Grid Tasks -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- High Priority Card -->
+<div class="col-span-1 md:col-span-2 border border-white/10 rounded-xl p-lg bg-surface-container-low hover:bg-surface-variant/20 transition-colors relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full bg-error"></div>
+<div class="flex justify-between items-start mb-md">
+<div>
+<span class="inline-block px-2 py-1 bg-error/10 text-error rounded font-label-md text-label-md mb-sm">High Priority</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Finalize Q3 Marketing Assets</h3>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors cursor-pointer" style="font-variation-settings: 'FILL' 0;">more_horiz</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-lg line-clamp-2">Review and approve all visual assets for the upcoming Q3 campaign rollout. Ensure alignment with the new brand guidelines and style anchors.</p>
+<div class="flex items-center justify-between border-t border-white/5 pt-md">
+<div class="flex items-center gap-sm text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 0;">calendar_today</span>
+                                    Due Today
+                                </div>
+<div class="flex items-center gap-sm">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-md text-label-md text-on-surface-variant">Active Collaboration</span>
+</div>
+</div>
+</div>
+<!-- Standard Card 1 -->
+<div class="border border-white/10 rounded-xl p-lg hover:bg-surface-variant/20 transition-colors group">
+<div class="flex justify-between items-start mb-md">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Update Shared Components JSON</h3>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors cursor-pointer opacity-0 group-hover:opacity-100" style="font-variation-settings: 'FILL' 0;">more_horiz</span>
+</div>
+<div class="flex items-center gap-sm mt-auto border-t border-white/5 pt-md">
+<span class="px-2 py-1 bg-surface-container-highest text-on-surface-variant rounded font-label-md text-label-md">Dev Team</span>
+<span class="text-on-surface-variant font-label-md text-label-md ml-auto">Tomorrow</span>
+</div>
+</div>
+<!-- Standard Card 2 -->
+<div class="border border-white/10 rounded-xl p-lg hover:bg-surface-variant/20 transition-colors group">
+<div class="flex justify-between items-start mb-md">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Design Review: TopAppBar</h3>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors cursor-pointer opacity-0 group-hover:opacity-100" style="font-variation-settings: 'FILL' 0;">more_horiz</span>
+</div>
+<div class="flex items-center gap-sm mt-auto border-t border-white/5 pt-md">
+<span class="px-2 py-1 bg-surface-container-highest text-on-surface-variant rounded font-label-md text-label-md">Design</span>
+<span class="text-on-surface-variant font-label-md text-label-md ml-auto">Oct 24</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar: Real-time Feed -->
+<aside class="w-80 border-l border-white/10 dark:border-white/10 bg-surface-container-lowest flex flex-col hidden lg:flex">
+<div class="p-lg border-b border-white/5">
+<h3 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-sm">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+                        Activity Feed
+                    </h3>
+</div>
+<div class="flex-1 overflow-y-auto p-md flex flex-col gap-md">
+<!-- Feed Item -->
+<div class="flex gap-sm">
+<img alt="User" class="w-6 h-6 rounded-full object-cover mt-1" data-alt="A small profile portrait of a man looking intently. The lighting is dark and moody, suitable for a dark mode interface. The background is plain black." src="https://lh3.googleusercontent.com/aida-public/AB6AXuABmdV6mq-dqsdELDOMojFtlkM_Z2KMQIZUlTi0r2oMJpOp-9oMS16dr-b77TwiulYHhqvf3_PqqNOuKxfciMY4YV8cgs6koBZqtHpCbKxy5nEes9sOuWf-T_wKcvlHAcOg-PHkzfhpuskBVK4xu8TF2x3OBYn6-x4m0rUu3EiSyOcbshPv02Tz8DHSNhcbVrVBgZZNbFpeSUphaJjqS0R4XXCaqLUqnXSZ-1cJBxnjGK3RLNGlXnFXpCdyu_fd4hPyHT9RqfkRbf7q"/>
+<div>
+<p class="font-body-md text-body-md text-on-surface"><span class="font-bold">Alex</span> commented on <span class="text-primary cursor-pointer hover:underline">Q3 Assets</span></p>
+<p class="font-label-md text-label-md text-on-surface-variant mt-xs">"Looks solid. Merging now."</p>
+<span class="font-label-md text-label-md text-on-surface-variant/50 text-[10px] uppercase tracking-wider block mt-xs">2 mins ago</span>
+</div>
+</div>
+<!-- Feed Item -->
+<div class="flex gap-sm">
+<div class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant mt-1">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 0;">commit</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface"><span class="font-bold">System</span> deployed to production</p>
+<span class="font-label-md text-label-md text-on-surface-variant/50 text-[10px] uppercase tracking-wider block mt-xs">15 mins ago</span>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

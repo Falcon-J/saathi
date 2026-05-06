@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Command Palette - Empty State</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ffb4ab",
+                        "on-secondary-fixed": "#1c1b1d",
+                        "on-secondary": "#313032",
+                        "surface-bright": "#383941",
+                        "primary": "#4edea3",
+                        "surface-dim": "#12131a",
+                        "surface-container": "#1e1f26",
+                        "on-tertiary-container": "#711419",
+                        "surface-container-highest": "#33343c",
+                        "on-secondary-container": "#b7b4b7",
+                        "tertiary-container": "#fc7c78",
+                        "tertiary-fixed": "#ffdad7",
+                        "tertiary": "#ffb3af",
+                        "secondary-fixed": "#e5e1e4",
+                        "primary-container": "#10b981",
+                        "on-background": "#e3e1ec",
+                        "surface-variant": "#33343c",
+                        "on-surface": "#e3e1ec",
+                        "primary-fixed": "#6ffbbe",
+                        "on-primary": "#003824",
+                        "surface-container-lowest": "#0d0e15",
+                        "on-tertiary-fixed-variant": "#842225",
+                        "inverse-primary": "#006c49",
+                        "secondary-fixed-dim": "#c8c6c8",
+                        "surface-container-high": "#292931",
+                        "on-error": "#690005",
+                        "background": "#12131a",
+                        "surface": "#12131a",
+                        "on-tertiary": "#650911",
+                        "secondary": "#c8c6c8",
+                        "surface-tint": "#4edea3",
+                        "on-secondary-fixed-variant": "#474649",
+                        "on-primary-fixed": "#002113",
+                        "on-primary-fixed-variant": "#005236",
+                        "secondary-container": "#474649",
+                        "tertiary-fixed-dim": "#ffb3af",
+                        "outline-variant": "#3c4a42",
+                        "primary-fixed-dim": "#4edea3",
+                        "surface-container-low": "#1a1b22",
+                        "on-tertiary-fixed": "#410005",
+                        "on-primary-container": "#00422b",
+                        "on-surface-variant": "#bbcabf",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#e3e1ec",
+                        "outline": "#86948a",
+                        "inverse-on-surface": "#2f3038",
+                        "error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin": "32px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "xl": "40px",
+                        "sm": "8px",
+                        "gutter": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "code-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "headline-sm": ["18px", { "lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "code-sm": ["13px", { "lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen font-body-md relative overflow-hidden">
+<!-- Dimmed Background Overlay -->
+<div class="fixed inset-0 bg-surface-container-lowest/80 backdrop-blur-xl z-40 flex items-start justify-center pt-32 px-md sm:px-0">
+<!-- Command Palette Modal -->
+<div class="w-full max-w-2xl bg-surface-container-high/90 border border-white/10 rounded-xl shadow-[0px_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-50 flex flex-col">
+<!-- Search Input Area -->
+<div class="p-lg border-b border-white/10 flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant font-headline-md text-headline-md">search</span>
+<input autofocus="" class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface font-headline-sm text-headline-sm placeholder-on-surface-variant/50 p-0" placeholder="Search or type a command..." type="text"/>
+<div class="flex items-center gap-xs">
+<span class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-1 rounded border border-white/5">ESC</span>
+</div>
+</div>
+<!-- Empty State / Quick Start Guide -->
+<div class="p-lg grid grid-cols-1 md:grid-cols-2 gap-xl">
+<!-- Keyboard Shortcuts -->
+<div class="space-y-md">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Keyboard Shortcuts</h3>
+<ul class="space-y-sm">
+<li class="flex items-center justify-between group cursor-default">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Go to Projects</span>
+<div class="flex gap-xs">
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">G</kbd>
+<span class="text-on-surface-variant text-label-md">then</span>
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">P</kbd>
+</div>
+</li>
+<li class="flex items-center justify-between group cursor-default">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Go to Tasks</span>
+<div class="flex gap-xs">
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">G</kbd>
+<span class="text-on-surface-variant text-label-md">then</span>
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">T</kbd>
+</div>
+</li>
+<li class="flex items-center justify-between group cursor-default">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Help Menu</span>
+<div class="flex gap-xs">
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">?</kbd>
+</div>
+</li>
+<li class="flex items-center justify-between group cursor-default">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Open Settings</span>
+<div class="flex gap-xs">
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">CMD</kbd>
+<kbd class="font-code-sm text-code-sm text-on-surface-variant bg-surface-variant/50 px-2 py-0.5 rounded border border-white/5">,</kbd>
+</div>
+</li>
+</ul>
+</div>
+<!-- Suggested Actions -->
+<div class="space-y-md">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Suggested Actions</h3>
+<div class="space-y-xs">
+<button class="w-full flex items-center gap-md p-sm rounded-lg hover:bg-surface-variant/50 transition-colors border border-transparent hover:border-white/5 text-left group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">add_task</span>
+<span class="font-body-md text-body-md text-on-surface flex-1">Create Task</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">C</span>
+</button>
+<button class="w-full flex items-center gap-md p-sm rounded-lg hover:bg-surface-variant/50 transition-colors border border-transparent hover:border-white/5 text-left group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">person_add</span>
+<span class="font-body-md text-body-md text-on-surface flex-1">Invite Member</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">I</span>
+</button>
+<button class="w-full flex items-center gap-md p-sm rounded-lg hover:bg-surface-variant/50 transition-colors border border-transparent hover:border-white/5 text-left group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">create_new_folder</span>
+<span class="font-body-md text-body-md text-on-surface flex-1">New Project</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">N</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Footer Hints -->
+<div class="bg-surface-container py-sm px-lg border-t border-white/5 flex items-center justify-between">
+<div class="flex items-center gap-md">
+<span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-label-md" style="font-size: 14px;">keyboard_arrow_up</span>
+<span class="material-symbols-outlined text-label-md" style="font-size: 14px;">keyboard_arrow_down</span>
+                        to navigate
+                    </span>
+<span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-label-md" style="font-size: 14px;">keyboard_return</span>
+                        to select
+                    </span>
+</div>
+<div class="font-label-md text-label-md text-on-surface-variant">
+                    Saathi Command
+                </div>
+</div>
+</div>
+</div>
+<!-- Decorative Background Elements (Hidden behind the blur) -->
+<div class="absolute top-0 left-0 w-full h-full pointer-events-none -z-10 opacity-20">
+<div class="absolute top-[20%] left-[10%] w-[500px] h-[500px] bg-primary rounded-full blur-[150px] mix-blend-screen"></div>
+<div class="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] bg-tertiary-container rounded-full blur-[150px] mix-blend-screen"></div>
+</div>
+</body></html>

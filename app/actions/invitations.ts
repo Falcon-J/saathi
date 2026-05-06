@@ -2,6 +2,8 @@
 
 import redis from "@/lib/redis"
 import { getSession } from "@/lib/auth-simple"
+import { revalidatePath } from "next/cache"
+import { realtimeService } from "@/lib/realtime"
 import { getWorkspace } from "./workspaces"
 
 export interface Invitation {
@@ -249,6 +251,16 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
       console.error("[Saathi] Error tracking invitation acceptance activity:", error)
     }
 
+    // Publish real-time event for member added
+    realtimeService.publishEvent({
+      type: 'member-added',
+      workspaceId: invitation.workspaceId,
+      userId: session.email,
+      timestamp: Date.now(),
+      data: { member: newMember, workspaceName: invitation.workspaceName }
+    }).catch(err => console.error('[Realtime] member-added event failed:', err))
+
+    revalidatePath('/dashboard')
     console.log(`[Saathi] User ${session.email} accepted invitation to workspace ${invitation.workspaceId}`)
   } catch (error) {
     console.error("[Saathi] Error accepting invitation:", error)

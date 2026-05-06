@@ -38,10 +38,6 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     useEffect(() => {
         if (userEmail) {
             loadInvitations()
-
-            // Poll for new invitations every 10 seconds
-            const interval = setInterval(loadInvitations, 10000)
-            return () => clearInterval(interval)
         }
     }, [userEmail])
 

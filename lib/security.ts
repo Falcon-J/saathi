@@ -117,7 +117,7 @@ export function withRateLimit(type: keyof typeof RATE_LIMITS) {
 
     descriptor.value = async function (...args: any[]) {
       // Extract user identifier (email) from session or args
-      const userEmail = this.session?.email || args[0] // Adjust based on your method signatures
+      const userEmail = (this as any).session?.email || args[0] // Adjust based on your method signatures
 
       if (!userEmail) {
         throw new Error('Authentication required')

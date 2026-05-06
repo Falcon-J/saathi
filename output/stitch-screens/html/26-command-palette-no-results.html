@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saathi Command Palette - No Results</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error": "#ffb4ab",
+                      "on-secondary-fixed": "#1c1b1d",
+                      "on-secondary": "#313032",
+                      "surface-bright": "#383941",
+                      "primary": "#4edea3",
+                      "surface-dim": "#12131a",
+                      "surface-container": "#1e1f26",
+                      "on-tertiary-container": "#711419",
+                      "surface-container-highest": "#33343c",
+                      "on-secondary-container": "#b7b4b7",
+                      "tertiary-container": "#fc7c78",
+                      "tertiary-fixed": "#ffdad7",
+                      "tertiary": "#ffb3af",
+                      "secondary-fixed": "#e5e1e4",
+                      "primary-container": "#10b981",
+                      "on-background": "#e3e1ec",
+                      "surface-variant": "#33343c",
+                      "on-surface": "#e3e1ec",
+                      "primary-fixed": "#6ffbbe",
+                      "on-primary": "#003824",
+                      "surface-container-lowest": "#0d0e15",
+                      "on-tertiary-fixed-variant": "#842225",
+                      "inverse-primary": "#006c49",
+                      "secondary-fixed-dim": "#c8c6c8",
+                      "surface-container-high": "#292931",
+                      "on-error": "#690005",
+                      "background": "#12131a",
+                      "surface": "#12131a",
+                      "on-tertiary": "#650911",
+                      "secondary": "#c8c6c8",
+                      "surface-tint": "#4edea3",
+                      "on-secondary-fixed-variant": "#474649",
+                      "on-primary-fixed": "#002113",
+                      "on-primary-fixed-variant": "#005236",
+                      "secondary-container": "#474649",
+                      "tertiary-fixed-dim": "#ffb3af",
+                      "outline-variant": "#3c4a42",
+                      "primary-fixed-dim": "#4edea3",
+                      "surface-container-low": "#1a1b22",
+                      "on-tertiary-fixed": "#410005",
+                      "on-primary-container": "#00422b",
+                      "on-surface-variant": "#bbcabf",
+                      "on-error-container": "#ffdad6",
+                      "inverse-surface": "#e3e1ec",
+                      "outline": "#86948a",
+                      "inverse-on-surface": "#2f3038",
+                      "error-container": "#93000a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin": "32px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "xl": "40px",
+                      "sm": "8px",
+                      "gutter": "24px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "code-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "code-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "letterSpacing": "0em",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen relative overflow-hidden">
+<!-- Background Blur for Modal Context -->
+<div class="fixed inset-0 bg-background/50 backdrop-blur-sm z-0"></div>
+<!-- Main Modal Container -->
+<main class="fixed inset-0 flex items-start justify-center pt-[15vh] px-md z-50">
+<!-- Command Palette Glassmorphism Container -->
+<div class="w-full max-w-2xl bg-surface-container-high/80 backdrop-blur-[30px] rounded-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
+<!-- Search Input Header -->
+<div class="flex items-center px-lg py-md border-b border-white/5">
+<span class="material-symbols-outlined text-on-surface-variant text-[24px] mr-md" data-icon="search">search</span>
+<input class="flex-1 bg-transparent border-none text-on-surface font-body-lg focus:ring-0 placeholder:text-on-surface-variant/50 p-0" placeholder="Search commands, files, or workspace..." spellcheck="false" type="text" value="billing"/>
+<div class="flex items-center gap-2 ml-md">
+<span class="text-on-surface-variant font-code-sm bg-surface-container-highest px-2 py-1 rounded text-[10px] uppercase tracking-widest border border-white/5">ESC</span>
+</div>
+</div>
+<!-- Content Area - Empty State -->
+<div class="flex-1 flex flex-col items-center justify-center p-xl min-h-[400px]">
+<!-- Illustration (Placeholder Image) -->
+<div class="w-48 h-48 mb-lg relative">
+<img alt="A minimalist 3D illustration representing an empty search state or a 'no results found' concept. The scene features simple, soft geometric shapes like floating cubes or spheres, rendered in a clean, modern aesthetic with soft studio lighting. The color palette incorporates subtle shades of deep blacks, pristine whites, and glowing accents of vibrant emerald green (#10B981) against a dark background, evoking a sense of calm technology and high-performance focus." class="w-full h-full object-contain drop-shadow-xl opacity-80 mix-blend-screen rounded-lg" data-alt="A minimalist 3D illustration representing an empty search state or a 'no results found' concept. The scene features simple, soft geometric shapes like floating cubes or spheres, rendered in a clean, modern aesthetic with soft studio lighting. The color palette incorporates subtle shades of deep blacks, pristine whites, and glowing accents of vibrant emerald green (#10B981) against a dark background, evoking a sense of calm technology and high-performance focus." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+</div>
+<!-- Text Content -->
+<h2 class="font-headline-md text-headline-md text-on-surface mb-sm text-center">No results for 'billing'</h2>
+<p class="font-body-md text-body-md text-on-surface-variant text-center max-w-sm mb-lg">
+                    We couldn't find anything matching your search. Try different keywords or explore the suggested actions below.
+                </p>
+<!-- Action Buttons / Suggestions -->
+<div class="flex flex-col sm:flex-row items-center gap-md w-full max-w-md">
+<button class="w-full flex items-center justify-center gap-sm px-md py-sm bg-surface-container-highest hover:bg-surface-variant/80 border border-white/5 rounded-lg text-on-surface font-label-md transition-colors group">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-colors" data-icon="menu_book">menu_book</span>
+                        Search in Documentation
+                    </button>
+<button class="w-full flex items-center justify-center gap-sm px-md py-sm bg-surface-container-highest hover:bg-surface-variant/80 border border-white/5 rounded-lg text-on-surface font-label-md transition-colors group">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-colors" data-icon="settings">settings</span>
+                        Go to Settings
+                    </button>
+</div>
+</div>
+<!-- Footer Hints -->
+<div class="bg-surface-container-lowest border-t border-white/5 px-lg py-sm flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="flex items-center gap-xs">
+<span class="text-on-surface-variant font-code-sm bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] border border-white/5">↑</span>
+<span class="text-on-surface-variant font-code-sm bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] border border-white/5">↓</span>
+<span class="text-on-surface-variant font-label-md text-[11px] ml-1">Navigate</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="text-on-surface-variant font-code-sm bg-surface-container-highest px-1.5 py-0.5 rounded text-[10px] border border-white/5">↵</span>
+<span class="text-on-surface-variant font-label-md text-[11px] ml-1">Select</span>
+</div>
+</div>
+<div class="font-label-md text-[11px] text-on-surface-variant">
+                    Saathi Command
+                </div>
+</div>
+</div>
+</main>
+</body></html>

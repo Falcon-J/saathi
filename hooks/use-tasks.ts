@@ -1,93 +1,49 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { Task } from "@/app/actions/tasks"
-import { getTasks, addTask, toggleTask, deleteTask, updateTask } from "@/app/actions/tasks"
+import { addTask, deleteTask, getTasks, toggleTask, updateTask } from "@/app/actions/tasks"
 
-export function useTasks() {
+export function useTasks(workspaceId: string) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Load initial tasks
-  useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const data = await getTasks()
-        setTasks(data)
-      } catch (error) {
-        console.error("[v0] Failed to load tasks:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const refreshTasks = useCallback(async () => {
+    if (!workspaceId) return
 
-    loadTasks()
-  }, [])
+    try {
+      const data = await getTasks(workspaceId)
+      setTasks(data)
+    } catch (error) {
+      console.error("[Saathi] Failed to load tasks:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId])
 
   useEffect(() => {
-    let pollInterval: NodeJS.Timeout | null = null
-
-    const startPolling = () => {
-      pollInterval = setInterval(async () => {
-        try {
-          const data = await getTasks()
-          setTasks(data)
-        } catch (error) {
-          console.error("[v0] Polling error:", error)
-        }
-      }, 2000)
-    }
-
-    startPolling()
-
-    return () => {
-      if (pollInterval) clearInterval(pollInterval)
-    }
-  }, [])
+    refreshTasks()
+  }, [refreshTasks])
 
   const handleAddTask = useCallback(async (title: string, dueDate?: string, categories?: string[]) => {
-    try {
-      await addTask(title, dueDate, categories)
-      // Refresh tasks immediately after adding
-      const data = await getTasks()
-      setTasks(data)
-    } catch (error) {
-      console.error("[v0] Failed to add task:", error)
-    }
-  }, [])
+    await addTask(workspaceId, title, undefined, dueDate, categories)
+    await refreshTasks()
+  }, [refreshTasks, workspaceId])
 
   const handleToggleTask = useCallback(async (id: string) => {
-    try {
-      await toggleTask(id)
-      // Refresh tasks immediately after toggling
-      const data = await getTasks()
-      setTasks(data)
-    } catch (error) {
-      console.error("[v0] Failed to toggle task:", error)
-    }
-  }, [])
+    await toggleTask(workspaceId, id)
+    await refreshTasks()
+  }, [refreshTasks, workspaceId])
 
   const handleDeleteTask = useCallback(async (id: string) => {
-    try {
-      await deleteTask(id)
-      // Refresh tasks immediately after deleting
-      const data = await getTasks()
-      setTasks(data)
-    } catch (error) {
-      console.error("[v0] Failed to delete task:", error)
-    }
-  }, [])
+    await deleteTask(workspaceId, id)
+    await refreshTasks()
+  }, [refreshTasks, workspaceId])
 
   const handleUpdateTask = useCallback(async (id: string, updates: Partial<Task>) => {
-    try {
-      await updateTask(id, updates)
-      // Refresh tasks immediately after updating
-      const data = await getTasks()
-      setTasks(data)
-    } catch (error) {
-      console.error("[v0] Failed to update task:", error)
-    }
-  }, [])
+    await updateTask(workspaceId, id, updates)
+    await refreshTasks()
+  }, [refreshTasks, workspaceId])
 
   return {
     tasks,
@@ -96,5 +52,6 @@ export function useTasks() {
     toggleTask: handleToggleTask,
     deleteTask: handleDeleteTask,
     updateTask: handleUpdateTask,
+    refreshTasks,
   }
 }

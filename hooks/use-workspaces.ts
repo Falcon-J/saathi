@@ -10,13 +10,53 @@ import {
   type Workspace
 } from "@/app/actions/workspaces"
 import { useNotifications } from "@/hooks/use-notifications"
+import { useRealtime } from "@/hooks/useRealtime"
+import type { RealtimeEvent } from "@/lib/realtime"
 
 export function useWorkspaces(userEmail?: string) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const { success, error, info } = useNotifications()
+  const { success, error: notifyError, info } = useNotifications()
+
+  const applyRealtimeTaskEvent = useCallback((event: RealtimeEvent) => {
+    if (!userEmail || event.userId === userEmail) {
+      return
+    }
+
+    if (event.workspaceId !== currentWorkspaceId) {
+      return
+    }
+
+    const task = event.data?.task ?? event.data
+
+    switch (event.type) {
+      case "task-created":
+        if (!task?.id) return
+        setTasks(prev => prev.some(existing => existing.id === task.id) ? prev : [task, ...prev])
+        break
+      case "task-updated":
+      case "task-toggled":
+        if (!task?.id) return
+        setTasks(prev => prev.map(existing => existing.id === task.id ? { ...existing, ...task } : existing))
+        break
+      case "task-deleted": {
+        const taskId = event.data?.taskId ?? task?.id
+        if (!taskId) return
+        setTasks(prev => prev.filter(existing => existing.id !== taskId))
+        break
+      }
+    }
+  }, [currentWorkspaceId, userEmail])
+
+  const realtime = useRealtime({
+    workspaceId: currentWorkspaceId ?? "",
+    onTaskCreated: applyRealtimeTaskEvent,
+    onTaskUpdated: applyRealtimeTaskEvent,
+    onTaskToggled: applyRealtimeTaskEvent,
+    onTaskDeleted: applyRealtimeTaskEvent,
+  })
 
   // Load user workspaces
   useEffect(() => {
@@ -86,11 +126,11 @@ export function useWorkspaces(userEmail?: string) {
         return newWorkspace
       } catch (error) {
         console.error("[Saathi] Failed to create workspace:", error)
-        error("Failed to create workspace", "Please try again with a different name")
+        notifyError("Failed to create workspace", "Please try again with a different name")
         throw error
       }
     },
-    [userEmail, success, error],
+    [userEmail, success, notifyError],
   )
 
   const handleAddTask = useCallback(
@@ -241,11 +281,11 @@ export function useWorkspaces(userEmail?: string) {
       } catch (error) {
         console.error("[Saathi] Failed to send invitation:", error)
         const errorMessage = error instanceof Error ? error.message : "Failed to send invitation"
-        error("Failed to send invitation", errorMessage)
+        notifyError("Failed to send invitation", errorMessage)
         throw error
       }
     },
-    [currentWorkspaceId, userEmail, success, error],
+    [currentWorkspaceId, userEmail, success, notifyError],
   )
 
   // Add function to refresh workspaces (for when invitations are accepted)
@@ -314,11 +354,11 @@ export function useWorkspaces(userEmail?: string) {
       } catch (error) {
         console.error("[Saathi] Failed to remove member:", error)
         const errorMessage = error instanceof Error ? error.message : "Failed to remove member"
-        error("Failed to remove member", errorMessage)
+        notifyError("Failed to remove member", errorMessage)
         throw error
       }
     },
-    [currentWorkspaceId, userEmail, success, error, info],
+    [currentWorkspaceId, userEmail, success, notifyError, info],
   )
 
   return {
@@ -337,5 +377,6 @@ export function useWorkspaces(userEmail?: string) {
     removeMember: handleRemoveMember,
     refreshWorkspaces,
     refreshTasks,
+    realtime,
   }
 }

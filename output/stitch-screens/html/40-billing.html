@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Organization Settings - Billing &amp; Subscription</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary-fixed": "#002113",
+                "inverse-surface": "#e3e1ec",
+                "background": "#12131a",
+                "on-secondary-fixed-variant": "#474649",
+                "surface-container": "#1e1f26",
+                "outline": "#86948a",
+                "on-error-container": "#ffdad6",
+                "primary-container": "#10b981",
+                "tertiary-container": "#fc7c78",
+                "on-surface-variant": "#bbcabf",
+                "on-secondary-fixed": "#1c1b1d",
+                "outline-variant": "#3c4a42",
+                "on-tertiary-container": "#711419",
+                "secondary": "#c8c6c8",
+                "error-container": "#93000a",
+                "surface-bright": "#383941",
+                "on-secondary-container": "#b7b4b7",
+                "surface-container-lowest": "#0d0e15",
+                "tertiary-fixed-dim": "#ffb3af",
+                "on-tertiary-fixed-variant": "#842225",
+                "surface-tint": "#4edea3",
+                "secondary-fixed": "#e5e1e4",
+                "secondary-container": "#474649",
+                "primary": "#4edea3",
+                "error": "#ffb4ab",
+                "surface-container-highest": "#33343c",
+                "on-surface": "#e3e1ec",
+                "on-background": "#e3e1ec",
+                "surface": "#12131a",
+                "on-tertiary": "#650911",
+                "on-primary": "#003824",
+                "inverse-primary": "#006c49",
+                "tertiary-fixed": "#ffdad7",
+                "inverse-on-surface": "#2f3038",
+                "primary-fixed-dim": "#4edea3",
+                "surface-container-high": "#292931",
+                "surface-dim": "#12131a",
+                "primary-fixed": "#6ffbbe",
+                "on-primary-container": "#00422b",
+                "surface-container-low": "#1a1b22",
+                "secondary-fixed-dim": "#c8c6c8",
+                "on-primary-fixed-variant": "#005236",
+                "tertiary": "#ffb3af",
+                "surface-variant": "#33343c",
+                "on-tertiary-fixed": "#410005",
+                "on-secondary": "#313032",
+                "on-error": "#690005"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "xl": "40px",
+                "gutter": "24px",
+                "unit": "4px",
+                "margin": "32px",
+                "md": "16px",
+                "xs": "4px",
+                "sm": "8px",
+                "lg": "24px"
+        },
+        "fontFamily": {
+                "body-md": [
+                        "Inter"
+                ],
+                "headline-md": [
+                        "Inter"
+                ],
+                "display-lg": [
+                        "Inter"
+                ],
+                "label-md": [
+                        "Inter"
+                ],
+                "body-lg": [
+                        "Inter"
+                ],
+                "code-sm": [
+                        "Inter"
+                ],
+                "headline-sm": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "1.5",
+                                "letterSpacing": "0em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "1.3",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display-lg": [
+                        "48px",
+                        {
+                                "lineHeight": "1.1",
+                                "letterSpacing": "-0.04em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "label-md": [
+                        "12px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "0.02em",
+                                "fontWeight": "500"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "1.6",
+                                "letterSpacing": "0em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "code-sm": [
+                        "13px",
+                        {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "0em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-sm": [
+                        "18px",
+                        {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="bg-surface/80 dark:bg-surface/80 backdrop-blur-xl fixed top-0 w-full z-50 border-b border-outline-variant flat no shadows flex items-center justify-between px-md py-sm w-full">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-bold text-primary">InfraCore</span>
+</div>
+<div class="flex items-center gap-sm">
+<button class="p-sm text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-70 rounded-lg hover:bg-surface-variant/50">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+</button>
+<button class="p-sm text-primary font-bold transition-colors cursor-pointer active:opacity-70 rounded-lg hover:bg-surface-variant/50">
+<span class="material-symbols-outlined" data-icon="settings" data-weight="fill" style="font-variation-settings: 'FILL' 1;">settings</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-70 rounded-lg hover:bg-surface-variant/50">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant ml-sm" data-alt="A small circular avatar image suitable for a user profile in a high-tech dashboard, featuring a stylized geometric shape in vibrant green tones against a dark slate background, conveying an analytical and modern aesthetic." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+</div>
+</header>
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low dark:bg-surface-container-low backdrop-blur-lg fixed left-0 top-0 h-full w-64 z-40 border-r border-outline-variant flat no shadows flex flex-col h-full p-md gap-sm hidden md:flex pt-20">
+<div class="flex items-center gap-sm px-sm pb-md border-b border-outline-variant mb-sm">
+<img alt="Organization Logo" class="w-10 h-10 rounded-lg border border-outline-variant" data-alt="A professional organization logo placeholder, featuring abstract geometric forms intersecting in a high-contrast palette of deep navy and bright cyan, representing advanced cloud infrastructure and enterprise software." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold text-sm">Enterprise Cloud</h2>
+<p class="font-label-md text-label-md text-on-surface-variant text-xs">Prod Environment</p>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container hover:bg-primary-container/90 transition-all duration-200 ease-in-out py-sm px-md rounded-lg font-label-md text-label-md flex items-center justify-center gap-sm mb-md shadow-sm">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+            New Resource
+        </button>
+<div class="flex-1 overflow-y-auto flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="layers">layers</span>
+<span class="font-label-md text-label-md">Workspaces</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="dns">dns</span>
+<span class="font-label-md text-label-md">Infrastructure</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="history">history</span>
+<span class="font-label-md text-label-md">Audit Logs</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="security">security</span>
+<span class="font-label-md text-label-md">Permissions</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="api">api</span>
+<span class="font-label-md text-label-md">API Keys</span>
+</a>
+</div>
+<div class="mt-auto border-t border-outline-variant pt-sm flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Help</span>
+</a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-sm text-primary" data-icon="check_circle">check_circle</span>
+<span class="font-label-md text-label-md">Status</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-20 p-lg max-w-[1440px] mx-auto min-h-screen flex flex-col gap-lg">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-md">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface mb-xs">Billing &amp; Subscription</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage your organization's plan, usage, and payments.</p>
+</div>
+<div class="flex gap-sm">
+<button class="px-md py-sm rounded-lg border border-outline-variant text-on-surface font-label-md text-label-md hover:bg-surface-variant transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+                    Invoices
+                </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-md">
+<!-- Current Plan Card (Span 8) -->
+<div class="lg:col-span-8 bg-surface-container border border-outline-variant rounded-lg p-lg flex flex-col justify-between group hover:border-outline transition-colors relative overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+<div class="flex justify-between items-start mb-xl relative z-10">
+<div>
+<div class="flex items-center gap-sm mb-sm">
+<span class="bg-primary-container/20 text-primary px-sm py-xs rounded-full font-label-md text-[11px] uppercase tracking-wider border border-primary/30">Active Plan</span>
+</div>
+<h2 class="font-display-lg text-display-lg text-on-surface">Enterprise</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Billed annually at $4,999/mo</p>
+</div>
+<div class="text-right">
+<span class="font-headline-md text-headline-md text-on-surface block">$59,988</span>
+<span class="font-label-md text-label-md text-on-surface-variant">per year</span>
+</div>
+</div>
+<div class="border-t border-outline-variant pt-md flex justify-between items-center mt-auto relative z-10">
+<p class="font-label-md text-label-md text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="event">event</span>
+                        Renews on Oct 15, 2024
+                    </p>
+<button class="font-label-md text-label-md text-primary hover:text-primary-fixed-dim transition-colors">Manage Plan</button>
+</div>
+</div>
+<!-- Payment Method Card (Span 4) -->
+<div class="lg:col-span-4 bg-surface-container border border-outline-variant rounded-lg p-lg flex flex-col group hover:border-outline transition-colors">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-headline-md text-headline-md text-on-surface text-lg">Payment Method</h3>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors rounded-lg">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="bg-surface-variant/30 border border-outline-variant rounded-lg p-md mb-auto flex items-center gap-md">
+<div class="w-12 h-8 bg-surface-container-highest rounded-lg flex items-center justify-center border border-outline-variant">
+<span class="font-label-md text-label-md text-on-surface font-bold text-xs tracking-widest">VISA</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface font-medium">•••• •••• •••• 4242</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Expires 12/25</p>
+</div>
+</div>
+<div class="mt-md pt-md border-t border-outline-variant">
+<h4 class="font-label-md text-label-md text-on-surface-variant mb-xs">Billing Email</h4>
+<p class="font-label-md text-label-md text-on-surface">finance@entcloud.com</p>
+</div>
+</div>
+<!-- Usage Meters (Span 12) -->
+<div class="lg:col-span-12 bg-surface-container border border-outline-variant rounded-lg p-lg">
+<div class="flex justify-between items-center mb-lg">
+<h3 class="font-headline-md text-headline-md text-on-surface text-lg">Current Usage</h3>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-variant/50 px-sm py-xs rounded-lg">Cycle: Sep 15 - Oct 15</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-xl">
+<!-- API Calls Meter -->
+<div>
+<div class="flex justify-between items-end mb-sm">
+<div>
+<h4 class="font-label-md text-label-md text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-sm text-primary" data-icon="api">api</span>
+                                    API Calls
+                                </h4>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-1">4.2M / 10M limit</p>
+</div>
+<span class="font-code-sm text-code-sm text-primary">42%</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2 overflow-hidden border border-outline-variant">
+<div class="bg-primary h-2 rounded-full" style="width: 42%"></div>
+</div>
+</div>
+<!-- Storage Meter -->
+<div>
+<div class="flex justify-between items-end mb-sm">
+<div>
+<h4 class="font-label-md text-label-md text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-sm text-secondary" data-icon="database">database</span>
+                                    Storage
+                                </h4>
+<p class="font-code-sm text-code-sm text-on-surface-variant mt-1">850GB / 1TB limit</p>
+</div>
+<span class="font-code-sm text-code-sm text-error">85%</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2 overflow-hidden border border-outline-variant">
+<div class="bg-error h-2 rounded-full" style="width: 85%"></div>
+</div>
+<p class="font-label-md text-label-md text-error mt-sm text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span>
+                            Nearing limit. Consider upgrading storage.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Upcoming Invoice (Span 12) -->
+<div class="lg:col-span-12 bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
+<div class="px-lg py-md border-b border-outline-variant bg-surface-variant/20 flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md text-on-surface text-lg">Upcoming Invoice Preview</h3>
+<span class="font-code-sm text-code-sm text-on-surface-variant">INV-2024-10</span>
+</div>
+<div class="p-lg">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant">
+<th class="py-sm font-label-md text-label-md text-on-surface-variant font-normal">Description</th>
+<th class="py-sm font-label-md text-label-md text-on-surface-variant font-normal text-right">Qty</th>
+<th class="py-sm font-label-md text-label-md text-on-surface-variant font-normal text-right">Unit Price</th>
+<th class="py-sm font-label-md text-label-md text-on-surface-variant font-normal text-right">Amount</th>
+</tr>
+</thead>
+<tbody class="font-code-sm text-code-sm text-on-surface">
+<tr class="border-b border-outline-variant/50">
+<td class="py-md">Enterprise Base Plan (Monthly)</td>
+<td class="py-md text-right">1</td>
+<td class="py-md text-right text-on-surface-variant">$4,999.00</td>
+<td class="py-md text-right">$4,999.00</td>
+</tr>
+<tr class="border-b border-outline-variant/50">
+<td class="py-md flex flex-col gap-1">
+<span>Additional Seats</span>
+<span class="text-on-surface-variant text-xs font-label-md">Pro-rated for Sep 20 - Oct 15</span>
+</td>
+<td class="py-md text-right">5</td>
+<td class="py-md text-right text-on-surface-variant">$50.00</td>
+<td class="py-md text-right">$208.33</td>
+</tr>
+<tr>
+<td class="py-md pt-lg font-bold">Total Due (Estimated)</td>
+<td></td>
+<td></td>
+<td class="py-md pt-lg text-right font-bold text-primary text-base">$5,207.33</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</body></html>

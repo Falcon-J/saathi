@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Task Detail - Activity History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#410005",
+                    "on-tertiary-container": "#711419",
+                    "on-secondary-container": "#b7b4b7",
+                    "inverse-surface": "#e3e1ec",
+                    "surface-tint": "#4edea3",
+                    "secondary-container": "#474649",
+                    "on-secondary-fixed-variant": "#474649",
+                    "background": "#12131a",
+                    "on-primary": "#003824",
+                    "inverse-on-surface": "#2f3038",
+                    "surface-container-low": "#1a1b22",
+                    "tertiary": "#ffb3af",
+                    "tertiary-fixed": "#ffdad7",
+                    "surface-container-high": "#292931",
+                    "surface": "#12131a",
+                    "surface-container": "#1e1f26",
+                    "surface-container-highest": "#33343c",
+                    "primary-container": "#10b981",
+                    "primary-fixed-dim": "#4edea3",
+                    "outline": "#86948a",
+                    "on-primary-fixed-variant": "#005236",
+                    "primary": "#4edea3",
+                    "secondary-fixed-dim": "#c8c6c8",
+                    "tertiary-fixed-dim": "#ffb3af",
+                    "surface-bright": "#383941",
+                    "on-primary-fixed": "#002113",
+                    "on-secondary-fixed": "#1c1b1d",
+                    "on-surface": "#e3e1ec",
+                    "tertiary-container": "#fc7c78",
+                    "on-background": "#e3e1ec",
+                    "secondary": "#c8c6c8",
+                    "on-primary-container": "#00422b",
+                    "error-container": "#93000a",
+                    "surface-variant": "#33343c",
+                    "primary-fixed": "#6ffbbe",
+                    "surface-dim": "#12131a",
+                    "on-tertiary": "#650911",
+                    "error": "#ffb4ab",
+                    "secondary-fixed": "#e5e1e4",
+                    "on-error": "#690005",
+                    "on-tertiary-fixed-variant": "#842225",
+                    "on-error-container": "#ffdad6",
+                    "inverse-primary": "#006c49",
+                    "surface-container-lowest": "#0d0e15",
+                    "outline-variant": "#3c4a42",
+                    "on-surface-variant": "#bbcabf",
+                    "on-secondary": "#313032"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "margin": "32px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "unit": "4px",
+                    "lg": "24px",
+                    "xl": "40px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": [
+                            "Inter"
+                    ],
+                    "label-md": [
+                            "Inter"
+                    ],
+                    "headline-sm": [
+                            "Inter"
+                    ],
+                    "code-sm": [
+                            "Inter"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "display-lg": [
+                            "Inter"
+                    ],
+                    "body-md": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "headline-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "1.3",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "label-md": [
+                            "12px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "letterSpacing": "0.02em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "headline-sm": [
+                            "18px",
+                            {
+                                    "lineHeight": "1.4",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "code-sm": [
+                            "13px",
+                            {
+                                    "lineHeight": "1.4",
+                                    "letterSpacing": "0em",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-lg": [
+                            "16px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "letterSpacing": "0em",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "display-lg": [
+                            "48px",
+                            {
+                                    "lineHeight": "1.1",
+                                    "letterSpacing": "-0.04em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-md": [
+                            "14px",
+                            {
+                                    "lineHeight": "1.5",
+                                    "letterSpacing": "0em",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+        },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex selection:bg-primary selection:text-on-primary">
+<!-- TopNavBar (Web Context - Task Sub-page -> Suppressed standard navs, using custom header for specific intent) -->
+<div class="fixed top-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-b border-white/5 flex justify-between items-center px-lg h-16">
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center w-8 h-8 rounded-full hover:bg-surface-variant/30">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</button>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">PRJ-992</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">Optimize Database Queries</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="flex -space-x-2">
+<img alt="" class="w-8 h-8 rounded-full border border-surface" data-alt="A macro shot of abstract emerald green and white geometric shards, creating a sense of technical precision and speed. The lighting is crisp and cool, casting sharp shadows that enhance the minimalist, dark-mode aesthetic of the interface. The mood is focused and high-performance." src="https://lh3.googleusercontent.com/aida/ADBb0ujOtheoiJFMKBFI8WczO8AaQDJPo1VnivVAIVAzo9TL39g-NHqSzRU2xJntDlm2h10H3nuZ6ZFn4_sxUrNJJO-4WgUA3Y5Iffaj64r6IptZzLUab5g9K1kjmsLxPLYQpdzTfKOlb4HulOmcos6zhsiuX37t_E6r4CwHAKegVQfxDGa6Mdr15uy7BoC7I1_JZTzPj-AevcXnmtkIeMbhEHAt4n_BlLA1Uu0JQKLOTK7mFS48UHXB5Cx1cH0"/>
+</div>
+<button class="bg-surface-variant hover:bg-surface-variant/80 text-on-surface px-4 py-2 rounded-md font-label-md text-label-md transition-colors border border-white/5">
+                Edit Task
+            </button>
+</div>
+</div>
+<!-- Main Content Canvas -->
+<main class="flex-1 w-full max-w-5xl mx-auto pt-24 pb-margin px-margin">
+<div class="mb-lg flex justify-between items-end">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface mb-xs">Activity History</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Audit-ready log of all task modifications and communications.</p>
+</div>
+<div class="flex gap-2 bg-surface-container-low p-1 rounded-lg border border-white/5">
+<button class="bg-surface-variant text-on-surface px-4 py-1.5 rounded-md font-label-md text-label-md shadow-sm">All</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-1.5 rounded-md font-label-md text-label-md transition-colors">Comments</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-1.5 rounded-md font-label-md text-label-md transition-colors">System Events</button>
+</div>
+</div>
+<div class="space-y-0 relative before:absolute before:inset-0 before:ml-[1.4rem] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-px before:bg-white/5">
+<!-- Event 1: Status Change -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active py-md">
+<div class="flex items-center justify-center w-6 h-6 rounded-full border border-white/10 bg-surface-container shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 ml-2 md:ml-0">
+<span class="material-symbols-outlined text-[14px] text-primary">update</span>
+</div>
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2rem)] bg-surface-container-lowest p-md rounded-xl border border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-2">
+<img alt="" class="w-6 h-6 rounded-full" data-alt="A sleek, abstract representation of a data stream in dark mode, featuring glowing white and subtle green nodes interconnected by fine lines. The composition is stark and modern, emphasizing speed, connectivity, and precision within a vast, dark digital space." src="https://lh3.googleusercontent.com/aida/ADBb0uj3YeIQU3G5vcrGK-Boum56wHlQbtxDlPkEM8MSqwbNocV5bKdHhgs07hy4ep0o4Tahdt7_MaVIlD11og2UjYShI3TUQGq6VpLGpV9_PtenRV9lD63lbekIMaj2d-b98ANj71pUVB1qr3G9fAUjctbuY463mnusWJGW6gT2kcfT9tEcNWTZiFwQDGTA8RVNG7dVqYlVpx3Do63Oxy0T007zvGRQ2HQqQeQJoy4nEboX9m4veVBXHqhxYGwgKOJFP8QGYVj8GJlodpc"/>
+<span class="font-label-md text-label-md font-medium text-on-surface">Alex Chen</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant text-xs">10:42 AM</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Changed status from <span class="bg-surface-variant px-2 py-0.5 rounded text-on-surface text-xs font-mono border border-white/5">In Progress</span> to <span class="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-mono border border-primary/20">In Review</span></p>
+</div>
+</div>
+<!-- Event 2: Comment -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group py-md">
+<div class="flex items-center justify-center w-6 h-6 rounded-full border border-white/10 bg-surface-container shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 ml-2 md:ml-0">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">chat_bubble</span>
+</div>
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2rem)] bg-surface-container-low p-md rounded-xl border border-white/5 hover:bg-surface-container-highest transition-colors">
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container">SJ</div>
+<span class="font-label-md text-label-md font-medium text-on-surface">Sarah Jenkins</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant text-xs">Yesterday, 4:15 PM</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">I've pushed the initial query optimizations to the staging branch. Seeing roughly a 40% reduction in load times for the main dashboard widget. Needs stress testing before merge.</p>
+</div>
+</div>
+<!-- Event 3: Assignee Change -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group py-md">
+<div class="flex items-center justify-center w-6 h-6 rounded-full border border-white/10 bg-surface-container shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 ml-2 md:ml-0">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">person_add</span>
+</div>
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2rem)] bg-surface-container-lowest p-md rounded-xl border border-white/5">
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-bright flex items-center justify-center text-xs font-bold text-on-surface">SYS</div>
+<span class="font-label-md text-label-md font-medium text-on-surface">System Action</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant text-xs">Oct 24, 09:00 AM</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Assigned task to <span class="text-on-surface font-medium">Alex Chen</span></p>
+</div>
+</div>
+</div>
+</main>
+</body></html>

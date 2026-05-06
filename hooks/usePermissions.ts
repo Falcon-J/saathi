@@ -49,7 +49,7 @@ export function usePermissions({ currentUserEmail, workspace, task }: UsePermiss
             isTaskCreator,
             isTaskAssignee,
         }
-    }, [currentUserEmail, workspace, task, isWorkspaceOwner, isTaskCreator, isTaskAssignee])
+    }, [currentUserEmail, workspace, task])
 }
 
 // Convenience hook for workspace-only permissions

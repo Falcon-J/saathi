@@ -242,13 +242,12 @@ export const TaskList = memo(function TaskList({
 
   return (
     <div className="space-y-6 p-6">
-      {/* Enhanced Add Task */}
-      <Card className="p-6 bg-gradient-to-r from-primary/5 to-primary/10 border-2 border-primary/20 shadow-sm">
+      <Card className="border border-white/10 bg-transparent p-5 shadow-none">
         {!showAddForm ? (
           <Button
             onClick={() => setShowAddForm(true)}
             variant="outline"
-            className="w-full border-2 border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary font-semibold py-8"
+            className="w-full border border-dashed border-white/15 py-8 text-primary hover:border-primary/40 hover:bg-primary/5"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add New Task
@@ -261,7 +260,7 @@ export const TaskList = memo(function TaskList({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={isAdding}
-                className="bg-background/80 border-2 border-border focus:border-primary text-foreground placeholder:text-muted-foreground disabled:opacity-50 shadow-sm"
+                className="border-white/10 bg-background/50 text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
               />
               <Button
                 onClick={() => {
@@ -284,7 +283,7 @@ export const TaskList = memo(function TaskList({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isAdding}
-              className="bg-background/80 border-2 border-border focus:border-primary text-foreground placeholder:text-muted-foreground disabled:opacity-50 shadow-sm resize-none"
+              className="resize-none border-white/10 bg-background/50 text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
               rows={2}
             />
 
@@ -320,13 +319,13 @@ export const TaskList = memo(function TaskList({
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 disabled={isAdding}
-                className="w-40 bg-background/80 border-2 border-border focus:border-primary"
+                className="w-40 border-white/10 bg-background/50 focus:border-primary"
               />
 
               <Button
                 onClick={handleAddTask}
                 disabled={isAdding || !input.trim()}
-                className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground px-6 disabled:opacity-50 shadow-lg font-semibold"
+                className="px-6 disabled:opacity-50"
               >
                 {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 <span className="ml-2">Add Task</span>
@@ -348,24 +347,14 @@ export const TaskList = memo(function TaskList({
         members={members}
       />
 
-      {/* Enhanced Stats */}
-      <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span className="font-medium text-green-700">{completedCount} completed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-            <span className="font-medium text-blue-700">{tasks.length - completedCount} pending</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-            <span className="font-medium text-muted-foreground">{tasks.length} total</span>
-          </div>
+      <div className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{tasks.length - completedCount}</span> open
+          <span className="mx-2 text-border">/</span>
+          <span className="font-medium text-primary">{completedCount}</span> done
         </div>
         {filteredTasks.length !== tasks.length && (
-          <div className="text-sm text-muted-foreground font-medium">
+          <div className="text-sm font-medium text-muted-foreground">
             Showing {filteredTasks.length} of {tasks.length}
           </div>
         )}
@@ -374,16 +363,16 @@ export const TaskList = memo(function TaskList({
       {/* Tasks */}
       <div className="space-y-2">
         {loading ? (
-          <Card className="p-8 text-center bg-card border-border">
+          <Card className="border-white/10 bg-transparent p-8 text-center">
             <div className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               <p className="text-muted-foreground">Loading tasks...</p>
             </div>
           </Card>
         ) : filteredTasks.length === 0 ? (
-          <Card className="p-12 text-center bg-gradient-to-br from-muted/30 to-muted/10 border-2 border-dashed border-border/50">
+          <Card className="border border-dashed border-white/10 bg-transparent p-12 text-center">
             <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/35">
                 <Plus className="w-8 h-8 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground text-lg font-medium">
@@ -392,145 +381,28 @@ export const TaskList = memo(function TaskList({
             </div>
           </Card>
         ) : (
-          filteredTasks.map((task) => {
-            // Calculate permissions for this task
-            const taskPermissions = useTaskPermissions(
-              currentUserEmail,
-              { id: task.workspaceId, ownerId: workspaceOwnerId },
-              task
-            )
-
-            return (
-              <Card key={task.id} className="p-5 bg-gradient-to-r from-card to-card/80 border-2 border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-200 group">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleToggleTask(task.id)}
-                      disabled={operatingTaskId === task.id}
-                      className="flex-shrink-0 text-muted-foreground hover:text-primary transition-all duration-200 hover:scale-110 disabled:opacity-50 p-1 rounded-full hover:bg-primary/10"
-                    >
-                      {task.completed ? (
-                        <CheckCircle2 className="w-6 h-6 text-green-600" />
-                      ) : (
-                        <Circle className="w-6 h-6 hover:text-primary" />
-                      )}
-                    </button>
-
-                    {editingTaskId === task.id ? (
-                      <div className="flex-1 flex gap-2">
-                        <Input
-                          value={editingTitle}
-                          onChange={(e) => setEditingTitle(e.target.value)}
-                          className="bg-input border-border text-foreground text-sm"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleEditTask(task.id)}
-                          disabled={operatingTaskId === task.id}
-                          className="text-primary hover:text-primary/80 disabled:opacity-50"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setEditingTaskId(null)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <span
-                          className={`flex-1 text-base cursor-pointer hover:text-primary transition-colors font-medium ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"
-                            }`}
-                          onClick={() => {
-                            setEditingTaskId(task.id)
-                            setEditingTitle(task.title)
-                          }}
-                        >
-                          {task.title}
-                        </span>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          {taskPermissions.canEdit && (
-                            <button
-                              onClick={() => {
-                                setEditingTaskId(task.id)
-                                setEditingTitle(task.title)
-                              }}
-                              className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-primary/10"
-                              title="Edit task"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {taskPermissions.canDelete && (
-                            <button
-                              onClick={() => setDeleteConfirm(task.id)}
-                              className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded-md hover:bg-destructive/10"
-                              title="Delete task"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Task Description */}
-                  {task.description && (
-                    <div className="ml-9 mt-2">
-                      <p className="text-sm text-muted-foreground">{task.description}</p>
-                    </div>
-                  )}
-
-                  {/* Task Metadata */}
-                  <div className="ml-9 pt-2 space-y-2 border-t border-border/30">
-                    {/* Priority and Due Date */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Flag className={`w-3 h-3 ${task.priority === 'high' ? 'text-red-500' :
-                          task.priority === 'medium' ? 'text-yellow-500' : 'text-green-500'
-                          }`} />
-                        <span className="capitalize">{task.priority} priority</span>
-                      </div>
-
-                      {task.dueDate && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>Created {new Date(task.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Assignment */}
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground font-medium">Assigned to:</span>
-                      <select
-                        value={task.assigneeEmail || ""}
-                        onChange={(e) => handleAssignTask(task.id, e.target.value || null)}
-                        disabled={operatingTaskId === task.id}
-                        className="text-sm bg-background border-2 border-border rounded-md px-3 py-1.5 text-foreground cursor-pointer hover:border-primary/50 focus:border-primary disabled:opacity-50 font-medium shadow-sm"
-                      >
-                        <option value="">Unassigned</option>
-                        {members.map((member) => (
-                          <option key={member.id} value={member.email}>
-                            {member.username}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )
-          })
+          filteredTasks.map((task) => (
+            <TaskListItem
+              key={task.id}
+              task={task}
+              members={members}
+              currentUserEmail={currentUserEmail}
+              workspaceOwnerId={workspaceOwnerId}
+              editingTaskId={editingTaskId}
+              editingTitle={editingTitle}
+              operatingTaskId={operatingTaskId}
+              onToggleTask={handleToggleTask}
+              onEditTask={handleEditTask}
+              onAssignTask={handleAssignTask}
+              onStartEdit={(nextTask) => {
+                setEditingTaskId(nextTask.id)
+                setEditingTitle(nextTask.title)
+              }}
+              onCancelEdit={() => setEditingTaskId(null)}
+              onEditingTitleChange={setEditingTitle}
+              onConfirmDelete={setDeleteConfirm}
+            />
+          ))
         )}
       </div>
 
@@ -545,5 +417,166 @@ export const TaskList = memo(function TaskList({
         isLoading={operatingTaskId === deleteConfirm}
       />
     </div>
+  )
+})
+
+interface TaskListItemProps {
+  task: Task
+  members: Member[]
+  currentUserEmail: string
+  workspaceOwnerId: string
+  editingTaskId: string | null
+  editingTitle: string
+  operatingTaskId: string | null
+  onToggleTask: (taskId: string) => Promise<void>
+  onEditTask: (taskId: string) => Promise<void>
+  onAssignTask: (taskId: string, memberId: string | null) => Promise<void>
+  onStartEdit: (task: Task) => void
+  onCancelEdit: () => void
+  onEditingTitleChange: (title: string) => void
+  onConfirmDelete: (taskId: string) => void
+}
+
+const TaskListItem = memo(function TaskListItem({
+  task,
+  members,
+  currentUserEmail,
+  workspaceOwnerId,
+  editingTaskId,
+  editingTitle,
+  operatingTaskId,
+  onToggleTask,
+  onEditTask,
+  onAssignTask,
+  onStartEdit,
+  onCancelEdit,
+  onEditingTitleChange,
+  onConfirmDelete,
+}: TaskListItemProps) {
+  const taskPermissions = useTaskPermissions(
+    currentUserEmail,
+    { id: task.workspaceId, ownerId: workspaceOwnerId },
+    task,
+  )
+
+  return (
+    <Card className="group border border-white/10 bg-transparent p-5 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onToggleTask(task.id)}
+            disabled={operatingTaskId === task.id}
+            className="flex-shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+          >
+            {task.completed ? (
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
+            ) : (
+              <Circle className="w-6 h-6 hover:text-primary" />
+            )}
+          </button>
+
+          {editingTaskId === task.id ? (
+            <div className="flex-1 flex gap-2">
+              <Input
+                value={editingTitle}
+                onChange={(e) => onEditingTitleChange(e.target.value)}
+                className="border-white/10 bg-input text-sm text-foreground"
+                autoFocus
+              />
+              <button
+                onClick={() => onEditTask(task.id)}
+                disabled={operatingTaskId === task.id}
+                className="text-primary hover:text-primary/80 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onCancelEdit}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span
+                className={`flex-1 text-base cursor-pointer hover:text-primary transition-colors font-medium ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"
+                  }`}
+                onClick={() => onStartEdit(task)}
+              >
+                {task.title}
+              </span>
+              <div className="flex items-center gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {taskPermissions.canEdit && (
+                  <button
+                    onClick={() => onStartEdit(task)}
+                    className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-primary/10"
+                    title="Edit task"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                )}
+                {taskPermissions.canDelete && (
+                  <button
+                    onClick={() => onConfirmDelete(task.id)}
+                    className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded-md hover:bg-destructive/10"
+                    title="Delete task"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {task.description && (
+          <div className="ml-9 mt-2">
+            <p className="text-sm text-muted-foreground">{task.description}</p>
+          </div>
+        )}
+
+        <div className="ml-9 space-y-2 border-t border-white/10 pt-2">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Flag className={`w-3 h-3 ${task.priority === 'high' ? 'text-[var(--saathi-danger)]' :
+                task.priority === 'medium' ? 'text-muted-foreground' : 'text-primary'
+                }`} />
+              <span className="capitalize">{task.priority} priority</span>
+            </div>
+
+            {task.dueDate && (
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>Created {new Date(task.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground font-medium">Assigned to:</span>
+            <select
+              value={task.assigneeEmail || ""}
+              onChange={(e) => onAssignTask(task.id, e.target.value || null)}
+              disabled={operatingTaskId === task.id}
+              className="cursor-pointer rounded-lg border border-white/10 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary disabled:opacity-50"
+            >
+              <option value="">Unassigned</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.email}>
+                  {member.username}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </Card>
   )
 })
