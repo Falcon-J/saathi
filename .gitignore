@@ -31,7 +31,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documentation files (keep only README.md)
+# Local-only documentation (not pushed to GitHub)
+# Only README.md is tracked.
+INTERVIEW_PREP.md
+ARCHITECTURE.md
+PERFORMANCE.md
+QUICK_REFERENCE.md
+SETUP_AND_DEPLOYMENT.md
+CHANGES_SUMMARY.md
+IMPLEMENTATION_SUMMARY.md
+VISUAL_GUIDE.md
 *_GUIDE.md
 *_SCRIPT.md
 *_CHECKLIST.md
@@ -41,4 +50,6 @@ INTERVIEW_*.md
 DEPLOYMENT_*.md
 TESTING_*.md
 MAANG_*.md
-INTERVIEW_PREP.md
+
+# Session/debug artifacts
+cookies.txt
