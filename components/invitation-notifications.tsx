@@ -88,21 +88,15 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         }
     }
 
-    if (loading) {
-        return (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Bell className="w-4 h-4" />
-                <span>Loading invitations...</span>
-            </div>
-        )
-    }
+    // Don't render anything while loading — prevents layout shift
+    if (loading) return null
 
     if (invitations.length === 0) {
         return null
     }
 
     return (
-        <div className="space-y-4">
+        <div className="mb-4 space-y-4">
             <div className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-primary" />
                 <h3 className="font-medium text-foreground">

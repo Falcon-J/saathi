@@ -20,7 +20,7 @@ export function useSSE(url: string, options?: {
                 eventSourceRef.current.close()
             }
 
-            const eventSource = new EventSource(url)
+            const eventSource = new EventSource(url, { withCredentials: true })
             eventSourceRef.current = eventSource
 
             eventSource.onopen = () => {

@@ -55,13 +55,18 @@ export function useRealtime(options: UseRealtimeOptions) {
 
     const connect = useCallback(() => {
         try {
-            // Close existing connection
+            // Close any existing connection first
             if (eventSourceRef.current) {
                 eventSourceRef.current.close()
+                eventSourceRef.current = null
             }
 
-            const url = `/api/realtime?workspaceId=${encodeURIComponent(options.workspaceId)}`
-            const eventSource = new EventSource(url)
+            const url = `/api/realtime?workspaceId=${encodeURIComponent(optionsRef.current.workspaceId)}`
+
+            // withCredentials: true ensures the auth-session cookie is forwarded
+            // on Vercel and other edge deployments where same-origin cookie
+            // forwarding is not guaranteed without explicit opt-in.
+            const eventSource = new EventSource(url, { withCredentials: true })
             eventSourceRef.current = eventSource
 
             eventSource.onopen = () => {
@@ -75,14 +80,13 @@ export function useRealtime(options: UseRealtimeOptions) {
                     const data = JSON.parse(event.data)
 
                     if (data.type === 'connected') {
-                        console.log('[Realtime] Connected to workspace:', options.workspaceId)
+                        console.log('[Realtime] Connected to workspace:', optionsRef.current.workspaceId)
+                        setIsConnected(true)
                     } else if (data.type === 'heartbeat') {
-                        // Update active users from heartbeat
                         if (data.data?.activeUsers) {
                             setActiveUsers(data.data.activeUsers)
                         }
                     } else {
-                        // Handle real-time events
                         handleEvent(data as RealtimeEvent)
                     }
                 } catch (err) {
@@ -101,14 +105,13 @@ export function useRealtime(options: UseRealtimeOptions) {
             console.error('[Realtime] Failed to create SSE connection:', err)
             setError('Failed to connect')
         }
-    }, [options.workspaceId, handleEvent])
+    }, [handleEvent])
 
     const disconnect = useCallback(() => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close()
             eventSourceRef.current = null
         }
-
         setIsConnected(false)
     }, [])
 

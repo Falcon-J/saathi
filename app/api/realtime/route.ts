@@ -5,6 +5,30 @@ import { realtimeService } from "@/lib/realtime"
 
 export const dynamic = "force-dynamic"
 
+// Required for withCredentials: true on EventSource
+const SSE_HEADERS = {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    // Allow credentials (cookie) to be forwarded from the browser
+    'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || '*',
+    'Access-Control-Allow-Credentials': 'true',
+}
+
+// Preflight handler for withCredentials CORS
+export async function OPTIONS() {
+    return new Response(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || '*',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Headers': 'Cookie, Content-Type',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        }
+    })
+}
+
 /**
  * SSE endpoint for real-time workspace events.
  *
@@ -149,14 +173,7 @@ export async function GET(request: NextRequest) {
             }
         })
 
-        return new Response(stream, {
-            headers: {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache, no-transform',
-                'Connection': 'keep-alive',
-                'X-Accel-Buffering': 'no' // Disable buffering for real-time delivery
-            }
-        })
+        return new Response(stream, { headers: SSE_HEADERS })
     } catch (error) {
         console.error('[SSE] Error setting up stream:', error)
         return new Response("Internal Server Error", { status: 500 })
