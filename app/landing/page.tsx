@@ -105,9 +105,9 @@ export default function LandingPage() {
 
             <div className="mt-10 grid max-w-xl grid-cols-3 gap-3">
               {[
-                ["<50ms", "local UI feedback"],
+                ["Redis", "event-driven sync"],
                 ["SSE", "live task stream"],
-                ["Role", "workspace control"],
+                ["RBAC", "workspace access"],
               ].map(([value, label]) => (
                 <div key={label} className="saathi-panel-soft rounded-lg p-4">
                   <p className="font-mono text-2xl font-semibold text-foreground">{value}</p>
@@ -158,13 +158,13 @@ export default function LandingPage() {
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Zap className="size-4 text-primary" />
-                        <span className="font-semibold">Realtime sync active</span>
+                        <span className="font-semibold">Realtime sync</span>
                       </div>
-                      <span className="saathi-label text-primary">99.9%</span>
+                      <span className="saathi-label text-primary">Event stream</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-background">
-                      <div className="h-full w-[86%] rounded-full bg-primary" />
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Task updates flow through the workspace event stream.
+                    </p>
                   </div>
                 </div>
 
@@ -214,7 +214,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">
             <CheckCircle2 className="size-4" />
-            Production-ready UI direction
+            Session-aware access
           </div>
         </div>
       </section>

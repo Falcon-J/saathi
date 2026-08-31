@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 
 export type OnboardingStep = 'welcome' | 'create-workspace' | 'invite-team' | 'create-task' | 'complete'
 
@@ -19,6 +20,8 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined)
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
+  const isWorkspaceRoute = pathname === '/dashboard' || pathname.startsWith('/tasks')
   const [isOpen, setIsOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome')
   const [completedSteps, setCompletedSteps] = useState<OnboardingStep[]>([])
@@ -40,15 +43,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Show onboarding on first visit
+    // Show onboarding when a first-time visitor reaches the workspace.
     const hasVisited = localStorage.getItem('saathi-first-visit')
-    if (!hasVisited) {
+    if (isWorkspaceRoute && !hasVisited) {
       setIsOpen(true)
       localStorage.setItem('saathi-first-visit', 'true')
     }
 
     setIsHydrated(true)
-  }, [])
+  }, [isWorkspaceRoute])
 
   // Save state to localStorage
   useEffect(() => {

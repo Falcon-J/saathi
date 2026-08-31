@@ -252,14 +252,14 @@ function CreateTaskStep() {
           <li>✓ Create tasks with titles and descriptions</li>
           <li>✓ Set priority levels (Low, Medium, High)</li>
           <li>✓ Add due dates and assign to team members</li>
-          <li>✓ Watch updates sync instantly (~50ms)</li>
+          <li>✓ Watch updates arrive through the workspace event stream</li>
         </ul>
       </div>
 
       <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
         <p className="text-sm font-medium mb-2">Real-time Synchronization</p>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Changes made by any team member appear across all devices in less than 100ms!
+          Changes made by any team member are delivered through the workspace event stream.
         </p>
       </div>
     </div>
