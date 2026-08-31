@@ -274,21 +274,23 @@ export default function Dashboard() {
               )}
             </div>
 
-            <WorkspaceSwitcher
-              workspaces={workspaces}
-              currentWorkspaceId={currentWorkspaceId}
-              onSelectWorkspace={setCurrentWorkspaceId}
-              onCreateWorkspace={createWorkspace}
-              currentUserEmail={user.email}
-              onWorkspaceUpdated={refreshWorkspaces}
-            />
+            <div id="workspace-switcher">
+              <WorkspaceSwitcher
+                workspaces={workspaces}
+                currentWorkspaceId={currentWorkspaceId}
+                onSelectWorkspace={setCurrentWorkspaceId}
+                onCreateWorkspace={createWorkspace}
+                currentUserEmail={user.email}
+                onWorkspaceUpdated={refreshWorkspaces}
+              />
+            </div>
           </div>
         </section>
 
         {currentWorkspace ? (
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div>
-              <Card className="saathi-panel overflow-hidden rounded-2xl border-white/10">
+              <Card id="project-board" className="saathi-panel overflow-hidden rounded-2xl border-white/10">
                 <CardHeader className="border-b border-white/10 bg-transparent">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -330,7 +332,7 @@ export default function Dashboard() {
             </div>
 
             <aside className="space-y-6">
-              <Card className="saathi-panel rounded-2xl border-white/10">
+              <Card id="team-panel" className="saathi-panel rounded-2xl border-white/10">
                 <CardHeader className="border-b border-white/10">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Users className="size-5 text-primary" />

@@ -73,6 +73,10 @@ export default function LandingPage() {
       </header>
 
       <section className="relative border-b border-border/60">
+        <div
+          className="absolute inset-0 bg-[url('/saathi-hero-texture.png')] bg-cover bg-center opacity-35"
+          aria-hidden="true"
+        />
         <div className="saathi-grid absolute inset-0 opacity-30" />
         <div className="relative mx-auto grid min-h-[760px] max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-20">
           <div className="flex flex-col justify-center">

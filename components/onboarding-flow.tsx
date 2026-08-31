@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CheckCircle2, ArrowRight } from 'lucide-react'
@@ -92,9 +93,9 @@ export function OnboardingFlow({ isOpen, onClose, currentStep = 'welcome' }: Onb
           {/* Content */}
           <div className="animate-in fade-in duration-300">
             {step === 'welcome' && <WelcomeStep />}
-            {step === 'create-workspace' && <CreateWorkspaceStep />}
-            {step === 'invite-team' && <InviteTeamStep />}
-            {step === 'create-task' && <CreateTaskStep />}
+            {step === 'create-workspace' && <CreateWorkspaceStep onClose={onClose} />}
+            {step === 'invite-team' && <InviteTeamStep onClose={onClose} />}
+            {step === 'create-task' && <CreateTaskStep onClose={onClose} />}
             {step === 'complete' && <CompleteStep />}
           </div>
 
@@ -176,7 +177,7 @@ function WelcomeStep() {
   )
 }
 
-function CreateWorkspaceStep() {
+function CreateWorkspaceStep({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-6">
       <div>
@@ -199,14 +200,21 @@ function CreateWorkspaceStep() {
       <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
         <p className="text-sm font-medium mb-2">Ready to create your workspace?</p>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Click "Next" to create your workspace and start collaborating!
+          Use the workspace switcher to create your first workspace.
         </p>
       </div>
+
+      <Button asChild variant="outline" className="gap-2">
+        <Link href="/dashboard#workspace-switcher" onClick={onClose}>
+          Open workspace setup
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </Button>
     </div>
   )
 }
 
-function InviteTeamStep() {
+function InviteTeamStep({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-6">
       <div>
@@ -229,14 +237,21 @@ function InviteTeamStep() {
       <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
         <p className="text-sm font-medium mb-2">You can invite team members anytime!</p>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Start with your core team and expand as needed.
+          Open the Team panel after selecting a workspace.
         </p>
       </div>
+
+      <Button asChild variant="outline" className="gap-2">
+        <Link href="/dashboard#team-panel" onClick={onClose}>
+          Open team panel
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </Button>
     </div>
   )
 }
 
-function CreateTaskStep() {
+function CreateTaskStep({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-6">
       <div>
@@ -259,9 +274,16 @@ function CreateTaskStep() {
       <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
         <p className="text-sm font-medium mb-2">Real-time Synchronization</p>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Changes made by any team member are delivered through the workspace event stream.
+          Add a task from the Project Board; changes are delivered through the workspace event stream.
         </p>
       </div>
+
+      <Button asChild variant="outline" className="gap-2">
+        <Link href="/dashboard#project-board" onClick={onClose}>
+          Open project board
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </Button>
     </div>
   )
 }
