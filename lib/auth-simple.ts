@@ -3,6 +3,7 @@
 import { cookies } from "next/headers"
 import { redis } from "./redis"
 import crypto from "crypto"
+import { hashPassword, verifyPassword } from "./passwords"
 
 // Simple session configuration
 const SESSION_DURATION = 24 * 60 * 60 // 24 hours in seconds
@@ -51,7 +52,7 @@ export async function signup(email: string, username: string, password: string) 
     const userData = {
       email,
       username,
-      password,
+      password: await hashPassword(password),
       createdAt: new Date().toISOString()
     }
     await redis.set(`user:${email}`, JSON.stringify(userData))
@@ -98,7 +99,7 @@ export async function login(email: string, password: string) {
     // Create test user for development if needed
     if (!userData && email === "test@saathi.build") {
       console.log("[Saathi] Creating test user for development")
-      const testUser = { email, username: "Test User", password: "test123", createdAt: new Date().toISOString() }
+      const testUser = { email, username: "Test User", password: await hashPassword("test123"), createdAt: new Date().toISOString() }
       await redis.set(`user:${email}`, JSON.stringify(testUser))
 
       if (password === "test123") {
@@ -127,9 +128,17 @@ export async function login(email: string, password: string) {
     // Parse user data
     const user = typeof userData === "string" ? JSON.parse(userData) : userData
 
-    // Check password
-    if (user.password !== password) {
+    // Check password and upgrade legacy plaintext records after a valid login.
+    const passwordCheck = await verifyPassword(password, user.password)
+    if (!passwordCheck.valid) {
       return { error: "Invalid email or password" }
+    }
+
+    if (passwordCheck.needsRehash) {
+      await redis.set(`user:${email}`, JSON.stringify({
+        ...user,
+        password: await hashPassword(password),
+      }))
     }
 
     // Create session

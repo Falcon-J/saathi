@@ -16,6 +16,7 @@ import { useNotifications } from "@/hooks/use-notifications"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { WorkspaceNameInlineEditor } from "@/components/workspace-name-inline-editor"
 import { TaskList } from "@/components/task-list"
+import { TaskImport } from "@/components/task-import"
 import { MemberManager } from "@/components/member-manager"
 import { InvitationNotifications } from "@/components/invitation-notifications"
 import { NotificationCenter } from "@/components/notification-center"
@@ -90,6 +91,7 @@ export default function Dashboard() {
     addMember,
     removeMember,
     refreshWorkspaces,
+    refreshTasks,
     realtime,
   } = useWorkspaces(user?.email && !loading ? user.email : undefined)
 
@@ -300,7 +302,8 @@ export default function Dashboard() {
                       </CardTitle>
                       <CardDescription>{metrics.active} active, {metrics.completed} completed.</CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <TaskImport workspaceId={currentWorkspace.id} onImported={refreshTasks} />
                       <Badge variant="outline" className="w-fit border-white/10 bg-transparent text-muted-foreground">
                         <span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-primary" : "bg-muted-foreground"}`} />
                         {realtime.isConnected ? "Live" : "Offline"}

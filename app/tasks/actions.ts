@@ -4,6 +4,9 @@ import { redis } from "@/lib/redis"
 import { getSession } from "@/lib/auth-simple"
 import { revalidatePath } from "next/cache"
 import { realtimeService } from "@/lib/realtime"
+import { recordUsageEvent } from "@/lib/usage"
+import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
+import { hasTaskConflict, normalizeTaskUpdates, type TaskUpdate } from "./contract"
 
 // Security: Validate workspace membership
 async function validateWorkspaceMembership(userEmail: string, workspaceId: string) {
@@ -14,10 +17,10 @@ async function validateWorkspaceMembership(userEmail: string, workspaceId: strin
         }
 
         const workspace = typeof workspaceData === 'string' ? JSON.parse(workspaceData) : workspaceData
-        const isMember = workspace.members?.some((m: any) => m.email === userEmail)
+        const authorization = authorizeWorkspaceMember(workspace, userEmail)
 
-        if (!isMember) {
-            throw new Error("Access denied: Not a member of this workspace")
+        if (!authorization.allowed) {
+            throw new Error(authorization.message)
         }
 
         return workspace
@@ -94,7 +97,7 @@ export async function addTask(
         }
 
         // Security: Validate workspace membership
-        await validateWorkspaceMembership(session.email, workspaceId)
+        const workspace = await validateWorkspaceMembership(session.email, workspaceId)
 
         // Validate inputs
         if (!title || title.trim().length === 0) {
@@ -107,6 +110,18 @@ export async function addTask(
 
         if (description && description.length > 1000) {
             return { error: "Task description must be less than 1000 characters" }
+        }
+
+        if (priority !== 'low' && priority !== 'medium' && priority !== 'high') {
+            return { error: "Task priority is invalid" }
+        }
+
+        if (dueDate && Number.isNaN(Date.parse(dueDate))) {
+            return { error: "Task due date is invalid" }
+        }
+
+        if (assigneeEmail && !workspace.members?.some((member: { email?: string }) => member.email === assigneeEmail)) {
+            return { error: "Task assignee must be a workspace member" }
         }
 
         const taskId = `task:${Date.now()}:${Math.random().toString(36).substr(2, 9)}`
@@ -143,6 +158,7 @@ export async function addTask(
         }).catch(error => {
             console.error('[Realtime] Failed to publish task-created event:', error)
         })
+        void recordUsageEvent(workspaceId, session.email, "task-created")
 
         revalidatePath('/dashboard')
         return { success: true, task }
@@ -152,11 +168,16 @@ export async function addTask(
     }
 }
 
-export async function updateTask(taskId: string, updates: Partial<Task>) {
+export async function updateTask(taskId: string, updates: TaskUpdate, expectedUpdatedAt?: string) {
     try {
         const session = await getSession()
         if (!session) {
             return { error: "Authentication required" }
+        }
+
+        const normalizedResult = normalizeTaskUpdates(updates)
+        if (!normalizedResult.updates) {
+            return { error: normalizedResult.error }
         }
 
         // Security: Validate task edit permission
@@ -170,10 +191,24 @@ export async function updateTask(taskId: string, updates: Partial<Task>) {
             return { error: "Task not found" }
         }
 
-        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask
+        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task
+        if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
+            return { error: "Task changed by another teammate", task }
+        }
+
+        if (normalizedResult.updates.assigneeEmail) {
+            const workspace = await validateWorkspaceMembership(session.email, task.workspaceId)
+            const isMember = workspace.members?.some((member: { email?: string }) => (
+                member.email === normalizedResult.updates?.assigneeEmail
+            ))
+            if (!isMember) {
+                return { error: "Task assignee must be a workspace member", task }
+            }
+        }
+
         const updatedTask = {
             ...task,
-            ...updates,
+            ...normalizedResult.updates,
             updatedAt: new Date().toISOString()
         }
 
@@ -191,7 +226,7 @@ export async function updateTask(taskId: string, updates: Partial<Task>) {
             workspaceId: task.workspaceId,
             userId: session.email,
             timestamp: Date.now(),
-            data: { task: updatedTask, updates }
+            data: { task: updatedTask, updates: normalizedResult.updates }
         }).catch(error => {
             console.error('[Realtime] Failed to publish task-updated event:', error)
         })
@@ -204,7 +239,7 @@ export async function updateTask(taskId: string, updates: Partial<Task>) {
     }
 }
 
-export async function deleteTask(taskId: string) {
+export async function deleteTask(taskId: string, expectedUpdatedAt?: string) {
     try {
         const session = await getSession()
         if (!session) {
@@ -222,7 +257,10 @@ export async function deleteTask(taskId: string) {
             return { error: "Task not found" }
         }
 
-        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask
+        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task
+        if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
+            return { error: "Task changed by another teammate", task }
+        }
 
         // Batch Redis operations
         const timestamp = Date.now().toString()
@@ -252,7 +290,7 @@ export async function deleteTask(taskId: string) {
     }
 }
 
-export async function toggleTask(taskId: string) {
+export async function toggleTask(taskId: string, expectedUpdatedAt?: string) {
     try {
         const session = await getSession()
         if (!session) {
@@ -270,7 +308,10 @@ export async function toggleTask(taskId: string) {
             return { error: "Task not found" }
         }
 
-        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask
+        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task
+        if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
+            return { error: "Task changed by another teammate", task }
+        }
         const updatedTask = {
             ...task,
             completed: !task.completed,
@@ -295,6 +336,9 @@ export async function toggleTask(taskId: string) {
         }).catch(error => {
             console.error('[Realtime] Failed to publish task-toggled event:', error)
         })
+        if (updatedTask.completed) {
+            void recordUsageEvent(task.workspaceId, session.email, "task-completed")
+        }
 
         revalidatePath('/dashboard')
         return { success: true, task: updatedTask }
@@ -342,6 +386,6 @@ export async function getTasks(workspaceId: string) {
     }
 }
 
-export async function assignTask(taskId: string, assigneeEmail: string) {
-    return updateTask(taskId, { assigneeEmail: assigneeEmail || undefined })
+export async function assignTask(taskId: string, assigneeEmail: string, expectedUpdatedAt?: string) {
+    return updateTask(taskId, { assigneeEmail: assigneeEmail || undefined }, expectedUpdatedAt)
 }

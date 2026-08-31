@@ -15,6 +15,7 @@
 - **Per-event real-time latency instrumentation** via Server-Sent Events
 - **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
 - **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
+- **Durable usage counters** for task creation/completion, member growth, and unique contributors
 - **Stateless server layer** — horizontally scalable, deploys to Vercel edge network
 
 ---
@@ -40,8 +41,23 @@ Upstash Redis
   session:{id}            ← Auth sessions (24h TTL)
   workspace:{id}          ← Workspace + member data
   task:{id}               ← Task records
-  presence:{wsId}:active  ← Online users (5min TTL)
+presence:{wsId}:active  ← Online users (5min TTL)
 ```
+
+### Internal Module Ownership
+
+Saathi is intentionally a modular monolith: one Next.js deployment with explicit code ownership and one Redis authority.
+
+| Module | Current owner | Responsibility |
+|---|---|---|
+| Identity | `lib/auth-simple.ts`, `lib/passwords.ts` | Sessions, identity, password hashing |
+| Workspace | `app/actions/workspaces.ts` | Workspaces, membership, invitations, ownership |
+| Work | `app/tasks/actions.ts`, `hooks/use-workspaces.ts` | Task records, permissions, optimistic board state |
+| Realtime | `lib/realtime.ts`, `app/api/realtime/route.ts` | Redis Streams, SSE delivery, presence |
+| Activity | Workspace and invitation actions | User-visible change history, co-located until volume justifies extraction |
+| Migration | `app/actions/migration.ts`, `lib/csv.ts` | Bounded CSV task import with row-level errors |
+
+Realtime delivers events but never becomes the source of truth; workspace and task records remain authoritative. Extract a gateway, import worker, notification worker, or identity service only when connection volume, job duration, delivery volume, or product boundaries provide measured justification.
 
 ### Real-Time Data Flow
 
@@ -52,6 +68,16 @@ User A creates task
   → SSE event pushed to all subscribers
   → User B's UI updates (latencyMs stamped on each event)
 ```
+
+### Workspace Usage
+
+Authenticated workspace members can inspect durable activation signals with:
+
+```text
+GET /api/usage?workspaceId={workspaceId}
+```
+
+The response reports task creation, task completion, member additions, and unique contributors. These counters live in Redis so they are not tied to one serverless instance.
 
 ---
 

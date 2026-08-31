@@ -206,6 +206,20 @@ class RedisService {
     return removedCount
   }
 
+  async incr(key: string): Promise<number> {
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => this.redis!.incr(key))
+      } catch (error) {
+        console.error(`[Saathi] Redis INCR failed for key ${key}:`, error)
+      }
+    }
+
+    const nextValue = Number(this.mockStore.get(key) || "0") + 1
+    this.mockStore.set(key, String(nextValue))
+    return nextValue
+  }
+
   // ─── Native Redis Streams ──────────────────────────────────────────────────
 
   /**

@@ -4,6 +4,7 @@ import redis from "@/lib/redis"
 import { getSession } from "@/lib/auth-simple"
 import { revalidatePath } from "next/cache"
 import { realtimeService } from "@/lib/realtime"
+import { recordUsageEvent } from "@/lib/usage"
 import { getWorkspace } from "./workspaces"
 
 export interface Invitation {
@@ -259,6 +260,7 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
       timestamp: Date.now(),
       data: { member: newMember, workspaceName: invitation.workspaceName }
     }).catch(err => console.error('[Realtime] member-added event failed:', err))
+    void recordUsageEvent(invitation.workspaceId, session.email, "member-added")
 
     revalidatePath('/dashboard')
     console.log(`[Saathi] User ${session.email} accepted invitation to workspace ${invitation.workspaceId}`)

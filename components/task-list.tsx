@@ -279,13 +279,13 @@ export const TaskList = memo(function TaskList({
           </Button>
         ) : (
           <div className="space-y-4">
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Input
                 placeholder="Task title..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={isAdding}
-                className="border-white/10 bg-background/50 text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
+                className="flex-1 border-white/10 bg-background/50 text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
               />
               <Button
                 onClick={() => {
@@ -298,6 +298,8 @@ export const TaskList = memo(function TaskList({
                 variant="outline"
                 size="sm"
                 disabled={isAdding}
+                aria-label="Cancel adding task"
+                title="Cancel adding task"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -312,9 +314,9 @@ export const TaskList = memo(function TaskList({
               rows={2}
             />
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select value={priority} onValueChange={(value: 'low' | 'medium' | 'high') => setPriority(value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-32" aria-label="Task priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -344,13 +346,14 @@ export const TaskList = memo(function TaskList({
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 disabled={isAdding}
-                className="w-40 border-white/10 bg-background/50 focus:border-primary"
+                aria-label="Task due date"
+                className="w-full border-white/10 bg-background/50 focus:border-primary sm:w-40"
               />
 
               <Button
                 onClick={handleAddTask}
                 disabled={isAdding || !input.trim()}
-                className="px-6 disabled:opacity-50"
+                className="w-full px-6 disabled:opacity-50 sm:w-auto"
               >
                 {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 <span className="ml-2">Add Task</span>
@@ -503,8 +506,10 @@ const TaskListItem = memo(function TaskListItem({
         <div className="flex items-center gap-3">
           <button
             onClick={() => onToggleTask(task.id)}
-            disabled={operatingTaskId === task.id}
-            className="flex-shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+            disabled={operatingTaskId === task.id || !taskPermissions.canToggle}
+            aria-label={task.completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
+            title={task.completed ? "Reopen task" : "Complete task"}
+            className="flex-shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
           >
             {task.completed ? (
               <CheckCircle2 className="w-6 h-6 text-green-600" />
@@ -524,13 +529,17 @@ const TaskListItem = memo(function TaskListItem({
               <button
                 onClick={() => onEditTask(task.id)}
                 disabled={operatingTaskId === task.id}
-                className="text-primary hover:text-primary/80 disabled:opacity-50"
+                aria-label={`Save changes to ${task.title}`}
+                title="Save changes"
+                className="rounded-md p-1 text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
                 onClick={onCancelEdit}
-                className="text-muted-foreground hover:text-foreground"
+                aria-label={`Cancel editing ${task.title}`}
+                title="Cancel editing"
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -538,18 +547,19 @@ const TaskListItem = memo(function TaskListItem({
           ) : (
             <>
               <span
-                className={`flex-1 text-base cursor-pointer hover:text-primary transition-colors font-medium ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"
+                className={`flex-1 text-base transition-colors font-medium ${taskPermissions.canEdit ? "cursor-pointer hover:text-primary" : "cursor-default"} ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"
                   }`}
-                onClick={() => onStartEdit(task)}
+                onClick={taskPermissions.canEdit ? () => onStartEdit(task) : undefined}
               >
                 {task.title}
               </span>
-              <div className="flex items-center gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200 focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                 {taskPermissions.canEdit && (
                   <button
                     onClick={() => onStartEdit(task)}
-                    className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-primary/10"
+                    aria-label={`Edit ${task.title}`}
                     title="Edit task"
+                    className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -557,8 +567,9 @@ const TaskListItem = memo(function TaskListItem({
                 {taskPermissions.canDelete && (
                   <button
                     onClick={() => onConfirmDelete(task.id)}
-                    className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded-md hover:bg-destructive/10"
+                    aria-label={`Delete ${task.title}`}
                     title="Delete task"
+                    className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -575,7 +586,7 @@ const TaskListItem = memo(function TaskListItem({
         )}
 
         <div className="ml-9 space-y-2 border-t border-white/10 pt-2">
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <Flag className={`w-3 h-3 ${task.priority === 'high' ? 'text-[var(--saathi-danger)]' :
                 task.priority === 'medium' ? 'text-muted-foreground' : 'text-primary'
@@ -596,14 +607,15 @@ const TaskListItem = memo(function TaskListItem({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground font-medium">Assigned to:</span>
             <select
               value={task.assigneeEmail || ""}
               onChange={(e) => onAssignTask(task.id, e.target.value || null)}
-              disabled={operatingTaskId === task.id}
-              className="cursor-pointer rounded-lg border border-white/10 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary disabled:opacity-50"
+              disabled={operatingTaskId === task.id || !taskPermissions.canAssign}
+              aria-label={`Assign ${task.title}`}
+              className="min-w-0 max-w-full cursor-pointer rounded-lg border border-white/10 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
             >
               <option value="">Unassigned</option>
               {members.map((member) => (

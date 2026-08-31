@@ -2,10 +2,8 @@ import { NextRequest } from "next/server"
 import { cookies } from "next/headers"
 import { redis } from "@/lib/redis"
 import { realtimeService } from "@/lib/realtime"
-import {
-    authorizeWorkspaceSubscription,
-    createSingleFlightPoll,
-} from "@/lib/realtime-sse"
+import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
+import { createSingleFlightPoll } from "@/lib/realtime-sse"
 
 export const dynamic = "force-dynamic"
 
@@ -69,7 +67,7 @@ export async function GET(request: NextRequest) {
         }
 
         const workspaceData = await redis.get(`workspace:${workspaceId}`)
-        const authorization = authorizeWorkspaceSubscription(workspaceData, session.email)
+        const authorization = authorizeWorkspaceMember(workspaceData, session.email)
         if (!authorization.allowed) {
             return new Response(authorization.message, { status: authorization.status })
         }
