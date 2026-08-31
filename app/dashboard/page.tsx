@@ -244,7 +244,7 @@ export default function Dashboard() {
         <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
         <section className="mb-6">
-          <div className="saathi-panel rounded-2xl p-5">
+          <div className="saathi-panel relative z-30 rounded-2xl p-5">
             <div className="mb-5 flex flex-col gap-4 border-b border-border/70 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
                 {currentWorkspace ? (
