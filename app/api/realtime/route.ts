@@ -2,6 +2,10 @@ import { NextRequest } from "next/server"
 import { cookies } from "next/headers"
 import { redis } from "@/lib/redis"
 import { realtimeService } from "@/lib/realtime"
+import {
+    authorizeWorkspaceSubscription,
+    createSingleFlightPoll,
+} from "@/lib/realtime-sse"
 
 export const dynamic = "force-dynamic"
 
@@ -34,7 +38,7 @@ export async function OPTIONS() {
  *
  * Architecture:
  *  - Uses native Redis Streams (XREAD) via RealtimeService
- *  - Polls every 100ms for sub-50ms median event delivery
+ *  - Polls every 100ms for cursor-based event delivery
  *  - Each client maintains its own cursor (lastSeenId) into the stream
  *  - Heartbeat every 30s to refresh user presence and report active users
  *  - Auto-cleanup after 30 minutes to prevent dangling connections
@@ -62,6 +66,12 @@ export async function GET(request: NextRequest) {
 
         if (!workspaceId) {
             return new Response("Workspace ID required", { status: 400 })
+        }
+
+        const workspaceData = await redis.get(`workspace:${workspaceId}`)
+        const authorization = authorizeWorkspaceSubscription(workspaceData, session.email)
+        if (!authorization.allowed) {
+            return new Response(authorization.message, { status: authorization.status })
         }
 
         // Set user presence
@@ -107,10 +117,9 @@ export async function GET(request: NextRequest) {
                 }
 
                 // ── Event polling (100ms) ───────────────────────────────
-                // 100ms poll + Upstash REST latency (~10-20ms) gives us
-                // median end-to-end delivery well under 50ms for events
-                // published from co-located server actions.
-                const pollForEvents = async () => {
+                // End-to-end delivery latency is measured on each event and
+                // depends on polling, storage, network, and runtime latency.
+                const pollForEvents = createSingleFlightPoll(async () => {
                     if (closed) return
                     try {
                         const newEvents = await realtimeService.readNewEvents(
@@ -118,6 +127,8 @@ export async function GET(request: NextRequest) {
                             lastSeenId,
                             50  // batch up to 50 events per poll
                         )
+
+                        if (closed) return
 
                         if (newEvents.length > 0) {
                             for (const event of newEvents) {
@@ -144,9 +155,9 @@ export async function GET(request: NextRequest) {
                     } catch (error) {
                         console.error('[SSE] Stream poll failed:', error)
                     }
-                }
+                })
 
-                const pollInterval = setInterval(pollForEvents, 100)
+                const pollInterval = setInterval(() => { void pollForEvents() }, 100)
                 const heartbeatInterval = setInterval(sendHeartbeat, 30000)
                 sendHeartbeat()
 

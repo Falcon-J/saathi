@@ -11,9 +11,9 @@
 
 ## Highlights
 
-- **Event-driven backend** using native Redis Streams (`XADD`/`XREAD`) — supports **200+ concurrent users** in local load testing
-- **Sub-50ms real-time delivery** via Server-Sent Events with per-event latency instrumentation
-- **3 serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
+- **Event-driven backend** using native Redis Streams (`XADD`/`XREAD`) with cursor-based SSE consumers
+- **Per-event real-time latency instrumentation** via Server-Sent Events
+- **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
 - **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
 - **Stateless server layer** — horizontally scalable, deploys to Vercel edge network
 
@@ -154,15 +154,17 @@ saathi/
 
 ## Load Testing
 
-Validate the 200+ concurrent user claim:
+The authenticated local load test opens concurrent SSE connections, publishes tagged events through a development-only endpoint, and reports p50/p95/p99 connection and event-delivery latency.
+
+Set `LOAD_TEST_SECRET` in `.env.local`, log in to the local app, and pass the resulting `auth-session` cookie without committing it:
 
 ```bash
-npm run load-test
-# or with options:
-npx tsx scripts/load-test.ts --connections 250 --duration 30 --url http://localhost:3000
+$env:LOAD_TEST_COOKIE = "auth-session=..."
+$env:LOAD_TEST_SECRET = "your-local-secret"
+npm run load-test -- --connections 250 --duration 30 --events 3 --url http://localhost:3000
 ```
 
-Output includes p50/p95/p99 for connection time and event delivery latency. Exits `0` if 200+ connections succeed.
+The test exits `0` only when at least 200 connections succeed and every generated event is received by every connected client. The publisher endpoint is available only when `NODE_ENV=development` and `LOAD_TEST_SECRET` is configured.
 
 ---
 
@@ -175,7 +177,7 @@ SSE works over standard HTTP/1.1 with no protocol upgrade — compatible with Ve
 Pub/Sub messages are lost if no subscriber is active. Streams are a persistent, ordered log — each SSE connection maintains its own cursor (`lastSeenId`) and independently reads from any offset via `XREAD`. Reconnecting clients resume from the current timestamp, not the beginning.
 
 **Why polling instead of blocking XREAD?**
-Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. 100ms polling gives ~50ms median event delivery (average wait = half the poll interval) while keeping Redis request volume manageable at ~10 reads/connection/second.
+Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. The route polls every 100ms; actual delivery latency must be measured with the authenticated load test and depends on Redis, network, and runtime conditions.
 
 ---
 

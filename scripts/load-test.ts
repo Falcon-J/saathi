@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Saathi SSE Load Test — proves 200+ concurrent user support.
+ * Saathi authenticated SSE load test.
  *
  * Usage:
  *   npx tsx scripts/load-test.ts [--connections N] [--duration S] [--url URL]
@@ -13,6 +13,7 @@
 
 import http from "http"
 import https from "https"
+import { extractBenchmarkLatency } from "../lib/load-test"
 
 // ── Parse CLI Args ──────────────────────────────────────────────────────────
 const args = process.argv.slice(2)
@@ -25,6 +26,10 @@ const TARGET_CONNECTIONS = parseInt(getArg("connections", "250"))
 const DURATION_SECONDS = parseInt(getArg("duration", "30"))
 const BASE_URL = getArg("url", "http://localhost:3000")
 const WORKSPACE_ID = "loadtest-workspace"
+const AUTH_COOKIE = getArg("cookie", process.env.LOAD_TEST_COOKIE || "")
+const LOAD_TEST_SECRET = getArg("secret", process.env.LOAD_TEST_SECRET || "")
+const PUBLISH_URL = getArg("publish-url", `${BASE_URL}/api/realtime/load-test`)
+const TEST_EVENT_COUNT = parseInt(getArg("events", "3"))
 
 // ── Metrics ─────────────────────────────────────────────────────────────────
 interface Metrics {
@@ -32,6 +37,7 @@ interface Metrics {
   connected: number
   failed: number
   messagesReceived: number
+  testEventsReceived: number
   latencies: number[]
   errors: string[]
   connectTimes: number[]
@@ -42,6 +48,7 @@ const metrics: Metrics = {
   connected: 0,
   failed: 0,
   messagesReceived: 0,
+  testEventsReceived: 0,
   latencies: [],
   errors: [],
   connectTimes: [],
@@ -63,7 +70,12 @@ function openSSE(connectionId: number): Promise<http.IncomingMessage | null> {
     const url = `${BASE_URL}/api/realtime?workspaceId=${WORKSPACE_ID}`
     const client = url.startsWith("https") ? https : http
 
-    const req = client.get(url, { headers: { Accept: "text/event-stream" } }, (res) => {
+    const req = client.get(url, {
+      headers: {
+        Accept: "text/event-stream",
+        Cookie: AUTH_COOKIE,
+      },
+    }, (res) => {
       const connectTime = Date.now() - startTime
       metrics.connectTimes.push(connectTime)
 
@@ -92,11 +104,10 @@ function openSSE(connectionId: number): Promise<http.IncomingMessage | null> {
             const dataLine = block.split("\n").find((l: string) => l.startsWith("data:"))
             if (dataLine) {
               const payload = JSON.parse(dataLine.replace("data:", "").trim())
-              if (payload.deliveredAt && payload.timestamp) {
-                metrics.latencies.push(payload.deliveredAt - payload.timestamp)
-              }
-              if (payload.latencyMs != null) {
-                metrics.latencies.push(payload.latencyMs)
+              const latency = extractBenchmarkLatency(payload)
+              if (latency !== null) {
+                metrics.testEventsReceived++
+                metrics.latencies.push(latency)
               }
             }
           } catch {
@@ -128,8 +139,39 @@ function openSSE(connectionId: number): Promise<http.IncomingMessage | null> {
   })
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function publishTestEvent(eventId: string): Promise<void> {
+  const response = await fetch(PUBLISH_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-load-test-secret": LOAD_TEST_SECRET,
+    },
+    body: JSON.stringify({ workspaceId: WORKSPACE_ID, eventId }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Load-test publisher returned HTTP ${response.status}`)
+  }
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
+  if (!AUTH_COOKIE) {
+    throw new Error("Provide --cookie 'auth-session=...' or LOAD_TEST_COOKIE")
+  }
+
+  if (!LOAD_TEST_SECRET) {
+    throw new Error("Provide --secret or LOAD_TEST_SECRET for the development publisher")
+  }
+
+  if (!Number.isInteger(TEST_EVENT_COUNT) || TEST_EVENT_COUNT < 1) {
+    throw new Error("--events must be a positive integer")
+  }
+
   console.log("═══════════════════════════════════════════════════════════")
   console.log("  Saathi SSE Load Test")
   console.log("═══════════════════════════════════════════════════════════")
@@ -137,6 +179,7 @@ async function main() {
   console.log(`  Duration:           ${DURATION_SECONDS}s`)
   console.log(`  URL:                ${BASE_URL}`)
   console.log(`  Workspace:          ${WORKSPACE_ID}`)
+  console.log(`  Test events:        ${TEST_EVENT_COUNT}`)
   console.log("───────────────────────────────────────────────────────────")
   console.log()
 
@@ -161,7 +204,7 @@ async function main() {
   console.log(`▶ Holding connections for ${DURATION_SECONDS}s...`)
   const holdStart = Date.now()
 
-  await new Promise<void>((resolve) => {
+  const holdTimer = new Promise<void>((resolve) => {
     const timer = setInterval(() => {
       const elapsed = Math.round((Date.now() - holdStart) / 1000)
       process.stdout.write(`  ${elapsed}/${DURATION_SECONDS}s — ${metrics.messagesReceived} messages received\r`)
@@ -171,6 +214,17 @@ async function main() {
       }
     }, 1000)
   })
+
+  const publishEvents = (async () => {
+    await sleep(250)
+    for (let i = 0; i < TEST_EVENT_COUNT; i++) {
+      const eventId = `load-${Date.now()}-${i}`
+      await publishTestEvent(eventId)
+      if (i + 1 < TEST_EVENT_COUNT) await sleep(1000)
+    }
+  })()
+
+  await Promise.all([holdTimer, publishEvents])
 
   console.log()
   console.log()
@@ -195,6 +249,7 @@ async function main() {
   console.log(`  Success rate:           ${((metrics.connected / metrics.attempted) * 100).toFixed(1)}%`)
   console.log()
   console.log(`  Messages received:      ${metrics.messagesReceived}`)
+  console.log(`  Benchmark events:       ${metrics.testEventsReceived}`)
   console.log(`  Msg/connection/sec:     ${(metrics.messagesReceived / Math.max(metrics.connected, 1) / DURATION_SECONDS).toFixed(2)}`)
   console.log()
 
@@ -221,7 +276,9 @@ async function main() {
   }
 
   // Verdict
+  const expectedEvents = metrics.connected * TEST_EVENT_COUNT
   const passed = metrics.connected >= 200
+    && metrics.testEventsReceived >= expectedEvents
   console.log("───────────────────────────────────────────────────────────")
   console.log(passed
     ? `  ✅ PASS — ${metrics.connected} concurrent SSE connections sustained`
