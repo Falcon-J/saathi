@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, memo } from "react"
+import { useState, useMemo, memo, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -239,6 +239,31 @@ export const TaskList = memo(function TaskList({
   }
 
   const completedCount = tasks.filter((t) => t.completed).length
+  const openTasks = filteredTasks.filter((task) => !task.completed)
+  const completedTasks = filteredTasks.filter((task) => task.completed)
+
+  const renderTask = (task: Task) => (
+    <TaskListItem
+      key={task.id}
+      task={task}
+      members={members}
+      currentUserEmail={currentUserEmail}
+      workspaceOwnerId={workspaceOwnerId}
+      editingTaskId={editingTaskId}
+      editingTitle={editingTitle}
+      operatingTaskId={operatingTaskId}
+      onToggleTask={handleToggleTask}
+      onEditTask={handleEditTask}
+      onAssignTask={handleAssignTask}
+      onStartEdit={(nextTask) => {
+        setEditingTaskId(nextTask.id)
+        setEditingTitle(nextTask.title)
+      }}
+      onCancelEdit={() => setEditingTaskId(null)}
+      onEditingTitleChange={setEditingTitle}
+      onConfirmDelete={setDeleteConfirm}
+    />
+  )
 
   return (
     <div className="space-y-6 p-6">
@@ -360,49 +385,32 @@ export const TaskList = memo(function TaskList({
         )}
       </div>
 
-      {/* Tasks */}
-      <div className="space-y-2">
+      {/* Board */}
+      <div className="grid gap-4 lg:grid-cols-2" aria-label="Task board">
         {loading ? (
-          <Card className="border-white/10 bg-transparent p-8 text-center">
+          <Card className="border-white/10 bg-transparent p-8 text-center lg:col-span-2">
             <div className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               <p className="text-muted-foreground">Loading tasks...</p>
             </div>
           </Card>
-        ) : filteredTasks.length === 0 ? (
-          <Card className="border border-dashed border-white/10 bg-transparent p-12 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/35">
-                <Plus className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground text-lg font-medium">
-                {tasks.length === 0 ? "No tasks yet. Create one to get started!" : "No tasks match your filters."}
-              </p>
-            </div>
-          </Card>
         ) : (
-          filteredTasks.map((task) => (
-            <TaskListItem
-              key={task.id}
-              task={task}
-              members={members}
-              currentUserEmail={currentUserEmail}
-              workspaceOwnerId={workspaceOwnerId}
-              editingTaskId={editingTaskId}
-              editingTitle={editingTitle}
-              operatingTaskId={operatingTaskId}
-              onToggleTask={handleToggleTask}
-              onEditTask={handleEditTask}
-              onAssignTask={handleAssignTask}
-              onStartEdit={(nextTask) => {
-                setEditingTaskId(nextTask.id)
-                setEditingTitle(nextTask.title)
-              }}
-              onCancelEdit={() => setEditingTaskId(null)}
-              onEditingTitleChange={setEditingTitle}
-              onConfirmDelete={setDeleteConfirm}
-            />
-          ))
+          <>
+            <TaskColumn
+              title="Open"
+              count={openTasks.length}
+              emptyMessage={tasks.length === 0 ? "No open tasks yet. Add one above." : "No open tasks match these filters."}
+            >
+              {openTasks.map(renderTask)}
+            </TaskColumn>
+            <TaskColumn
+              title="Completed"
+              count={completedTasks.length}
+              emptyMessage={tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
+            >
+              {completedTasks.map(renderTask)}
+            </TaskColumn>
+          </>
         )}
       </div>
 
@@ -419,6 +427,36 @@ export const TaskList = memo(function TaskList({
     </div>
   )
 })
+
+function TaskColumn({
+  title,
+  count,
+  emptyMessage,
+  children,
+}: {
+  title: string
+  count: number
+  emptyMessage: string
+  children: ReactNode
+}) {
+  return (
+    <section className="min-h-72 rounded-xl border border-white/10 bg-background/25 p-4" aria-label={`${title} tasks`}>
+      <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 className="saathi-label text-muted-foreground">{title}</h3>
+        <Badge variant="outline" className="border-white/10 bg-transparent text-muted-foreground">
+          {count}
+        </Badge>
+      </div>
+      <div className="space-y-3">
+        {count > 0 ? children : (
+          <div className="rounded-lg border border-dashed border-white/10 px-4 py-10 text-center text-sm text-muted-foreground">
+            {emptyMessage}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
 
 interface TaskListItemProps {
   task: Task
