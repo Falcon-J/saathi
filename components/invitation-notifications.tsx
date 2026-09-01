@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +24,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     const [processingId, setProcessingId] = useState<string | null>(null)
     const { toast } = useToast()
 
-    const loadInvitations = async () => {
+    const loadInvitations = useCallback(async () => {
         try {
             const userInvitations = await getUserInvitations(userEmail)
             setInvitations(userInvitations.filter(inv => inv.status === "pending"))
@@ -33,13 +33,13 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         } finally {
             setLoading(false)
         }
-    }
+    }, [userEmail])
 
     useEffect(() => {
         if (userEmail) {
             loadInvitations()
         }
-    }, [userEmail])
+    }, [userEmail, loadInvitations])
 
     const handleAcceptInvitation = async (invitation: Invitation) => {
         setProcessingId(invitation.id)

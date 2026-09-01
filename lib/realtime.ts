@@ -98,18 +98,20 @@ export class RealtimeService {
      * Used by the SSE route for efficient polling.
      */
     async readNewEvents(workspaceId: string, lastSeenId: string, count: number = 50) {
-        try {
-            const streamKey = `${this.eventStreamPrefix}${workspaceId}`
-            const entries = await streamService.xread(streamKey, lastSeenId, count)
-            return entries.map(entry => ({
-                ...this.entryToEvent(entry),
-                _streamId: entry.id,
-                _publishedAt: entry.fields._publishedAt ? parseInt(entry.fields._publishedAt) : undefined,
-            }))
-        } catch (error) {
-            console.error('[Realtime] Failed to read new events:', error)
-            return []
-        }
+        const streamKey = `${this.eventStreamPrefix}${workspaceId}`
+        const entries = await streamService.xread(streamKey, lastSeenId, count)
+        return entries
+            .map(entry => {
+                const event = this.entryToEvent(entry)
+                return event
+                    ? {
+                        ...event,
+                        _streamId: entry.id,
+                        _publishedAt: entry.fields._publishedAt ? parseInt(entry.fields._publishedAt) : undefined,
+                    }
+                    : null
+            })
+            .filter((event): event is RealtimeEvent & { _streamId: string; _publishedAt: number | undefined } => event !== null)
     }
 
     // ── User Presence ──────────────────────────────────────────────────────

@@ -76,7 +76,9 @@ export async function GET(request: NextRequest) {
         await realtimeService.setUserPresence(workspaceId, session.email)
 
         const encoder = new TextEncoder()
-        const formatSSE = (data: any) => `data: ${JSON.stringify(data)}\n\n`
+        const formatSSE = (data: any, eventId?: string) => (
+            `${eventId ? `id: ${eventId}\n` : ""}data: ${JSON.stringify(data)}\n\n`
+        )
 
         const stream = new ReadableStream({
             async start(controller) {
@@ -93,8 +95,10 @@ export async function GET(request: NextRequest) {
 
                 // Use a timestamp just before "now" so we only get events from this point forward
                 // "$" only works with blocking XREAD; Upstash REST is non-blocking.
-                let lastSeenId = `${Date.now()}-0`
+                const lastEventId = request.headers.get("last-event-id")
+                let lastSeenId = lastEventId || `${Date.now()}-0`
                 let closed = false
+                let streamErrorSent = false
 
                 // ── Heartbeat (30s) ─────────────────────────────────────
                 const sendHeartbeat = async () => {
@@ -127,6 +131,7 @@ export async function GET(request: NextRequest) {
                         )
 
                         if (closed) return
+                        streamErrorSent = false
 
                         if (newEvents.length > 0) {
                             for (const event of newEvents) {
@@ -147,11 +152,19 @@ export async function GET(request: NextRequest) {
                                     data: event.data,
                                     deliveredAt,
                                     latencyMs,
-                                })))
+                                }, event._streamId)))
                             }
                         }
                     } catch (error) {
                         console.error('[SSE] Stream poll failed:', error)
+                        if (!closed && !streamErrorSent) {
+                            streamErrorSent = true
+                            controller.enqueue(encoder.encode(formatSSE({
+                                type: 'error',
+                                timestamp: Date.now(),
+                                data: { message: 'Realtime updates are temporarily unavailable.' },
+                            })))
+                        }
                     }
                 })
 

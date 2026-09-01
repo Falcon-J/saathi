@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { realtimeService } from "@/lib/realtime"
 import { recordUsageEvent } from "@/lib/usage"
 import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
+import { normalizeEmail } from "@/lib/identity"
 import { hasTaskConflict, normalizeTaskUpdates, type TaskUpdate } from "./contract"
 
 // Security: Validate workspace membership
@@ -41,9 +42,10 @@ async function validateTaskPermission(userEmail: string, taskId: string, action:
         const task = typeof taskData === 'string' ? JSON.parse(taskData) : taskData
         const workspace = await validateWorkspaceMembership(userEmail, task.workspaceId)
 
-        const isOwner = workspace.ownerId === userEmail
-        const isCreator = task.createdBy === userEmail
-        const isAssignee = task.assigneeEmail === userEmail
+        const normalizedUserEmail = normalizeEmail(userEmail)
+        const isOwner = normalizeEmail(workspace.ownerId) === normalizedUserEmail
+        const isCreator = normalizeEmail(task.createdBy) === normalizedUserEmail
+        const isAssignee = task.assigneeEmail && normalizeEmail(task.assigneeEmail) === normalizedUserEmail
 
         switch (action) {
             case 'edit':
@@ -120,7 +122,10 @@ export async function addTask(
             return { error: "Task due date is invalid" }
         }
 
-        if (assigneeEmail && !workspace.members?.some((member: { email?: string }) => member.email === assigneeEmail)) {
+        const normalizedAssigneeEmail = assigneeEmail ? normalizeEmail(assigneeEmail) : undefined
+        if (normalizedAssigneeEmail && !workspace.members?.some((member: { email?: string }) => (
+            typeof member.email === "string" && normalizeEmail(member.email) === normalizedAssigneeEmail
+        ))) {
             return { error: "Task assignee must be a workspace member" }
         }
 
@@ -132,7 +137,7 @@ export async function addTask(
             completed: false,
             priority,
             dueDate,
-            assigneeEmail,
+            assigneeEmail: normalizedAssigneeEmail,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             workspaceId,
@@ -199,7 +204,8 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
         if (normalizedResult.updates.assigneeEmail) {
             const workspace = await validateWorkspaceMembership(session.email, task.workspaceId)
             const isMember = workspace.members?.some((member: { email?: string }) => (
-                member.email === normalizedResult.updates?.assigneeEmail
+                typeof member.email === "string"
+                && normalizeEmail(member.email) === normalizeEmail(normalizedResult.updates?.assigneeEmail || "")
             ))
             if (!isMember) {
                 return { error: "Task assignee must be a workspace member", task }

@@ -82,11 +82,19 @@ export function useRealtime(options: UseRealtimeOptions) {
                     if (data.type === 'connected') {
                         console.log('[Realtime] Connected to workspace:', optionsRef.current.workspaceId)
                         setIsConnected(true)
+                        setError(null)
+                    } else if (data.type === 'error') {
+                        setIsConnected(false)
+                        setError(data.data?.message || 'Realtime updates are temporarily unavailable')
                     } else if (data.type === 'heartbeat') {
+                        setIsConnected(true)
+                        setError(null)
                         if (data.data?.activeUsers) {
                             setActiveUsers(data.data.activeUsers)
                         }
                     } else {
+                        setIsConnected(true)
+                        setError(null)
                         handleEvent(data as RealtimeEvent)
                     }
                 } catch (err) {

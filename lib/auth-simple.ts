@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { redis } from "./redis"
 import crypto from "crypto"
 import { hashPassword, verifyPassword } from "./passwords"
+import { normalizeEmail } from "./identity"
 
 // Simple session configuration
 const SESSION_DURATION = 24 * 60 * 60 // 24 hours in seconds
@@ -27,14 +28,16 @@ function generateSessionId(): string {
 
 export async function signup(email: string, username: string, password: string) {
   try {
-    console.log("[Saathi] Signup attempt for:", email)
+    const normalizedEmail = normalizeEmail(email)
+    const normalizedUsername = username.trim()
+    console.log("[Saathi] Signup attempt for:", normalizedEmail)
 
     // Validate inputs
-    if (!validateEmail(email)) {
+    if (!validateEmail(normalizedEmail)) {
       return { error: "Please enter a valid email address" }
     }
 
-    if (!validateUsername(username)) {
+    if (!validateUsername(normalizedUsername)) {
       return { error: "Username must be 2-50 characters, letters, numbers, spaces, hyphens, or underscores only" }
     }
 
@@ -43,23 +46,23 @@ export async function signup(email: string, username: string, password: string) 
     }
 
     // Check if user already exists
-    const existingUser = await redis.get(`user:${email}`)
+    const existingUser = await redis.get(`user:${normalizedEmail}`)
     if (existingUser) {
       return { error: "Email already registered" }
     }
 
     // Store user with plain password (simplified for now)
     const userData = {
-      email,
-      username,
+      email: normalizedEmail,
+      username: normalizedUsername,
       password: await hashPassword(password),
       createdAt: new Date().toISOString()
     }
-    await redis.set(`user:${email}`, JSON.stringify(userData))
+    await redis.set(`user:${normalizedEmail}`, JSON.stringify(userData))
 
     // Create session and auto-login
     const sessionId = generateSessionId()
-    const sessionData = { email, username }
+    const sessionData = { email: normalizedEmail, username: normalizedUsername }
     await redis.set(`session:${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_DURATION })
 
     // Set cookie
@@ -72,8 +75,8 @@ export async function signup(email: string, username: string, password: string) 
       path: "/",
     })
 
-    console.log("[Saathi] Signup successful for:", email)
-    return { success: true, email, username }
+    console.log("[Saathi] Signup successful for:", normalizedEmail)
+    return { success: true, email: normalizedEmail, username: normalizedUsername }
   } catch (error) {
     console.error("[Saathi] Signup error:", error)
     return { error: "Signup failed" }
@@ -82,10 +85,11 @@ export async function signup(email: string, username: string, password: string) 
 
 export async function login(email: string, password: string) {
   try {
-    console.log("[Saathi] Login attempt for:", email)
+    const normalizedEmail = normalizeEmail(email)
+    console.log("[Saathi] Login attempt for:", normalizedEmail)
 
     // Validate inputs
-    if (!validateEmail(email)) {
+    if (!validateEmail(normalizedEmail)) {
       return { error: "Please enter a valid email address" }
     }
 
@@ -94,17 +98,17 @@ export async function login(email: string, password: string) {
     }
 
     // Get user data
-    const userData = await redis.get(`user:${email}`)
+    const userData = await redis.get(`user:${normalizedEmail}`)
 
     // Create test user for development if needed
-    if (!userData && email === "test@saathi.build") {
+    if (!userData && normalizedEmail === "test@saathi.build") {
       console.log("[Saathi] Creating test user for development")
       const testUser = { email, username: "Test User", password: await hashPassword("test123"), createdAt: new Date().toISOString() }
       await redis.set(`user:${email}`, JSON.stringify(testUser))
 
       if (password === "test123") {
         const sessionId = generateSessionId()
-        const sessionData = { email, username: testUser.username }
+        const sessionData = { email: normalizedEmail, username: testUser.username }
         await redis.set(`session:${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_DURATION })
 
         const cookieStore = await cookies()
@@ -135,7 +139,7 @@ export async function login(email: string, password: string) {
     }
 
     if (passwordCheck.needsRehash) {
-      await redis.set(`user:${email}`, JSON.stringify({
+      await redis.set(`user:${normalizedEmail}`, JSON.stringify({
         ...user,
         password: await hashPassword(password),
       }))
@@ -143,7 +147,7 @@ export async function login(email: string, password: string) {
 
     // Create session
     const sessionId = generateSessionId()
-    const sessionData = { email, username: user.username }
+    const sessionData = { email: normalizedEmail, username: user.username }
     await redis.set(`session:${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_DURATION })
 
     // Set cookie
@@ -156,8 +160,8 @@ export async function login(email: string, password: string) {
       path: "/",
     })
 
-    console.log("[Saathi] Login successful for:", email)
-    return { success: true, email, username: user.username }
+    console.log("[Saathi] Login successful for:", normalizedEmail)
+    return { success: true, email: normalizedEmail, username: user.username }
   } catch (error) {
     console.error("[Saathi] Login error:", error)
     return { error: "Login failed. Please try again." }
@@ -192,24 +196,19 @@ export async function logout() {
 }
 
 export async function getSession() {
-  try {
-    const cookieStore = await cookies()
-    const sessionId = cookieStore.get("auth-session")?.value
+  const cookieStore = await cookies()
+  const sessionId = cookieStore.get("auth-session")?.value
 
-    if (!sessionId) {
-      return null
-    }
-
-    const sessionData = await redis.get(`session:${sessionId}`)
-
-    if (!sessionData) {
-      return null
-    }
-
-    // Parse session data
-    return typeof sessionData === "string" ? JSON.parse(sessionData) : sessionData
-  } catch (error) {
-    console.error("[Saathi] Session check error:", error)
+  if (!sessionId) {
     return null
   }
+
+  const sessionData = await redis.get(`session:${sessionId}`)
+
+  if (!sessionData) {
+    return null
+  }
+
+  // Parse session data
+  return typeof sessionData === "string" ? JSON.parse(sessionData) : sessionData
 }

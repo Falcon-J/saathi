@@ -27,6 +27,15 @@ test("allows an authenticated workspace member", () => {
   assert.deepEqual(result, { allowed: true })
 })
 
+test("matches workspace membership without treating email casing as a different identity", () => {
+  const result = authorizeWorkspaceSubscription(
+    { members: [{ email: "Member@Example.com" }] },
+    " member@example.com ",
+  )
+
+  assert.deepEqual(result, { allowed: true })
+})
+
 test("prevents overlapping event polls", async () => {
   let calls = 0
   const releases: Array<() => void> = []

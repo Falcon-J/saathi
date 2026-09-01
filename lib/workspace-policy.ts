@@ -1,3 +1,5 @@
+import { normalizeEmail } from "./identity.ts"
+
 export type WorkspaceAccessAuthorization =
   | { allowed: true }
   | { allowed: false; status: 403 | 404; message: string }
@@ -14,7 +16,8 @@ export function authorizeWorkspaceMember(
   const isMember = Array.isArray(members) && members.some((member) => (
     member !== null
     && typeof member === "object"
-    && (member as { email?: unknown }).email === userEmail
+    && typeof (member as { email?: unknown }).email === "string"
+    && normalizeEmail((member as { email: string }).email) === normalizeEmail(userEmail)
   ))
 
   return isMember

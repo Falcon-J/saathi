@@ -185,7 +185,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                An invitation will be sent to the user's email
+                An invitation will be sent to the user&apos;s email
               </p>
             </div>
           )}

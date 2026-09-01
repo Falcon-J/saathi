@@ -1,5 +1,14 @@
 import { Redis } from "@upstash/redis"
-import { getRedisConfig, isDevelopment } from "./env"
+import { env, getRedisConfig, isDevelopment } from "./env"
+import { shouldUseMockRedis } from "./redis-policy"
+
+function compareStreamIds(left: string, right: string): number {
+  const [leftMilliseconds, leftSequence] = left.split("-").map(Number)
+  const [rightMilliseconds, rightSequence] = right.split("-").map(Number)
+
+  if (leftMilliseconds !== rightMilliseconds) return leftMilliseconds - rightMilliseconds
+  return leftSequence - rightSequence
+}
 
 // Enhanced Redis service with proper error handling, retry logic, and native Streams support
 class RedisService {
@@ -7,10 +16,13 @@ class RedisService {
   private mockStore = new Map<string, string>()
   private mockStreams = new Map<string, Array<{ id: string; fields: Record<string, string> }>>()
   private isConnected = false
+  private mockStorageEnabled = false
   private maxRetries = 2
   private retryDelay = 500
 
   constructor() {
+    const { url, token } = getRedisConfig()
+    this.mockStorageEnabled = shouldUseMockRedis(env.NODE_ENV, Boolean(url && token))
     this.initialize()
   }
 
@@ -39,6 +51,11 @@ class RedisService {
   }
 
   private fallbackToMock() {
+    if (!this.mockStorageEnabled) {
+      console.error("[Saathi] Redis unavailable; mock storage is disabled")
+      return
+    }
+
     if (isDevelopment) {
       console.warn("[Saathi] Using enhanced mock Redis client for development")
       console.warn("[Saathi] For production, add these environment variables:")
@@ -48,6 +65,23 @@ class RedisService {
       console.error("[Saathi] Redis configuration missing in production!")
     }
     this.isConnected = false
+  }
+
+  private assertMockStorageEnabled() {
+    if (!this.mockStorageEnabled) {
+      throw new Error("Redis unavailable")
+    }
+  }
+
+  private nextMockStreamId(stream: Array<{ id: string; fields: Record<string, string> }>): string {
+    const now = Date.now()
+    const previousId = stream.at(-1)?.id
+    if (!previousId) return `${now}-0`
+
+    const [previousMilliseconds, previousSequence] = previousId.split("-").map(Number)
+    return now > previousMilliseconds
+      ? `${now}-0`
+      : `${previousMilliseconds}-${previousSequence + 1}`
   }
 
   private async withRetry<T>(operation: () => Promise<T>): Promise<T> {
@@ -66,9 +100,9 @@ class RedisService {
       }
     }
 
-    // If all retries failed and we have real Redis, fall back to mock
+    // Mark the adapter unavailable after all retries. Callers decide how to surface the failure.
     if (this.isConnected) {
-      console.error("[Saathi] Redis connection failed, falling back to mock storage")
+      console.error("[Saathi] Redis connection failed; mock storage will remain disabled")
       this.isConnected = false
     }
 
@@ -102,6 +136,7 @@ class RedisService {
     }
 
     // Fallback to mock
+    this.assertMockStorageEnabled()
     const value = this.mockStore.get(key)
     return this.deserializeValue(value || null)
   }
@@ -123,6 +158,7 @@ class RedisService {
     }
 
     // Fallback to mock
+    this.assertMockStorageEnabled()
     this.mockStore.set(key, serializedValue)
     if (options?.ex) {
       // Simple expiry simulation for mock
@@ -143,6 +179,7 @@ class RedisService {
     }
 
     // Fallback to mock
+    this.assertMockStorageEnabled()
     const existed = this.mockStore.has(key)
     this.mockStore.delete(key)
     return existed ? 1 : 0
@@ -160,6 +197,7 @@ class RedisService {
     }
 
     // Fallback to mock
+    this.assertMockStorageEnabled()
     const existingSet = this.mockStore.get(key)
     const currentMembers = existingSet ? JSON.parse(existingSet) : []
     const newMembers = members.filter(m => !currentMembers.includes(m))
@@ -180,6 +218,7 @@ class RedisService {
     }
 
     // Fallback to mock
+    this.assertMockStorageEnabled()
     const set = this.mockStore.get(key)
     return set ? JSON.parse(set) : []
   }
@@ -196,6 +235,7 @@ class RedisService {
     }
 
     // Fallback to mock
+    this.assertMockStorageEnabled()
     const existingSet = this.mockStore.get(key)
     if (!existingSet) return 0
 
@@ -215,6 +255,7 @@ class RedisService {
       }
     }
 
+    this.assertMockStorageEnabled()
     const nextValue = Number(this.mockStore.get(key) || "0") + 1
     this.mockStore.set(key, String(nextValue))
     return nextValue
@@ -243,8 +284,9 @@ class RedisService {
     }
 
     // Mock fallback — simulate auto-generated ID
-    const mockId = id === "*" ? `${Date.now()}-0` : id
+    this.assertMockStorageEnabled()
     const stream = this.mockStreams.get(streamKey) || []
+    const mockId = id === "*" ? this.nextMockStreamId(stream) : id
     stream.push({ id: mockId, fields })
     // Keep bounded
     if (stream.length > 1000) stream.splice(0, stream.length - 1000)
@@ -297,11 +339,12 @@ class RedisService {
     }
 
     // Mock fallback
+    this.assertMockStorageEnabled()
     const stream = this.mockStreams.get(streamKey) || []
     if (fromId === "$") return [] // "$" = only new (nothing yet in mock without blocking)
     const startIdx = fromId === "0" || fromId === "0-0"
       ? 0
-      : stream.findIndex(e => e.id > fromId)
+      : stream.findIndex(e => compareStreamIds(e.id, fromId) > 0)
     if (startIdx === -1) return []
     return stream.slice(startIdx, startIdx + count)
   }
@@ -343,10 +386,11 @@ class RedisService {
     }
 
     // Mock fallback
+    this.assertMockStorageEnabled()
     const stream = this.mockStreams.get(streamKey) || []
     const filtered = stream.filter(e => {
-      if (start !== "-" && e.id < start) return false
-      if (end !== "+" && e.id > end) return false
+      if (start !== "-" && compareStreamIds(e.id, start) < 0) return false
+      if (end !== "+" && compareStreamIds(e.id, end) > 0) return false
       return true
     })
     return count ? filtered.slice(0, count) : filtered
@@ -367,6 +411,7 @@ class RedisService {
     }
 
     // Mock fallback
+    this.assertMockStorageEnabled()
     return (this.mockStreams.get(streamKey) || []).length
   }
 
@@ -385,6 +430,7 @@ class RedisService {
     }
 
     // Mock fallback
+    this.assertMockStorageEnabled()
     const stream = this.mockStreams.get(streamKey) || []
     const removed = Math.max(0, stream.length - maxlen)
     if (removed > 0) {
@@ -409,10 +455,10 @@ class RedisService {
     return false
   }
 
-  getStatus(): { connected: boolean; type: 'redis' | 'mock' } {
+  getStatus(): { connected: boolean; type: 'redis' | 'mock' | 'unavailable' } {
     return {
       connected: this.isConnected,
-      type: this.isConnected ? 'redis' : 'mock'
+      type: this.isConnected ? 'redis' : this.mockStorageEnabled ? 'mock' : 'unavailable'
     }
   }
 }

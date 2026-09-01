@@ -79,6 +79,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
 
       if (result.success) {
+        window.localStorage.setItem("auth-change", Date.now().toString())
         toast({
           title: isSignup ? "Account created" : "Signed in",
           description: isSignup ? "Your Saathi workspace access is ready." : "Welcome back to Saathi.",
@@ -153,6 +154,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@company.com"
+                  autoComplete="email"
                   disabled={loading}
                   required
                   className="border-border bg-input font-mono text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/40"
@@ -179,6 +181,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder={isSignup ? "At least 6 characters" : "Enter your password"}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
                   disabled={loading}
                   required
                   className="border-border bg-input font-mono text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/40"
@@ -192,6 +195,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder="Repeat your password"
+                    autoComplete="new-password"
                     disabled={loading}
                     required
                     className="border-border bg-input font-mono text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/40"

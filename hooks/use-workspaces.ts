@@ -18,6 +18,9 @@ export function useWorkspaces(userEmail?: string) {
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
+  const [taskError, setTaskError] = useState<string | null>(null)
+  const [tasksLoading, setTasksLoading] = useState(false)
   const tasksRef = useRef<Task[]>([])
   const pendingTaskIdsRef = useRef(new Set<string>())
   const { success, error: notifyError, info } = useNotifications()
@@ -87,30 +90,34 @@ export function useWorkspaces(userEmail?: string) {
   useEffect(() => {
     if (!userEmail) {
       setLoading(false)
+      setWorkspaceError(null)
+      setWorkspaces([])
+      setCurrentWorkspaceId(null)
       updateTasks(() => [])
       return
     }
 
-
-
     let cancelled = false
+    setLoading(true)
+    setWorkspaceError(null)
+    setWorkspaces([])
+    setCurrentWorkspaceId(null)
+
     const loadWorkspaces = async () => {
       try {
         const userWorkspaces = await getUserWorkspaces(userEmail)
         if (cancelled) return
 
-        if (userWorkspaces.length === 0) {
-          // Create default workspace if none exist
-          const defaultWorkspace = await createWorkspaceAction("My Workspace")
-          setWorkspaces([defaultWorkspace])
-          setCurrentWorkspaceId(defaultWorkspace.id)
-        } else {
-          setWorkspaces(userWorkspaces)
-          setCurrentWorkspaceId(userWorkspaces[0].id)
-        }
+        setWorkspaceError(null)
+        setWorkspaces(userWorkspaces)
+        setCurrentWorkspaceId(userWorkspaces[0]?.id ?? null)
       } catch (error) {
         if (!cancelled) {
           console.error("[Saathi] Failed to load workspaces:", error)
+          setWorkspaceError(error instanceof Error ? error.message : "Unable to load workspaces")
+          setWorkspaces([])
+          setCurrentWorkspaceId(null)
+          updateTasks(() => [])
         }
       } finally {
         if (!cancelled) {
@@ -127,25 +134,36 @@ export function useWorkspaces(userEmail?: string) {
 
   // Load tasks when workspace changes
   useEffect(() => {
-    if (!currentWorkspaceId || !userEmail) return
+    if (!currentWorkspaceId || !userEmail) {
+      setTaskError(null)
+      setTasksLoading(false)
+      updateTasks(() => [])
+      return
+    }
 
 
 
     let cancelled = false
+    setTaskError(null)
+    setTasksLoading(true)
     updateTasks(() => [])
     const loadTasks = async () => {
       try {
         const result = await getTasks(currentWorkspaceId)
         if (!cancelled && result.tasks) {
+          setTaskError(null)
           updateTasks(() => result.tasks ?? [])
         } else if (!cancelled && result.error) {
           console.error("[Saathi] Failed to load tasks:", result.error)
+          setTaskError(result.error)
         }
       } catch (error) {
         if (!cancelled) {
           console.error("[Saathi] Failed to load tasks:", error)
+          setTaskError(error instanceof Error ? error.message : "Unable to load tasks")
         }
       }
+      if (!cancelled) setTasksLoading(false)
     }
 
     loadTasks()
@@ -158,14 +176,20 @@ export function useWorkspaces(userEmail?: string) {
 
   const refreshTasksForWorkspace = useCallback(
     async (workspaceId: string): Promise<Task[] | null> => {
+      setTasksLoading(true)
       try {
         const result = await getTasks(workspaceId)
         if (result.tasks) {
+          setTaskError(null)
           updateTasks(() => result.tasks ?? [])
           return result.tasks
         }
+        if (result.error) setTaskError(result.error)
       } catch (error) {
         console.error("[Saathi] Failed to refresh tasks after a mutation error:", error)
+        setTaskError(error instanceof Error ? error.message : "Unable to load tasks")
+      } finally {
+        setTasksLoading(false)
       }
       return null
     },
@@ -197,7 +221,7 @@ export function useWorkspaces(userEmail?: string) {
       try {
         const result = await addTask(currentWorkspaceId, title, description, dueDate, undefined, priority)
         if (result.error) {
-          throw new Error(result.error)
+          return result
         }
         // Optimistic update - add task immediately to UI
         if (result.task) {
@@ -381,9 +405,16 @@ export function useWorkspaces(userEmail?: string) {
 
       try {
         const updatedWorkspaces = await getUserWorkspaces(userEmail)
+        setWorkspaceError(null)
         setWorkspaces(updatedWorkspaces)
+        setCurrentWorkspaceId((currentId) => (
+          currentId && updatedWorkspaces.some((workspace) => workspace.id === currentId)
+            ? currentId
+            : updatedWorkspaces[0]?.id ?? null
+        ))
       } catch (error) {
         console.error("[Saathi] Failed to refresh workspaces:", error)
+        setWorkspaceError(error instanceof Error ? error.message : "Unable to load workspaces")
       }
     },
     [userEmail],
@@ -456,6 +487,9 @@ export function useWorkspaces(userEmail?: string) {
     removeMember: handleRemoveMember,
     refreshWorkspaces,
     refreshTasks,
+    workspaceError,
+    taskError,
+    tasksLoading,
     realtime,
   }
 }

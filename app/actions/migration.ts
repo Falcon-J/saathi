@@ -25,7 +25,13 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
     return { error: "CSV file must be smaller than 512 KB" }
   }
 
-  const workspaces = await getUserWorkspaces(session.email)
+  let workspaces
+  try {
+    workspaces = await getUserWorkspaces(session.email)
+  } catch (error) {
+    console.error("[Migration] Failed to load workspaces:", error)
+    return { error: "Unable to access this workspace. Please try again." }
+  }
   if (!workspaces.some((workspace) => workspace.id === workspaceId)) {
     return { error: "Access denied: Not a member of this workspace" }
   }
@@ -55,7 +61,8 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
       continue
     }
 
-    if (row.priority && !priorities.has(row.priority)) {
+    const priority = row.priority?.toLowerCase()
+    if (priority && !priorities.has(priority)) {
       result.failed += 1
       result.errors.push({ row: rowNumber, message: "Priority must be low, medium, or high" })
       continue
@@ -68,7 +75,7 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
         row.description || undefined,
         row.duedate || undefined,
         row.assigneeemail || undefined,
-        (row.priority || "medium") as "low" | "medium" | "high",
+        (priority || "medium") as "low" | "medium" | "high",
       )
 
       if (taskResult.error) {

@@ -4,6 +4,7 @@ import redis from "@/lib/redis"
 import { getSession } from "@/lib/auth-simple"
 import { revalidatePath } from "next/cache"
 import { realtimeService } from "@/lib/realtime"
+import { normalizeEmail } from "@/lib/identity"
 
 export interface Member {
   id: string
@@ -23,45 +24,41 @@ export interface Workspace {
 
 // Get all workspaces for a user
 export async function getUserWorkspaces(userEmail: string): Promise<Workspace[]> {
-  try {
-    // Verify authentication
-    const session = await getSession()
-    if (!session) {
-      throw new Error("Not authenticated")
-    }
-
-    // Verify user can only access their own workspaces
-    if (session.email !== userEmail) {
-      throw new Error("Access denied")
-    }
-
-    const workspaceIds = await redis.smembers(`user:${userEmail}:workspaces`)
-    console.log(`[Saathi] getUserWorkspaces called for user: ${userEmail}`)
-    console.log(`[Saathi] User ${userEmail} has workspace IDs:`, workspaceIds)
-    const workspaces: Workspace[] = []
-
-    for (const workspaceId of workspaceIds) {
-      const workspaceData = await redis.get(`workspace:${workspaceId}`)
-      console.log(`[Saathi] Workspace ${workspaceId} data:`, workspaceData ? "found" : "not found")
-      if (workspaceData) {
-        let workspace: Workspace
-        if (typeof workspaceData === "string") {
-          workspace = JSON.parse(workspaceData)
-        } else {
-          workspace = workspaceData as Workspace
-        }
-        console.log(`[Saathi] Loaded workspace: ${workspace.name}`)
-        workspaces.push(workspace)
-      } else {
-        console.warn(`[Saathi] Workspace ${workspaceId} not found in Redis`)
-      }
-    }
-
-    return workspaces.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  } catch (error) {
-    console.error("[Saathi] Error fetching user workspaces:", error)
-    return []
+  // Verify authentication
+  const session = await getSession()
+  if (!session) {
+    throw new Error("Not authenticated")
   }
+
+  // Verify user can only access their own workspaces
+  const normalizedUserEmail = normalizeEmail(userEmail)
+  if (normalizeEmail(session.email) !== normalizedUserEmail) {
+    throw new Error("Access denied")
+  }
+
+  const workspaceIds = await redis.smembers(`user:${normalizedUserEmail}:workspaces`)
+  console.log(`[Saathi] getUserWorkspaces called for user: ${normalizedUserEmail}`)
+  console.log(`[Saathi] User ${normalizedUserEmail} has workspace IDs:`, workspaceIds)
+  const workspaces: Workspace[] = []
+
+  for (const workspaceId of workspaceIds) {
+    const workspaceData = await redis.get(`workspace:${workspaceId}`)
+    console.log(`[Saathi] Workspace ${workspaceId} data:`, workspaceData ? "found" : "not found")
+    if (workspaceData) {
+      let workspace: Workspace
+      if (typeof workspaceData === "string") {
+        workspace = JSON.parse(workspaceData)
+      } else {
+        workspace = workspaceData as Workspace
+      }
+      console.log(`[Saathi] Loaded workspace: ${workspace.name}`)
+      workspaces.push(workspace)
+    } else {
+      console.warn(`[Saathi] Workspace ${workspaceId} not found in Redis`)
+    }
+  }
+
+  return workspaces.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 // Create a new workspace
@@ -72,12 +69,20 @@ export async function createWorkspace(name: string): Promise<Workspace> {
       throw new Error("Not authenticated")
     }
 
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      throw new Error("Workspace name cannot be empty")
+    }
+    if (trimmedName.length > 100) {
+      throw new Error("Workspace name cannot exceed 100 characters")
+    }
+
     const workspaceId = `workspace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     const now = new Date().toISOString()
 
     const workspace: Workspace = {
       id: workspaceId,
-      name,
+      name: trimmedName,
       members: [
         {
           id: session.email,
@@ -137,22 +142,24 @@ export async function inviteMemberToWorkspace(workspaceId: string, memberEmail: 
     }
 
     // Check if user is owner
-    if (workspace.ownerId !== session.email) {
+    if (normalizeEmail(workspace.ownerId) !== normalizeEmail(session.email)) {
       throw new Error("Only workspace owner can invite members")
     }
 
+    const normalizedMemberEmail = normalizeEmail(memberEmail)
+
     // Check if member already exists
-    if (workspace.members.some(m => m.email === memberEmail)) {
+    if (workspace.members.some(m => normalizeEmail(m.email) === normalizedMemberEmail)) {
       throw new Error("User is already a member of this workspace")
     }
 
     // Import and use invitation function
     const { sendWorkspaceInvitation } = await import("./invitations")
-    await sendWorkspaceInvitation(workspaceId, memberEmail)
+    await sendWorkspaceInvitation(workspaceId, normalizedMemberEmail)
 
     // Note: Real-time notifications would be implemented here
     // For now, invitations are stored and checked when user loads the app
-    console.log(`[Saathi] Invitation sent to ${memberEmail} for workspace ${workspace.name}`)
+    console.log(`[Saathi] Invitation sent to ${normalizedMemberEmail} for workspace ${workspace.name}`)
   } catch (error) {
     console.error("[Saathi] Error inviting member to workspace:", error)
     throw error
@@ -166,6 +173,8 @@ export async function removeMemberFromWorkspace(workspaceId: string, memberEmail
     if (!session) {
       throw new Error("Not authenticated")
     }
+
+    const normalizedMemberEmail = normalizeEmail(memberEmail)
 
     // Get workspace
     const workspaceData = await redis.get(`workspace:${workspaceId}`)
@@ -181,20 +190,25 @@ export async function removeMemberFromWorkspace(workspaceId: string, memberEmail
     }
 
     // Check if user is owner or removing themselves
-    if (workspace.ownerId !== session.email && memberEmail !== session.email) {
+    if (normalizeEmail(workspace.ownerId) !== normalizeEmail(session.email)
+      && normalizedMemberEmail !== normalizeEmail(session.email)) {
       throw new Error("Only workspace owner can remove members")
     }
 
+    if (!workspace.members.some((member) => normalizeEmail(member.email) === normalizedMemberEmail)) {
+      throw new Error("Member not found in this workspace")
+    }
+
     // Special case: If owner is trying to leave and they're the only member, delete the workspace
-    if (workspace.ownerId === memberEmail && workspace.members.length === 1) {
+    if (normalizeEmail(workspace.ownerId) === normalizedMemberEmail && workspace.members.length === 1) {
       await deleteWorkspace(workspaceId)
       console.log(`[Saathi] Deleted workspace ${workspaceId} as owner was the only member`)
       return
     }
 
     // If owner is leaving but there are other members, transfer ownership to the first member
-    if (workspace.ownerId === memberEmail && workspace.members.length > 1) {
-      const newOwner = workspace.members.find(m => m.email !== memberEmail)
+    if (normalizeEmail(workspace.ownerId) === normalizedMemberEmail && workspace.members.length > 1) {
+      const newOwner = workspace.members.find(m => normalizeEmail(m.email) !== normalizedMemberEmail)
       if (newOwner) {
         workspace.ownerId = newOwner.email
         newOwner.role = "owner"
@@ -203,17 +217,17 @@ export async function removeMemberFromWorkspace(workspaceId: string, memberEmail
     }
 
     // Remove member
-    workspace.members = workspace.members.filter(m => m.email !== memberEmail)
+    workspace.members = workspace.members.filter(m => normalizeEmail(m.email) !== normalizedMemberEmail)
 
     // Save updated workspace
     await redis.set(`workspace:${workspaceId}`, JSON.stringify(workspace))
 
     // Remove workspace from member's workspace list
-    const memberWorkspaces = await redis.smembers(`user:${memberEmail}:workspaces`)
+    const memberWorkspaces = await redis.smembers(`user:${normalizedMemberEmail}:workspaces`)
     const updatedWorkspaces = memberWorkspaces.filter((id: string) => id !== workspaceId)
-    await redis.del(`user:${memberEmail}:workspaces`)
+    await redis.del(`user:${normalizedMemberEmail}:workspaces`)
     if (updatedWorkspaces.length > 0) {
-      await redis.sadd(`user:${memberEmail}:workspaces`, ...updatedWorkspaces)
+      await redis.sadd(`user:${normalizedMemberEmail}:workspaces`, ...updatedWorkspaces)
     }
 
     // Publish real-time event
@@ -222,11 +236,11 @@ export async function removeMemberFromWorkspace(workspaceId: string, memberEmail
       workspaceId,
       userId: session.email,
       timestamp: Date.now(),
-      data: { memberEmail }
+      data: { memberEmail: normalizedMemberEmail }
     }).catch(err => console.error('[Realtime] member-removed event failed:', err))
 
     revalidatePath('/dashboard')
-    console.log(`[Saathi] Removed ${memberEmail} from workspace ${workspaceId}`)
+    console.log(`[Saathi] Removed ${normalizedMemberEmail} from workspace ${workspaceId}`)
   } catch (error) {
     console.error("[Saathi] Error removing member from workspace:", error)
     throw error
@@ -264,7 +278,7 @@ export async function updateWorkspaceName(workspaceId: string, newName: string):
     }
 
     // Check if user is owner
-    if (workspace.ownerId !== session.email) {
+    if (normalizeEmail(workspace.ownerId) !== normalizeEmail(session.email)) {
       throw new Error("Only workspace owner can update workspace name")
     }
 
@@ -323,24 +337,16 @@ export async function updateWorkspaceName(workspaceId: string, newName: string):
 
 // Get workspace by ID
 export async function getWorkspace(workspaceId: string): Promise<Workspace | null> {
-  try {
-    const workspaceData = await redis.get(`workspace:${workspaceId}`)
-    if (!workspaceData) {
-      return null
-    }
-
-    let workspace: Workspace
-    if (typeof workspaceData === "string") {
-      workspace = JSON.parse(workspaceData)
-    } else {
-      workspace = workspaceData as Workspace
-    }
-
-    return workspace
-  } catch (error) {
-    console.error("[Saathi] Error fetching workspace:", error)
+  const workspaceData = await redis.get(`workspace:${workspaceId}`)
+  if (!workspaceData) {
     return null
   }
+
+  if (typeof workspaceData === "string") {
+    return JSON.parse(workspaceData) as Workspace
+  }
+
+  return workspaceData as Workspace
 }
 
 // Delete workspace completely
@@ -365,7 +371,7 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
     }
 
     // Only owner can delete workspace
-    if (workspace.ownerId !== session.email) {
+    if (normalizeEmail(workspace.ownerId) !== normalizeEmail(session.email)) {
       throw new Error("Only workspace owner can delete the workspace")
     }
 
@@ -379,6 +385,9 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
       }
     }
 
+    // Read task IDs before deleting the index so task records can be removed too.
+    const taskIds = await redis.smembers(`workspace:${workspaceId}:tasks`)
+
     // Delete all workspace-related data
     await redis.del(`workspace:${workspaceId}`)
     await redis.del(`workspace:${workspaceId}:tasks`)
@@ -387,7 +396,6 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
     await redis.del(`workspace:${workspaceId}:lastUpdate`)
 
     // Delete all tasks in the workspace
-    const taskIds = await redis.smembers(`workspace:${workspaceId}:tasks`)
     for (const taskId of taskIds) {
       await redis.del(taskId)
     }

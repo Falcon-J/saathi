@@ -171,7 +171,7 @@ function WelcomeStep() {
       </div>
 
       <p className="text-sm text-gray-500">
-        Let's get you set up in 4 quick steps
+        Let&apos;s get you set up in 4 quick steps
       </p>
     </div>
   )
@@ -296,7 +296,7 @@ function CompleteStep() {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-3xl font-bold">You're All Set!</h2>
+        <h2 className="text-3xl font-bold">You&apos;re All Set!</h2>
         <p className="text-lg text-gray-600 dark:text-gray-400">
           Your workspace is ready for real-time collaboration
         </p>

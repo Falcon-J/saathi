@@ -20,6 +20,7 @@ import { TaskImport } from "@/components/task-import"
 import { MemberManager } from "@/components/member-manager"
 import { InvitationNotifications } from "@/components/invitation-notifications"
 import { NotificationCenter } from "@/components/notification-center"
+import { UsageSummary } from "@/components/usage-summary"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -92,6 +93,9 @@ export default function Dashboard() {
     removeMember,
     refreshWorkspaces,
     refreshTasks,
+    workspaceError,
+    taskError,
+    tasksLoading,
     realtime,
   } = useWorkspaces(user?.email && !loading ? user.email : undefined)
 
@@ -123,6 +127,7 @@ export default function Dashboard() {
   ) => {
     try {
       const result = await addTask(title, description, priority, dueDate)
+      if (result && "error" in result) return result
       success("Task created", `"${title}" is now in this workspace.`)
       return result
     } catch (caughtError) {
@@ -194,6 +199,7 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await logout()
+    window.localStorage.setItem("auth-change", Date.now().toString())
     info("Logged out", "You have been signed out.")
     router.push("/login")
   }
@@ -245,51 +251,69 @@ export default function Dashboard() {
       <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
         <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
-        <section className="mb-6">
-          <div className="saathi-panel relative z-30 rounded-2xl p-5">
-            <div className="mb-5 flex flex-col gap-4 border-b border-border/70 pb-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                {currentWorkspace ? (
-                  <WorkspaceNameInlineEditor
-                    workspaceId={currentWorkspace.id}
-                    currentName={currentWorkspace.name}
-                    isOwner={currentWorkspace.ownerId === user.email}
-                    onNameUpdated={refreshWorkspaces}
-                    className="text-3xl font-bold leading-tight"
-                  />
-                ) : (
-                  <h2 className="text-3xl font-bold leading-tight">Create your first workspace</h2>
+        {workspaceError ? (
+          <section className="saathi-panel mb-6 rounded-2xl p-8" role="alert">
+            <div className="mx-auto max-w-xl text-center">
+              <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-destructive/10 text-destructive">
+                <RefreshCw className="size-6" />
+              </div>
+              <h2 className="text-2xl font-bold">Workspace unavailable</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {workspaceError}. Your workspace data was not changed.
+              </p>
+              <Button onClick={() => void refreshWorkspaces()} variant="outline" className="mt-5">
+                <RefreshCw className="size-4" />
+                Try again
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <section className="mb-6">
+            <div className="saathi-panel relative z-30 rounded-2xl p-5">
+              <div className="mb-5 flex flex-col gap-4 border-b border-border/70 pb-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                  {currentWorkspace ? (
+                    <WorkspaceNameInlineEditor
+                      workspaceId={currentWorkspace.id}
+                      currentName={currentWorkspace.name}
+                      isOwner={currentWorkspace.ownerId === user.email}
+                      onNameUpdated={refreshWorkspaces}
+                      className="text-3xl font-bold leading-tight"
+                    />
+                  ) : (
+                    <h2 className="text-3xl font-bold leading-tight">Create your first workspace</h2>
+                  )}
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    A focused board for tasks, ownership, and team access.
+                  </p>
+                </div>
+
+                {currentWorkspace && (
+                  <div className="min-w-[180px] rounded-xl border border-white/10 bg-background/35 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="saathi-label text-muted-foreground">Completion</span>
+                      <span className="text-sm text-primary">{metrics.completion}%</span>
+                    </div>
+                    <Progress value={metrics.completion} className="h-2" />
+                  </div>
                 )}
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  A focused board for tasks, ownership, and team access.
-                </p>
               </div>
 
-              {currentWorkspace && (
-                <div className="min-w-[180px] rounded-xl border border-white/10 bg-background/35 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="saathi-label text-muted-foreground">Completion</span>
-                    <span className="text-sm text-primary">{metrics.completion}%</span>
-                  </div>
-                  <Progress value={metrics.completion} className="h-2" />
-                </div>
-              )}
+              <div id="workspace-switcher">
+                <WorkspaceSwitcher
+                  workspaces={workspaces}
+                  currentWorkspaceId={currentWorkspaceId}
+                  onSelectWorkspace={setCurrentWorkspaceId}
+                  onCreateWorkspace={createWorkspace}
+                  currentUserEmail={user.email}
+                  onWorkspaceUpdated={refreshWorkspaces}
+                />
+              </div>
             </div>
+          </section>
+        )}
 
-            <div id="workspace-switcher">
-              <WorkspaceSwitcher
-                workspaces={workspaces}
-                currentWorkspaceId={currentWorkspaceId}
-                onSelectWorkspace={setCurrentWorkspaceId}
-                onCreateWorkspace={createWorkspace}
-                currentUserEmail={user.email}
-                onWorkspaceUpdated={refreshWorkspaces}
-              />
-            </div>
-          </div>
-        </section>
-
-        {currentWorkspace ? (
+        {workspaceError ? null : currentWorkspace ? (
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div>
               <Card id="project-board" className="saathi-panel overflow-hidden rounded-2xl border-white/10">
@@ -318,18 +342,29 @@ export default function Dashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <TaskList
-                    tasks={tasks}
-                    loading={false}
-                    members={currentWorkspace.members}
-                    currentUserEmail={user.email}
-                    workspaceOwnerId={currentWorkspace.ownerId}
-                    onAddTask={handleAddTask}
-                    onToggleTask={handleToggleTask}
-                    onDeleteTask={handleDeleteTask}
-                    onEditTask={handleEditTask}
-                    onAssignTask={handleAssignTask}
-                  />
+                  {taskError ? (
+                    <div className="p-8 text-center" role="alert">
+                      <p className="font-medium">Tasks unavailable</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{taskError}</p>
+                      <Button onClick={() => void refreshTasks()} variant="outline" className="mt-4">
+                        <RefreshCw className="size-4" />
+                        Try again
+                      </Button>
+                    </div>
+                  ) : (
+                    <TaskList
+                      tasks={tasks}
+                      loading={tasksLoading}
+                      members={currentWorkspace.members}
+                      currentUserEmail={user.email}
+                      workspaceOwnerId={currentWorkspace.ownerId}
+                      onAddTask={handleAddTask}
+                      onToggleTask={handleToggleTask}
+                      onDeleteTask={handleDeleteTask}
+                      onEditTask={handleEditTask}
+                      onAssignTask={handleAssignTask}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -375,6 +410,11 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
+
+              <UsageSummary
+                workspaceId={currentWorkspace.id}
+                refreshToken={`${tasks.length}:${tasks.filter((task) => task.completed).length}:${currentWorkspace.members.length}`}
+              />
             </aside>
           </section>
         ) : (
