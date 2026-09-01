@@ -1,19 +1,23 @@
 "use client"
 
-import { useState, useMemo, memo, type ReactNode } from "react"
+import { useState, useMemo, memo, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Circle, Trash2, Plus, Loader2, Users, Edit2, Check, X, Calendar, Flag, Clock, AlertCircle } from "lucide-react"
+import { CheckCircle2, Circle, Trash2, Plus, Loader2, Users, Edit2, X, Calendar, Flag, Clock, AlertCircle } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
-import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { useTaskPermissions } from "@/hooks/usePermissions"
 import type { Member } from "@/app/actions/workspaces"
 import type { TaskStatus } from "@/app/tasks/actions"
+import type { TaskUpdate } from "@/app/tasks/contract"
+import { getMutationError } from "@/lib/mutation-result"
+import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
 
 interface Task {
   id: string
@@ -39,8 +43,7 @@ interface TaskListProps {
   onAddTask: (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string) => Promise<any>
   onToggleTask: (id: string) => Promise<any>
   onDeleteTask: (id: string) => Promise<any>
-  onAssignTask: (taskId: string, memberId: string | null) => Promise<any>
-  onEditTask?: (taskId: string, updates: Partial<Task>) => Promise<any>
+  onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
 }
 
 export const TaskList = memo(function TaskList({
@@ -52,7 +55,6 @@ export const TaskList = memo(function TaskList({
   onAddTask,
   onToggleTask,
   onDeleteTask,
-  onAssignTask,
   onEditTask,
 }: TaskListProps) {
   const [input, setInput] = useState("")
@@ -61,16 +63,15 @@ export const TaskList = memo(function TaskList({
   const [dueDate, setDueDate] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-  const [editingTask, setEditingTask] = useState<Partial<Task>>({})
-  const [editingTitle, setEditingTitle] = useState("")
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [editingDraft, setEditingDraft] = useState<TaskEditorDraft | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [operatingTaskId, setOperatingTaskId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
   const [selectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
   const [selectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
-  const { toast } = useToast()
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -104,25 +105,19 @@ export const TaskList = memo(function TaskList({
 
   const handleAddTask = async () => {
     if (!input.trim()) {
-      toast({ title: "Error", description: "Task title cannot be empty", variant: "destructive" })
       return
     }
 
     setIsAdding(true)
     try {
       const result = await onAddTask(input, description, priority, dueDate || undefined)
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-      } else {
-        toast({ title: "Success", description: "Task added" })
+      if (!getMutationError(result)) {
         setInput("")
         setDescription("")
         setPriority('medium')
         setDueDate("")
         setShowAddForm(false)
       }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to add task", variant: "destructive" })
     } finally {
       setIsAdding(false)
     }
@@ -131,12 +126,7 @@ export const TaskList = memo(function TaskList({
   const handleToggleTask = async (taskId: string) => {
     setOperatingTaskId(taskId)
     try {
-      const result = await onToggleTask(taskId)
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to toggle task", variant: "destructive" })
+      await onToggleTask(taskId)
     } finally {
       setOperatingTaskId(null)
     }
@@ -145,53 +135,65 @@ export const TaskList = memo(function TaskList({
   const handleDeleteTask = async (taskId: string) => {
     setOperatingTaskId(taskId)
     try {
-      const result = await onDeleteTask(taskId)
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-      } else {
-        toast({ title: "Success", description: "Task deleted" })
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to delete task", variant: "destructive" })
+      await onDeleteTask(taskId)
     } finally {
       setDeleteConfirm(null)
       setOperatingTaskId(null)
     }
   }
 
-  const handleEditTask = async (taskId: string, updates?: Partial<Task>) => {
-    const taskUpdates = updates ?? { title: editingTitle }
-    if (!taskUpdates.title?.trim() && !taskUpdates.status) {
-      toast({ title: "Error", description: "Task title cannot be empty", variant: "destructive" })
-      return
-    }
-
+  const handleEditTask = async (taskId: string, taskUpdates: TaskUpdate) => {
     setOperatingTaskId(taskId)
     try {
-      const result = await onEditTask?.(taskId, taskUpdates)
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-      } else {
-        toast({ title: "Success", description: "Task updated" })
-        setEditingTaskId(null)
-        setEditingTitle("")
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to edit task", variant: "destructive" })
+      await onEditTask(taskId, taskUpdates)
     } finally {
       setOperatingTaskId(null)
     }
   }
 
-  const handleAssignTask = async (taskId: string, memberId: string | null) => {
-    setOperatingTaskId(taskId)
+  const openEditor = (task: Task) => {
+    setEditingTask(task)
+    setEditingDraft(toTaskEditorDraft(task))
+    setEditError(null)
+  }
+
+  const closeEditor = () => {
+    if (editingTask && operatingTaskId === editingTask.id) return
+    setEditingTask(null)
+    setEditingDraft(null)
+    setEditError(null)
+  }
+
+  const updateEditingDraft = (changes: Partial<TaskEditorDraft>) => {
+    setEditingDraft((draft) => draft ? { ...draft, ...changes } : draft)
+  }
+
+  const saveEditor = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingTask || !editingDraft) return
+
+    const title = editingDraft.title.trim()
+    if (!title) {
+      setEditError("Task title is required.")
+      return
+    }
+
+    const updates = buildTaskUpdate(editingTask, { ...editingDraft, title })
+    if (Object.keys(updates).length === 0) {
+      closeEditor()
+      return
+    }
+
+    setEditError(null)
+    setOperatingTaskId(editingTask.id)
     try {
-      const result = await onAssignTask(taskId, memberId)
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
+      const result = await onEditTask(editingTask.id, updates)
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        setEditError(mutationError)
+        return
       }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to assign task", variant: "destructive" })
+      closeEditor()
     } finally {
       setOperatingTaskId(null)
     }
@@ -254,18 +256,10 @@ export const TaskList = memo(function TaskList({
       members={members}
       currentUserEmail={currentUserEmail}
       workspaceOwnerId={workspaceOwnerId}
-      editingTaskId={editingTaskId}
-      editingTitle={editingTitle}
       operatingTaskId={operatingTaskId}
       onToggleTask={handleToggleTask}
       onEditTask={handleEditTask}
-      onAssignTask={handleAssignTask}
-      onStartEdit={(nextTask) => {
-        setEditingTaskId(nextTask.id)
-        setEditingTitle(nextTask.title)
-      }}
-      onCancelEdit={() => setEditingTaskId(null)}
-      onEditingTitleChange={setEditingTitle}
+      onStartEdit={openEditor}
       onConfirmDelete={setDeleteConfirm}
     />
   )
@@ -438,6 +432,16 @@ export const TaskList = memo(function TaskList({
         onCancel={() => setDeleteConfirm(null)}
         isLoading={operatingTaskId === deleteConfirm}
       />
+      <TaskEditorDialog
+        task={editingTask}
+        draft={editingDraft}
+        error={editError}
+        isSaving={Boolean(editingTask && operatingTaskId === editingTask.id)}
+        members={members}
+        onDraftChange={updateEditingDraft}
+        onClose={closeEditor}
+        onSubmit={saveEditor}
+      />
     </div>
   )
 })
@@ -472,20 +476,151 @@ function TaskColumn({
   )
 }
 
+function TaskEditorDialog({
+  task,
+  draft,
+  error,
+  isSaving,
+  members,
+  onDraftChange,
+  onClose,
+  onSubmit,
+}: {
+  task: Task | null
+  draft: TaskEditorDraft | null
+  error: string | null
+  isSaving: boolean
+  members: Member[]
+  onDraftChange: (changes: Partial<TaskEditorDraft>) => void
+  onClose: () => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+}) {
+  return (
+    <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto border-[var(--saathi-border-default)] bg-[var(--saathi-surface-default)] text-[#1d1d1f] sm:max-w-xl" showCloseButton={!isSaving}>
+        <DialogHeader>
+          <DialogTitle>Edit task</DialogTitle>
+          <DialogDescription>
+            Update the task details. Changes are shared with your workspace when saved.
+          </DialogDescription>
+        </DialogHeader>
+
+        {task && draft && (
+          <form className="space-y-4" onSubmit={onSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-title">Title</Label>
+              <Input
+                id="task-edit-title"
+                value={draft.title}
+                onChange={(event) => onDraftChange({ title: event.target.value })}
+                disabled={isSaving}
+                maxLength={200}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-description">Description</Label>
+              <Textarea
+                id="task-edit-description"
+                value={draft.description}
+                onChange={(event) => onDraftChange({ description: event.target.value })}
+                disabled={isSaving}
+                maxLength={1000}
+                rows={4}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="task-edit-status">Status</Label>
+                <select
+                  id="task-edit-status"
+                  value={draft.status}
+                  onChange={(event) => onDraftChange({ status: event.target.value as TaskEditorDraft["status"] })}
+                  disabled={isSaving}
+                  className="flex h-9 w-full rounded-[var(--saathi-radius-control)] border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="todo">To do</option>
+                  <option value="in-progress">In progress</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-edit-priority">Priority</Label>
+                <select
+                  id="task-edit-priority"
+                  value={draft.priority}
+                  onChange={(event) => onDraftChange({ priority: event.target.value as TaskEditorDraft["priority"] })}
+                  disabled={isSaving}
+                  className="flex h-9 w-full rounded-[var(--saathi-radius-control)] border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="task-edit-due-date">Due date</Label>
+                <Input
+                  id="task-edit-due-date"
+                  type="date"
+                  value={draft.dueDate}
+                  onChange={(event) => onDraftChange({ dueDate: event.target.value })}
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-edit-assignee">Assignee</Label>
+                <select
+                  id="task-edit-assignee"
+                  value={draft.assigneeEmail}
+                  onChange={(event) => onDraftChange({ assigneeEmail: event.target.value })}
+                  disabled={isSaving}
+                  className="flex h-9 w-full rounded-[var(--saathi-radius-control)] border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Unassigned</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.email}>{member.username}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {error && (
+              <p className="rounded-[var(--saathi-radius-control)] border border-[#ffb3ad] bg-[#fff2f0] px-3 py-2 text-sm text-[#a61b13]" role="alert">
+                {error}. Review the latest task details and try again.
+              </p>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                Save changes
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 interface TaskListItemProps {
   task: Task
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
-  editingTaskId: string | null
-  editingTitle: string
   operatingTaskId: string | null
   onToggleTask: (taskId: string) => Promise<void>
-  onEditTask: (taskId: string, updates?: Partial<Task>) => Promise<void>
-  onAssignTask: (taskId: string, memberId: string | null) => Promise<void>
+  onEditTask: (taskId: string, updates: TaskUpdate) => Promise<void>
   onStartEdit: (task: Task) => void
-  onCancelEdit: () => void
-  onEditingTitleChange: (title: string) => void
   onConfirmDelete: (taskId: string) => void
 }
 
@@ -494,15 +629,10 @@ const TaskListItem = memo(function TaskListItem({
   members,
   currentUserEmail,
   workspaceOwnerId,
-  editingTaskId,
-  editingTitle,
   operatingTaskId,
   onToggleTask,
   onEditTask,
-  onAssignTask,
   onStartEdit,
-  onCancelEdit,
-  onEditingTitleChange,
   onConfirmDelete,
 }: TaskListItemProps) {
   const taskPermissions = useTaskPermissions(
@@ -529,65 +659,36 @@ const TaskListItem = memo(function TaskListItem({
             )}
           </button>
 
-          {editingTaskId === task.id ? (
-            <div className="flex-1 flex gap-2">
-              <Input
-                value={editingTitle}
-                onChange={(e) => onEditingTitleChange(e.target.value)}
-                className="border-border bg-input text-sm text-foreground"
-                autoFocus
-              />
+          <button
+            type="button"
+            disabled={!taskPermissions.canEdit}
+            onClick={() => onStartEdit(task)}
+            className={`flex-1 text-left text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-default ${taskPermissions.canEdit ? "cursor-pointer hover:text-primary" : "cursor-default"} ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"}`}
+          >
+            {task.title}
+          </button>
+          <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200 focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+            {taskPermissions.canEdit && (
               <button
-                onClick={() => onEditTask(task.id)}
-                disabled={operatingTaskId === task.id}
-                aria-label={`Save changes to ${task.title}`}
-                title="Save changes"
-                className="rounded-md p-1 text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+                onClick={() => onStartEdit(task)}
+                aria-label={`Edit ${task.title}`}
+                title="Edit task"
+                className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
-                <Check className="w-4 h-4" />
+                <Edit2 className="w-4 h-4" />
               </button>
+            )}
+            {taskPermissions.canDelete && (
               <button
-                onClick={onCancelEdit}
-                aria-label={`Cancel editing ${task.title}`}
-                title="Cancel editing"
-                className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                onClick={() => onConfirmDelete(task.id)}
+                aria-label={`Delete ${task.title}`}
+                title="Delete task"
+                className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
               >
-                <X className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
               </button>
-            </div>
-          ) : (
-            <>
-              <span
-                className={`flex-1 text-base transition-colors font-medium ${taskPermissions.canEdit ? "cursor-pointer hover:text-primary" : "cursor-default"} ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"
-                  }`}
-                onClick={taskPermissions.canEdit ? () => onStartEdit(task) : undefined}
-              >
-                {task.title}
-              </span>
-              <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200 focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                {taskPermissions.canEdit && (
-                  <button
-                    onClick={() => onStartEdit(task)}
-                    aria-label={`Edit ${task.title}`}
-                    title="Edit task"
-                    className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                )}
-                {taskPermissions.canDelete && (
-                  <button
-                    onClick={() => onConfirmDelete(task.id)}
-                    aria-label={`Delete ${task.title}`}
-                    title="Delete task"
-                    className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
 
         {task.description && (
@@ -602,7 +703,7 @@ const TaskListItem = memo(function TaskListItem({
               <span className="font-medium text-foreground/70">Status</span>
               <select
                 value={task.status ?? (task.completed ? "done" : "todo")}
-                onChange={(event) => onEditTask(task.id, { status: event.target.value as TaskStatus })}
+              onChange={(event) => onEditTask(task.id, { status: event.target.value as TaskStatus })}
                 disabled={operatingTaskId === task.id || !taskPermissions.canEdit}
                 aria-label={`Move ${task.title}`}
                 className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
@@ -637,7 +738,7 @@ const TaskListItem = memo(function TaskListItem({
             <span className="text-sm text-muted-foreground font-medium">Assigned to:</span>
             <select
               value={task.assigneeEmail || ""}
-              onChange={(e) => onAssignTask(task.id, e.target.value || null)}
+              onChange={(e) => onEditTask(task.id, { assigneeEmail: e.target.value || "" })}
               disabled={operatingTaskId === task.id || !taskPermissions.canAssign}
               aria-label={`Assign ${task.title}`}
               className="min-w-0 max-w-full cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"

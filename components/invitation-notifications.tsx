@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Bell, Check, X, Users, Clock } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useNotifications } from "@/hooks/use-notifications"
 import {
     getUserInvitations,
     acceptInvitation,
@@ -22,7 +22,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
-    const { toast } = useToast()
+    const { success, error } = useNotifications()
 
     const loadInvitations = useCallback(async () => {
         try {
@@ -45,22 +45,15 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         setProcessingId(invitation.id)
         try {
             await acceptInvitation(invitation.id)
-            toast({
-                title: "Invitation accepted",
-                description: `You've joined ${invitation.workspaceName}`,
-            })
+            success("Invitation accepted", `You've joined ${invitation.workspaceName}`)
 
             // Remove from local state
             setInvitations(prev => prev.filter(inv => inv.id !== invitation.id))
 
             // Notify parent component to refresh workspaces
             onInvitationAccepted?.()
-        } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message || "Failed to accept invitation",
-                variant: "destructive",
-            })
+        } catch (caughtError: unknown) {
+            error("Unable to accept invitation", caughtError instanceof Error ? caughtError.message : "Failed to accept invitation")
         } finally {
             setProcessingId(null)
         }
@@ -70,19 +63,12 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         setProcessingId(invitation.id)
         try {
             await declineInvitation(invitation.id)
-            toast({
-                title: "Invitation declined",
-                description: `You declined to join ${invitation.workspaceName}`,
-            })
+            success("Invitation declined", `You declined to join ${invitation.workspaceName}`)
 
             // Remove from local state
             setInvitations(prev => prev.filter(inv => inv.id !== invitation.id))
-        } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message || "Failed to decline invitation",
-                variant: "destructive",
-            })
+        } catch (caughtError: unknown) {
+            error("Unable to decline invitation", caughtError instanceof Error ? caughtError.message : "Failed to decline invitation")
         } finally {
             setProcessingId(null)
         }

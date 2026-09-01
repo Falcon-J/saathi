@@ -7,7 +7,7 @@ import { CheckCircle2, Loader2, LockKeyhole, Mail, Radio, UserRound } from "luci
 import { login, signup } from "@/lib/auth-simple"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useToast } from "@/hooks/use-toast"
+import { useNotifications } from "@/hooks/use-notifications"
 import { SaathiLogo } from "@/components/saathi-logo"
 
 interface AuthFormProps {
@@ -22,7 +22,7 @@ const workspaceSignals = [
 
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter()
-  const { toast } = useToast()
+  const { success, error: notifyError } = useNotifications()
 
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
@@ -36,30 +36,18 @@ export function AuthForm({ mode }: AuthFormProps) {
     event.preventDefault()
 
     if (!email.trim() || !password.trim()) {
-      toast({
-        title: "Missing credentials",
-        description: "Email and password are required.",
-        variant: "destructive",
-      })
+      notifyError("Missing credentials", "Email and password are required.")
       return
     }
 
     if (isSignup) {
       if (!username.trim()) {
-        toast({
-          title: "Username required",
-          description: "Add a username so teammates can identify you.",
-          variant: "destructive",
-        })
+        notifyError("Username required", "Add a username so teammates can identify you.")
         return
       }
 
       if (password !== confirmPassword) {
-        toast({
-          title: "Passwords do not match",
-          description: "Confirm your password before creating the account.",
-          variant: "destructive",
-        })
+        notifyError("Passwords do not match", "Confirm your password before creating the account.")
         return
       }
     }
@@ -70,20 +58,19 @@ export function AuthForm({ mode }: AuthFormProps) {
       const result = isSignup ? await signup(email, username, password) : await login(email, password)
 
       if (result.error) {
-        toast({
-          title: "Authentication failed",
-          description: result.error,
-          variant: "destructive",
-        })
+        notifyError(
+          "code" in result && result.code === "service_unavailable" ? "Service unavailable" : "Authentication failed",
+          result.error,
+        )
         return
       }
 
       if (result.success) {
         window.localStorage.setItem("auth-change", Date.now().toString())
-        toast({
-          title: isSignup ? "Account created" : "Signed in",
-          description: isSignup ? "Your Saathi workspace access is ready." : "Welcome back to Saathi.",
-        })
+        success(
+          isSignup ? "Account created" : "Signed in",
+          isSignup ? "Your Saathi workspace access is ready." : "Welcome back to Saathi.",
+        )
 
         setTimeout(() => {
           router.replace("/dashboard")
@@ -91,11 +78,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
     } catch (error) {
       console.error("Auth form error:", error)
-      toast({
-        title: "Authentication failed",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      })
+      notifyError("Authentication failed", "Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }

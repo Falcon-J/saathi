@@ -5,6 +5,7 @@ import { redis } from "./redis"
 import crypto from "crypto"
 import { hashPassword, verifyPassword } from "./passwords"
 import { normalizeEmail } from "./identity"
+import { loadStoredSession } from "./session-boundary"
 
 // Simple session configuration
 const SESSION_DURATION = 24 * 60 * 60 // 24 hours in seconds
@@ -79,6 +80,9 @@ export async function signup(email: string, username: string, password: string) 
     return { success: true, email: normalizedEmail, username: normalizedUsername }
   } catch (error) {
     console.error("[Saathi] Signup error:", error)
+    if (redis.getStatus().type === "unavailable") {
+      return { error: "Saathi's workspace service is temporarily unavailable. Please try again.", code: "service_unavailable" as const }
+    }
     return { error: "Signup failed" }
   }
 }
@@ -164,6 +168,9 @@ export async function login(email: string, password: string) {
     return { success: true, email: normalizedEmail, username: user.username }
   } catch (error) {
     console.error("[Saathi] Login error:", error)
+    if (redis.getStatus().type === "unavailable") {
+      return { error: "Saathi's workspace service is temporarily unavailable. Please try again.", code: "service_unavailable" as const }
+    }
     return { error: "Login failed. Please try again." }
   }
 }
@@ -196,19 +203,13 @@ export async function logout() {
 }
 
 export async function getSession() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("auth-session")?.value
+  try {
+    const cookieStore = await cookies()
+    const sessionId = cookieStore.get("auth-session")?.value
 
-  if (!sessionId) {
+    return loadStoredSession(sessionId, (id) => redis.get(`session:${id}`))
+  } catch (error) {
+    console.error("[Saathi] Session lookup failed:", error)
     return null
   }
-
-  const sessionData = await redis.get(`session:${sessionId}`)
-
-  if (!sessionData) {
-    return null
-  }
-
-  // Parse session data
-  return typeof sessionData === "string" ? JSON.parse(sessionData) : sessionData
 }

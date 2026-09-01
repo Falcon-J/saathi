@@ -12,6 +12,8 @@ import {
 import { useNotifications } from "@/hooks/use-notifications"
 import { useRealtime } from "@/hooks/useRealtime"
 import type { RealtimeEvent } from "@/lib/realtime"
+import type { TaskUpdate } from "@/app/tasks/contract"
+import { normalizeEmail } from "@/lib/identity"
 
 export function useWorkspaces(userEmail?: string) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -307,17 +309,22 @@ export function useWorkspaces(userEmail?: string) {
   )
 
   const handleEditTask = useCallback(
-    async (taskId: string, updates: { title?: string; description?: string; dueDate?: string; priority?: "low" | "medium" | "high"; status?: "todo" | "in-progress" | "done" }) => {
+    async (taskId: string, updates: TaskUpdate) => {
       if (!currentWorkspaceId) return
       const originalTask = tasksRef.current.find((task) => task.id === taskId)
       pendingTaskIdsRef.current.add(taskId)
       try {
         // Optimistic update - update immediately in UI
-        updateTasks((prev) => prev.map(task =>
-          task.id === taskId
-            ? { ...task, ...updates }
-            : task
-        ))
+        updateTasks((prev) => prev.map((task) => {
+          if (task.id !== taskId) return task
+
+          const status = updates.status ?? task.status
+          return {
+            ...task,
+            ...updates,
+            ...(status ? { status, completed: status === "done" } : {}),
+          }
+        }))
 
         const result = await updateTask(taskId, updates, originalTask?.updatedAt)
         if (result.error) {
@@ -386,7 +393,7 @@ export function useWorkspaces(userEmail?: string) {
 
       try {
         await inviteMemberToWorkspace(currentWorkspaceId, email)
-        success("Invitation sent", `Invitation sent to ${email}. They will receive a notification to join the workspace.`)
+        success("Invitation created", `An in-app invitation is waiting for ${email}.`)
         // Note: Member won't be added until they accept the invitation
         // No need to refresh workspaces here
       } catch (error) {
@@ -454,7 +461,7 @@ export function useWorkspaces(userEmail?: string) {
             updateTasks(() => [])
           }
         } else {
-          const isCurrentUser = memberEmail === userEmail
+          const isCurrentUser = normalizeEmail(memberEmail) === normalizeEmail(userEmail)
           success(
             isCurrentUser ? "Left workspace" : "Member removed",
             isCurrentUser ?

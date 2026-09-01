@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from 'react'
+import { normalizeEmail } from '@/lib/identity'
 
 interface Task {
     id: string
@@ -22,9 +23,12 @@ interface UsePermissionsProps {
 
 export function usePermissions({ currentUserEmail, workspace, task }: UsePermissionsProps) {
     return useMemo(() => {
-        const isWorkspaceOwner = workspace ? workspace.ownerId === currentUserEmail : false
-        const isTaskCreator = task ? task.createdBy === currentUserEmail : false
-        const isTaskAssignee = task ? task.assigneeEmail === currentUserEmail : false
+        const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
+        const isWorkspaceOwner = workspace ? normalizeEmail(workspace.ownerId) === normalizedCurrentUserEmail : false
+        const isTaskCreator = task ? normalizeEmail(task.createdBy) === normalizedCurrentUserEmail : false
+        const isTaskAssignee = task?.assigneeEmail
+            ? normalizeEmail(task.assigneeEmail) === normalizedCurrentUserEmail
+            : false
 
         return {
             // Workspace permissions

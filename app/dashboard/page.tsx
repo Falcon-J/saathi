@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import {
   Activity,
   Crown,
-  Home,
   LogOut,
   LayoutGrid,
   RefreshCw,
@@ -20,8 +19,8 @@ import { TaskList } from "@/components/task-list"
 import { TaskImport } from "@/components/task-import"
 import { MemberManager } from "@/components/member-manager"
 import { InvitationNotifications } from "@/components/invitation-notifications"
-import { NotificationCenter } from "@/components/notification-center"
 import { UsageSummary } from "@/components/usage-summary"
+import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +28,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { normalizeEmail } from "@/lib/identity"
+import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
+import type { TaskUpdate } from "@/app/tasks/contract"
 
 type SessionUser = {
   email: string
@@ -90,7 +91,6 @@ export default function Dashboard() {
     toggleTask,
     deleteTask,
     editTask,
-    assignTask,
     addMember,
     removeMember,
     refreshWorkspaces,
@@ -132,14 +132,19 @@ export default function Dashboard() {
   ) => {
     try {
       const result = await addTask(title, description, priority, dueDate)
-      if (result && "error" in result) return result
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        error("Failed to create task", mutationError)
+        return result
+      }
       success("Task created", `"${title}" is now in this workspace.`)
       return result
     } catch (caughtError) {
       const authHandled = await handleAuthError(caughtError)
       if (authHandled) return { error: "Authentication required" }
-      error("Failed to create task", "Please try again or check your connection.")
-      throw caughtError
+      const message = getThrownErrorMessage(caughtError, "Unable to create task. Please try again.")
+      error("Failed to create task", message)
+      return { error: message }
     }
   }
 
@@ -147,27 +152,39 @@ export default function Dashboard() {
     try {
       const task = tasks.find((item) => item.id === id)
       const result = await toggleTask(id)
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        error("Failed to update task", mutationError)
+        return result
+      }
       const status = task?.completed ? "reopened" : "completed"
       success(`Task ${status}`, task ? `"${task.title}" has been ${status}.` : "Task status updated.")
       return result
     } catch (caughtError) {
       const authHandled = await handleAuthError(caughtError)
       if (authHandled) return { error: "Authentication required" }
-      error("Failed to update task", "Please try again or check your connection.")
-      throw caughtError
+      const message = getThrownErrorMessage(caughtError, "Unable to update task. Please try again.")
+      error("Failed to update task", message)
+      return { error: message }
     }
   }
 
-  const handleEditTask = async (id: string, updates: { title?: string; description?: string; dueDate?: string; priority?: "low" | "medium" | "high"; status?: "todo" | "in-progress" | "done" }) => {
+  const handleEditTask = async (id: string, updates: TaskUpdate) => {
     try {
       const result = await editTask(id, updates)
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        error("Failed to update task", mutationError)
+        return result
+      }
       success("Task updated", "The task details are current.")
       return result
     } catch (caughtError) {
       const authHandled = await handleAuthError(caughtError)
       if (authHandled) return { error: "Authentication required" }
-      error("Failed to update task", "Please try again or check your connection.")
-      throw caughtError
+      const message = getThrownErrorMessage(caughtError, "Unable to update task. Please try again.")
+      error("Failed to update task", message)
+      return { error: message }
     }
   }
 
@@ -175,30 +192,19 @@ export default function Dashboard() {
     try {
       const task = tasks.find((item) => item.id === id)
       const result = await deleteTask(id)
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        error("Failed to delete task", mutationError)
+        return result
+      }
       success("Task deleted", task ? `"${task.title}" has been deleted.` : "Task has been deleted.")
       return result
     } catch (caughtError) {
       const authHandled = await handleAuthError(caughtError)
       if (authHandled) return { error: "Authentication required" }
-      error("Failed to delete task", "Please try again or check your connection.")
-      throw caughtError
-    }
-  }
-
-  const handleAssignTask = async (id: string, assigneeEmail: string | null) => {
-    try {
-      const result = await assignTask(id, assigneeEmail || "")
-      const task = tasks.find((item) => item.id === id)
-      const assignee = assigneeEmail
-        ? currentWorkspace?.members.find((member) => normalizeEmail(member.email) === normalizeEmail(assigneeEmail))?.username || assigneeEmail
-        : "Unassigned"
-      success("Task assigned", task ? `"${task.title}" assigned to ${assignee}.` : "Task assignment updated.")
-      return result
-    } catch (caughtError) {
-      const authHandled = await handleAuthError(caughtError)
-      if (authHandled) return { error: "Authentication required" }
-      error("Failed to assign task", "Please try again or check your connection.")
-      throw caughtError
+      const message = getThrownErrorMessage(caughtError, "Unable to delete task. Please try again.")
+      error("Failed to delete task", message)
+      return { error: message }
     }
   }
 
@@ -244,7 +250,6 @@ export default function Dashboard() {
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{user.email}</p>
               </div>
             </div>
-            <NotificationCenter />
             <Button onClick={handleLogout} variant="outline" size="sm" className="rounded-lg">
               <LogOut className="size-4" />
               <span className="hidden sm:inline">Logout</span>
@@ -253,40 +258,14 @@ export default function Dashboard() {
         </div>
       </header>
 
+      <div className="lg:hidden">
+        <DashboardNavigation mode="mobile" hasWorkspace={Boolean(currentWorkspace)} />
+      </div>
+
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-20 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col lg:items-center">
-          <nav aria-label="Workspace navigation" className="flex w-full flex-col items-center gap-2">
-            <a
-              href="#workspace-header"
-              aria-label="Home"
-              aria-current="page"
-              className="flex size-11 items-center justify-center rounded-xl bg-accent text-primary transition-colors"
-            >
-              <Home className="size-5" />
-            </a>
-            <a
-              href="#project-board"
-              aria-label="My work"
-              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <LayoutGrid className="size-5" />
-            </a>
-            <a
-              href="#team-panel"
-              aria-label="Team"
-              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Users className="size-5" />
-            </a>
-          </nav>
+          <DashboardNavigation mode="rail" hasWorkspace={Boolean(currentWorkspace)} />
           <div className="mt-auto flex flex-col items-center gap-3">
-            <a
-              href="#realtime-panel"
-              aria-label="Realtime status"
-              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Activity className="size-5" />
-            </a>
             <Avatar className="size-9 border border-border">
               <AvatarFallback className="bg-secondary text-sm font-semibold text-foreground">
                 {user.username.charAt(0).toUpperCase()}
@@ -316,7 +295,7 @@ export default function Dashboard() {
             </div>
               </section>
             ) : (
-              <section id="workspace-header" className="mb-6">
+              <section id="workspace-header" className="mb-6 scroll-mt-32">
                 <div className="saathi-panel rounded-[var(--saathi-radius-card)] p-5 sm:p-6">
                   <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -353,8 +332,6 @@ export default function Dashboard() {
                   currentWorkspaceId={currentWorkspaceId}
                   onSelectWorkspace={setCurrentWorkspaceId}
                   onCreateWorkspace={createWorkspace}
-                  currentUserEmail={user.email}
-                  onWorkspaceUpdated={refreshWorkspaces}
                 />
               </div>
                 </div>
@@ -364,7 +341,7 @@ export default function Dashboard() {
             {workspaceError ? null : currentWorkspace ? (
               <section className="grid items-start gap-4 xl:grid-cols-12">
             <div className="min-w-0 xl:col-span-9">
-              <Card id="project-board" className="saathi-panel overflow-hidden rounded-[var(--saathi-radius-container)]">
+              <Card id="project-board" className="saathi-panel scroll-mt-32 overflow-hidden rounded-[var(--saathi-radius-container)]">
                 <CardHeader className="border-b border-border bg-transparent">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -410,7 +387,6 @@ export default function Dashboard() {
                       onToggleTask={handleToggleTask}
                       onDeleteTask={handleDeleteTask}
                       onEditTask={handleEditTask}
-                      onAssignTask={handleAssignTask}
                     />
                   )}
                 </CardContent>
@@ -418,7 +394,7 @@ export default function Dashboard() {
             </div>
 
             <aside className="space-y-4 xl:col-span-3">
-              <Card id="team-panel" className="saathi-panel rounded-[var(--saathi-radius-card)]">
+              <Card id="team-panel" className="saathi-panel scroll-mt-32 rounded-[var(--saathi-radius-card)]">
                 <CardHeader className="border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Users className="size-5 text-primary" />
@@ -437,7 +413,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card id="realtime-panel" className="saathi-panel rounded-[var(--saathi-radius-card)]">
+              <Card id="realtime-panel" className="saathi-panel scroll-mt-32 rounded-[var(--saathi-radius-card)]">
                 <CardHeader className="border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Activity className="size-5 text-primary" />

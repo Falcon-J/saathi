@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { ChevronDown, Plus } from "lucide-react"
-import { WorkspaceNameEditor } from "@/components/workspace-name-editor"
 import type { Workspace } from "@/app/actions/workspaces"
 
 interface WorkspaceSwitcherProps {
@@ -13,8 +12,6 @@ interface WorkspaceSwitcherProps {
   currentWorkspaceId: string | null
   onSelectWorkspace: (id: string) => void
   onCreateWorkspace: (name: string) => void
-  currentUserEmail?: string
-  onWorkspaceUpdated?: () => void
 }
 
 export function WorkspaceSwitcher({
@@ -22,8 +19,6 @@ export function WorkspaceSwitcher({
   currentWorkspaceId,
   onSelectWorkspace,
   onCreateWorkspace,
-  currentUserEmail,
-  onWorkspaceUpdated,
 }: WorkspaceSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [newName, setNewName] = useState("")
@@ -55,15 +50,6 @@ export function WorkspaceSwitcher({
           <span className="text-foreground">{currentWorkspace?.name || "Select workspace"}</span>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </Button>
-
-        {currentWorkspace && currentUserEmail && (
-          <WorkspaceNameEditor
-            workspaceId={currentWorkspace.id}
-            currentName={currentWorkspace.name}
-            isOwner={currentWorkspace.ownerId === currentUserEmail}
-            onNameUpdated={onWorkspaceUpdated}
-          />
-        )}
       </div>
 
       {isOpen && (

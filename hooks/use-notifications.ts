@@ -2,8 +2,10 @@
 
 import { useCallback, useMemo } from "react"
 import { useToast } from "./use-toast"
-
-type NotificationType = 'success' | 'error' | 'info' | 'warning'
+import {
+    notificationTypeToToastVariant,
+    type NotificationType,
+} from "./notification-variant"
 
 interface NotificationOptions {
     title: string
@@ -16,22 +18,12 @@ export function useNotifications() {
     const { toast } = useToast()
 
     const notify = useCallback(({ title, description, type = 'info', duration = 5000 }: NotificationOptions) => {
-        // Show toast
         toast({
             title,
             description,
-            variant: type === 'error' ? 'destructive' : 'default',
+            variant: notificationTypeToToastVariant(type),
             duration
         })
-
-        // Add to notification center
-        if (typeof window !== 'undefined' && (window as any).addNotification) {
-            (window as any).addNotification({
-                title,
-                description,
-            type
-            })
-        }
     }, [toast])
 
     const success = useCallback((title: string, description: string) => {

@@ -5,25 +5,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Plus, Users, Loader2 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
-import { useToast } from "@/hooks/use-toast"
 import type { Member } from "@/app/actions/workspaces"
 import { normalizeEmail } from "@/lib/identity"
+import { useNotifications } from "@/hooks/use-notifications"
 
 interface MemberManagerProps {
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
   onAddMember: (emailOrUsername: string) => Promise<any>
-  onRemoveMember: (memberId: string) => Promise<any>
+  onRemoveMember: (memberEmail: string) => Promise<any>
 }
 
 export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember }: MemberManagerProps) {
   const [newMemberInput, setNewMemberInput] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
-  const [operatingMemberId, setOperatingMemberId] = useState<string | null>(null)
+  const [operatingMemberEmail, setOperatingMemberEmail] = useState<string | null>(null)
   const [lastError, setLastError] = useState<string | null>(null)
-  const { toast } = useToast()
+  const { error: notifyError } = useNotifications()
 
   // Check if current user is the workspace owner
   const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
@@ -33,18 +33,14 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
     const email = newMemberInput.trim()
 
     if (!email) {
-      toast({ title: "Error", description: "Email address cannot be empty", variant: "destructive" })
+      notifyError("Email address is required", "Enter a team member's email address.")
       return
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address (e.g., user@example.com)",
-        variant: "destructive"
-      })
+      notifyError("Invalid email", "Enter a valid email address, such as user@example.com.")
       return
     }
 
@@ -53,10 +49,6 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
 
     try {
       await onAddMember(email)
-      toast({
-        title: "Invitation sent",
-        description: `Invitation sent to ${email}. They will receive a notification to join the workspace.`
-      })
       setNewMemberInput("")
       setLastError(null)
     } catch (error) {
@@ -66,44 +58,24 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
       // Store error for retry functionality
       setLastError(errorMessage)
 
-      // Show specific error messages to help user understand what went wrong
-      toast({
-        title: "Failed to send invitation",
-        description: errorMessage,
-        variant: "destructive"
-      })
-
-      // Keep the input so user can correct it
-      // Don't clear newMemberInput on error
     } finally {
       setIsAdding(false)
     }
   }
 
-  const handleRemoveMember = async (memberId: string) => {
-    setOperatingMemberId(memberId)
+  const handleRemoveMember = async (memberEmail: string) => {
+    setOperatingMemberEmail(memberEmail)
     try {
-      const result = await onRemoveMember(memberId)
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-      } else {
-        const isOwnerLeavingAlone = isOwnerLeavingAsOnlyMember(memberId)
-        toast({
-          title: "Success",
-          description: isOwnerLeavingAlone ? "Workspace deleted" : "Member removed"
-        })
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to remove member", variant: "destructive" })
+      await onRemoveMember(memberEmail)
     } finally {
       setRemoveConfirm(null)
-      setOperatingMemberId(null)
+      setOperatingMemberEmail(null)
     }
   }
 
   // Helper functions for confirmation dialog
-  const isOwnerLeavingAsOnlyMember = (memberId: string) => {
-    const member = members.find(m => m.id === memberId)
+  const isOwnerLeavingAsOnlyMember = (memberEmail: string) => {
+    const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(memberEmail))
     return member &&
       normalizeEmail(member.email) === normalizedCurrentUserEmail &&
       member.role === "owner" &&
@@ -132,7 +104,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
       return "You are the only member of this workspace. Leaving will permanently delete the workspace and all its tasks. This action cannot be undone."
     }
 
-    const member = members.find(m => m.id === removeConfirm)
+    const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(removeConfirm))
     const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
 
     if (isCurrentUser) {
@@ -149,7 +121,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
       return "Delete Workspace"
     }
 
-    const member = members.find(m => m.id === removeConfirm)
+    const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(removeConfirm))
     const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
 
     return isCurrentUser ? "Leave Workspace" : "Remove Member"
@@ -186,8 +158,13 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                An invitation will be sent to the user&apos;s email
+                An in-app invitation will appear when they next sign in.
               </p>
+              {lastError && (
+                <p className="rounded-[var(--saathi-radius-control)] border border-[#ffb3ad] bg-[#fff2f0] px-3 py-2 text-xs text-[#a61b13]" role="alert">
+                  {lastError}. Review the email address and try again.
+                </p>
+              )}
             </div>
           )}
 
@@ -213,7 +190,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                   {/* Only show remove button if user has permission */}
                   {canRemoveMember(member) && (
                     <button
-                      onClick={() => setRemoveConfirm(member.id)}
+                      onClick={() => setRemoveConfirm(member.email)}
                       className="text-muted-foreground hover:text-destructive transition-colors"
                       title={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : "Remove member"}
                     >
@@ -235,7 +212,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
         actionLabel={getConfirmationActionLabel()}
         onConfirm={() => removeConfirm && handleRemoveMember(removeConfirm)}
         onCancel={() => setRemoveConfirm(null)}
-        isLoading={operatingMemberId === removeConfirm}
+        isLoading={operatingMemberEmail === removeConfirm}
       />
     </>
   )

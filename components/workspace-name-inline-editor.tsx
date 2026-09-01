@@ -4,14 +4,14 @@ import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Check, X, Edit2 } from "lucide-react"
-import { toast } from "sonner"
 import { updateWorkspaceName } from "@/app/actions/workspaces"
+import { useNotifications } from "@/hooks/use-notifications"
 
 interface WorkspaceNameInlineEditorProps {
     workspaceId: string
     currentName: string
     isOwner: boolean
-    onNameUpdated?: (newName: string) => void
+    onNameUpdated?: () => void
     className?: string
 }
 
@@ -26,6 +26,7 @@ export function WorkspaceNameInlineEditor({
     const [name, setName] = useState(currentName)
     const [isLoading, setIsLoading] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
+    const { success, error } = useNotifications()
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -40,7 +41,7 @@ export function WorkspaceNameInlineEditor({
 
     const handleSave = async () => {
         if (!name.trim()) {
-            toast.error("Workspace name cannot be empty")
+            error("Workspace name is required", "Enter a name before saving.")
             return
         }
 
@@ -53,16 +54,15 @@ export function WorkspaceNameInlineEditor({
 
         try {
             await updateWorkspaceName(workspaceId, name.trim())
-            toast.success("Workspace name updated")
             setIsEditing(false)
+            success("Workspace renamed", "Your workspace name has been updated.")
 
             if (onNameUpdated) {
-                onNameUpdated(name.trim())
+                onNameUpdated()
             }
-        } catch (error) {
-            console.error("Error updating workspace name:", error)
-            toast.error(error instanceof Error ? error.message : "Failed to update workspace name")
-            setName(currentName) // Reset on error
+        } catch (caughtError) {
+            console.error("Error updating workspace name:", caughtError)
+            error("Unable to rename workspace", caughtError instanceof Error ? caughtError.message : "Please try again.")
         } finally {
             setIsLoading(false)
         }
@@ -97,7 +97,6 @@ export function WorkspaceNameInlineEditor({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    onBlur={handleSave}
                     disabled={isLoading}
                     className="h-8 text-sm font-medium"
                     maxLength={100}
@@ -133,7 +132,7 @@ export function WorkspaceNameInlineEditor({
                 size="sm"
                 variant="ghost"
                 onClick={() => setIsEditing(true)}
-                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-6 w-6 p-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
             >
                 <Edit2 className="h-3 w-3" />
             </Button>
