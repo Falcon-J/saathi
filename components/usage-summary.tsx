@@ -41,8 +41,8 @@ export function UsageSummary({ workspaceId, refreshToken }: UsageSummaryProps) {
   }, [loadUsage, refreshToken])
 
   return (
-    <Card className="saathi-panel rounded-2xl border-white/10">
-      <CardHeader className="border-b border-white/10">
+    <Card className="saathi-panel rounded-[var(--saathi-radius-card)] border-border">
+      <CardHeader className="border-b border-border">
         <CardTitle className="flex items-center gap-2 text-lg">
           <BarChart3 className="size-5 text-primary" />
           Usage
@@ -62,19 +62,19 @@ export function UsageSummary({ workspaceId, refreshToken }: UsageSummaryProps) {
           </div>
         ) : usage ? (
           <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-xl border border-white/10 p-3">
+            <div className="rounded-[var(--saathi-radius-card)] border border-border p-3">
               <dt className="text-muted-foreground">Tasks created</dt>
               <dd className="mt-1 text-xl font-semibold">{usage.taskCreated}</dd>
             </div>
-            <div className="rounded-xl border border-white/10 p-3">
+            <div className="rounded-[var(--saathi-radius-card)] border border-border p-3">
               <dt className="text-muted-foreground">Tasks completed</dt>
               <dd className="mt-1 text-xl font-semibold">{usage.taskCompleted}</dd>
             </div>
-            <div className="rounded-xl border border-white/10 p-3">
+            <div className="rounded-[var(--saathi-radius-card)] border border-border p-3">
               <dt className="text-muted-foreground">Members added</dt>
               <dd className="mt-1 text-xl font-semibold">{usage.memberAdded}</dd>
             </div>
-            <div className="rounded-xl border border-white/10 p-3">
+            <div className="rounded-[var(--saathi-radius-card)] border border-border p-3">
               <dt className="text-muted-foreground">Contributors</dt>
               <dd className="mt-1 text-xl font-semibold">{usage.contributors}</dd>
             </div>

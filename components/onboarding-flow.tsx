@@ -66,12 +66,12 @@ export function OnboardingFlow({ isOpen, onClose, currentStep = 'welcome' }: Onb
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleSkip}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={handleSkip}>
       <div
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-2xl mx-4 animate-in fade-in zoom-in-95"
+        className="w-full max-w-2xl animate-in fade-in zoom-in-95"
       >
-        <Card className="p-8 bg-white dark:bg-slate-900">
+        <Card className="border-border bg-card p-6 text-card-foreground shadow-2xl sm:p-8">
           {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex gap-2">
@@ -80,10 +80,10 @@ export function OnboardingFlow({ isOpen, onClose, currentStep = 'welcome' }: Onb
                   key={s.id}
                   className={`h-1 flex-1 rounded-full transition-colors ${
                     completedSteps.includes(s.id)
-                      ? 'bg-green-500'
+                      ? 'bg-[var(--saathi-success)]'
                       : s.id === step
-                      ? 'bg-blue-500'
-                      : 'bg-gray-300'
+                      ? 'bg-primary'
+                      : 'bg-secondary'
                   }`}
                 />
               ))}
@@ -103,7 +103,7 @@ export function OnboardingFlow({ isOpen, onClose, currentStep = 'welcome' }: Onb
           <div className="flex justify-between items-center mt-8 pt-6 border-t">
             <button
               onClick={handleSkip}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              className="text-sm text-muted-foreground hover:text-foreground"
             >
               {step === 'complete' ? 'Close' : 'Skip'}
             </button>
@@ -152,7 +152,7 @@ function WelcomeStep() {
     <div className="text-center space-y-6">
       <div className="space-y-2">
         <h2 className="text-3xl font-bold">Welcome to Saathi</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
+        <p className="text-lg text-muted-foreground">
           Your collaborative task management hub built for real-time team productivity
         </p>
       </div>
@@ -170,7 +170,7 @@ function WelcomeStep() {
         ))}
       </div>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         Let&apos;s get you set up in 4 quick steps
       </p>
     </div>
@@ -182,14 +182,14 @@ function CreateWorkspaceStep({ onClose }: { onClose: () => void }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2">Create Your First Workspace</h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-muted-foreground">
           A workspace is your dedicated space where team members collaborate on tasks together
         </p>
       </div>
 
-      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
-        <h3 className="font-semibold text-blue-900 dark:text-blue-100">How it works:</h3>
-        <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+      <div className="space-y-3 rounded-lg border border-primary/20 bg-accent p-4">
+        <h3 className="font-semibold text-accent-foreground">How it works:</h3>
+        <ul className="space-y-2 text-sm text-accent-foreground">
           <li>✓ Create a workspace for your team or project</li>
           <li>✓ Invite team members to collaborate</li>
           <li>✓ Add tasks and watch them sync in real-time</li>
@@ -197,9 +197,9 @@ function CreateWorkspaceStep({ onClose }: { onClose: () => void }) {
         </ul>
       </div>
 
-      <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
+      <div className="rounded-lg border border-border bg-secondary p-4">
         <p className="text-sm font-medium mb-2">Ready to create your workspace?</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Use the workspace switcher to create your first workspace.
         </p>
       </div>
@@ -219,14 +219,14 @@ function InviteTeamStep({ onClose }: { onClose: () => void }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2">Invite Your Team</h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-muted-foreground">
           Bring your team members into the workspace to enable real-time collaboration
         </p>
       </div>
 
-      <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-4 space-y-3">
-        <h3 className="font-semibold text-purple-900 dark:text-purple-100">Collaboration Features:</h3>
-        <ul className="text-sm text-purple-800 dark:text-purple-200 space-y-2">
+      <div className="space-y-3 rounded-lg border border-primary/20 bg-accent p-4">
+        <h3 className="font-semibold text-accent-foreground">Collaboration Features:</h3>
+        <ul className="space-y-2 text-sm text-accent-foreground">
           <li>✓ Invite team members via email</li>
           <li>✓ See active users in real-time</li>
           <li>✓ Watch tasks update as teammates work</li>
@@ -234,9 +234,9 @@ function InviteTeamStep({ onClose }: { onClose: () => void }) {
         </ul>
       </div>
 
-      <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
+      <div className="rounded-lg border border-border bg-secondary p-4">
         <p className="text-sm font-medium mb-2">You can invite team members anytime!</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Open the Team panel after selecting a workspace.
         </p>
       </div>
@@ -256,14 +256,14 @@ function CreateTaskStep({ onClose }: { onClose: () => void }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2">Create Your First Task</h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-muted-foreground">
           Tasks are the core of Saathi, with real-time synchronization across all devices
         </p>
       </div>
 
-      <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-3">
-        <h3 className="font-semibold text-green-900 dark:text-green-100">Task Features:</h3>
-        <ul className="text-sm text-green-800 dark:text-green-200 space-y-2">
+      <div className="space-y-3 rounded-lg border border-[var(--saathi-success)]/20 bg-[var(--saathi-success)]/10 p-4">
+        <h3 className="font-semibold text-foreground">Task Features:</h3>
+        <ul className="space-y-2 text-sm text-muted-foreground">
           <li>✓ Create tasks with titles and descriptions</li>
           <li>✓ Set priority levels (Low, Medium, High)</li>
           <li>✓ Add due dates and assign to team members</li>
@@ -271,9 +271,9 @@ function CreateTaskStep({ onClose }: { onClose: () => void }) {
         </ul>
       </div>
 
-      <div className="border rounded-lg p-4 bg-gray-50 dark:bg-slate-800">
+      <div className="rounded-lg border border-border bg-secondary p-4">
         <p className="text-sm font-medium mb-2">Real-time Synchronization</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Add a task from the Project Board; changes are delivered through the workspace event stream.
         </p>
       </div>
@@ -297,7 +297,7 @@ function CompleteStep() {
 
       <div className="space-y-2">
         <h2 className="text-3xl font-bold">You&apos;re All Set!</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
+        <p className="text-lg text-muted-foreground">
           Your workspace is ready for real-time collaboration
         </p>
       </div>
@@ -314,7 +314,7 @@ function CompleteStep() {
             style={{
               animation: `fadeIn 0.5s ease-in ${idx * 0.1}s both`
             }}
-            className="text-center p-3 rounded-lg bg-gray-50 dark:bg-slate-800"
+            className="rounded-lg bg-secondary p-3 text-center"
           >
             <div className="text-2xl mb-1">{item.emoji}</div>
             <p className="text-xs font-medium">{item.text}</p>
@@ -322,7 +322,7 @@ function CompleteStep() {
         ))}
       </div>
 
-      <div className="pt-4 text-sm text-gray-600 dark:text-gray-400">
+      <div className="pt-4 text-sm text-muted-foreground">
         <p>Ready to transform how your team works together?</p>
       </div>
 

@@ -3,8 +3,14 @@ import test from "node:test"
 import { hasTaskConflict, normalizeTaskUpdates } from "./contract.ts"
 
 test("normalizes allowed task updates", () => {
-  assert.deepEqual(normalizeTaskUpdates({ title: "  Launch flow  ", priority: "high" }), {
-    updates: { title: "Launch flow", priority: "high" },
+  assert.deepEqual(normalizeTaskUpdates({ title: "  Launch flow  ", priority: "high", status: "in-progress" }), {
+    updates: { title: "Launch flow", priority: "high", status: "in-progress" },
+  })
+})
+
+test("accepts the persisted board status values", () => {
+  assert.deepEqual(normalizeTaskUpdates({ status: "done" }), {
+    updates: { status: "done" },
   })
 })
 

@@ -16,6 +16,7 @@ export interface Task {
     title: string
     description?: string
     completed: boolean
+    status?: 'todo' | 'in-progress' | 'done'
     priority: 'low' | 'medium' | 'high'
     dueDate?: string
     assigneeEmail?: string

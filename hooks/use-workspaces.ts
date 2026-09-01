@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { getTasks, addTask, toggleTask, deleteTask, updateTask, type Task } from "@/app/tasks/actions"
+import { getTasks, addTask, toggleTask, deleteTask, updateTask, type Task, type TaskStatus } from "@/app/tasks/actions"
 import {
   getUserWorkspaces,
   createWorkspace as createWorkspaceAction,
@@ -243,9 +243,10 @@ export function useWorkspaces(userEmail?: string) {
       pendingTaskIdsRef.current.add(taskId)
       try {
         // Optimistic update - toggle immediately in UI
+        const nextStatus: TaskStatus = originalTask?.status === "done" ? "todo" : "done"
         updateTasks((prev) => prev.map(task =>
           task.id === taskId
-            ? { ...task, completed: !task.completed }
+            ? { ...task, status: nextStatus, completed: nextStatus === "done" }
             : task
         ))
 
@@ -306,7 +307,7 @@ export function useWorkspaces(userEmail?: string) {
   )
 
   const handleEditTask = useCallback(
-    async (taskId: string, updates: { title?: string; description?: string; dueDate?: string; priority?: "low" | "medium" | "high" }) => {
+    async (taskId: string, updates: { title?: string; description?: string; dueDate?: string; priority?: "low" | "medium" | "high"; status?: "todo" | "in-progress" | "done" }) => {
       if (!currentWorkspaceId) return
       const originalTask = tasksRef.current.find((task) => task.id === taskId)
       pendingTaskIdsRef.current.add(taskId)

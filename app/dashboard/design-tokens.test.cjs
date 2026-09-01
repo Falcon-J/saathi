@@ -1,0 +1,32 @@
+const { readFileSync } = require("node:fs")
+const { test } = require("node:test")
+const assert = require("node:assert/strict")
+const path = require("node:path")
+
+const globalsCss = readFileSync(path.join(__dirname, "..", "globals.css"), "utf8")
+
+test("dashboard exposes semantic Saathi design tokens", () => {
+  const expectedTokens = {
+    "--saathi-surface-page": "#f5f5f7",
+    "--saathi-surface-default": "#ffffff",
+    "--saathi-surface-navigation": "#ffffff",
+    "--saathi-border-subtle": "#e5e5ea",
+    "--saathi-border-default": "#d2d2d7",
+    "--saathi-brand": "#007aff",
+    "--saathi-info": "#007aff",
+    "--saathi-success": "#34c759",
+    "--saathi-warning": "#ff9f0a",
+    "--saathi-danger": "#ff3b30",
+    "--saathi-radius-label": "0.25rem",
+    "--saathi-radius-control": "0.375rem",
+    "--saathi-radius-card": "0.5rem",
+    "--saathi-radius-container": "0.75rem",
+    "--saathi-type-page-title": "1.5rem",
+    "--saathi-type-label": "0.75rem",
+  }
+
+  for (const [token, value] of Object.entries(expectedTokens)) {
+    const escapedValue = value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")
+    assert.match(globalsCss, new RegExp(`${token}:\\s*${escapedValue}`))
+  }
+})

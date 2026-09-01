@@ -70,6 +70,7 @@ export interface Task {
     title: string
     description?: string
     completed: boolean
+    status?: TaskStatus
     priority: 'low' | 'medium' | 'high'
     dueDate?: string
     assigneeEmail?: string
@@ -79,6 +80,19 @@ export interface Task {
     createdBy: string
     categories?: string[]
     assignedTo?: string
+}
+
+export type TaskStatus = "todo" | "in-progress" | "done"
+
+function normalizeTask(task: Task): Task {
+    const status: TaskStatus = task.status === "todo" || task.status === "in-progress" || task.status === "done"
+        ? task.status
+        : task.completed ? "done" : "todo"
+    return {
+        ...task,
+        status,
+        completed: status === "done",
+    }
 }
 
 // ── Workflow 1: Task Lifecycle (Server Actions) ─────────────────────────────
@@ -135,6 +149,7 @@ export async function addTask(
             title: title.trim(),
             description: description?.trim(),
             completed: false,
+            status: "todo",
             priority,
             dueDate,
             assigneeEmail: normalizedAssigneeEmail,
@@ -196,7 +211,7 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
             return { error: "Task not found" }
         }
 
-        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task
+        const task = normalizeTask(typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task)
         if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
             return { error: "Task changed by another teammate", task }
         }
@@ -212,9 +227,12 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
             }
         }
 
+        const status: TaskStatus = normalizedResult.updates.status ?? task.status ?? (task.completed ? "done" : "todo")
         const updatedTask = {
             ...task,
             ...normalizedResult.updates,
+            status,
+            completed: status === "done",
             updatedAt: new Date().toISOString()
         }
 
@@ -236,6 +254,9 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
         }).catch(error => {
             console.error('[Realtime] Failed to publish task-updated event:', error)
         })
+        if (!task.completed && updatedTask.completed) {
+            void recordUsageEvent(task.workspaceId, session.email, "task-completed")
+        }
 
         revalidatePath('/dashboard')
         return { success: true, task: updatedTask }
@@ -263,7 +284,7 @@ export async function deleteTask(taskId: string, expectedUpdatedAt?: string) {
             return { error: "Task not found" }
         }
 
-        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task
+        const task = normalizeTask(typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task)
         if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
             return { error: "Task changed by another teammate", task }
         }
@@ -314,13 +335,15 @@ export async function toggleTask(taskId: string, expectedUpdatedAt?: string) {
             return { error: "Task not found" }
         }
 
-        const task = typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task
+        const task = normalizeTask(typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task)
         if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
             return { error: "Task changed by another teammate", task }
         }
+        const status: TaskStatus = task.status === "done" ? "todo" : "done"
         const updatedTask = {
             ...task,
-            completed: !task.completed,
+            status,
+            completed: status === "done",
             updatedAt: new Date().toISOString()
         }
 
@@ -377,7 +400,7 @@ export async function getTasks(workspaceId: string) {
             const taskData = await redis.get(taskId)
             if (taskData) {
                 const task = typeof taskData === 'string' ? JSON.parse(taskData) : taskData
-                tasks.push(task)
+                tasks.push(normalizeTask(task))
             }
         })
         await Promise.all(taskPromises)

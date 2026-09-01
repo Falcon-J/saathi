@@ -65,19 +65,19 @@ export function NotificationCenter() {
 
     const getIcon = (type: Notification['type']) => {
         switch (type) {
-            case 'success': return <CheckCircle className="w-4 h-4 text-green-600" />
-            case 'error': return <AlertCircle className="w-4 h-4 text-red-600" />
+            case 'success': return <CheckCircle className="w-4 h-4 text-[var(--saathi-success)]" />
+            case 'error': return <AlertCircle className="w-4 h-4 text-destructive" />
             case 'warning': return <AlertCircle className="w-4 h-4 text-yellow-600" />
-            case 'info': return <Info className="w-4 h-4 text-blue-600" />
+            case 'info': return <Info className="w-4 h-4 text-primary" />
         }
     }
 
     const getTypeColor = (type: Notification['type']) => {
         switch (type) {
-            case 'success': return 'bg-green-500/10 border-green-200'
-            case 'error': return 'bg-red-500/10 border-red-200'
+            case 'success': return 'bg-[color-mix(in_srgb,var(--saathi-success)_10%,transparent)] border-[var(--saathi-success)]/30'
+            case 'error': return 'bg-destructive/10 border-destructive/30'
             case 'warning': return 'bg-yellow-500/10 border-yellow-200'
-            case 'info': return 'bg-blue-500/10 border-blue-200'
+            case 'info': return 'bg-primary/10 border-primary/30'
         }
     }
 

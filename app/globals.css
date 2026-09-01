@@ -140,6 +140,83 @@
 }
 
 @layer components {
+  .saathi-dashboard {
+    --saathi-surface-page: #f5f5f7;
+    --saathi-surface-default: #ffffff;
+    --saathi-surface-navigation: #ffffff;
+    --saathi-surface-subtle: #f2f2f7;
+    --saathi-border-subtle: #e5e5ea;
+    --saathi-border-default: #d2d2d7;
+    --saathi-brand: #007aff;
+    --saathi-info: #007aff;
+    --saathi-success: #34c759;
+    --saathi-warning: #ff9f0a;
+    --saathi-danger: #ff3b30;
+    --saathi-space-1: 0.5rem;
+    --saathi-space-2: 1rem;
+    --saathi-space-3: 1.5rem;
+    --saathi-space-4: 2rem;
+    --saathi-space-6: 3rem;
+    --saathi-radius-label: 0.25rem;
+    --saathi-radius-control: 0.375rem;
+    --saathi-radius-card: 0.5rem;
+    --saathi-radius-container: 0.75rem;
+    --saathi-type-page-title: 1.5rem;
+    --saathi-type-label: 0.75rem;
+    --background: var(--saathi-surface-page);
+    --foreground: #1d1d1f;
+    --card: var(--saathi-surface-default);
+    --card-foreground: #1d1d1f;
+    --popover: var(--saathi-surface-default);
+    --popover-foreground: #1d1d1f;
+    --primary: var(--saathi-brand);
+    --primary-foreground: #ffffff;
+    --secondary: var(--saathi-surface-subtle);
+    --secondary-foreground: #1d1d1f;
+    --muted: var(--saathi-surface-subtle);
+    --muted-foreground: #6e6e73;
+    --accent: #e8f2ff;
+    --accent-foreground: #005ecb;
+    --destructive: var(--saathi-danger);
+    --destructive-foreground: #ffffff;
+    --border: var(--saathi-border-default);
+    --input: var(--saathi-surface-default);
+    --ring: var(--saathi-brand);
+    --sidebar: var(--saathi-surface-navigation);
+    --sidebar-foreground: #1d1d1f;
+    --sidebar-primary: var(--saathi-brand);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--saathi-surface-subtle);
+    --sidebar-accent-foreground: #1d1d1f;
+    --sidebar-border: var(--saathi-border-subtle);
+    --sidebar-ring: var(--saathi-brand);
+    --surface-lowest: var(--saathi-surface-page);
+    --surface-low: var(--saathi-surface-subtle);
+    --surface: var(--saathi-surface-default);
+    --surface-high: var(--saathi-surface-default);
+    --surface-highest: var(--saathi-border-subtle);
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  .saathi-dashboard.saathi-shell {
+    background: var(--background);
+  }
+
+  .saathi-dashboard .saathi-panel {
+    background: var(--card);
+    border-color: var(--border);
+    box-shadow: 0 4px 12px rgb(29 29 31 / 0.06);
+    backdrop-filter: none;
+  }
+
+  .saathi-dashboard .saathi-panel-soft {
+    background: var(--card);
+    border-color: var(--border);
+    backdrop-filter: none;
+  }
+
   .saathi-shell {
     background:
       radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--primary) 9%, transparent) 0, transparent 26rem),
@@ -161,7 +238,7 @@
 
   .saathi-label {
     font-family: var(--font-inter), system-ui, sans-serif;
-    font-size: 0.75rem;
+    font-size: var(--saathi-type-label, 0.75rem);
     font-weight: 500;
     letter-spacing: 0.02em;
     text-transform: uppercase;

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   Activity,
-  Command,
   Crown,
+  Home,
   LogOut,
+  LayoutGrid,
   RefreshCw,
   Users,
 } from "lucide-react"
@@ -27,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { normalizeEmail } from "@/lib/identity"
 
 type SessionUser = {
   email: string
@@ -100,6 +102,9 @@ export default function Dashboard() {
   } = useWorkspaces(user?.email && !loading ? user.email : undefined)
 
   const currentWorkspace = workspaces.find((workspace) => workspace.id === currentWorkspaceId)
+  const isCurrentWorkspaceOwner = currentWorkspace && user
+    ? normalizeEmail(currentWorkspace.ownerId) === normalizeEmail(user.email)
+    : false
 
   const metrics = useMemo(() => {
     const completed = tasks.filter((task) => task.completed).length
@@ -153,7 +158,7 @@ export default function Dashboard() {
     }
   }
 
-  const handleEditTask = async (id: string, updates: any) => {
+  const handleEditTask = async (id: string, updates: { title?: string; description?: string; dueDate?: string; priority?: "low" | "medium" | "high"; status?: "todo" | "in-progress" | "done" }) => {
     try {
       const result = await editTask(id, updates)
       success("Task updated", "The task details are current.")
@@ -185,7 +190,7 @@ export default function Dashboard() {
       const result = await assignTask(id, assigneeEmail || "")
       const task = tasks.find((item) => item.id === id)
       const assignee = assigneeEmail
-        ? currentWorkspace?.members.find((member) => member.email === assigneeEmail)?.username || assigneeEmail
+        ? currentWorkspace?.members.find((member) => normalizeEmail(member.email) === normalizeEmail(assigneeEmail))?.username || assigneeEmail
         : "Unassigned"
       success("Task assigned", task ? `"${task.title}" assigned to ${assignee}.` : "Task assignment updated.")
       return result
@@ -206,7 +211,7 @@ export default function Dashboard() {
 
   if (loading || !user) {
     return (
-      <main className="saathi-shell flex min-h-screen items-center justify-center">
+      <main className="saathi-shell saathi-dashboard flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 size-9 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-muted-foreground">Loading Saathi workspace...</p>
@@ -216,19 +221,19 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="saathi-shell min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <main className="saathi-shell saathi-dashboard min-h-screen">
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <SaathiLogo className="size-10" priority />
-            <div>
-              <h1 className="text-xl font-bold leading-none">Saathi</h1>
-              <p className="saathi-label mt-1 text-muted-foreground">Collaborative task manager</p>
+            <SaathiLogo className="size-9" priority />
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">Collaborative workspace</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-3 rounded-lg border border-border/70 bg-card/70 px-3 py-2 md:flex">
+            <div className="hidden items-center gap-3 rounded-xl border border-border bg-secondary/60 px-3 py-1.5 md:flex">
               <Avatar className="size-8 border border-primary/30">
                 <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                   {user.username.charAt(0).toUpperCase()}
@@ -240,7 +245,7 @@ export default function Dashboard() {
               </div>
             </div>
             <NotificationCenter />
-            <Button onClick={handleLogout} variant="outline" size="sm">
+            <Button onClick={handleLogout} variant="outline" size="sm" className="rounded-lg">
               <LogOut className="size-4" />
               <span className="hidden sm:inline">Logout</span>
             </Button>
@@ -248,11 +253,54 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
-        <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        <aside className="hidden w-20 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col lg:items-center">
+          <nav aria-label="Workspace navigation" className="flex w-full flex-col items-center gap-2">
+            <a
+              href="#workspace-header"
+              aria-label="Home"
+              aria-current="page"
+              className="flex size-11 items-center justify-center rounded-xl bg-accent text-primary transition-colors"
+            >
+              <Home className="size-5" />
+            </a>
+            <a
+              href="#project-board"
+              aria-label="My work"
+              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <LayoutGrid className="size-5" />
+            </a>
+            <a
+              href="#team-panel"
+              aria-label="Team"
+              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Users className="size-5" />
+            </a>
+          </nav>
+          <div className="mt-auto flex flex-col items-center gap-3">
+            <a
+              href="#realtime-panel"
+              aria-label="Realtime status"
+              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Activity className="size-5" />
+            </a>
+            <Avatar className="size-9 border border-border">
+              <AvatarFallback className="bg-secondary text-sm font-semibold text-foreground">
+                {user.username.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </aside>
 
-        {workspaceError ? (
-          <section className="saathi-panel mb-6 rounded-2xl p-8" role="alert">
+        <div className="min-w-0 flex-1">
+          <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
+            <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
+
+            {workspaceError ? (
+              <section className="saathi-panel mb-6 rounded-[var(--saathi-radius-container)] p-8" role="alert">
             <div className="mx-auto max-w-xl text-center">
               <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-destructive/10 text-destructive">
                 <RefreshCw className="size-6" />
@@ -266,22 +314,22 @@ export default function Dashboard() {
                 Try again
               </Button>
             </div>
-          </section>
-        ) : (
-          <section className="mb-6">
-            <div className="saathi-panel relative z-30 rounded-2xl p-5">
-              <div className="mb-5 flex flex-col gap-4 border-b border-border/70 pb-5 md:flex-row md:items-center md:justify-between">
+              </section>
+            ) : (
+              <section id="workspace-header" className="mb-6">
+                <div className="saathi-panel rounded-[var(--saathi-radius-card)] p-5 sm:p-6">
+                  <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
                 <div>
                   {currentWorkspace ? (
                     <WorkspaceNameInlineEditor
                       workspaceId={currentWorkspace.id}
                       currentName={currentWorkspace.name}
-                      isOwner={currentWorkspace.ownerId === user.email}
+                      isOwner={isCurrentWorkspaceOwner}
                       onNameUpdated={refreshWorkspaces}
-                      className="text-3xl font-bold leading-tight"
+                      className="text-[var(--saathi-type-page-title)] font-bold leading-tight"
                     />
                   ) : (
-                    <h2 className="text-3xl font-bold leading-tight">Create your first workspace</h2>
+                    <h2 className="text-[var(--saathi-type-page-title)] font-bold leading-tight">Create your first workspace</h2>
                   )}
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                     A focused board for tasks, ownership, and team access.
@@ -289,7 +337,7 @@ export default function Dashboard() {
                 </div>
 
                 {currentWorkspace && (
-                  <div className="min-w-[180px] rounded-xl border border-white/10 bg-background/35 p-4">
+                  <div className="min-w-[180px] rounded-xl border border-border bg-secondary/60 p-4">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="saathi-label text-muted-foreground">Completion</span>
                       <span className="text-sm text-primary">{metrics.completion}%</span>
@@ -309,30 +357,30 @@ export default function Dashboard() {
                   onWorkspaceUpdated={refreshWorkspaces}
                 />
               </div>
-            </div>
-          </section>
-        )}
+                </div>
+              </section>
+            )}
 
-        {workspaceError ? null : currentWorkspace ? (
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div>
-              <Card id="project-board" className="saathi-panel overflow-hidden rounded-2xl border-white/10">
-                <CardHeader className="border-b border-white/10 bg-transparent">
+            {workspaceError ? null : currentWorkspace ? (
+              <section className="grid items-start gap-4 xl:grid-cols-12">
+            <div className="min-w-0 xl:col-span-9">
+              <Card id="project-board" className="saathi-panel overflow-hidden rounded-[var(--saathi-radius-container)]">
+                <CardHeader className="border-b border-border bg-transparent">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2 text-xl">
-                        <Command className="size-5 text-primary" />
+                        <LayoutGrid className="size-5 text-primary" />
                         Project Board
                       </CardTitle>
                       <CardDescription>{metrics.active} active, {metrics.completed} completed.</CardDescription>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <TaskImport workspaceId={currentWorkspace.id} onImported={refreshTasks} />
-                      <Badge variant="outline" className="w-fit border-white/10 bg-transparent text-muted-foreground">
-                        <span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-primary" : "bg-muted-foreground"}`} />
+                      <Badge variant="outline" className="w-fit border-border bg-card text-muted-foreground">
+                        <span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground"}`} />
                         {realtime.isConnected ? "Live" : "Offline"}
                       </Badge>
-                      {currentWorkspace.ownerId === user.email && (
+                      {isCurrentWorkspaceOwner && (
                         <Badge className="w-fit border-primary/30 bg-primary/10 text-primary">
                           <Crown className="mr-1 size-3" />
                           Owner
@@ -369,9 +417,9 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            <aside className="space-y-6">
-              <Card id="team-panel" className="saathi-panel rounded-2xl border-white/10">
-                <CardHeader className="border-b border-white/10">
+            <aside className="space-y-4 xl:col-span-3">
+              <Card id="team-panel" className="saathi-panel rounded-[var(--saathi-radius-card)]">
+                <CardHeader className="border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Users className="size-5 text-primary" />
                     Team
@@ -389,8 +437,8 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="saathi-panel rounded-2xl border-white/10">
-                <CardHeader className="border-b border-white/10">
+              <Card id="realtime-panel" className="saathi-panel rounded-[var(--saathi-radius-card)]">
+                <CardHeader className="border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Activity className="size-5 text-primary" />
                     Realtime
@@ -398,15 +446,20 @@ export default function Dashboard() {
                   <CardDescription>One persistent stream for this workspace.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4 text-sm">
-                  <div className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2">
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/50 px-3 py-2">
                     <span className="text-muted-foreground">Status</span>
-                    <span className="font-medium text-primary">{realtime.isConnected ? "Connected" : "Waiting"}</span>
+                    <span className={`font-medium ${realtime.isConnected ? "text-[var(--saathi-success)]" : "text-muted-foreground"}`}>
+                      {realtime.isConnected ? "Live" : "Offline"}
+                    </span>
                   </div>
                   {realtime.error && (
-                    <Button onClick={realtime.connect} variant="outline" className="w-full">
-                      <RefreshCw className="size-4" />
-                      Reconnect
-                    </Button>
+                    <div className="space-y-3">
+                      <p className="text-xs leading-5 text-muted-foreground">{realtime.error}</p>
+                      <Button onClick={realtime.connect} variant="outline" className="w-full">
+                        <RefreshCw className="size-4" />
+                        Reconnect
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -416,19 +469,21 @@ export default function Dashboard() {
                 refreshToken={`${tasks.length}:${tasks.filter((task) => task.completed).length}:${currentWorkspace.members.length}`}
               />
             </aside>
-          </section>
-        ) : (
-          <section className="saathi-panel rounded-xl p-10 text-center">
+              </section>
+            ) : (
+              <section className="saathi-panel rounded-[var(--saathi-radius-container)] p-10 text-center">
             <SaathiLogo className="mx-auto mb-5 size-16" />
-            <h2 className="text-3xl font-bold">Start with a workspace</h2>
+            <h2 className="text-[var(--saathi-type-page-title)] font-bold">Start with a workspace</h2>
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
               A workspace gives your team a shared board, member list, permissions, and realtime activity stream.
             </p>
             <Button onClick={() => createWorkspace("Launch Workspace")} className="mt-6" size="lg">
               Create workspace
             </Button>
-          </section>
-        )}
+              </section>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   )

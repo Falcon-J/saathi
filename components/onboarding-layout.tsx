@@ -11,7 +11,7 @@ export function OnboardingLayout({ children }: { children: ReactNode }) {
   const isWorkspaceRoute = pathname === '/dashboard' || pathname.startsWith('/tasks')
 
   return (
-    <>
+    <div className={isWorkspaceRoute ? 'saathi-dashboard min-h-screen' : undefined}>
       {children}
       {isWorkspaceRoute && (
         <OnboardingFlow
@@ -20,6 +20,6 @@ export function OnboardingLayout({ children }: { children: ReactNode }) {
           currentStep={currentStep}
         />
       )}
-    </>
+    </div>
   )
 }

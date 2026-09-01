@@ -10,11 +10,25 @@ function compareStreamIds(left: string, right: string): number {
   return leftSequence - rightSequence
 }
 
+type MockRedisState = {
+  store: Map<string, string>
+  streams: Map<string, Array<{ id: string; fields: Record<string, string> }>>
+}
+
+const mockRedisGlobal = globalThis as typeof globalThis & {
+  __saathiMockRedis?: MockRedisState
+}
+
+const sharedMockRedis: MockRedisState = mockRedisGlobal.__saathiMockRedis ??= {
+  store: new Map(),
+  streams: new Map(),
+}
+
 // Enhanced Redis service with proper error handling, retry logic, and native Streams support
 class RedisService {
   private redis: Redis | null = null
-  private mockStore = new Map<string, string>()
-  private mockStreams = new Map<string, Array<{ id: string; fields: Record<string, string> }>>()
+  private mockStore = sharedMockRedis.store
+  private mockStreams = sharedMockRedis.streams
   private isConnected = false
   private mockStorageEnabled = false
   private maxRetries = 2

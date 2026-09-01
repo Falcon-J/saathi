@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
 import { X, Plus, Users, Loader2 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { useToast } from "@/hooks/use-toast"
 import type { Member } from "@/app/actions/workspaces"
+import { normalizeEmail } from "@/lib/identity"
 
 interface MemberManagerProps {
   members: Member[]
@@ -26,7 +26,8 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
   const { toast } = useToast()
 
   // Check if current user is the workspace owner
-  const isOwner = currentUserEmail === workspaceOwnerId
+  const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
+  const isOwner = normalizedCurrentUserEmail === normalizeEmail(workspaceOwnerId)
 
   const handleAddMember = async () => {
     const email = newMemberInput.trim()
@@ -104,7 +105,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
   const isOwnerLeavingAsOnlyMember = (memberId: string) => {
     const member = members.find(m => m.id === memberId)
     return member &&
-      member.email === currentUserEmail &&
+      normalizeEmail(member.email) === normalizedCurrentUserEmail &&
       member.role === "owner" &&
       members.length === 1
   }
@@ -113,10 +114,10 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
   const canRemoveMember = (member: Member) => {
     // Owner can remove anyone except themselves (unless they're leaving)
     if (isOwner) {
-      return member.email !== currentUserEmail || members.length === 1
+      return normalizeEmail(member.email) !== normalizedCurrentUserEmail || members.length === 1
     }
     // Regular members can only remove themselves (leave workspace)
-    return member.email === currentUserEmail
+    return normalizeEmail(member.email) === normalizedCurrentUserEmail
   }
 
   const getConfirmationTitle = () => {
@@ -132,7 +133,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
     }
 
     const member = members.find(m => m.id === removeConfirm)
-    const isCurrentUser = member && member.email === currentUserEmail
+    const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
 
     if (isCurrentUser) {
       return "Are you sure you want to leave this workspace?"
@@ -149,14 +150,14 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
     }
 
     const member = members.find(m => m.id === removeConfirm)
-    const isCurrentUser = member && member.email === currentUserEmail
+    const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
 
     return isCurrentUser ? "Leave Workspace" : "Remove Member"
   }
 
   return (
     <>
-      <Card className="p-4 bg-card border-border">
+      <div className="p-4">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
@@ -203,8 +204,8 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                       {member.role === "owner" && (
                         <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Owner</span>
                       )}
-                      {member.email === currentUserEmail && (
-                        <span className="text-xs bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded">You</span>
+                      {normalizeEmail(member.email) === normalizedCurrentUserEmail && (
+                        <span className="rounded-[var(--saathi-radius-label)] bg-primary/10 px-1.5 py-0.5 text-xs text-primary">You</span>
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground">{member.email}</span>
@@ -214,7 +215,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                     <button
                       onClick={() => setRemoveConfirm(member.id)}
                       className="text-muted-foreground hover:text-destructive transition-colors"
-                      title={member.email === currentUserEmail ? "Leave workspace" : "Remove member"}
+                      title={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : "Remove member"}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -224,7 +225,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
             )}
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Remove Confirmation */}
       <ConfirmDialog

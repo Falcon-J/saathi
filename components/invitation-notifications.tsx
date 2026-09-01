@@ -136,7 +136,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                                     size="sm"
                                     onClick={() => handleAcceptInvitation(invitation)}
                                     disabled={processingId === invitation.id}
-                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    className="bg-[var(--saathi-success)] text-white hover:bg-[color-mix(in_srgb,var(--saathi-success)_90%,black)]"
                                 >
                                     <Check className="w-4 h-4 mr-1" />
                                     Accept
@@ -146,7 +146,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                                     variant="outline"
                                     onClick={() => handleDeclineInvitation(invitation)}
                                     disabled={processingId === invitation.id}
-                                    className="border-red-200 text-red-600 hover:bg-red-50"
+                                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
                                 >
                                     <X className="w-4 h-4 mr-1" />
                                     Decline

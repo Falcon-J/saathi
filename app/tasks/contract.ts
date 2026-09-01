@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const taskStatusSchema = z.enum(["todo", "in-progress", "done"])
 
 const clearableText = z.string().trim().nullish().transform((value) => value || undefined)
 
@@ -15,6 +16,7 @@ export const taskUpdateSchema = z.object({
     (value) => !value || !Number.isNaN(Date.parse(value)),
     "Task due date is invalid",
   ),
+  status: taskStatusSchema.optional(),
   assigneeEmail: clearableText.refine(
     (value) => !value || (value.length <= 255 && emailPattern.test(value)),
     "Task assignee is invalid",

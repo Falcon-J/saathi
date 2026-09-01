@@ -13,12 +13,14 @@ import { TaskFilter } from "@/components/task-filter"
 import { useToast } from "@/hooks/use-toast"
 import { useTaskPermissions } from "@/hooks/usePermissions"
 import type { Member } from "@/app/actions/workspaces"
+import type { TaskStatus } from "@/app/tasks/actions"
 
 interface Task {
   id: string
   title: string
   description?: string
   completed: boolean
+  status?: TaskStatus
   assigneeEmail?: string
   priority: 'low' | 'medium' | 'high'
   dueDate?: string
@@ -157,15 +159,16 @@ export const TaskList = memo(function TaskList({
     }
   }
 
-  const handleEditTask = async (taskId: string) => {
-    if (!editingTitle?.trim()) {
+  const handleEditTask = async (taskId: string, updates?: Partial<Task>) => {
+    const taskUpdates = updates ?? { title: editingTitle }
+    if (!taskUpdates.title?.trim() && !taskUpdates.status) {
       toast({ title: "Error", description: "Task title cannot be empty", variant: "destructive" })
       return
     }
 
     setOperatingTaskId(taskId)
     try {
-      const result = await onEditTask?.(taskId, { title: editingTitle })
+      const result = await onEditTask?.(taskId, taskUpdates)
       if (result?.error) {
         toast({ title: "Error", description: result.error, variant: "destructive" })
       } else {
@@ -202,10 +205,10 @@ export const TaskList = memo(function TaskList({
 
   const getPriorityColor = (priority: 'low' | 'medium' | 'high') => {
     switch (priority) {
-      case 'high': return 'bg-red-500/10 text-red-700 border-red-300'
-      case 'medium': return 'bg-yellow-500/10 text-yellow-700 border-yellow-300'
-      case 'low': return 'bg-green-500/10 text-green-700 border-green-300'
-      default: return 'bg-gray-500/10 text-gray-700 border-gray-300'
+      case 'high': return 'bg-destructive/10 text-destructive border-destructive/30'
+      case 'medium': return 'bg-[color-mix(in_srgb,var(--saathi-warning)_10%,transparent)] text-[var(--saathi-warning)] border-[var(--saathi-warning)]/30'
+      case 'low': return 'bg-[color-mix(in_srgb,var(--saathi-success)_10%,transparent)] text-[var(--saathi-success)] border-[var(--saathi-success)]/30'
+      default: return 'bg-secondary text-muted-foreground border-border'
     }
   }
 
@@ -239,8 +242,10 @@ export const TaskList = memo(function TaskList({
   }
 
   const completedCount = tasks.filter((t) => t.completed).length
-  const openTasks = filteredTasks.filter((task) => !task.completed)
-  const completedTasks = filteredTasks.filter((task) => task.completed)
+  const getTaskStatus = (task: Task) => task.status ?? (task.completed ? "done" : "todo")
+  const todoTasks = filteredTasks.filter((task) => getTaskStatus(task) === "todo")
+  const inProgressTasks = filteredTasks.filter((task) => getTaskStatus(task) === "in-progress")
+  const completedTasks = filteredTasks.filter((task) => getTaskStatus(task) === "done")
 
   const renderTask = (task: Task) => (
     <TaskListItem
@@ -267,12 +272,11 @@ export const TaskList = memo(function TaskList({
 
   return (
     <div className="space-y-6 p-6">
-      <Card className="border border-white/10 bg-transparent p-5 shadow-none">
+      <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-5 shadow-none">
         {!showAddForm ? (
           <Button
             onClick={() => setShowAddForm(true)}
-            variant="outline"
-            className="w-full border border-dashed border-white/15 py-8 text-primary hover:border-primary/40 hover:bg-primary/5"
+            className="w-full border border-primary bg-primary py-8 text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add New Task
@@ -285,7 +289,7 @@ export const TaskList = memo(function TaskList({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={isAdding}
-                className="flex-1 border-white/10 bg-background/50 text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
+                className="flex-1 border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
               />
               <Button
                 onClick={() => {
@@ -310,7 +314,7 @@ export const TaskList = memo(function TaskList({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isAdding}
-              className="resize-none border-white/10 bg-background/50 text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
+              className="resize-none border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
               rows={2}
             />
 
@@ -322,7 +326,7 @@ export const TaskList = memo(function TaskList({
                 <SelectContent>
                   <SelectItem value="low">
                     <div className="flex items-center gap-2">
-                      <Circle className="w-3 h-3 text-green-600" />
+                      <Circle className="w-3 h-3 text-[var(--saathi-success)]" />
                       Low
                     </div>
                   </SelectItem>
@@ -334,7 +338,7 @@ export const TaskList = memo(function TaskList({
                   </SelectItem>
                   <SelectItem value="high">
                     <div className="flex items-center gap-2">
-                      <AlertCircle className="w-3 h-3 text-red-600" />
+                      <AlertCircle className="w-3 h-3 text-destructive" />
                       High
                     </div>
                   </SelectItem>
@@ -347,7 +351,7 @@ export const TaskList = memo(function TaskList({
                 onChange={(e) => setDueDate(e.target.value)}
                 disabled={isAdding}
                 aria-label="Task due date"
-                className="w-full border-white/10 bg-background/50 focus:border-primary sm:w-40"
+                className="w-full border-border bg-card focus:border-primary sm:w-40"
               />
 
               <Button
@@ -375,7 +379,7 @@ export const TaskList = memo(function TaskList({
         members={members}
       />
 
-      <div className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3">
+      <div className="flex items-center justify-between rounded-[var(--saathi-radius-card)] border border-border px-4 py-3">
         <div className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{tasks.length - completedCount}</span> open
           <span className="mx-2 text-border">/</span>
@@ -389,9 +393,9 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {/* Board */}
-      <div className="grid gap-4 lg:grid-cols-2" aria-label="Task board">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Task board">
         {loading ? (
-          <Card className="border-white/10 bg-transparent p-8 text-center lg:col-span-2">
+          <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-8 text-center md:col-span-2 xl:col-span-3">
             <div className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               <p className="text-muted-foreground">Loading tasks...</p>
@@ -400,14 +404,21 @@ export const TaskList = memo(function TaskList({
         ) : (
           <>
             <TaskColumn
-              title="Open"
-              count={openTasks.length}
-              emptyMessage={tasks.length === 0 ? "No open tasks yet. Add one above." : "No open tasks match these filters."}
+              title="To do"
+              count={todoTasks.length}
+              emptyMessage={tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match these filters."}
             >
-              {openTasks.map(renderTask)}
+              {todoTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
-              title="Completed"
+              title="In progress"
+              count={inProgressTasks.length}
+              emptyMessage="Tasks you are actively working on will appear here."
+            >
+              {inProgressTasks.map(renderTask)}
+            </TaskColumn>
+            <TaskColumn
+              title="Done"
               count={completedTasks.length}
               emptyMessage={tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
             >
@@ -443,16 +454,16 @@ function TaskColumn({
   children: ReactNode
 }) {
   return (
-    <section className="min-h-72 rounded-xl border border-white/10 bg-background/25 p-4" aria-label={`${title} tasks`}>
-      <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+    <section className="min-h-72 rounded-[var(--saathi-radius-container)] border border-border bg-secondary/40 p-4" aria-label={`${title} tasks`}>
+      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
-        <Badge variant="outline" className="border-white/10 bg-transparent text-muted-foreground">
+        <Badge variant="outline" className="border-border bg-card text-muted-foreground">
           {count}
         </Badge>
       </div>
       <div className="space-y-3">
         {count > 0 ? children : (
-          <div className="rounded-lg border border-dashed border-white/10 px-4 py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-[var(--saathi-radius-card)] border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
             {emptyMessage}
           </div>
         )}
@@ -470,7 +481,7 @@ interface TaskListItemProps {
   editingTitle: string
   operatingTaskId: string | null
   onToggleTask: (taskId: string) => Promise<void>
-  onEditTask: (taskId: string) => Promise<void>
+  onEditTask: (taskId: string, updates?: Partial<Task>) => Promise<void>
   onAssignTask: (taskId: string, memberId: string | null) => Promise<void>
   onStartEdit: (task: Task) => void
   onCancelEdit: () => void
@@ -501,7 +512,7 @@ const TaskListItem = memo(function TaskListItem({
   )
 
   return (
-    <Card className="group border border-white/10 bg-transparent p-5 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
+    <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-5 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <button
@@ -512,7 +523,7 @@ const TaskListItem = memo(function TaskListItem({
             className="flex-shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
           >
             {task.completed ? (
-              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <CheckCircle2 className="w-6 h-6 text-[var(--saathi-success)]" />
             ) : (
               <Circle className="w-6 h-6 hover:text-primary" />
             )}
@@ -523,7 +534,7 @@ const TaskListItem = memo(function TaskListItem({
               <Input
                 value={editingTitle}
                 onChange={(e) => onEditingTitleChange(e.target.value)}
-                className="border-white/10 bg-input text-sm text-foreground"
+                className="border-border bg-input text-sm text-foreground"
                 autoFocus
               />
               <button
@@ -585,8 +596,22 @@ const TaskListItem = memo(function TaskListItem({
           </div>
         )}
 
-        <div className="ml-9 space-y-2 border-t border-white/10 pt-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <div className="ml-9 space-y-2 border-t border-border pt-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <span className="font-medium text-foreground/70">Status</span>
+              <select
+                value={task.status ?? (task.completed ? "done" : "todo")}
+                onChange={(event) => onEditTask(task.id, { status: event.target.value as TaskStatus })}
+                disabled={operatingTaskId === task.id || !taskPermissions.canEdit}
+                aria-label={`Move ${task.title}`}
+                className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+              >
+                <option value="todo">To do</option>
+                <option value="in-progress">In progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
             <div className="flex items-center gap-1">
               <Flag className={`w-3 h-3 ${task.priority === 'high' ? 'text-[var(--saathi-danger)]' :
                 task.priority === 'medium' ? 'text-muted-foreground' : 'text-primary'
@@ -615,7 +640,7 @@ const TaskListItem = memo(function TaskListItem({
               onChange={(e) => onAssignTask(task.id, e.target.value || null)}
               disabled={operatingTaskId === task.id || !taskPermissions.canAssign}
               aria-label={`Assign ${task.title}`}
-              className="min-w-0 max-w-full cursor-pointer rounded-lg border border-white/10 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+              className="min-w-0 max-w-full cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
             >
               <option value="">Unassigned</option>
               {members.map((member) => (
