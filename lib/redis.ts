@@ -319,34 +319,14 @@ class RedisService {
   ): Promise<Array<{ id: string; fields: Record<string, string> }>> {
     if (this.isConnected && this.redis) {
       try {
-        return await this.withRetry(async () => {
-          // Upstash REST deployments can reject repeated non-blocking XREAD
-          // polls. XRANGE is supported by the same Redis Streams API and keeps
-          // the cursor semantics explicit for our short polling interval.
-          if (fromId === "$") return []
-          const result = await this.redis!.xrange(streamKey, fromId, "+", count + 1) as any
-
-          if (!result || result.length === 0) return []
-
-          return result.map((entry: any) => {
-            const entryId = entry[0]
-            const fieldsObj = entry[1]
-
-            // Upstash may return fields as an object or as a flat array
-            let fields: Record<string, string> = {}
-            if (Array.isArray(fieldsObj)) {
-              for (let i = 0; i < fieldsObj.length; i += 2) {
-                fields[fieldsObj[i]] = fieldsObj[i + 1]
-              }
-            } else if (typeof fieldsObj === 'object' && fieldsObj !== null) {
-              fields = fieldsObj
-            }
-
-            return { id: entryId, fields }
-          }).filter((entry: { id: string }) => compareStreamIds(entry.id, fromId) > 0).slice(0, count)
-        })
+        // Upstash REST deployments can reject repeated non-blocking XREAD
+        // polls. XRANGE is supported by the same Redis Streams API and keeps
+        // the cursor semantics explicit for our short polling interval.
+        if (fromId === "$") return []
+        const entries = await this.xrange(streamKey, fromId, "+", count + 1)
+        return entries.filter(entry => compareStreamIds(entry.id, fromId) > 0).slice(0, count)
       } catch (error) {
-        console.error(`[Saathi] Redis XREAD failed for stream ${streamKey}:`, error)
+        console.error(`[Saathi] Redis stream poll failed for stream ${streamKey}:`, error)
       }
     }
 
@@ -374,19 +354,29 @@ class RedisService {
       try {
         return await this.withRetry(async () => {
           const result = await this.redis!.xrange(streamKey, start, end, count) as any
-          if (!result || result.length === 0) return []
+          if (!result || (Array.isArray(result) && result.length === 0)) return []
 
-          return result.map((entry: any) => {
-            const entryId = entry[0]
-            const fieldsObj = entry[1]
+          const rawEntries = Array.isArray(result)
+            ? result
+            : Object.entries(result).map(([entryId, fields]) => [entryId, fields])
+
+          return rawEntries.map((entry: any) => {
+            const entryId = entry[0] as string
+            const fieldsObj = entry[1] as Record<string, unknown> | unknown[]
 
             let fields: Record<string, string> = {}
             if (Array.isArray(fieldsObj)) {
               for (let i = 0; i < fieldsObj.length; i += 2) {
-                fields[fieldsObj[i]] = fieldsObj[i + 1]
+                const field = fieldsObj[i]
+                const value = fieldsObj[i + 1]
+                if (typeof field === "string") {
+                  fields[field] = typeof value === "string" ? value : JSON.stringify(value)
+                }
               }
             } else if (typeof fieldsObj === 'object' && fieldsObj !== null) {
-              fields = fieldsObj
+              for (const [field, value] of Object.entries(fieldsObj)) {
+                fields[field] = typeof value === "string" ? value : JSON.stringify(value)
+              }
             }
 
             return { id: entryId, fields }
