@@ -320,17 +320,15 @@ class RedisService {
     if (this.isConnected && this.redis) {
       try {
         return await this.withRetry(async () => {
-          // Upstash SDK signature: xread(key, id, options?)
-          const result = await this.redis!.xread(streamKey, fromId, { count }) as any
+          // Upstash REST deployments can reject repeated non-blocking XREAD
+          // polls. XRANGE is supported by the same Redis Streams API and keeps
+          // the cursor semantics explicit for our short polling interval.
+          if (fromId === "$") return []
+          const result = await this.redis!.xrange(streamKey, fromId, "+", count + 1) as any
 
           if (!result || result.length === 0) return []
 
-          // Response format: [[streamName, [[id, {field: value, ...}], ...]]]
-          const streamData = result[0]
-          if (!streamData || !streamData[1]) return []
-
-          const entries = streamData[1]
-          return entries.map((entry: any) => {
+          return result.map((entry: any) => {
             const entryId = entry[0]
             const fieldsObj = entry[1]
 
@@ -345,7 +343,7 @@ class RedisService {
             }
 
             return { id: entryId, fields }
-          })
+          }).filter((entry: { id: string }) => compareStreamIds(entry.id, fromId) > 0).slice(0, count)
         })
       } catch (error) {
         console.error(`[Saathi] Redis XREAD failed for stream ${streamKey}:`, error)
