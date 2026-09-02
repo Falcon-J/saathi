@@ -30,3 +30,33 @@ export function extractBenchmarkLatency(payload: unknown): number | null {
     ? value.latencyMs
     : null
 }
+
+export function requireLoadTestWorkspaceId(value: string | undefined): string {
+  const workspaceId = value?.trim()
+  if (!workspaceId) {
+    throw new Error("Provide --workspace or LOAD_TEST_WORKSPACE_ID for an existing workspace owned by the benchmark session.")
+  }
+  return workspaceId
+}
+
+type BenchmarkVerdictInput = {
+  connected: number
+  failed: number
+  testEventCount: number
+  testEventsReceived: number
+}
+
+export function evaluateBenchmark({
+  connected,
+  failed,
+  testEventCount,
+  testEventsReceived,
+}: BenchmarkVerdictInput): { passed: boolean; expectedEvents: number } {
+  const expectedEvents = connected * testEventCount
+  return {
+    passed: connected >= 200
+      && failed === 0
+      && testEventsReceived === expectedEvents,
+    expectedEvents,
+  }
+}

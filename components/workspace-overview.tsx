@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarDays, Check, Circle, Clock3, Plus } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, Circle, Clock3, Plus } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ type WorkspaceOverviewProps = {
   loading: boolean
   onToggleTask: (taskId: string) => Promise<unknown>
   onAddTask: (title: string) => Promise<unknown>
+  onOpenBoard: () => void
   title?: React.ReactNode
   commandBar?: React.ReactNode
 }
@@ -65,7 +66,7 @@ function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tas
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onOpenBoard, title, commandBar }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
@@ -133,6 +134,15 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
             <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} />
           </>
         )}
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/35 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">Need task details?</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Edit, assign, schedule, move, search, import, or delete tasks in Board.</p>
+          </div>
+          <Button type="button" variant="outline" onClick={onOpenBoard} className="shrink-0 bg-card">
+            Open Board <ArrowRight className="size-4" />
+          </Button>
+        </div>
         {commandBar}
       </div>
     </section>

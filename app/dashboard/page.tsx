@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Activity, Crown, LayoutGrid, ListChecks, LogOut, RefreshCw, Users } from "lucide-react"
+import { Activity, CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, RefreshCw, Users } from "lucide-react"
 import { applyNaturalLanguageCommand, generateWorkspaceFromIntent } from "@/app/actions/workspace-intent"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
@@ -250,6 +251,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
+                <CircleHelp className="size-5" />
+              </Link>
+            </Button>
             <div className="hidden items-center gap-3 rounded-xl border border-border bg-secondary/60 px-3 py-1.5 md:flex">
               <Avatar className="size-8 border border-primary/30"><AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
               <div className="text-right"><p className="text-sm font-semibold leading-none">{user.username}</p><p className="mt-1 text-xs text-muted-foreground">{user.email}</p></div>
@@ -322,6 +328,7 @@ export default function Dashboard() {
                       loading={tasksLoading}
                       onToggleTask={handleToggleTask}
                       onAddTask={(title) => handleAddTask(title, undefined, "medium", undefined, "today")}
+                      onOpenBoard={() => setWorkspaceView("board")}
                       title={
                         <WorkspaceNameInlineEditor
                           workspaceId={currentWorkspace.id}

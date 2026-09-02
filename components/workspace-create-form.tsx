@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, LoaderCircle } from "lucide-react"
+import Link from "next/link"
+import { ArrowRight, CircleHelp, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -104,6 +105,10 @@ export function WorkspaceCreateForm({ aiEnabled, canCancel, onCancel, onCreate }
             <p>“Plan a Goa trip with my friends”</p>
           </div>
         )}
+
+        <Button asChild variant="ghost" size="sm" className="mt-6 text-muted-foreground">
+          <Link href="/guide"><CircleHelp className="size-4" />New to Saathi? See how it works</Link>
+        </Button>
       </div>
     </section>
   )

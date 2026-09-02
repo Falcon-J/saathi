@@ -1,8 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {
+  evaluateBenchmark,
   extractBenchmarkLatency,
   isLoadTestSecretValid,
+  requireLoadTestWorkspaceId,
 } from "./load-test.ts"
 
 test("accepts the configured load-test secret", () => {
@@ -26,4 +28,33 @@ test("extracts latency only from tagged benchmark events", () => {
     extractBenchmarkLatency({ data: { loadTestId: "event-2" }, latencyMs: -1 }),
     null,
   )
+})
+
+test("requires an explicit workspace ID for authenticated benchmark connections", () => {
+  assert.equal(requireLoadTestWorkspaceId(" workspace-123 "), "workspace-123")
+  assert.throws(() => requireLoadTestWorkspaceId(""), /workspace/i)
+  assert.throws(() => requireLoadTestWorkspaceId("   "), /workspace/i)
+})
+
+test("passes only when 200 authenticated connections receive every tagged event", () => {
+  assert.deepEqual(evaluateBenchmark({
+    connected: 200,
+    failed: 0,
+    testEventCount: 3,
+    testEventsReceived: 600,
+  }), { passed: true, expectedEvents: 600 })
+
+  assert.deepEqual(evaluateBenchmark({
+    connected: 200,
+    failed: 1,
+    testEventCount: 3,
+    testEventsReceived: 600,
+  }), { passed: false, expectedEvents: 600 })
+
+  assert.deepEqual(evaluateBenchmark({
+    connected: 200,
+    failed: 0,
+    testEventCount: 3,
+    testEventsReceived: 599,
+  }), { passed: false, expectedEvents: 600 })
 })

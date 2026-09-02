@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { getSession, logout } from "@/lib/auth-simple"
-import { useOnboarding } from "@/context/onboarding-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { SaathiLogo } from "@/components/saathi-logo"
@@ -27,7 +26,6 @@ export function Header() {
     const [user, setUser] = useState<{ email: string; username: string } | null>(null)
     const router = useRouter()
     const { toast } = useToast()
-    const { openOnboarding } = useOnboarding()
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -105,9 +103,11 @@ export function Header() {
                                     <Settings className="mr-2 h-4 w-4" />
                                     <span>Settings</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={openOnboarding}>
-                                    <HelpCircle className="mr-2 h-4 w-4" />
-                                    <span>Help & Onboarding</span>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/guide">
+                                        <HelpCircle className="mr-2 h-4 w-4" />
+                                        <span>How Saathi works</span>
+                                    </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={handleLogout}>

@@ -4,8 +4,6 @@ import { Inter, Space_Grotesk } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { OnboardingProvider } from "@/context/onboarding-context"
-import { OnboardingLayout } from "@/components/onboarding-layout"
 import "./globals.css"
 
 const inter = Inter({
@@ -19,9 +17,8 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: "Saathi - Collaborative Task Manager",
-  description: "Real-time collaborative task management with Redis Streams and Server-Sent Events",
-  generator: "v0.app",
+  title: "Saathi — Move from intention to action",
+  description: "A focused collaborative workspace for planning what matters and moving it forward together.",
 }
 
 export default function RootLayout({
@@ -38,12 +35,8 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <OnboardingProvider>
-            <OnboardingLayout>
-              {children}
-            </OnboardingLayout>
-            <Toaster />
-          </OnboardingProvider>
+          {children}
+          <Toaster />
           <Analytics />
         </ThemeProvider>
       </body>

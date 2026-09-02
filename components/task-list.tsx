@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Circle, Trash2, Plus, Loader2, Users, Edit2, X, Calendar, Flag, Clock, AlertCircle } from "lucide-react"
+import { CheckCircle2, Circle, Trash2, Plus, Loader2, Users, Edit2, X, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -497,113 +497,116 @@ function TaskEditorDialog({
 }) {
   return (
     <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto border-[var(--saathi-border-default)] bg-[var(--saathi-surface-default)] text-[#1d1d1f] sm:max-w-xl" showCloseButton={!isSaving}>
-        <DialogHeader>
-          <DialogTitle>Edit task</DialogTitle>
-          <DialogDescription>
-            Update the task details. Changes are shared with your workspace when saved.
-          </DialogDescription>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
+        <DialogHeader className="border-b border-border bg-secondary/35 px-5 py-5 pr-12 sm:px-6">
+          <div className="flex items-start gap-3 text-left">
+            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <SquarePen className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl">Edit task</DialogTitle>
+              <DialogDescription className="mt-1 leading-5">
+                Update the details that help your team understand and move this work.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         {task && draft && (
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="task-edit-title">Title</Label>
-              <Input
-                id="task-edit-title"
-                value={draft.title}
-                onChange={(event) => onDraftChange({ title: event.target.value })}
-                disabled={isSaving}
-                maxLength={200}
-                autoFocus
-              />
+          <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+              <section aria-labelledby="task-details-heading" className="space-y-4">
+                <div>
+                  <h3 id="task-details-heading" className="text-sm font-semibold">Task details</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Keep the title specific and add only the context needed to act.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="task-edit-title">Title</Label>
+                  <Input
+                    id="task-edit-title"
+                    value={draft.title}
+                    onChange={(event) => onDraftChange({ title: event.target.value })}
+                    disabled={isSaving}
+                    maxLength={200}
+                    autoFocus
+                    className="h-11 bg-card text-base"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3"><Label htmlFor="task-edit-description">Description</Label><span className="text-xs text-muted-foreground">Optional</span></div>
+                  <Textarea
+                    id="task-edit-description"
+                    value={draft.description}
+                    onChange={(event) => onDraftChange({ description: event.target.value })}
+                    disabled={isSaving}
+                    maxLength={1000}
+                    rows={5}
+                    placeholder="Add useful context, acceptance notes, or a link..."
+                    className="resize-y bg-card"
+                  />
+                </div>
+              </section>
+
+              <section aria-labelledby="task-planning-heading" className="space-y-4 border-t border-border pt-5">
+                <div>
+                  <h3 id="task-planning-heading" className="text-sm font-semibold">Planning &amp; ownership</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Status, priority, timing, and the person responsible.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-status">Status</Label>
+                    <select
+                      id="task-edit-status"
+                      value={draft.status}
+                      onChange={(event) => onDraftChange({ status: event.target.value as TaskEditorDraft["status"] })}
+                      disabled={isSaving}
+                      className="flex h-10 w-full rounded-[var(--saathi-radius-control)] border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="todo">To do</option>
+                      <option value="in-progress">In progress</option>
+                      <option value="done">Done</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-priority">Priority</Label>
+                    <select
+                      id="task-edit-priority"
+                      value={draft.priority}
+                      onChange={(event) => onDraftChange({ priority: event.target.value as TaskEditorDraft["priority"] })}
+                      disabled={isSaving}
+                      className="flex h-10 w-full rounded-[var(--saathi-radius-control)] border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-due-date">Due date</Label>
+                    <Input id="task-edit-due-date" type="date" value={draft.dueDate} onChange={(event) => onDraftChange({ dueDate: event.target.value })} disabled={isSaving} className="h-10 bg-card" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-assignee">Assignee</Label>
+                    <select
+                      id="task-edit-assignee"
+                      value={draft.assigneeEmail}
+                      onChange={(event) => onDraftChange({ assigneeEmail: event.target.value })}
+                      disabled={isSaving}
+                      className="flex h-10 w-full rounded-[var(--saathi-radius-control)] border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Unassigned</option>
+                      {members.map((member) => <option key={member.id} value={member.email}>{member.username}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="task-edit-description">Description</Label>
-              <Textarea
-                id="task-edit-description"
-                value={draft.description}
-                onChange={(event) => onDraftChange({ description: event.target.value })}
-                disabled={isSaving}
-                maxLength={1000}
-                rows={4}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="task-edit-status">Status</Label>
-                <select
-                  id="task-edit-status"
-                  value={draft.status}
-                  onChange={(event) => onDraftChange({ status: event.target.value as TaskEditorDraft["status"] })}
-                  disabled={isSaving}
-                  className="flex h-9 w-full rounded-[var(--saathi-radius-control)] border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="todo">To do</option>
-                  <option value="in-progress">In progress</option>
-                  <option value="done">Done</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-edit-priority">Priority</Label>
-                <select
-                  id="task-edit-priority"
-                  value={draft.priority}
-                  onChange={(event) => onDraftChange({ priority: event.target.value as TaskEditorDraft["priority"] })}
-                  disabled={isSaving}
-                  className="flex h-9 w-full rounded-[var(--saathi-radius-control)] border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="task-edit-due-date">Due date</Label>
-                <Input
-                  id="task-edit-due-date"
-                  type="date"
-                  value={draft.dueDate}
-                  onChange={(event) => onDraftChange({ dueDate: event.target.value })}
-                  disabled={isSaving}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-edit-assignee">Assignee</Label>
-                <select
-                  id="task-edit-assignee"
-                  value={draft.assigneeEmail}
-                  onChange={(event) => onDraftChange({ assigneeEmail: event.target.value })}
-                  disabled={isSaving}
-                  className="flex h-9 w-full rounded-[var(--saathi-radius-control)] border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Unassigned</option>
-                  {members.map((member) => (
-                    <option key={member.id} value={member.email}>{member.username}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {error && (
-              <p className="rounded-[var(--saathi-radius-control)] border border-[#ffb3ad] bg-[#fff2f0] px-3 py-2 text-sm text-[#a61b13]" role="alert">
-                {error}. Review the latest task details and try again.
-              </p>
-            )}
-
-            <DialogFooter>
+            <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-                Save changes
-              </Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>
             </DialogFooter>
           </form>
         )}

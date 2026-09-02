@@ -13,7 +13,11 @@
 
 import http from "http"
 import https from "https"
-import { extractBenchmarkLatency } from "../lib/load-test"
+import {
+  evaluateBenchmark,
+  extractBenchmarkLatency,
+  requireLoadTestWorkspaceId,
+} from "../lib/load-test"
 
 // ── Parse CLI Args ──────────────────────────────────────────────────────────
 const args = process.argv.slice(2)
@@ -25,7 +29,8 @@ function getArg(name: string, fallback: string): string {
 const TARGET_CONNECTIONS = parseInt(getArg("connections", "250"))
 const DURATION_SECONDS = parseInt(getArg("duration", "30"))
 const BASE_URL = getArg("url", "http://localhost:3000")
-const WORKSPACE_ID = "loadtest-workspace"
+const WORKSPACE_ID_INPUT = getArg("workspace", process.env.LOAD_TEST_WORKSPACE_ID || "")
+let workspaceId = ""
 const AUTH_COOKIE = getArg("cookie", process.env.LOAD_TEST_COOKIE || "")
 const LOAD_TEST_SECRET = getArg("secret", process.env.LOAD_TEST_SECRET || "")
 const PUBLISH_URL = getArg("publish-url", `${BASE_URL}/api/realtime/load-test`)
@@ -67,7 +72,7 @@ function openSSE(connectionId: number): Promise<http.IncomingMessage | null> {
     const startTime = Date.now()
     metrics.attempted++
 
-    const url = `${BASE_URL}/api/realtime?workspaceId=${WORKSPACE_ID}`
+    const url = `${BASE_URL}/api/realtime?workspaceId=${encodeURIComponent(workspaceId)}`
     const client = url.startsWith("https") ? https : http
 
     const req = client.get(url, {
@@ -150,7 +155,7 @@ async function publishTestEvent(eventId: string): Promise<void> {
       "Content-Type": "application/json",
       "x-load-test-secret": LOAD_TEST_SECRET,
     },
-    body: JSON.stringify({ workspaceId: WORKSPACE_ID, eventId }),
+    body: JSON.stringify({ workspaceId, eventId }),
   })
 
   if (!response.ok) {
@@ -160,6 +165,8 @@ async function publishTestEvent(eventId: string): Promise<void> {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
+  workspaceId = requireLoadTestWorkspaceId(WORKSPACE_ID_INPUT)
+
   if (!AUTH_COOKIE) {
     throw new Error("Provide --cookie 'auth-session=...' or LOAD_TEST_COOKIE")
   }
@@ -178,7 +185,7 @@ async function main() {
   console.log(`  Target connections: ${TARGET_CONNECTIONS}`)
   console.log(`  Duration:           ${DURATION_SECONDS}s`)
   console.log(`  URL:                ${BASE_URL}`)
-  console.log(`  Workspace:          ${WORKSPACE_ID}`)
+  console.log(`  Workspace:          ${workspaceId}`)
   console.log(`  Test events:        ${TEST_EVENT_COUNT}`)
   console.log("───────────────────────────────────────────────────────────")
   console.log()
@@ -276,9 +283,13 @@ async function main() {
   }
 
   // Verdict
-  const expectedEvents = metrics.connected * TEST_EVENT_COUNT
-  const passed = metrics.connected >= 200
-    && metrics.testEventsReceived >= expectedEvents
+  const { passed, expectedEvents } = evaluateBenchmark({
+    connected: metrics.connected,
+    failed: metrics.failed,
+    testEventCount: TEST_EVENT_COUNT,
+    testEventsReceived: metrics.testEventsReceived,
+  })
+  console.log(`  Expected events:        ${expectedEvents}`)
   console.log("───────────────────────────────────────────────────────────")
   console.log(passed
     ? `  ✅ PASS — ${metrics.connected} concurrent SSE connections sustained`

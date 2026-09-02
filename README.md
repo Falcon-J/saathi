@@ -1,6 +1,6 @@
-# Saathi — Collaborative Task Manager
+# Saathi — Outcome-driven collaborative workspace
 
-> **Real-time task management powered by Redis Streams and Server-Sent Events**
+> **Move from intention to action, together.**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://typescriptlang.org)
@@ -11,12 +11,15 @@
 
 ## Highlights
 
+- **Execution-first Overview** that separates Today, Next, and Completed work
+- **Detailed Board** for status, priority, due dates, assignment, filtering, and CSV import
+- **Optional Groq assistant** for bounded workspace planning and single safe task changes
 - **Event-driven backend** using native Redis Streams (`XADD`/`XREAD`) with cursor-based SSE consumers
 - **Per-event real-time latency instrumentation** via Server-Sent Events
 - **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
 - **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
 - **Durable usage counters** for task creation/completion, member growth, and unique contributors
-- **Stateless server layer** — horizontally scalable, deploys to Vercel edge network
+- **Stateless server layer** designed for serverless deployment with Redis-backed authority
 
 ---
 
@@ -114,12 +117,7 @@ The app runs with an in-memory mock Redis by default — no external services re
 
 Visit [http://localhost:3000](http://localhost:3000)
 
-### Register or use the demo account
-
-| Field | Value |
-|---|---|
-| Email | `demo@saathi.build` |
-| Password | `demo` |
+Register a local account from the sign-up page. Development data stays in the in-memory mock Redis store when Redis credentials are not configured.
 
 ---
 
@@ -135,6 +133,11 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 # Optional — defaults work for local dev
 NEXTAUTH_SECRET=your-secure-random-secret
 NEXTAUTH_URL=http://localhost:3000
+
+# Optional AI workspace assistant — keep disabled until configured and verified
+NEXT_PUBLIC_ENABLE_AI_WORKSPACE=false
+GROQ_API_KEY=your-server-only-groq-key
+GROQ_MODEL=openai/gpt-oss-20b
 ```
 
 Get free Upstash Redis credentials at [upstash.com](https://upstash.com) — the free tier is sufficient.
@@ -148,8 +151,9 @@ Get free Upstash Redis credentials at [upstash.com](https://upstash.com) — the
 git push origin main
 
 # 2. Import at vercel.com/new
-# 3. Add environment variables (UPSTASH_REDIS_REST_URL + TOKEN)
-# 4. Deploy
+# 3. Add Redis and authentication environment variables
+# 4. Optionally add the Groq variables and enable the AI feature flag
+# 5. Deploy
 ```
 
 ---
@@ -163,6 +167,7 @@ saathi/
 │   ├── api/realtime/    # SSE endpoint (GET /api/realtime)
 │   ├── actions/         # Server Actions: workspaces, invitations
 │   ├── dashboard/       # Main workspace dashboard
+│   ├── guide/           # Permanent product and assistant guide
 │   └── tasks/           # Task actions + stream page
 ├── components/          # React UI components (shadcn/ui based)
 ├── hooks/
@@ -182,15 +187,28 @@ saathi/
 
 The authenticated local load test opens concurrent SSE connections, publishes tagged events through a development-only endpoint, and reports p50/p95/p99 connection and event-delivery latency.
 
-Set `LOAD_TEST_SECRET` in `.env.local`, log in to the local app, and pass the resulting `auth-session` cookie without committing it:
+Set a process-scoped publisher secret, log in to the local app, and pass both the resulting `auth-session` cookie and the ID of a disposable workspace that belongs to that session. Do not commit any of these values:
 
 ```bash
 $env:LOAD_TEST_COOKIE = "auth-session=..."
 $env:LOAD_TEST_SECRET = "your-local-secret"
+$env:LOAD_TEST_WORKSPACE_ID = "your-disposable-workspace-id"
 npm run load-test -- --connections 250 --duration 30 --events 3 --url http://localhost:3000
 ```
 
-The test exits `0` only when at least 200 connections succeed and every generated event is received by every connected client. The publisher endpoint is available only when `NODE_ENV=development` and `LOAD_TEST_SECRET` is configured.
+The test exits `0` only when at least 200 authenticated connections succeed with no connection failures and every generated event is received by every connected client. The publisher endpoint is available only when `NODE_ENV=development` and `LOAD_TEST_SECRET` is configured.
+
+---
+
+## Optional Groq Verification
+
+Groq remains off unless `NEXT_PUBLIC_ENABLE_AI_WORKSPACE=true` is deliberately configured. Before enabling it, set `GROQ_API_KEY` only in the process or deployment environment and run:
+
+```bash
+npm run verify:groq
+```
+
+The verifier uses synthetic, non-personal prompts and prints only date, model, case name, outcome class, local validation result, and latency. It does not print the key, prompt, cookies, email addresses, or raw provider payloads. The live matrix covers workspace planning and every supported command; deterministic tests cover missing keys, malformed output, refusals, unavailable responses, and rate-limit handling. Verification does not enable the feature flag. See Groq's official [Structured Outputs](https://console.groq.com/docs/structured-outputs) and [rate limits](https://console.groq.com/docs/rate-limits) documentation before selecting or changing the model.
 
 ---
 
@@ -204,6 +222,27 @@ Pub/Sub messages are lost if no subscriber is active. Streams are a persistent, 
 
 **Why polling instead of blocking XREAD?**
 Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. The route polls every 100ms; actual delivery latency must be measured with the authenticated load test and depends on Redis, network, and runtime conditions.
+
+---
+
+## Release gates
+
+- [x] Replace first-visit slideshow onboarding with a permanent product guide.
+- [x] Keep Overview focused on quick add and complete/reopen, with Board as the explicit detailed-control surface.
+- [ ] Run the optional Groq assistant against a real key; keep it disabled until the sanitized live matrix passes.
+- [ ] Deploy the current release candidate; the public `/guide` route currently returns 404, proving the live deployment is behind this checkout.
+- [ ] Validate the deployed Vercel environment, Redis persistence, authentication, SSE recovery, two-user collaboration, mobile layout, and deployment logs.
+- [ ] Run the authenticated concurrency benchmark and record reproducible p50/p95/p99 evidence before using numeric resume claims.
+
+The permanent `/guide` page documents current assistant capabilities and limits. The AI feature remains off by default.
+
+### Resume wording
+
+Use architecture claims now:
+
+> Built a collaborative task manager with Next.js, TypeScript, Redis Streams, and authenticated Server-Sent Events; centralized workspace authorization and added optimistic task workflows with reconnect handling.
+
+Add measured numbers only after the benchmark evidence is captured. A passing controlled local run can support “validated 200+ concurrent authenticated SSE connections in local testing” plus the measured p50/p95/p99 values. It cannot support a universal production-capacity or fixed-latency claim.
 
 ---
 
