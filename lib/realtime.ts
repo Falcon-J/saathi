@@ -93,6 +93,17 @@ export class RealtimeService {
         }
     }
 
+    async getLatestStreamId(workspaceId: string): Promise<string | null> {
+        try {
+            const streamKey = `${this.eventStreamPrefix}${workspaceId}`
+            const latestEntry = await streamService.getLatestEntry(streamKey)
+            return latestEntry?.id ?? null
+        } catch (error) {
+            console.error('[Realtime] Failed to get latest stream ID:', error)
+            return null
+        }
+    }
+
     /**
      * Read new events after a given stream ID.
      * Used by the SSE route for efficient polling.

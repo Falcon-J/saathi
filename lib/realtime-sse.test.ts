@@ -3,7 +3,20 @@ import test from "node:test"
 import {
   authorizeWorkspaceSubscription,
   createSingleFlightPoll,
+  getInitialStreamCursor,
 } from "./realtime-sse.ts"
+
+test("uses the latest Redis stream ID for a new SSE connection", () => {
+  assert.equal(getInitialStreamCursor(null, "1788342660000-3"), "1788342660000-3")
+})
+
+test("preserves the browser cursor when reconnecting", () => {
+  assert.equal(getInitialStreamCursor("1788342660100-1", "1788342660000-3"), "1788342660100-1")
+})
+
+test("starts from the beginning when the workspace stream is empty", () => {
+  assert.equal(getInitialStreamCursor(null, null), "0-0")
+})
 
 test("rejects an authenticated user who is not a workspace member", () => {
   const result = authorizeWorkspaceSubscription(
