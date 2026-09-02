@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SSEEvent } from '@/lib/types'
 
 export function useSSE(url: string, options?: {
@@ -12,8 +12,13 @@ export function useSSE(url: string, options?: {
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const eventSourceRef = useRef<EventSource | null>(null)
+    const optionsRef = useRef(options)
 
-    const connect = () => {
+    useEffect(() => {
+        optionsRef.current = options
+    }, [options])
+
+    const connect = useCallback(() => {
         try {
             // Close existing connection
             if (eventSourceRef.current) {
@@ -27,13 +32,13 @@ export function useSSE(url: string, options?: {
                 console.log('SSE connection opened')
                 setIsConnected(true)
                 setError(null)
-                options?.onOpen?.()
+                optionsRef.current?.onOpen?.()
             }
 
             eventSource.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data) as SSEEvent
-                    options?.onMessage?.(data)
+                    optionsRef.current?.onMessage?.(data)
                 } catch (err) {
                     console.error('Failed to parse SSE message:', err)
                 }
@@ -43,23 +48,23 @@ export function useSSE(url: string, options?: {
                 console.error('SSE connection error:', event)
                 setIsConnected(false)
                 setError('Connection lost')
-                options?.onError?.(event)
+                optionsRef.current?.onError?.(event)
             }
 
         } catch (err) {
             console.error('Failed to create SSE connection:', err)
             setError('Failed to connect')
         }
-    }
+    }, [url])
 
-    const disconnect = () => {
+    const disconnect = useCallback(() => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close()
             eventSourceRef.current = null
         }
 
         setIsConnected(false)
-    }
+    }, [])
 
     useEffect(() => {
         connect()
@@ -67,7 +72,7 @@ export function useSSE(url: string, options?: {
         return () => {
             disconnect()
         }
-    }, [url])
+    }, [connect, disconnect])
 
     return {
         isConnected,

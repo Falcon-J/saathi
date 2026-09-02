@@ -30,3 +30,22 @@ test("dashboard exposes semantic Saathi design tokens", () => {
     assert.match(globalsCss, new RegExp(`${token}:\\s*${escapedValue}`))
   }
 })
+
+test("shared Saathi tokens provide the approved light system", () => {
+  const rootBlock = globalsCss.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1]
+
+  assert.ok(rootBlock, "expected a :root token block")
+
+  const expectedTokens = {
+    "--background": "#f5f5f7",
+    "--foreground": "#1d1d1f",
+    "--primary": "#007aff",
+    "--saathi-success": "#34c759",
+    "--saathi-danger": "#ff3b30",
+  }
+
+  for (const [token, value] of Object.entries(expectedTokens)) {
+    const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    assert.match(rootBlock, new RegExp(`${token}:\\s*${escapedValue}`))
+  }
+})

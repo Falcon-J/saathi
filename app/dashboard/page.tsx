@@ -367,6 +367,15 @@ export default function Dashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
+                  {realtime.error && (
+                    <div role="status" className="flex flex-col gap-3 border-b border-[color-mix(in_srgb,var(--saathi-warning)_45%,var(--border))] bg-[color-mix(in_srgb,var(--saathi-warning)_12%,var(--card))] px-5 py-4 text-sm text-[#8a4b00] sm:flex-row sm:items-center sm:justify-between">
+                      <span>Updates are paused. Reconnect to continue.</span>
+                      <Button onClick={realtime.connect} variant="outline" size="sm" className="w-fit border-[var(--saathi-warning)] bg-card text-[#8a4b00] hover:bg-card">
+                        <RefreshCw className="size-4" />
+                        Reconnect
+                      </Button>
+                    </div>
+                  )}
                   {taskError ? (
                     <div className="p-8 text-center" role="alert">
                       <p className="font-medium">Tasks unavailable</p>
@@ -417,9 +426,9 @@ export default function Dashboard() {
                 <CardHeader className="border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Activity className="size-5 text-primary" />
-                    Realtime
+                    Connection
                   </CardTitle>
-                  <CardDescription>One persistent stream for this workspace.</CardDescription>
+                  <CardDescription>Keep workspace updates in sync.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4 text-sm">
                   <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/50 px-3 py-2">

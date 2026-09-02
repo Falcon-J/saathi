@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Plus, Users, Loader2 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Member } from "@/app/actions/workspaces"
 import { normalizeEmail } from "@/lib/identity"
-import { useNotifications } from "@/hooks/use-notifications"
 
 interface MemberManagerProps {
   members: Member[]
@@ -23,7 +22,6 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
   const [operatingMemberEmail, setOperatingMemberEmail] = useState<string | null>(null)
   const [lastError, setLastError] = useState<string | null>(null)
-  const { error: notifyError } = useNotifications()
 
   // Check if current user is the workspace owner
   const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
@@ -33,14 +31,14 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
     const email = newMemberInput.trim()
 
     if (!email) {
-      notifyError("Email address is required", "Enter a team member's email address.")
+      setLastError("Enter a team member's email address.")
       return
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      notifyError("Invalid email", "Enter a valid email address, such as user@example.com.")
+      setLastError("Enter a valid email address, such as user@example.com.")
       return
     }
 

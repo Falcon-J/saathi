@@ -1,5 +1,5 @@
-import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { SaathiLogoMark } from "@/components/saathi-logo-mark"
 
 interface SaathiLogoProps {
   className?: string
@@ -8,21 +8,18 @@ interface SaathiLogoProps {
 }
 
 export function SaathiLogo({ className, imageClassName, priority = false }: SaathiLogoProps) {
+  void priority
+
   return (
     <div
+      role="img"
+      aria-label="Saathi logo"
       className={cn(
-        "relative isolate flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/30 bg-[var(--surface-low)] shadow-[0_0_28px_rgb(78_222_163/0.14)]",
+        "flex shrink-0 items-center justify-center rounded-[var(--saathi-radius-card)] border border-[color-mix(in_srgb,var(--saathi-success)_32%,var(--border))] bg-[color-mix(in_srgb,var(--saathi-success)_10%,var(--card))] p-1.5 text-[var(--saathi-success)]",
         className,
       )}
-      >
-      <Image
-        src="/saathi-logo-mark.png"
-        alt="Saathi logo"
-        fill
-        priority={priority}
-        sizes="96px"
-        className={cn("object-cover", imageClassName)}
-      />
+    >
+      <SaathiLogoMark className={imageClassName} />
     </div>
   )
 }

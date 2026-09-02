@@ -53,7 +53,7 @@ function getAuthToken() {
 }
 
 // Main test function
-export default function (data) {
+export default function runLoadScenario() {
   const userId = `user-${__VU}-${__ITER}`;
   
   group('Authentication', function () {
