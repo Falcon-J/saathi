@@ -4,7 +4,7 @@
 
 This record covers the approved non-logo release slice: onboarding/guide cleanup, task-editor UX, Overview/Board ownership, optional Groq verification, authenticated SSE benchmark readiness, and current deployment drift.
 
-Commit under test: `b1bee1c` plus the unstaged local release changes. This is not a deployed release candidate.
+Commit under test: `c203f2d`. This release candidate is deployed on Vercel.
 
 ## Product contract
 
@@ -17,11 +17,11 @@ Commit under test: `b1bee1c` plus the unstaged local release changes. This is no
 
 Read-only browser verification on 2026-09-02:
 
-- `https://saathi-ten.vercel.app/` loads the current public landing page.
-- `https://saathi-ten.vercel.app/guide` returns 404.
-- The authenticated live dashboard still shows the older task editor.
+- Vercel reports deployment `c203f2d` as Ready and Current for the Production environment.
+- `https://saathi-ten.vercel.app/` loads the public landing page.
+- `https://saathi-ten.vercel.app/guide` loads the permanent guide page.
 
-Conclusion: the live deployment is behind this local checkout. Auth, CRUD, SSE recovery, two-user collaboration, mobile, environment, and log validation must be repeated after an approved release candidate is committed, pushed, and deployed.
+Conclusion: the approved release candidate is deployed. Auth, CRUD, SSE recovery, two-user collaboration, mobile, environment-variable shape, and deployment-log validation remain to be executed against disposable production test data.
 
 No live account was created and no live workspace data was changed during this check.
 
@@ -77,5 +77,4 @@ Not production-ready yet. Remaining external gates:
 
 1. configure and run the real Groq matrix, or keep AI disabled;
 2. run the authenticated local benchmark with disposable credentials and record output;
-3. commit, push, and deploy the release candidate after explicit authorization;
-4. execute live auth, persistence, full CRUD, reconnect, two-user, mobile, environment-shape, and deployment-log checks against that deployment.
+3. execute live auth, persistence, full CRUD, reconnect, two-user, mobile, environment-shape, and deployment-log checks against the deployed release.

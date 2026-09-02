@@ -230,7 +230,7 @@ Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported.
 - [x] Replace first-visit slideshow onboarding with a permanent product guide.
 - [x] Keep Overview focused on quick add and complete/reopen, with Board as the explicit detailed-control surface.
 - [ ] Run the optional Groq assistant against a real key; keep it disabled until the sanitized live matrix passes.
-- [ ] Deploy the current release candidate; the public `/guide` route currently returns 404, proving the live deployment is behind this checkout.
+- [x] Deploy the current release candidate; Vercel reports `c203f2d` Ready/Current and the public `/guide` route loads.
 - [ ] Validate the deployed Vercel environment, Redis persistence, authentication, SSE recovery, two-user collaboration, mobile layout, and deployment logs.
 - [ ] Run the authenticated concurrency benchmark and record reproducible p50/p95/p99 evidence before using numeric resume claims.
 
