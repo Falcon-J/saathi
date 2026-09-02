@@ -108,6 +108,7 @@ export function WorkspaceNameInlineEditor({
                         onClick={handleSave}
                         disabled={isLoading || !name.trim()}
                         className="h-8 w-8 p-0"
+                        aria-label="Save workspace name"
                     >
                         <Check className="h-3 w-3" />
                     </Button>
@@ -117,6 +118,7 @@ export function WorkspaceNameInlineEditor({
                         onClick={handleCancel}
                         disabled={isLoading}
                         className="h-8 w-8 p-0"
+                        aria-label="Cancel workspace rename"
                     >
                         <X className="h-3 w-3" />
                     </Button>
@@ -133,6 +135,7 @@ export function WorkspaceNameInlineEditor({
                 variant="ghost"
                 onClick={() => setIsEditing(true)}
                 className="h-6 w-6 p-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                aria-label={`Rename ${currentName}`}
             >
                 <Edit2 className="h-3 w-3" />
             </Button>

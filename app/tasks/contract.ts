@@ -17,6 +17,8 @@ export const taskUpdateSchema = z.object({
     "Task due date is invalid",
   ),
   status: taskStatusSchema.optional(),
+  bucket: z.enum(["today", "next"]).optional(),
+  estimatedMinutes: z.number().int().min(1).max(1440).nullish().transform((value) => value ?? undefined),
   assigneeEmail: clearableText.refine(
     (value) => !value || (value.length <= 255 && emailPattern.test(value)),
     "Task assignee is invalid",

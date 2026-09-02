@@ -73,6 +73,8 @@ export interface Task {
     status?: TaskStatus
     priority: 'low' | 'medium' | 'high'
     dueDate?: string
+    bucket?: "today" | "next"
+    estimatedMinutes?: number
     assigneeEmail?: string
     createdAt: string
     updatedAt: string
@@ -104,7 +106,9 @@ export async function addTask(
     description?: string,
     dueDate?: string,
     assigneeEmail?: string,
-    priority: 'low' | 'medium' | 'high' = 'medium'
+    priority: 'low' | 'medium' | 'high' = 'medium',
+    bucket?: "today" | "next",
+    estimatedMinutes?: number | null,
 ) {
     try {
         const session = await getSession()
@@ -136,6 +140,15 @@ export async function addTask(
             return { error: "Task due date is invalid" }
         }
 
+        if (bucket !== undefined && bucket !== "today" && bucket !== "next") {
+            return { error: "Task bucket is invalid" }
+        }
+
+        if (estimatedMinutes !== undefined && estimatedMinutes !== null
+            && (!Number.isInteger(estimatedMinutes) || estimatedMinutes < 1 || estimatedMinutes > 1440)) {
+            return { error: "Task estimate is invalid" }
+        }
+
         const normalizedAssigneeEmail = assigneeEmail ? normalizeEmail(assigneeEmail) : undefined
         if (normalizedAssigneeEmail && !workspace.members?.some((member: { email?: string }) => (
             typeof member.email === "string" && normalizeEmail(member.email) === normalizedAssigneeEmail
@@ -152,6 +165,8 @@ export async function addTask(
             status: "todo",
             priority,
             dueDate,
+            bucket,
+            estimatedMinutes: estimatedMinutes ?? undefined,
             assigneeEmail: normalizedAssigneeEmail,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

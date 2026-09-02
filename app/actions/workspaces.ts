@@ -17,6 +17,8 @@ export interface Member {
 export interface Workspace {
   id: string
   name: string
+  summary?: string
+  targetDate?: string | null
   members: Member[]
   createdAt: string
   ownerId: string
@@ -62,7 +64,10 @@ export async function getUserWorkspaces(userEmail: string): Promise<Workspace[]>
 }
 
 // Create a new workspace
-export async function createWorkspace(name: string): Promise<Workspace> {
+export async function createWorkspace(
+  name: string,
+  details?: { summary?: string; targetDate?: string | null },
+): Promise<Workspace> {
   try {
     const session = await getSession()
     if (!session) {
@@ -77,12 +82,22 @@ export async function createWorkspace(name: string): Promise<Workspace> {
       throw new Error("Workspace name cannot exceed 100 characters")
     }
 
+    const summary = details?.summary?.trim()
+    if (summary && summary.length > 240) {
+      throw new Error("Workspace summary cannot exceed 240 characters")
+    }
+    if (details?.targetDate && Number.isNaN(Date.parse(details.targetDate))) {
+      throw new Error("Workspace target date is invalid")
+    }
+
     const workspaceId = `workspace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     const now = new Date().toISOString()
 
     const workspace: Workspace = {
       id: workspaceId,
       name: trimmedName,
+      ...(summary ? { summary } : {}),
+      ...(details?.targetDate !== undefined ? { targetDate: details.targetDate } : {}),
       members: [
         {
           id: session.email,

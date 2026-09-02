@@ -14,6 +14,18 @@ test("accepts the persisted board status values", () => {
   })
 })
 
+test("accepts execution metadata used by the overview", () => {
+  assert.deepEqual(normalizeTaskUpdates({ bucket: "next", estimatedMinutes: 45 }), {
+    updates: { bucket: "next", estimatedMinutes: 45 },
+  })
+})
+
+test("rejects invalid execution metadata", () => {
+  assert.equal(typeof normalizeTaskUpdates({ bucket: "later" }).error, "string")
+  assert.equal(typeof normalizeTaskUpdates({ estimatedMinutes: 0 }).error, "string")
+  assert.equal(typeof normalizeTaskUpdates({ estimatedMinutes: 1441 }).error, "string")
+})
+
 test("rejects server-owned task fields", () => {
   const result = normalizeTaskUpdates({ workspaceId: "other-workspace" })
   assert.equal(typeof result.error, "string")

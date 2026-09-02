@@ -52,7 +52,15 @@ function NavigationItem({
   )
 }
 
-export function DashboardNavigation({ mode, hasWorkspace }: { mode: "rail" | "mobile"; hasWorkspace: boolean }) {
+export function DashboardNavigation({
+  mode,
+  hasWorkspace,
+  showSecondary = true,
+}: {
+  mode: "rail" | "mobile"
+  hasWorkspace: boolean
+  showSecondary?: boolean
+}) {
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("workspace-header")
 
   useEffect(() => {
@@ -90,6 +98,8 @@ export function DashboardNavigation({ mode, hasWorkspace }: { mode: "rail" | "mo
   }
 
   const compact = mode === "mobile"
+  if (!hasWorkspace) return null
+  const visibleItems = showSecondary ? dashboardNavigationItems : dashboardNavigationItems.slice(0, 2)
 
   return (
     <nav
@@ -98,7 +108,7 @@ export function DashboardNavigation({ mode, hasWorkspace }: { mode: "rail" | "mo
         compact ? "flex gap-1 border-b border-border bg-card px-2 py-2" : "flex w-full flex-col items-center gap-2",
       )}
     >
-      {dashboardNavigationItems.map((item) => (
+      {visibleItems.map((item) => (
         <NavigationItem
           key={item.id}
           {...item}

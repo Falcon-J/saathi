@@ -1,97 +1,32 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { ChevronDown, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
+import { Button } from "@/components/ui/button"
 
-interface WorkspaceSwitcherProps {
+type WorkspaceSwitcherProps = {
   workspaces: Workspace[]
   currentWorkspaceId: string | null
   onSelectWorkspace: (id: string) => void
-  onCreateWorkspace: (name: string) => void
+  onStartNew: () => void
 }
 
-export function WorkspaceSwitcher({
-  workspaces,
-  currentWorkspaceId,
-  onSelectWorkspace,
-  onCreateWorkspace,
-}: WorkspaceSwitcherProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [newName, setNewName] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
-
-  const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId)
-
-  const handleCreate = async () => {
-    if (newName.trim()) {
-      setIsCreating(true)
-      try {
-        await onCreateWorkspace(newName)
-        setNewName("")
-        setIsOpen(false)
-      } finally {
-        setIsCreating(false)
-      }
-    }
-  }
-
+export function WorkspaceSwitcher({ workspaces, currentWorkspaceId, onSelectWorkspace, onStartNew }: WorkspaceSwitcherProps) {
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2">
-        <Button
-          onClick={() => setIsOpen(!isOpen)}
-          variant="outline"
-          className="flex-1 justify-between bg-card border-border hover:bg-card/80"
-        >
-          <span className="text-foreground">{currentWorkspace?.name || "Select workspace"}</span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </Button>
-      </div>
-
-      {isOpen && (
-        <Card className="absolute top-full mt-2 w-full bg-card border-2 border-border shadow-lg z-50 p-4 space-y-3">
-          {workspaces.map((workspace) => (
-            <button
-              key={workspace.id}
-              onClick={() => {
-                onSelectWorkspace(workspace.id)
-                setIsOpen(false)
-              }}
-              className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-all duration-200 border ${workspace.id === currentWorkspaceId
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "hover:bg-secondary text-foreground border-transparent hover:border-border hover:shadow-sm"
-                }`}
-            >
-              {workspace.name}
-            </button>
-          ))}
-
-          <div className="border-t-2 border-border pt-4 mt-4">
-            <div className="flex gap-3">
-              <Input
-                placeholder="New workspace..."
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleCreate()}
-                disabled={isCreating}
-                className="bg-input border-2 border-border text-foreground placeholder:text-muted-foreground text-sm focus:border-primary"
-              />
-              <Button
-                onClick={handleCreate}
-                disabled={isCreating || !newName.trim()}
-                size="sm"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <label className="sr-only" htmlFor="workspace-select">Current workspace</label>
+      <select
+        id="workspace-select"
+        value={currentWorkspaceId ?? ""}
+        onChange={(event) => onSelectWorkspace(event.target.value)}
+        className="h-10 min-w-0 flex-1 rounded-[var(--saathi-radius-control)] border border-border bg-card px-3 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:max-w-sm"
+      >
+        {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
+      </select>
+      <Button type="button" variant="outline" onClick={onStartNew} className="justify-center">
+        <Plus className="size-4" />
+        Start something new
+      </Button>
     </div>
   )
 }
