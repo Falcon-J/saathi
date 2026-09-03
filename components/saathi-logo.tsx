@@ -8,18 +8,16 @@ interface SaathiLogoProps {
 }
 
 export function SaathiLogo({ className, imageClassName, priority = false }: SaathiLogoProps) {
-  void priority
-
   return (
     <div
       role="img"
       aria-label="Saathi logo"
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-[var(--saathi-radius-card)] border border-[color-mix(in_srgb,var(--saathi-success)_32%,var(--border))] bg-[color-mix(in_srgb,var(--saathi-success)_10%,var(--card))] p-1.5 text-[var(--saathi-success)]",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--saathi-radius-card)] border border-border bg-card p-1.5",
         className,
       )}
     >
-      <SaathiLogoMark className={imageClassName} />
+      <SaathiLogoMark className={imageClassName} priority={priority} />
     </div>
   )
 }
