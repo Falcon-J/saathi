@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, CalendarDays, Check, Circle, Clock3, Plus } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, Circle, Clock3, Pencil, Plus, Trash2, X } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
+import type { TaskUpdate } from "@/app/tasks/contract"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { groupTasksForOverview } from "@/lib/task-overview"
 
 type WorkspaceOverviewProps = {
@@ -15,6 +17,8 @@ type WorkspaceOverviewProps = {
   loading: boolean
   onToggleTask: (taskId: string) => Promise<unknown>
   onAddTask: (title: string) => Promise<unknown>
+  onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
+  onDeleteTask: (taskId: string) => Promise<unknown>
   onOpenBoard: () => void
   title?: React.ReactNode
   commandBar?: React.ReactNode
@@ -26,10 +30,50 @@ function displayDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date)
 }
 
-function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown> }) {
+function TaskRow({ task, onToggleTask, onEditTask, onDeleteTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown>; onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>; onDeleteTask: (taskId: string) => Promise<unknown> }) {
+  const [editing, setEditing] = useState(false)
+  const [draftTitle, setDraftTitle] = useState(task.title)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const done = task.completed || task.status === "done"
+
+  const saveTitle = async () => {
+    const title = draftTitle.trim()
+    if (!title) {
+      setError("A task title is required.")
+      return
+    }
+    if (title === task.title) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const result = await onEditTask(task.id, { title })
+      if (result && typeof result === "object" && "error" in result && typeof result.error === "string") {
+        setError(result.error)
+        return
+      }
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const removeTask = async () => {
+    setSaving(true)
+    try {
+      await onDeleteTask(task.id)
+    } finally {
+      setSaving(false)
+      setConfirmDelete(false)
+    }
+  }
+
   return (
-    <div className="flex min-h-14 items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
+    <div className="relative flex min-h-14 items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
       <button
         type="button"
         onClick={() => void onToggleTask(task.id)}
@@ -39,7 +83,15 @@ function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: st
         {done ? <Check className="size-4" /> : <Circle className="size-5" />}
       </button>
       <div className="min-w-0 flex-1">
-        <p className={`text-sm font-medium sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>{task.title}</p>
+        {editing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void saveTitle() } if (event.key === "Escape") setEditing(false) }} disabled={saving} autoFocus maxLength={200} aria-label={`Edit ${task.title}`} className="h-9 min-w-0 flex-1" />
+            <Button type="button" size="sm" onClick={() => void saveTitle()} disabled={saving}>Save</Button>
+            <Button type="button" size="icon" variant="ghost" onClick={() => setEditing(false)} disabled={saving} aria-label="Cancel edit"><X className="size-4" /></Button>
+          </div>
+        ) : (
+          <p className={`text-sm font-medium sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>{task.title}</p>
+        )}
         {(task.dueDate || task.estimatedMinutes) && (
           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {task.estimatedMinutes && <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{task.estimatedMinutes}m</span>}
@@ -47,11 +99,19 @@ function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: st
           </div>
         )}
       </div>
+      {!editing && (
+        <div className="flex shrink-0 items-center gap-1">
+          <Button type="button" size="icon" variant="ghost" onClick={() => { setDraftTitle(task.title); setError(null); setEditing(true) }} aria-label={`Edit ${task.title}`} title="Edit task"><Pencil className="size-4" /></Button>
+          <Button type="button" size="icon" variant="ghost" onClick={() => setConfirmDelete(true)} aria-label={`Delete ${task.title}`} title="Delete task" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></Button>
+        </div>
+      )}
+      {error && <p role="alert" className="absolute left-11 top-full z-10 mt-1 text-xs text-destructive">{error}</p>}
+      <ConfirmDialog open={confirmDelete} title="Delete task?" description={`“${task.title}” will be removed from this workspace. This cannot be undone.`} actionLabel="Delete task" onConfirm={() => void removeTask()} onCancel={() => setConfirmDelete(false)} isLoading={saving} />
     </div>
   )
 }
 
-function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown> }) {
+function TaskSection({ title, tasks, empty, onToggleTask, onEditTask, onDeleteTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>; onDeleteTask: (taskId: string) => Promise<unknown> }) {
   const headingId = `overview-${title.toLowerCase()}`
   return (
     <section aria-labelledby={headingId}>
@@ -61,12 +121,12 @@ function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tas
       </div>
       {tasks.length === 0
         ? <p className="py-6 text-sm text-muted-foreground">{empty}</p>
-        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} />)}
+        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />)}
     </section>
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onOpenBoard, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onEditTask, onDeleteTask, onOpenBoard, title, commandBar }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
@@ -129,15 +189,15 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </div>
         ) : (
           <>
-            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} />
-            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} />
-            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} />
+            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />
+            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />
+            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />
           </>
         )}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/35 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Need task details?</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Edit, assign, schedule, move, search, import, or delete tasks in Board.</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Use Board for status, priority, due dates, assignees, search, and CSV import.</p>
           </div>
           <Button type="button" variant="outline" onClick={onOpenBoard} className="shrink-0 bg-card">
             Open Board <ArrowRight className="size-4" />

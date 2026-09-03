@@ -58,7 +58,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         window.localStorage.setItem("auth-change", Date.now().toString())
         success(
           isSignup ? "Account created" : "Signed in",
-          isSignup ? "Your Saathi workspace access is ready." : "Welcome back to Saathi.",
+          isSignup ? "Create your first workspace to get started." : "Welcome back to Saathi.",
         )
         setTimeout(() => router.replace("/dashboard"), 300)
       }
@@ -98,10 +98,10 @@ export function AuthForm({ mode }: AuthFormProps) {
         <section className="order-1 mx-auto w-full max-w-md lg:order-2">
           <div className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-6 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-8">
             <div className="mb-7">
-              <p className="saathi-label text-[var(--saathi-success)]">{isSignup ? "New workspace" : "Secure sign in"}</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">{isSignup ? "Create your workspace" : "Welcome back"}</h2>
+              <p className="saathi-label text-[var(--saathi-success)]">{isSignup ? "New account" : "Secure sign in"}</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">{isSignup ? "Create your account" : "Welcome back"}</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {isSignup ? "Start with your team and the work you want to move forward." : "Sign in to return to your workspace."}
+                {isSignup ? "Create your account, then set up a workspace for the work you want to move forward." : "Sign in to return to your workspace."}
               </p>
             </div>
 

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict")
 const path = require("node:path")
 
 const globalsCss = readFileSync(path.join(__dirname, "..", "globals.css"), "utf8")
+const taskFilterSource = readFileSync(path.join(__dirname, "..", "..", "components", "task-filter.tsx"), "utf8")
 
 test("dashboard exposes semantic Saathi design tokens", () => {
   const expectedTokens = {
@@ -48,4 +49,11 @@ test("shared Saathi tokens provide the approved light system", () => {
     const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     assert.match(rootBlock, new RegExp(`${token}:\\s*${escapedValue}`))
   }
+})
+
+test("task filters consume semantic light-theme tokens", () => {
+  assert.match(taskFilterSource, /border-border/)
+  assert.match(taskFilterSource, /bg-card/)
+  assert.match(taskFilterSource, /bg-secondary/)
+  assert.doesNotMatch(taskFilterSource, /border-white\/10|bg-input\/70/)
 })

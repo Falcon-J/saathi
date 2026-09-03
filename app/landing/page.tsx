@@ -42,7 +42,7 @@ export default function LandingPage() {
               <Link href="/login">Sign in</Link>
             </Button>
             <Button asChild className="hidden sm:inline-flex">
-              <Link href="/register">Create a workspace</Link>
+              <Link href="/register">Create an account</Link>
             </Button>
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function LandingPage() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg">
               <Link href="/register">
-                Create a workspace
+                Create an account
                 <ArrowRight className="size-4" />
               </Link>
             </Button>

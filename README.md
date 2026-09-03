@@ -14,7 +14,7 @@
 - **Execution-first Overview** that separates Today, Next, and Completed work
 - **Detailed Board** for status, priority, due dates, assignment, filtering, and CSV import
 - **Optional Groq assistant** for bounded workspace planning and single safe task changes
-- **Event-driven backend** using native Redis Streams (`XADD`/`XREAD`) with cursor-based SSE consumers
+- **Event-driven backend** using native Redis Streams (`XADD`/`XRANGE`) with cursor-based SSE consumers
 - **Per-event real-time latency instrumentation** via Server-Sent Events
 - **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
 - **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
@@ -35,7 +35,7 @@ Next.js 16 (Stateless)
   Server Actions: tasks / workspaces / invitations
   Route Handler:  GET /api/realtime
     ├── Auth: cookie → Redis session lookup
-    ├── Poll: XREAD every 100ms (cursor-based)
+    ├── Poll: XRANGE every 100ms (cursor-based)
     └── Heartbeat: presence refresh every 30s
         │
         ▼ Upstash REST
@@ -67,7 +67,7 @@ Realtime delivers events but never becomes the source of truth; workspace and ta
 ```
 User A creates task
   → Server Action: XADD stream:{wsId} * type=task-created data={...}
-  → SSE poll (100ms): XREAD stream:{wsId} {lastSeenId} COUNT 50
+  → SSE poll (100ms): XRANGE stream:{wsId} (lastSeenId, +] COUNT 50
   → SSE event pushed to all subscribers
   → User B's UI updates (latencyMs stamped on each event)
 ```
@@ -174,7 +174,7 @@ saathi/
 │   ├── useRealtime.ts   # EventSource wrapper + event dispatch
 │   └── use-workspaces.ts # State + optimistic updates
 ├── lib/
-│   ├── redis.ts         # RedisService: XADD, XREAD, XTRIM, GET, SET
+│   ├── redis.ts         # RedisService: XADD, XRANGE, XTRIM, GET, SET
 │   ├── realtime.ts      # RealtimeService: publishEvent(), readNewEvents()
 │   └── auth-simple.ts   # Session management
 └── scripts/
@@ -218,9 +218,9 @@ The verifier uses synthetic, non-personal prompts and prints only date, model, c
 SSE works over standard HTTP/1.1 with no protocol upgrade — compatible with Vercel and all reverse proxies. Browser auto-reconnects via `retry` field. All writes go through Server Actions, so the client→server WebSocket channel is unnecessary.
 
 **Why Redis Streams over Pub/Sub?**
-Pub/Sub messages are lost if no subscriber is active. Streams are a persistent, ordered log — each SSE connection maintains its own cursor (`lastSeenId`) and independently reads from any offset via `XREAD`. Reconnecting clients resume from the current timestamp, not the beginning.
+Pub/Sub messages are lost if no subscriber is active. Streams are a persistent, ordered log — each SSE connection maintains its own cursor (`lastSeenId`) and independently reads from any offset via `XRANGE`. Reconnecting clients resume from the current timestamp, not the beginning.
 
-**Why polling instead of blocking XREAD?**
+**Why polling instead of blocking stream reads?**
 Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. The route polls every 100ms; actual delivery latency must be measured with the authenticated load test and depends on Redis, network, and runtime conditions.
 
 ---
@@ -228,7 +228,7 @@ Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported.
 ## Release gates
 
 - [x] Replace first-visit slideshow onboarding with a permanent product guide.
-- [x] Keep Overview focused on quick add and complete/reopen, with Board as the explicit detailed-control surface.
+- [x] Keep Overview focused on quick add, complete/reopen, and safe title edit/delete, with Board as the detailed-control surface.
 - [ ] Run the optional Groq assistant against a real key; keep it disabled until the sanitized live matrix passes.
 - [x] Deploy the current release candidate; Vercel reports `c203f2d` Ready/Current and the public `/guide` route loads.
 - [ ] Validate the deployed Vercel environment, Redis persistence, authentication, SSE recovery, two-user collaboration, mobile layout, and deployment logs.

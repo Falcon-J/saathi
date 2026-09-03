@@ -28,7 +28,7 @@ export function TaskFilter({
   selectedPriority,
 }: TaskFilterProps) {
   return (
-    <div className="space-y-3 rounded-xl border border-white/10 bg-transparent p-4">
+    <div className="space-y-3 rounded-[var(--saathi-radius-card)] border border-border bg-card p-4">
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -36,11 +36,13 @@ export function TaskFilter({
           placeholder="Search tasks..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="border-white/10 bg-input/70 pl-10 text-foreground placeholder:text-muted-foreground"
+          className="border-border bg-card pl-10 text-foreground placeholder:text-muted-foreground"
         />
         {searchQuery && (
           <button
+            type="button"
             onClick={() => onSearchChange("")}
+            aria-label="Clear task search"
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <X className="w-4 h-4" />
@@ -60,7 +62,7 @@ export function TaskFilter({
               onClick={() => onFilterByStatus(status)}
               className={`capitalize text-xs ${selectedStatus === status
                 ? "bg-primary text-primary-foreground"
-                : "border-white/10 bg-transparent hover:bg-muted/35"
+                : "border-border bg-card hover:bg-secondary"
                 }`}
             >
               {status}
@@ -72,7 +74,7 @@ export function TaskFilter({
         <select
           value={selectedPriority}
           onChange={(e) => onFilterByPriority(e.target.value as "all" | "low" | "medium" | "high")}
-          className="cursor-pointer rounded-lg border border-white/10 bg-input/70 px-2 py-1 text-xs text-foreground hover:border-primary/40"
+          className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs text-foreground hover:border-primary/40"
         >
           <option value="all">All priorities</option>
           <option value="high">High</option>
@@ -84,7 +86,7 @@ export function TaskFilter({
         <select
           value={selectedAssignee || ""}
           onChange={(e) => onFilterByAssignee(e.target.value || null)}
-          className="cursor-pointer rounded-lg border border-white/10 bg-input/70 px-2 py-1 text-xs text-foreground hover:border-primary/40"
+          className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs text-foreground hover:border-primary/40"
         >
           <option value="">All assignees</option>
           {members.map((member) => (

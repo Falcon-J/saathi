@@ -328,6 +328,8 @@ export default function Dashboard() {
                       loading={tasksLoading}
                       onToggleTask={handleToggleTask}
                       onAddTask={(title) => handleAddTask(title, undefined, "medium", undefined, "today")}
+                      onEditTask={handleEditTask}
+                      onDeleteTask={handleDeleteTask}
                       onOpenBoard={() => setWorkspaceView("board")}
                       title={
                         <WorkspaceNameInlineEditor
@@ -361,7 +363,7 @@ export default function Dashboard() {
                     </div>
                     <aside className="space-y-4 xl:col-span-3">
                       <Card id="team-panel" className="scroll-mt-32"><CardHeader className="border-b border-border"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5 text-primary" />Team</CardTitle><CardDescription>{currentWorkspace.members.length} member{currentWorkspace.members.length === 1 ? "" : "s"}</CardDescription></CardHeader><CardContent className="p-0"><MemberManager members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
-                      <Card id="realtime-panel" className="scroll-mt-32"><CardHeader className="border-b border-border"><CardTitle className="flex items-center gap-2 text-lg"><Activity className="size-5 text-primary" />Connection</CardTitle><CardDescription>Workspace updates and recovery.</CardDescription></CardHeader><CardContent className="pt-4 text-sm"><div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Status</span><span className={realtime.isConnected ? "text-[var(--saathi-success)]" : "text-muted-foreground"}>{realtime.isConnected ? "Live" : "Offline"}</span></div></CardContent></Card>
+                      <Card id="realtime-panel" className="scroll-mt-32"><CardHeader className="border-b border-border"><CardTitle className="flex items-center gap-2 text-lg"><Activity className="size-5 text-primary" />Connection</CardTitle><CardDescription>Workspace updates and recovery.</CardDescription></CardHeader><CardContent className="space-y-4 pt-4 text-sm"><div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Status</span><span className={realtime.isConnected ? "text-[var(--saathi-success)]" : "text-muted-foreground"}>{realtime.isConnected ? "Live" : "Offline"}</span></div><div><p className="font-medium">{realtime.activeUsers.length} active now</p><div className="mt-2 flex flex-wrap gap-1.5" aria-label="Active workspace members">{realtime.activeUsers.length > 0 ? realtime.activeUsers.map((email) => <Badge key={email} variant="secondary" title={email}>{email === user.email ? "You" : email.split("@")[0]}</Badge>) : <span className="text-xs text-muted-foreground">No other members are online.</span>}</div></div></CardContent></Card>
                       <UsageSummary workspaceId={currentWorkspace.id} refreshToken={`${tasks.length}:${metrics.completed}:${currentWorkspace.members.length}`} />
                     </aside>
                   </section>

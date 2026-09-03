@@ -4,7 +4,7 @@ import { useRef, useState } from "react"
 import { FileUp, Loader2 } from "lucide-react"
 import { importTasksFromCsv } from "@/app/actions/migration"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { useNotifications } from "@/hooks/use-notifications"
 
 interface TaskImportProps {
   workspaceId: string
@@ -14,7 +14,7 @@ interface TaskImportProps {
 export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isImporting, setIsImporting] = useState(false)
-  const { toast } = useToast()
+  const { success, warning, error } = useNotifications()
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -25,7 +25,7 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
     try {
       const result = await importTasksFromCsv(workspaceId, await file.text())
       if ("error" in result) {
-        toast({ title: "Import failed", description: result.error, variant: "destructive" })
+        error("Import failed", result.error)
         return
       }
 
@@ -36,13 +36,14 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
       const failedMessage = result.failed > 0
         ? ` ${result.failed} row${result.failed === 1 ? "" : "s"} could not be imported.`
         : ""
-      toast({
-        title: `${result.imported} task${result.imported === 1 ? "" : "s"} imported`,
-        description: `${failedMessage}${result.errors.slice(0, 3).map((error) => ` Row ${error.row}: ${error.message}`).join("")}`.trim(),
-        variant: result.failed > 0 ? "destructive" : undefined,
-      })
-    } catch (error) {
-      toast({ title: "Import failed", description: "The CSV could not be imported.", variant: "destructive" })
+      const description = `${failedMessage}${result.errors.slice(0, 3).map((rowError) => ` Row ${rowError.row}: ${rowError.message}`).join("")}`.trim()
+      if (result.failed > 0) {
+        warning(`${result.imported} task${result.imported === 1 ? "" : "s"} imported with warnings`, description || "Some rows could not be imported.")
+      } else {
+        success(`${result.imported} task${result.imported === 1 ? "" : "s"} imported`, description || "The board is up to date.")
+      }
+    } catch (caughtError) {
+      error("Import failed", "The CSV could not be imported.")
     } finally {
       setIsImporting(false)
     }
@@ -55,6 +56,8 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
         variant="outline"
         onClick={() => inputRef.current?.click()}
         disabled={isImporting}
+        title="Import tasks from a CSV file"
+        aria-describedby="task-import-help"
         className="w-full sm:w-auto"
       >
         {isImporting ? <Loader2 className="size-4 animate-spin" /> : <FileUp className="size-4" />}
@@ -69,6 +72,7 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
         tabIndex={-1}
         aria-label="Import tasks from CSV"
       />
+      <span id="task-import-help" className="sr-only">Import up to 100 tasks with title, description, due date, assignee email, and priority columns.</span>
     </>
   )
 }
