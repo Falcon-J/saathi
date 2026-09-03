@@ -9,6 +9,7 @@ import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { InvitationNotifications } from "@/components/invitation-notifications"
 import { MemberManager } from "@/components/member-manager"
+import { PageLoader } from "@/components/page-loader"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
 import { TaskList } from "@/components/task-list"
@@ -39,6 +40,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("overview")
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState<string | null>(null)
   const welcomeShownRef = useRef(false)
   const router = useRouter()
   const { success, error, info } = useNotifications()
@@ -221,20 +224,28 @@ export default function Dashboard() {
   }
 
   const handleLogout = async () => {
-    await logout()
-    window.localStorage.setItem("auth-change", Date.now().toString())
-    router.push("/login")
+    if (loggingOut) return
+
+    setLoggingOut(true)
+    setLogoutError(null)
+    try {
+      const result = await logout()
+      if (result.error) {
+        setLogoutError(result.error)
+        return
+      }
+
+      window.localStorage.setItem("auth-change", Date.now().toString())
+      router.replace("/login")
+    } catch (caughtError) {
+      setLogoutError(caughtError instanceof Error ? caughtError.message : "Unable to sign out. Please try again.")
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   if (loading || !user) {
-    return (
-      <main className="saathi-shell saathi-dashboard flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-4 size-9 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading Saathi workspace...</p>
-        </div>
-      </main>
-    )
+    return <PageLoader label="Loading your workspace..." />
   }
 
   const showWorkspace = Boolean(currentWorkspace) && !creatingWorkspace
@@ -260,15 +271,19 @@ export default function Dashboard() {
               <Avatar className="size-8 border border-primary/30"><AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
               <div className="text-right"><p className="text-sm font-semibold leading-none">{user.username}</p><p className="mt-1 text-xs text-muted-foreground">{user.email}</p></div>
             </div>
-            <Button onClick={handleLogout} variant="outline" size="sm" aria-label="Logout"><LogOut className="size-4" /><span className="hidden sm:inline">Logout</span></Button>
+            <Button onClick={handleLogout} variant="outline" size="sm" aria-label="Logout" aria-busy={loggingOut} disabled={loggingOut}>
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline">{loggingOut ? "Signing out..." : "Logout"}</span>
+            </Button>
           </div>
         </div>
       </header>
 
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board"} /></div>
+      {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board"} onOpenBoard={() => setWorkspaceView("board")} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-20 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col lg:items-center">
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board"} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board"} onOpenBoard={() => setWorkspaceView("board")} />
           <Avatar className="mt-auto size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
         </aside>
 

@@ -13,6 +13,28 @@ export type DashboardSectionVisibility = {
   ratio: number
 }
 
+export function getDashboardNavigationTarget(id: DashboardSectionId): {
+  sectionId: DashboardSectionId
+  view: "overview" | "board" | null
+} {
+  if (id === "workspace-header") {
+    return { sectionId: id, view: null }
+  }
+
+  return { sectionId: id, view: "board" }
+}
+
+export function normalizeDashboardActiveSection(
+  activeSection: DashboardSectionId,
+  showSecondary: boolean,
+): DashboardSectionId {
+  if (!showSecondary && (activeSection === "team-panel" || activeSection === "realtime-panel")) {
+    return "workspace-header"
+  }
+
+  return activeSection
+}
+
 const isDashboardSectionId = (id: string): id is DashboardSectionId =>
   dashboardSectionIds.includes(id as DashboardSectionId)
 

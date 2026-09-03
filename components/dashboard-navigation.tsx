@@ -5,6 +5,8 @@ import type { LucideIcon } from "lucide-react"
 import { Activity, Home, LayoutGrid, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
+  getDashboardNavigationTarget,
+  normalizeDashboardActiveSection,
   selectActiveDashboardSection,
   type DashboardSectionId,
 } from "@/lib/dashboard-navigation"
@@ -56,14 +58,18 @@ export function DashboardNavigation({
   mode,
   hasWorkspace,
   showSecondary = true,
+  onOpenBoard,
 }: {
   mode: "rail" | "mobile"
   hasWorkspace: boolean
   showSecondary?: boolean
+  onOpenBoard?: () => void
 }) {
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("workspace-header")
 
   useEffect(() => {
+    setActiveSection((currentSection) => normalizeDashboardActiveSection(currentSection, showSecondary))
+
     const sections = dashboardNavigationItems
       .map((item) => document.getElementById(item.id))
       .filter((section): section is HTMLElement => section !== null)
@@ -86,15 +92,25 @@ export function DashboardNavigation({
 
     sections.forEach((section) => observer.observe(section))
     return () => observer.disconnect()
-  }, [hasWorkspace])
+  }, [hasWorkspace, showSecondary])
 
   const navigateTo = (id: DashboardSectionId) => {
-    const section = document.getElementById(id)
-    if (!section) return
-
+    const target = getDashboardNavigationTarget(id)
     setActiveSection(id)
-    section.scrollIntoView({ behavior: "smooth", block: "start" })
-    window.history.replaceState(null, "", `#${id}`)
+    const scrollToTarget = () => {
+      const section = document.getElementById(target.sectionId)
+      if (!section) return
+      section.scrollIntoView({ behavior: "smooth", block: "start" })
+      window.history.replaceState(null, "", `#${target.sectionId}`)
+    }
+
+    if (target.view === "board" && onOpenBoard) {
+      onOpenBoard()
+      window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget))
+      return
+    }
+
+    scrollToTarget()
   }
 
   const compact = mode === "mobile"

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { selectActiveDashboardSection } from '../lib/dashboard-navigation.ts'
+import {
+  getDashboardNavigationTarget,
+  normalizeDashboardActiveSection,
+  selectActiveDashboardSection,
+} from '../lib/dashboard-navigation.ts'
 
 test('selects the most visible valid dashboard section without losing the current section', () => {
   assert.equal(
@@ -22,4 +26,25 @@ test('selects the most visible valid dashboard section without losing the curren
     ),
     'project-board',
   )
+})
+
+test('routes work, team, and realtime navigation to the board view', () => {
+  assert.deepEqual(getDashboardNavigationTarget('project-board'), {
+    sectionId: 'project-board',
+    view: 'board',
+  })
+  assert.deepEqual(getDashboardNavigationTarget('team-panel'), {
+    sectionId: 'team-panel',
+    view: 'board',
+  })
+  assert.deepEqual(getDashboardNavigationTarget('realtime-panel'), {
+    sectionId: 'realtime-panel',
+    view: 'board',
+  })
+})
+
+test('resets hidden secondary navigation to the workspace header', () => {
+  assert.equal(normalizeDashboardActiveSection('team-panel', false), 'workspace-header')
+  assert.equal(normalizeDashboardActiveSection('realtime-panel', false), 'workspace-header')
+  assert.equal(normalizeDashboardActiveSection('project-board', false), 'project-board')
 })
