@@ -16,6 +16,10 @@ export const taskUpdateSchema = z.object({
     (value) => !value || !Number.isNaN(Date.parse(value)),
     "Task due date is invalid",
   ),
+  dueAt: clearableText.refine(
+    (value) => !value || !Number.isNaN(Date.parse(value)),
+    "Task due time is invalid",
+  ),
   status: taskStatusSchema.optional(),
   bucket: z.enum(["today", "next"]).optional(),
   estimatedMinutes: z.number().int().min(1).max(1440).nullish().transform((value) => value ?? undefined),

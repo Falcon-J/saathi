@@ -12,7 +12,7 @@
 ## Highlights
 
 - **Execution-first Overview** that separates Today, Next, and Completed work
-- **Detailed Board** for status, priority, due dates, assignment, filtering, and CSV import
+- **Detailed Board** for status, priority, date/time due dates, estimates, assignment, filtering, and CSV import
 - **Optional Groq assistant** for bounded workspace planning and single safe task changes
 - **Event-driven backend** using native Redis Streams (`XADD`/`XRANGE`) with cursor-based SSE consumers
 - **Per-event real-time latency instrumentation** via Server-Sent Events
@@ -59,6 +59,8 @@ Saathi is intentionally a modular monolith: one Next.js deployment with explicit
 | Realtime | `lib/realtime.ts`, `app/api/realtime/route.ts` | Redis Streams, SSE delivery, presence |
 | Activity | Workspace and invitation actions | User-visible change history, co-located until volume justifies extraction |
 | Migration | `app/actions/migration.ts`, `lib/csv.ts` | Bounded CSV task import with row-level errors |
+
+CSV task imports accept `title`, `description`, `priority`, `dueDate`, `dueAt`, `estimatedMinutes`, and `assigneeEmail`. `dueDate` remains supported for date-only tasks; `dueAt` is an ISO timestamp for a specific time.
 
 Realtime delivers events but never becomes the source of truth; workspace and task records remain authoritative. Extract a gateway, import worker, notification worker, or identity service only when connection volume, job duration, delivery volume, or product boundaries provide measured justification.
 

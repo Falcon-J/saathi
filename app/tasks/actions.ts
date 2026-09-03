@@ -73,6 +73,7 @@ export interface Task {
     status?: TaskStatus
     priority: 'low' | 'medium' | 'high'
     dueDate?: string
+    dueAt?: string
     bucket?: "today" | "next"
     estimatedMinutes?: number
     assigneeEmail?: string
@@ -109,6 +110,7 @@ export async function addTask(
     priority: 'low' | 'medium' | 'high' = 'medium',
     bucket?: "today" | "next",
     estimatedMinutes?: number | null,
+    dueAt?: string,
 ) {
     try {
         const session = await getSession()
@@ -140,6 +142,10 @@ export async function addTask(
             return { error: "Task due date is invalid" }
         }
 
+        if (dueAt && Number.isNaN(Date.parse(dueAt))) {
+            return { error: "Task due time is invalid" }
+        }
+
         if (bucket !== undefined && bucket !== "today" && bucket !== "next") {
             return { error: "Task bucket is invalid" }
         }
@@ -165,6 +171,7 @@ export async function addTask(
             status: "todo",
             priority,
             dueDate,
+            dueAt,
             bucket,
             estimatedMinutes: estimatedMinutes ?? undefined,
             assigneeEmail: normalizedAssigneeEmail,

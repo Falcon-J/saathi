@@ -68,6 +68,15 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
       continue
     }
 
+    const estimatedMinutes = row.estimatedminutes ? Number(row.estimatedminutes) : undefined
+    if (row.estimatedminutes) {
+      if (estimatedMinutes === undefined || !Number.isInteger(estimatedMinutes) || estimatedMinutes < 1 || estimatedMinutes > 1440) {
+        result.failed += 1
+        result.errors.push({ row: rowNumber, message: "Estimate must be a whole number between 1 and 1440 minutes" })
+        continue
+      }
+    }
+
     try {
       const taskResult = await addTask(
         workspaceId,
@@ -76,6 +85,9 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
         row.duedate || undefined,
         row.assigneeemail || undefined,
         (priority || "medium") as "low" | "medium" | "high",
+        undefined,
+        estimatedMinutes,
+        row.dueat || undefined,
       )
 
       if (taskResult.error) {

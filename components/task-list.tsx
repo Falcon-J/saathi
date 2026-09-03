@@ -18,6 +18,7 @@ import type { TaskStatus } from "@/app/tasks/actions"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { getMutationError } from "@/lib/mutation-result"
 import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
+import { formatTaskCreatedAt, formatTaskDue, localDateTimeToIso } from "@/lib/task-time"
 
 interface Task {
   id: string
@@ -28,6 +29,8 @@ interface Task {
   assigneeEmail?: string
   priority: 'low' | 'medium' | 'high'
   dueDate?: string
+  dueAt?: string
+  estimatedMinutes?: number
   createdAt: string
   updatedAt: string
   workspaceId: string
@@ -40,7 +43,7 @@ interface TaskListProps {
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
-  onAddTask: (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string) => Promise<any>
+  onAddTask: (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<any>
   onToggleTask: (id: string) => Promise<any>
   onDeleteTask: (id: string) => Promise<any>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
@@ -61,6 +64,9 @@ export const TaskList = memo(function TaskList({
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
   const [dueDate, setDueDate] = useState("")
+  const [dueTime, setDueTime] = useState("")
+  const [estimatedMinutes, setEstimatedMinutes] = useState("")
+  const [addError, setAddError] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -108,14 +114,23 @@ export const TaskList = memo(function TaskList({
       return
     }
 
+    const estimate = estimatedMinutes ? Number(estimatedMinutes) : undefined
+    if (estimate !== undefined && (!Number.isInteger(estimate) || estimate < 1 || estimate > 1440)) {
+      setAddError("Estimate must be a whole number between 1 and 1440 minutes.")
+      return
+    }
+    setAddError(null)
+
     setIsAdding(true)
     try {
-      const result = await onAddTask(input, description, priority, dueDate || undefined)
+      const result = await onAddTask(input, description, priority, dueDate || undefined, undefined, estimate, localDateTimeToIso(dueDate, dueTime))
       if (!getMutationError(result)) {
         setInput("")
         setDescription("")
         setPriority('medium')
         setDueDate("")
+        setDueTime("")
+        setEstimatedMinutes("")
         setShowAddForm(false)
       }
     } finally {
@@ -175,6 +190,18 @@ export const TaskList = memo(function TaskList({
     const title = editingDraft.title.trim()
     if (!title) {
       setEditError("Task title is required.")
+      return
+    }
+
+    if (editingDraft.estimatedMinutes) {
+      const estimate = Number(editingDraft.estimatedMinutes)
+      if (!Number.isInteger(estimate) || estimate < 1 || estimate > 1440) {
+        setEditError("Estimate must be a whole number between 1 and 1440 minutes.")
+        return
+      }
+    }
+    if (editingDraft.dueTime && !editingDraft.dueDate) {
+      setEditError("Choose a due date before adding a due time.")
       return
     }
 
@@ -269,7 +296,7 @@ export const TaskList = memo(function TaskList({
       <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-5 shadow-none">
         {!showAddForm ? (
           <Button
-            onClick={() => setShowAddForm(true)}
+            onClick={() => { setAddError(null); setShowAddForm(true) }}
             className="w-full border border-primary bg-primary py-8 text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -292,6 +319,9 @@ export const TaskList = memo(function TaskList({
                   setDescription("")
                   setPriority('medium')
                   setDueDate("")
+                  setDueTime("")
+                  setEstimatedMinutes("")
+                  setAddError(null)
                 }}
                 variant="outline"
                 size="sm"
@@ -311,6 +341,8 @@ export const TaskList = memo(function TaskList({
               className="resize-none border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
               rows={2}
             />
+
+            {addError && <p className="text-sm text-destructive" role="alert">{addError}</p>}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select value={priority} onValueChange={(value: 'low' | 'medium' | 'high') => setPriority(value)}>
@@ -342,10 +374,32 @@ export const TaskList = memo(function TaskList({
               <Input
                 type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => { setDueDate(e.target.value); if (!e.target.value) setDueTime("") }}
                 disabled={isAdding}
                 aria-label="Task due date"
                 className="w-full border-border bg-card focus:border-primary sm:w-40"
+              />
+
+              <Input
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                disabled={isAdding || !dueDate}
+                aria-label="Task due time"
+                className="w-full border-border bg-card focus:border-primary sm:w-32"
+              />
+
+              <Input
+                type="number"
+                min={1}
+                max={1440}
+                step={1}
+                value={estimatedMinutes}
+                onChange={(e) => setEstimatedMinutes(e.target.value)}
+                disabled={isAdding}
+                aria-label="Task estimate in minutes"
+                placeholder="Estimate (min)"
+                className="w-full border-border bg-card focus:border-primary sm:w-36"
               />
 
               <Button
@@ -586,6 +640,14 @@ function TaskEditorDialog({
                     <Input id="task-edit-due-date" type="date" value={draft.dueDate} onChange={(event) => onDraftChange({ dueDate: event.target.value })} disabled={isSaving} className="h-10 bg-card" />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="task-edit-due-time">Due time <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                    <Input id="task-edit-due-time" type="time" value={draft.dueTime} onChange={(event) => onDraftChange({ dueTime: event.target.value })} disabled={isSaving || !draft.dueDate} className="h-10 bg-card" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-estimate">Estimate <span className="font-normal text-muted-foreground">(minutes)</span></Label>
+                    <Input id="task-edit-estimate" type="number" min={1} max={1440} step={1} value={draft.estimatedMinutes} onChange={(event) => onDraftChange({ estimatedMinutes: event.target.value })} disabled={isSaving} placeholder="e.g. 45" className="h-10 bg-card" />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="task-edit-assignee">Assignee</Label>
                     <select
                       id="task-edit-assignee"
@@ -723,16 +785,23 @@ const TaskListItem = memo(function TaskListItem({
               <span className="capitalize">{task.priority} priority</span>
             </div>
 
-            {task.dueDate && (
+            {formatTaskDue(task.dueAt, task.dueDate) && (
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
+                <span>Due {formatTaskDue(task.dueAt, task.dueDate)}</span>
+              </div>
+            )}
+
+            {task.estimatedMinutes && (
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                <span>Estimate {task.estimatedMinutes}m</span>
               </div>
             )}
 
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>Created {new Date(task.createdAt).toLocaleDateString()}</span>
+              <span>Created {formatTaskCreatedAt(task.createdAt) ?? "unknown"}</span>
             </div>
           </div>
 

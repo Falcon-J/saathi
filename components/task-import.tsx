@@ -72,7 +72,7 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
         tabIndex={-1}
         aria-label="Import tasks from CSV"
       />
-      <span id="task-import-help" className="sr-only">Import up to 100 tasks with title, description, due date, assignee email, and priority columns.</span>
+      <span id="task-import-help" className="sr-only">Import up to 100 tasks with title, description, priority, due date, due time, estimate in minutes, and assignee email columns.</span>
     </>
   )
 }

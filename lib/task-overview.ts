@@ -3,6 +3,7 @@ type OverviewTask = {
   status?: "todo" | "in-progress" | "done"
   bucket?: "today" | "next"
   dueDate?: string
+  dueAt?: string
 }
 
 export type TaskOverviewGroups<TTask extends OverviewTask> = {
@@ -44,7 +45,8 @@ export function groupTasksForOverview<TTask extends OverviewTask>(
       continue
     }
 
-    const dueDate = dueDateKey(task.dueDate)
+    // Prefer the explicit calendar date so a local due time does not shift the board day at UTC boundaries.
+    const dueDate = dueDateKey(task.dueDate || task.dueAt)
     if (dueDate && dueDate > today) groups.next.push(task)
     else groups.today.push(task)
   }

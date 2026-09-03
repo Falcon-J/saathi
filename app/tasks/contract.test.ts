@@ -20,6 +20,16 @@ test("accepts execution metadata used by the overview", () => {
   })
 })
 
+test("accepts an ISO due time and preserves an estimate", () => {
+  assert.deepEqual(normalizeTaskUpdates({ dueAt: "2026-09-15T14:30:00.000Z", estimatedMinutes: 45 }), {
+    updates: { dueAt: "2026-09-15T14:30:00.000Z", estimatedMinutes: 45 },
+  })
+})
+
+test("rejects an invalid due time", () => {
+  assert.equal(typeof normalizeTaskUpdates({ dueAt: "tomorrow afternoon" }).error, "string")
+})
+
 test("rejects invalid execution metadata", () => {
   assert.equal(typeof normalizeTaskUpdates({ bucket: "later" }).error, "string")
   assert.equal(typeof normalizeTaskUpdates({ estimatedMinutes: 0 }).error, "string")

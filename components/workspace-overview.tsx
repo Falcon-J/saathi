@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { groupTasksForOverview } from "@/lib/task-overview"
+import { formatTaskDue } from "@/lib/task-time"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
@@ -22,12 +23,6 @@ type WorkspaceOverviewProps = {
   onOpenBoard: () => void
   title?: React.ReactNode
   commandBar?: React.ReactNode
-}
-
-function displayDate(value: string): string {
-  const date = new Date(value.length === 10 ? `${value}T00:00:00` : value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date)
 }
 
 function TaskRow({ task, onToggleTask, onEditTask, onDeleteTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown>; onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>; onDeleteTask: (taskId: string) => Promise<unknown> }) {
@@ -92,10 +87,10 @@ function TaskRow({ task, onToggleTask, onEditTask, onDeleteTask }: { task: Task;
         ) : (
           <p className={`text-sm font-medium sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>{task.title}</p>
         )}
-        {(task.dueDate || task.estimatedMinutes) && (
+        {(task.dueAt || task.dueDate || task.estimatedMinutes) && (
           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {task.estimatedMinutes && <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{task.estimatedMinutes}m</span>}
-            {task.dueDate && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" />{displayDate(task.dueDate)}</span>}
+            {formatTaskDue(task.dueAt, task.dueDate) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" />{formatTaskDue(task.dueAt, task.dueDate)}</span>}
           </div>
         )}
       </div>
@@ -155,7 +150,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-2xl font-bold tracking-tight sm:text-3xl">{title ?? workspace.name}</div>
-              {workspace.targetDate && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {displayDate(workspace.targetDate)}</span>}
+              {workspace.targetDate && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatTaskDue(undefined, workspace.targetDate)}</span>}
             </div>
             {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
           </div>

@@ -13,6 +13,12 @@ test("parses quoted commas, escaped quotes, and newlines", () => {
   ])
 })
 
+test("normalizes time-related CSV headers", () => {
+  assert.deepEqual(parseCsv("title,dueAt,estimatedMinutes\nShip it,2026-09-15T14:30:00.000Z,45"), [
+    { title: "Ship it", dueat: "2026-09-15T14:30:00.000Z", estimatedminutes: "45" },
+  ])
+})
+
 test("ignores blank records and removes a UTF-8 BOM from the first header", () => {
   assert.deepEqual(parseCsv("\uFEFFtitle\n\nShip it\n"), [{ title: "Ship it" }])
 })

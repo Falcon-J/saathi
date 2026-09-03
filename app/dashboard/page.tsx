@@ -114,9 +114,9 @@ export default function Dashboard() {
     return false
   }
 
-  const handleAddTask = async (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next") => {
+  const handleAddTask = async (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => {
     try {
-      const result = await addTask(title, description, priority, dueDate, bucket)
+      const result = await addTask(title, description, priority, dueDate, bucket, estimatedMinutes, dueAt)
       const mutationError = getMutationError(result)
       if (mutationError) {
         error("Failed to create task", mutationError)

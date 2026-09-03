@@ -19,6 +19,9 @@ export interface Task {
     status?: 'todo' | 'in-progress' | 'done'
     priority: 'low' | 'medium' | 'high'
     dueDate?: string
+    dueAt?: string
+    bucket?: 'today' | 'next'
+    estimatedMinutes?: number
     assigneeEmail?: string
     createdAt: string
     updatedAt: string
@@ -100,5 +103,7 @@ export interface TaskForm {
     description?: string
     priority: 'low' | 'medium' | 'high'
     dueDate?: string
+    dueAt?: string
+    estimatedMinutes?: number
     assigneeEmail?: string
 }

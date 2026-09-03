@@ -218,10 +218,10 @@ export function useWorkspaces(userEmail?: string) {
   )
 
   const handleAddTask = useCallback(
-    async (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next") => {
+    async (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => {
       if (!currentWorkspaceId) return
       try {
-        const result = await addTask(currentWorkspaceId, title, description, dueDate, undefined, priority, bucket)
+        const result = await addTask(currentWorkspaceId, title, description, dueDate, undefined, priority, bucket, estimatedMinutes, dueAt)
         if (result.error) {
           return result
         }
