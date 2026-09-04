@@ -3,7 +3,11 @@ import { cookies } from "next/headers"
 import { redis } from "@/lib/redis"
 import { realtimeService } from "@/lib/realtime"
 import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
-import { createSingleFlightPoll, getInitialStreamCursor } from "@/lib/realtime-sse"
+import { loadStoredSession } from "@/lib/session-boundary"
+import { schemas } from "@/lib/security"
+import { createSingleFlightPoll, getInitialStreamCursor, getReplayStatus } from "@/lib/realtime-sse"
+import { getRateLimits } from "@/lib/env"
+import { acquireSseConnectionLease, RateLimitExceeded, SseConnectionLimitExceeded } from "@/lib/sse-connection"
 
 export const dynamic = "force-dynamic"
 
@@ -13,9 +17,10 @@ const SSE_HEADERS = {
     'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',
-    // Allow credentials (cookie) to be forwarded from the browser
-    'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || '*',
-    'Access-Control-Allow-Credentials': 'true',
+    ...(process.env.NEXT_PUBLIC_APP_URL ? {
+        'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL,
+        'Access-Control-Allow-Credentials': 'true',
+    } : {}),
 }
 
 // Preflight handler for withCredentials CORS
@@ -23,10 +28,12 @@ export async function OPTIONS() {
     return new Response(null, {
         status: 204,
         headers: {
-            'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || '*',
-            'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Allow-Headers': 'Cookie, Content-Type',
             'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            ...(process.env.NEXT_PUBLIC_APP_URL ? {
+                'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL,
+                'Access-Control-Allow-Credentials': 'true',
+            } : {}),
         }
     })
 }
@@ -42,6 +49,7 @@ export async function OPTIONS() {
  *  - Auto-cleanup after 30 minutes to prevent dangling connections
  */
 export async function GET(request: NextRequest) {
+    let releaseSseConnection: (() => Promise<void>) | undefined
     try {
         // Verify authentication directly (not via server action)
         const cookieStore = await cookies()
@@ -51,20 +59,20 @@ export async function GET(request: NextRequest) {
             return new Response("Unauthorized", { status: 401 })
         }
 
-        const sessionData = await redis.get(`session:${sessionId}`)
-        if (!sessionData) {
+        const session = await loadStoredSession(sessionId, (id) => redis.get(`session:${id}`))
+        if (!session) {
             return new Response("Unauthorized", { status: 401 })
         }
 
-        const session = typeof sessionData === "string" ? JSON.parse(sessionData) : sessionData
-
         // Get workspace ID from query params
         const { searchParams } = new URL(request.url)
-        const workspaceId = searchParams.get('workspaceId')
+        const requestedWorkspaceId = searchParams.get('workspaceId')
 
-        if (!workspaceId) {
+        const workspaceIdResult = schemas.workspaceId.safeParse(requestedWorkspaceId)
+        if (!workspaceIdResult.success) {
             return new Response("Workspace ID required", { status: 400 })
         }
+        const workspaceId = workspaceIdResult.data
 
         const workspaceData = await redis.get(`workspace:${workspaceId}`)
         const authorization = authorizeWorkspaceMember(workspaceData, session.email)
@@ -72,15 +80,37 @@ export async function GET(request: NextRequest) {
             return new Response(authorization.message, { status: authorization.status })
         }
 
+        try {
+            const { sse } = getRateLimits()
+            releaseSseConnection = await acquireSseConnectionLease({
+                userId: session.email,
+                maxConnections: sse.maxConnections,
+                leaseSeconds: sse.leaseSeconds,
+                maxAttempts: sse.maxRequests,
+                attemptWindowMs: sse.windowMs,
+            })
+        } catch (error) {
+            if (error instanceof RateLimitExceeded || error instanceof SseConnectionLimitExceeded) {
+                return new Response(error.message, {
+                    status: 429,
+                    headers: { "Retry-After": String(error.retryAfterSeconds) },
+                })
+            }
+            throw error
+        }
+
         // Set user presence
         await realtimeService.setUserPresence(workspaceId, session.email)
 
-        const latestStreamId = await realtimeService.getLatestStreamId(workspaceId)
+        const streamBounds = await realtimeService.getStreamBounds(workspaceId)
+        const latestStreamId = streamBounds?.latestId ?? null
+        const oldestStreamId = streamBounds?.oldestId ?? null
         const encoder = new TextEncoder()
         const formatSSE = (data: any, eventId?: string) => (
             `${eventId ? `id: ${eventId}\n` : ""}data: ${JSON.stringify(data)}\n\n`
         )
 
+        let cleanupStream: (() => void) | undefined
         const stream = new ReadableStream({
             async start(controller) {
                 // Send initial connection message
@@ -95,12 +125,26 @@ export async function GET(request: NextRequest) {
                 controller.enqueue(encoder.encode("retry: 1000\n\n"))
 
                 const lastEventId = request.headers.get("last-event-id")
+                const replayStatus = getReplayStatus(lastEventId, oldestStreamId, latestStreamId)
                 // Use Redis's own stream ID rather than the Vercel server clock.
                 // Stream IDs are generated by Redis, so a local timestamp can be
                 // ahead of the next event when the clocks are not identical.
-                let lastSeenId = getInitialStreamCursor(lastEventId, latestStreamId)
+                let lastSeenId = replayStatus === "resync-required"
+                    ? getInitialStreamCursor(null, latestStreamId)
+                    : getInitialStreamCursor(lastEventId, latestStreamId)
                 let closed = false
                 let streamErrorSent = false
+
+                if (replayStatus === "resync-required") {
+                    controller.enqueue(encoder.encode(formatSSE({
+                        type: "resync-required",
+                        timestamp: Date.now(),
+                        data: {
+                            workspaceId,
+                            reason: "Requested events are no longer retained",
+                        },
+                    })))
+                }
 
                 // ── Heartbeat (30s) ─────────────────────────────────────
                 const sendHeartbeat = async () => {
@@ -110,6 +154,7 @@ export async function GET(request: NextRequest) {
                         const activeUsers = await realtimeService.getActiveUsers(workspaceId)
                         const metrics = realtimeService.getMetrics()
 
+                        if (closed) return
                         controller.enqueue(encoder.encode(formatSSE({
                             type: 'heartbeat',
                             timestamp: Date.now(),
@@ -136,6 +181,25 @@ export async function GET(request: NextRequest) {
                         streamErrorSent = false
 
                         if (newEvents.length > 0) {
+                            const currentBounds = await realtimeService.getStreamBounds(workspaceId)
+                            const currentReplayStatus = getReplayStatus(
+                                lastSeenId,
+                                currentBounds?.oldestId ?? null,
+                                currentBounds?.latestId ?? null,
+                            )
+                            if (currentReplayStatus === "resync-required") {
+                                controller.enqueue(encoder.encode(formatSSE({
+                                    type: "resync-required",
+                                    timestamp: Date.now(),
+                                    data: {
+                                        workspaceId,
+                                        reason: "Requested events are no longer retained",
+                                    },
+                                })))
+                                lastSeenId = currentBounds?.latestId ?? lastSeenId
+                                return
+                            }
+
                             for (const event of newEvents) {
                                 if (event._streamId) {
                                     lastSeenId = event._streamId
@@ -172,7 +236,7 @@ export async function GET(request: NextRequest) {
 
                 const pollInterval = setInterval(() => { void pollForEvents() }, 100)
                 const heartbeatInterval = setInterval(sendHeartbeat, 30000)
-                sendHeartbeat()
+                let cleanupTimer: ReturnType<typeof setTimeout> | undefined
 
                 // ── Cleanup ─────────────────────────────────────────────
                 const cleanup = () => {
@@ -180,8 +244,12 @@ export async function GET(request: NextRequest) {
                     closed = true
                     clearInterval(pollInterval)
                     clearInterval(heartbeatInterval)
+                    if (cleanupTimer) clearTimeout(cleanupTimer)
                     realtimeService.setUserPresence(workspaceId, session.email).catch(err =>
                         console.error('[SSE] Error updating presence on disconnect:', err)
+                    )
+                    void releaseSseConnection?.().catch(err =>
+                        console.error('[SSE] Error releasing connection lease:', err)
                     )
                     try {
                         controller.close()
@@ -190,15 +258,24 @@ export async function GET(request: NextRequest) {
                     }
                 }
 
+                cleanupStream = cleanup
                 request.signal.addEventListener('abort', cleanup)
+                if (request.signal.aborted) cleanup()
 
                 // Auto-cleanup after 30 minutes
-                setTimeout(cleanup, 30 * 60 * 1000)
+                cleanupTimer = setTimeout(cleanup, 30 * 60 * 1000)
+                void sendHeartbeat()
+            },
+            cancel() {
+                cleanupStream?.()
             }
         })
 
         return new Response(stream, { headers: SSE_HEADERS })
     } catch (error) {
+        void releaseSseConnection?.().catch(err =>
+            console.error('[SSE] Error releasing connection lease after setup failure:', err)
+        )
         console.error('[SSE] Error setting up stream:', error)
         return new Response("Internal Server Error", { status: 500 })
     }

@@ -176,7 +176,8 @@ class RedisService {
     this.mockStore.set(key, serializedValue)
     if (options?.ex) {
       // Simple expiry simulation for mock
-      setTimeout(() => this.mockStore.delete(key), options.ex * 1000)
+      const expiryTimer = setTimeout(() => this.mockStore.delete(key), options.ex * 1000)
+      expiryTimer.unref?.()
     }
     return "OK"
   }
@@ -312,12 +313,15 @@ class RedisService {
   async xadd(
     streamKey: string,
     id: string,
-    fields: Record<string, string>
+    fields: Record<string, string>,
+    maxEntries?: number,
   ): Promise<string> {
     if (this.isConnected && this.redis) {
       try {
         return await this.withRetry(async () => {
-          const result = await this.redis!.xadd(streamKey, id, fields)
+          const result = await this.redis!.xadd(streamKey, id, fields, maxEntries ? {
+            trim: { type: "MAXLEN", comparison: "~", threshold: maxEntries },
+          } : undefined)
           return result as string
         })
       } catch (error) {

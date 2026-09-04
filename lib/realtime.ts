@@ -1,13 +1,87 @@
-import { redis } from "./redis"
-import { streamService } from "./redis-streams"
+import { redis } from "./redis.ts"
+import { streamService } from "./redis-streams.ts"
+import { z } from "zod"
 
-// Real-time event types
+export type RealtimeEventType =
+    | 'task-created'
+    | 'task-updated'
+    | 'task-deleted'
+    | 'task-toggled'
+    | 'user-joined'
+    | 'user-left'
+    | 'workspace-created'
+    | 'member-added'
+    | 'member-removed'
+
 export interface RealtimeEvent {
-    type: 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'user-joined' | 'user-left' | 'workspace-created' | 'member-added' | 'member-removed'
+    type: RealtimeEventType
     workspaceId: string
     userId: string
     timestamp: number
-    data: any
+    data: Record<string, unknown>
+}
+
+export interface RealtimeStreamEvent extends RealtimeEvent {
+    id: string
+    publishedAt?: number
+}
+
+const realtimeEventSchema = z.object({
+    type: z.enum([
+        'task-created',
+        'task-updated',
+        'task-deleted',
+        'task-toggled',
+        'user-joined',
+        'user-left',
+        'workspace-created',
+        'member-added',
+        'member-removed',
+    ]),
+    workspaceId: z.string().trim().min(1).max(200),
+    userId: z.string().trim().min(1).max(255),
+    timestamp: z.number().int().nonnegative(),
+    data: z.record(z.unknown()),
+}).strict()
+
+export function normalizeRealtimeEvent(input: unknown): RealtimeEvent {
+    const result = realtimeEventSchema.safeParse(input)
+    if (!result.success) {
+        throw new Error("Realtime event is invalid")
+    }
+
+    return result.data
+}
+
+export function parseRealtimeStreamEntry(entry: { id: string; fields: Record<string, string> }): RealtimeStreamEvent | null {
+    try {
+        const { fields } = entry
+        let parsed: unknown
+
+        if (fields.type && fields.workspaceId) {
+            parsed = {
+                type: fields.type,
+                workspaceId: fields.workspaceId,
+                userId: fields.userId,
+                timestamp: Number(fields.timestamp),
+                data: fields.data ? JSON.parse(fields.data) : {},
+            }
+        } else if (fields.value) {
+            parsed = JSON.parse(fields.value)
+        } else {
+            return null
+        }
+
+        const event = normalizeRealtimeEvent(parsed)
+        const publishedAt = fields._publishedAt ? Number(fields._publishedAt) : undefined
+        return {
+            id: entry.id,
+            ...event,
+            ...(publishedAt !== undefined && Number.isFinite(publishedAt) ? { publishedAt } : {}),
+        }
+    } catch {
+        return null
+    }
 }
 
 // Redis Streams + Polling implementation for real-time events
@@ -32,32 +106,36 @@ export class RealtimeService {
      * Each event is stored as field-value pairs (not a JSON blob), enabling
      * native Stream consumers and lower per-event overhead.
      */
-    async publishEvent(event: RealtimeEvent): Promise<void> {
+    async publishEvent(event: RealtimeEvent): Promise<string> {
+        const normalizedEvent = normalizeRealtimeEvent(event)
         const publishStart = Date.now()
         try {
-            const streamKey = `${this.eventStreamPrefix}${event.workspaceId}`
+            const streamKey = `${this.eventStreamPrefix}${normalizedEvent.workspaceId}`
 
             // Build flat field-value map for XADD
             const fields: Record<string, string> = {
-                type: event.type,
-                workspaceId: event.workspaceId,
-                userId: event.userId,
-                timestamp: event.timestamp.toString(),
-                data: JSON.stringify(event.data),
+                type: normalizedEvent.type,
+                workspaceId: normalizedEvent.workspaceId,
+                userId: normalizedEvent.userId,
+                timestamp: normalizedEvent.timestamp.toString(),
+                data: JSON.stringify(normalizedEvent.data),
             }
 
             // Write to workspace stream with automatic trimming (keep last 1000)
-            await streamService.xadd(streamKey, fields)
+            const streamId = await streamService.xadd(streamKey, fields)
 
             // Track metrics
             this.publishCount++
             this.totalPublishLatency += Date.now() - publishStart
 
             console.log(
-                `[Realtime] Published ${event.type} → stream:${event.workspaceId} (${Date.now() - publishStart}ms)`
+                `[Realtime] Published ${normalizedEvent.type} → stream:${normalizedEvent.workspaceId} (${Date.now() - publishStart}ms)`
             )
+
+            return streamId
         } catch (error) {
-            console.error('[Realtime] Failed to publish event:', error)
+            console.error('[Realtime] Failed to publish event:', error instanceof Error ? error.message : 'unknown error')
+            throw new Error("Realtime event publication failed")
         }
     }
 
@@ -104,6 +182,24 @@ export class RealtimeService {
         }
     }
 
+    async getOldestStreamId(workspaceId: string): Promise<string | null> {
+        try {
+            const streamKey = `${this.eventStreamPrefix}${workspaceId}`
+            const entries = await streamService.xrange(streamKey, "-", "+", 1)
+            return entries[0]?.id ?? null
+        } catch (error) {
+            console.error('[Realtime] Failed to get oldest stream ID:', error)
+            return null
+        }
+    }
+
+    async getStreamBounds(workspaceId: string): Promise<{ oldestId: string; latestId: string } | null> {
+        const streamKey = `${this.eventStreamPrefix}${workspaceId}`
+        const entries = await streamService.xrange(streamKey, "-", "+")
+        if (entries.length === 0) return null
+        return { oldestId: entries[0].id, latestId: entries[entries.length - 1].id }
+    }
+
     /**
      * Read new events after a given stream ID.
      * Used by the SSE route for efficient polling.
@@ -113,16 +209,16 @@ export class RealtimeService {
         const entries = await streamService.xread(streamKey, lastSeenId, count)
         return entries
             .map(entry => {
-                const event = this.entryToEvent(entry)
+                const event = parseRealtimeStreamEntry(entry)
                 return event
                     ? {
                         ...event,
-                        _streamId: entry.id,
-                        _publishedAt: entry.fields._publishedAt ? parseInt(entry.fields._publishedAt) : undefined,
+                        _streamId: event.id,
+                        _publishedAt: event.publishedAt,
                     }
                     : null
             })
-            .filter((event): event is RealtimeEvent & { _streamId: string; _publishedAt: number | undefined } => event !== null)
+            .filter((event): event is RealtimeStreamEvent & { _streamId: string; _publishedAt: number | undefined } => event !== null)
     }
 
     // ── User Presence ──────────────────────────────────────────────────────
@@ -199,30 +295,11 @@ export class RealtimeService {
      * Convert a raw stream entry (field-value pairs) back to a RealtimeEvent.
      */
     private entryToEvent(entry: { id: string; fields: Record<string, string> }): RealtimeEvent | null {
-        try {
-            const { fields } = entry
+        const parsed = parseRealtimeStreamEntry(entry)
+        if (!parsed) return null
 
-            // New format: fields are flat key-value pairs from XADD
-            if (fields.type && fields.workspaceId) {
-                return {
-                    type: fields.type as RealtimeEvent['type'],
-                    workspaceId: fields.workspaceId,
-                    userId: fields.userId || '',
-                    timestamp: fields.timestamp ? parseInt(fields.timestamp) : Date.now(),
-                    data: fields.data ? JSON.parse(fields.data) : {},
-                }
-            }
-
-            // Legacy format: single "value" field with full JSON blob
-            if (fields.value) {
-                const parsed = JSON.parse(fields.value)
-                return parsed as RealtimeEvent
-            }
-
-            return null
-        } catch {
-            return null
-        }
+        const { id: _id, publishedAt: _publishedAt, ...event } = parsed
+        return event
     }
 }
 

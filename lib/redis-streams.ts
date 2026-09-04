@@ -1,7 +1,7 @@
 // Redis Streams service — delegates to native XADD / XREAD / XRANGE / XTRIM
 // exposed by RedisService (which uses the Upstash REST SDK directly).
 
-import { redis } from "./redis"
+import { redis } from "./redis.ts"
 
 export interface StreamEntry {
   id: string
@@ -32,7 +32,7 @@ export class StreamService {
     // Add a publishedAt timestamp for latency measurement
     fields._publishedAt = Date.now().toString()
 
-    const entryId = await redis.xadd(streamKey, "*", fields)
+    const entryId = await redis.xadd(streamKey, "*", fields, 1000)
     return entryId
   }
 

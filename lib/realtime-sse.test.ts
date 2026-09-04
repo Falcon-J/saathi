@@ -4,6 +4,8 @@ import {
   authorizeWorkspaceSubscription,
   createSingleFlightPoll,
   getInitialStreamCursor,
+  getReplayStatus,
+  shouldProcessEvent,
 } from "./realtime-sse.ts"
 
 test("uses the latest Redis stream ID for a new SSE connection", () => {
@@ -73,4 +75,28 @@ test("prevents overlapping event polls", async () => {
   releases.shift()?.()
   assert.equal(await third, true)
   assert.equal(calls, 2)
+})
+
+test("requires a resync when the reconnect cursor fell out of retention", () => {
+  assert.equal(getReplayStatus("1788342660000-3", "1788342660100-0", "1788342660200-0"), "resync-required")
+})
+
+test("replays from a cursor that is still retained", () => {
+  assert.equal(getReplayStatus("1788342660100-0", "1788342660100-0", "1788342660200-0"), "replayable")
+})
+
+test("treats an empty stream as replayable from the beginning", () => {
+  assert.equal(getReplayStatus("0-0", null, null), "empty")
+})
+
+test("requires a resync when a reconnect cursor is newer than the stream", () => {
+  assert.equal(getReplayStatus("1788342660300-0", "1788342660100-0", "1788342660200-0"), "resync-required")
+})
+
+test("ignores a duplicate SSE event ID", () => {
+  const seen = new Set<string>()
+
+  assert.equal(shouldProcessEvent(seen, "1788342660100-1"), true)
+  assert.equal(shouldProcessEvent(seen, "1788342660100-1"), false)
+  assert.equal(shouldProcessEvent(seen, "1788342660100-2"), true)
 })

@@ -8,6 +8,8 @@ import { recordUsageEvent } from "@/lib/usage"
 import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
 import { normalizeEmail } from "@/lib/identity"
 import { hasTaskConflict, normalizeTaskUpdates, type TaskUpdate } from "./contract"
+import { getRateLimits } from "@/lib/env"
+import { consumeDistributedRateLimit, RateLimitExceeded } from "@/lib/rate-limit"
 
 // Security: Validate workspace membership
 async function validateWorkspaceMembership(userEmail: string, workspaceId: string) {
@@ -87,6 +89,31 @@ export interface Task {
 
 export type TaskStatus = "todo" | "in-progress" | "done"
 
+export type TaskMutationResult = {
+    success?: true
+    error?: string
+    task?: Task
+    code?: "rate_limited"
+    retryAfterSeconds?: number
+}
+
+async function enforceTaskRateLimit(userEmail: string, workspaceId: string): Promise<void> {
+    const { maxRequests, windowMs } = getRateLimits().tasks
+    await consumeDistributedRateLimit(`tasks:${userEmail}:${workspaceId}`, maxRequests, windowMs)
+}
+
+function taskMutationError(error: unknown, fallback: string) {
+    if (error instanceof RateLimitExceeded) {
+        return {
+            error: error.message,
+            code: "rate_limited" as const,
+            retryAfterSeconds: error.retryAfterSeconds,
+        }
+    }
+
+    return { error: fallback }
+}
+
 function normalizeTask(task: Task): Task {
     const status: TaskStatus = task.status === "todo" || task.status === "in-progress" || task.status === "done"
         ? task.status
@@ -111,7 +138,7 @@ export async function addTask(
     bucket?: "today" | "next",
     estimatedMinutes?: number | null,
     dueAt?: string,
-) {
+): Promise<TaskMutationResult> {
     try {
         const session = await getSession()
         if (!session) {
@@ -120,6 +147,7 @@ export async function addTask(
 
         // Security: Validate workspace membership
         const workspace = await validateWorkspaceMembership(session.email, workspaceId)
+        await enforceTaskRateLimit(session.email, workspaceId)
 
         // Validate inputs
         if (!title || title.trim().length === 0) {
@@ -190,15 +218,13 @@ export async function addTask(
             redis.set(`workspace:${workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event (non-blocking)
-        realtimeService.publishEvent({
+        // Publish before reporting success so a Redis event failure is visible.
+        await realtimeService.publishEvent({
             type: 'task-created',
             workspaceId,
             userId: session.email,
             timestamp: Date.now(),
             data: { task }
-        }).catch(error => {
-            console.error('[Realtime] Failed to publish task-created event:', error)
         })
         void recordUsageEvent(workspaceId, session.email, "task-created")
 
@@ -206,11 +232,11 @@ export async function addTask(
         return { success: true, task }
     } catch (error) {
         console.error("Add task error:", error)
-        return { error: "Failed to create task" }
+        return taskMutationError(error, "Failed to create task")
     }
 }
 
-export async function updateTask(taskId: string, updates: TaskUpdate, expectedUpdatedAt?: string) {
+export async function updateTask(taskId: string, updates: TaskUpdate, expectedUpdatedAt?: string): Promise<TaskMutationResult> {
     try {
         const session = await getSession()
         if (!session) {
@@ -234,6 +260,7 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
         }
 
         const task = normalizeTask(typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task)
+        await enforceTaskRateLimit(session.email, task.workspaceId)
         if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
             return { error: "Task changed by another teammate", task }
         }
@@ -266,15 +293,13 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
             redis.set(`workspace:${task.workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event (non-blocking)
-        realtimeService.publishEvent({
+        // Publish before reporting success so a Redis event failure is visible.
+        await realtimeService.publishEvent({
             type: 'task-updated',
             workspaceId: task.workspaceId,
             userId: session.email,
             timestamp: Date.now(),
             data: { task: updatedTask, updates: normalizedResult.updates }
-        }).catch(error => {
-            console.error('[Realtime] Failed to publish task-updated event:', error)
         })
         if (!task.completed && updatedTask.completed) {
             void recordUsageEvent(task.workspaceId, session.email, "task-completed")
@@ -284,11 +309,11 @@ export async function updateTask(taskId: string, updates: TaskUpdate, expectedUp
         return { success: true, task: updatedTask }
     } catch (error) {
         console.error("Update task error:", error)
-        return { error: "Failed to update task" }
+        return taskMutationError(error, "Failed to update task")
     }
 }
 
-export async function deleteTask(taskId: string, expectedUpdatedAt?: string) {
+export async function deleteTask(taskId: string, expectedUpdatedAt?: string): Promise<TaskMutationResult> {
     try {
         const session = await getSession()
         if (!session) {
@@ -307,6 +332,7 @@ export async function deleteTask(taskId: string, expectedUpdatedAt?: string) {
         }
 
         const task = normalizeTask(typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task)
+        await enforceTaskRateLimit(session.email, task.workspaceId)
         if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
             return { error: "Task changed by another teammate", task }
         }
@@ -320,26 +346,24 @@ export async function deleteTask(taskId: string, expectedUpdatedAt?: string) {
             redis.set(`workspace:${task.workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event (non-blocking)
-        realtimeService.publishEvent({
+        // Publish before reporting success so a Redis event failure is visible.
+        await realtimeService.publishEvent({
             type: 'task-deleted',
             workspaceId: task.workspaceId,
             userId: session.email,
             timestamp: Date.now(),
             data: { taskId, task }
-        }).catch(error => {
-            console.error('[Realtime] Failed to publish task-deleted event:', error)
         })
 
         revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         console.error("Delete task error:", error)
-        return { error: "Failed to delete task" }
+        return taskMutationError(error, "Failed to delete task")
     }
 }
 
-export async function toggleTask(taskId: string, expectedUpdatedAt?: string) {
+export async function toggleTask(taskId: string, expectedUpdatedAt?: string): Promise<TaskMutationResult> {
     try {
         const session = await getSession()
         if (!session) {
@@ -358,6 +382,7 @@ export async function toggleTask(taskId: string, expectedUpdatedAt?: string) {
         }
 
         const task = normalizeTask(typeof existingTask === 'string' ? JSON.parse(existingTask) : existingTask as Task)
+        await enforceTaskRateLimit(session.email, task.workspaceId)
         if (hasTaskConflict(task.updatedAt, expectedUpdatedAt)) {
             return { error: "Task changed by another teammate", task }
         }
@@ -377,15 +402,13 @@ export async function toggleTask(taskId: string, expectedUpdatedAt?: string) {
             redis.set(`workspace:${task.workspaceId}:lastUpdate`, timestamp)
         ])
 
-        // Publish real-time event (non-blocking)
-        realtimeService.publishEvent({
+        // Publish before reporting success so a Redis event failure is visible.
+        await realtimeService.publishEvent({
             type: 'task-toggled',
             workspaceId: task.workspaceId,
             userId: session.email,
             timestamp: Date.now(),
             data: { task: updatedTask }
-        }).catch(error => {
-            console.error('[Realtime] Failed to publish task-toggled event:', error)
         })
         if (updatedTask.completed) {
             void recordUsageEvent(task.workspaceId, session.email, "task-completed")
@@ -395,7 +418,7 @@ export async function toggleTask(taskId: string, expectedUpdatedAt?: string) {
         return { success: true, task: updatedTask }
     } catch (error) {
         console.error("Toggle task error:", error)
-        return { error: "Failed to toggle task" }
+        return taskMutationError(error, "Failed to toggle task")
     }
 }
 

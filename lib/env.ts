@@ -26,6 +26,10 @@ const envSchema = z.object({
     RATE_LIMIT_SIGNUP_WINDOW: z.string().transform(Number).default('3600000'),
     RATE_LIMIT_TASKS_MAX: z.string().transform(Number).default('100'),
     RATE_LIMIT_TASKS_WINDOW: z.string().transform(Number).default('60000'),
+    RATE_LIMIT_SSE_MAX: z.string().transform(Number).default('30'),
+    RATE_LIMIT_SSE_WINDOW: z.string().transform(Number).default('60000'),
+    SSE_MAX_CONNECTIONS: z.string().transform(Number).default('5'),
+    SSE_CONNECTION_LEASE_SECONDS: z.string().transform(Number).default('1900'),
 
     // Application
     APP_NAME: z.string().default('Saathi'),
@@ -129,6 +133,12 @@ export const getRateLimits = () => ({
     tasks: {
         maxRequests: env.RATE_LIMIT_TASKS_MAX,
         windowMs: env.RATE_LIMIT_TASKS_WINDOW
+    },
+    sse: {
+        maxRequests: env.RATE_LIMIT_SSE_MAX,
+        windowMs: env.RATE_LIMIT_SSE_WINDOW,
+        maxConnections: env.SSE_MAX_CONNECTIONS,
+        leaseSeconds: env.SSE_CONNECTION_LEASE_SECONDS,
     }
 })
 
