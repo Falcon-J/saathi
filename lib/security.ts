@@ -14,6 +14,17 @@ export const schemas = {
   workspaceId: z.string().regex(/^[a-zA-Z0-9_.-]+$/),
   taskId: z.string().regex(/^[a-zA-Z0-9_-]+$/),
   invitationId: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+  invitation: z.object({
+    id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+    workspaceId: z.string().regex(/^[a-zA-Z0-9_.-]+$/),
+    workspaceName: z.string().min(1).max(100),
+    inviterEmail: z.string().email().max(255),
+    inviterUsername: z.string().min(2).max(50),
+    inviteeEmail: z.string().email().max(255),
+    status: z.enum(["pending", "accepted", "declined", "revoked", "expired"]),
+    createdAt: z.string().datetime(),
+    expiresAt: z.string().datetime(),
+  }),
 }
 
 import { getRateLimits } from "./env"

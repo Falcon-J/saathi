@@ -6,6 +6,13 @@ import { revalidatePath } from "next/cache"
 import { realtimeService } from "@/lib/realtime"
 import { recordUsageEvent } from "@/lib/usage"
 import { normalizeEmail } from "@/lib/identity"
+import { getRateLimits } from "@/lib/env"
+import { schemas, SecurityService } from "@/lib/security"
+import {
+  INVITATION_LIFETIME_MS,
+  InvitationStatus,
+  transitionInvitation,
+} from "@/lib/invitation-domain"
 import { getWorkspace } from "./workspaces"
 
 export interface Invitation {
@@ -15,26 +22,68 @@ export interface Invitation {
   inviterEmail: string
   inviterUsername: string
   inviteeEmail: string
-  status: "pending" | "accepted" | "declined"
+  status: InvitationStatus
   createdAt: string
   expiresAt: string
 }
 
+const INVITATION_RECORD_RETENTION_SECONDS = 30 * 24 * 60 * 60
+const ACCEPT_CLAIM_SECONDS = 30
+
+function invitationUniquenessKey(workspaceId: string, inviteeEmail: string): string {
+  return `workspace:${workspaceId}:invitation:${SecurityService.hashForLogging(inviteeEmail)}`
+}
+
+function invitationAcceptClaimKey(invitationId: string): string {
+  return `invitation:${invitationId}:accepting`
+}
+
+function parseInvitation(data: unknown): Invitation {
+  const parsed = typeof data === "string" ? JSON.parse(data) : data
+  return SecurityService.validateInput(schemas.invitation, parsed) as Invitation
+}
+
+async function enforceInvitationRateLimit(ownerEmail: string, workspaceId: string): Promise<void> {
+  const { maxRequests, windowMs } = getRateLimits().invitations
+  const bucket = Math.floor(Date.now() / windowMs)
+  const key = `rate:invitations:${SecurityService.hashForLogging(`${ownerEmail}:${workspaceId}:${bucket}`)}`
+  const count = await redis.incr(key)
+
+  if (count === 1) {
+    await redis.set(key, count, { ex: Math.ceil(windowMs / 1000) + 1 })
+  }
+
+  if (count > maxRequests) {
+    throw new Error("Invitation rate limit exceeded. Please try again later.")
+  }
+}
+
+async function removePendingInvitation(invitation: Invitation): Promise<void> {
+  await redis.srem(`user:${normalizeEmail(invitation.inviteeEmail)}:invitations`, invitation.id)
+  await redis.del(invitationUniquenessKey(invitation.workspaceId, invitation.inviteeEmail))
+}
+
+async function releaseInvitationClaim(key: string, token: string): Promise<void> {
+  const currentClaim = await redis.get(key).catch(() => null)
+  if (currentClaim === token) {
+    await redis.del(key).catch(() => undefined)
+  }
+}
+
 // Send workspace invitation
 export async function sendWorkspaceInvitation(workspaceId: string, inviteeEmail: string): Promise<void> {
+  let uniquenessKey: string | null = null
+  let invitationId: string | null = null
+  let claimedUniqueness = false
+
   try {
     const session = await getSession()
     if (!session) {
       throw new Error("Not authenticated")
     }
 
-    const normalizedInviteeEmail = normalizeEmail(inviteeEmail)
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(normalizedInviteeEmail)) {
-      throw new Error("Please enter a valid email address")
-    }
+    const validatedWorkspaceId = SecurityService.validateInput(schemas.workspaceId, workspaceId)
+    const normalizedInviteeEmail = SecurityService.validateInput(schemas.email, inviteeEmail)
     inviteeEmail = normalizedInviteeEmail
 
     // Prevent self-invitation
@@ -43,7 +92,7 @@ export async function sendWorkspaceInvitation(workspaceId: string, inviteeEmail:
     }
 
     // Get workspace details
-    const workspace = await getWorkspace(workspaceId)
+    const workspace = await getWorkspace(validatedWorkspaceId)
     if (!workspace) {
       throw new Error("Workspace not found")
     }
@@ -58,24 +107,22 @@ export async function sendWorkspaceInvitation(workspaceId: string, inviteeEmail:
       throw new Error("User is already a member of this workspace")
     }
 
-    // Check if invitation already exists
+    // Preserve compatibility with invitations created before the uniqueness key existed.
     const existingInvitations = await loadUserInvitations(inviteeEmail)
-    const existingInvitation = existingInvitations.find(
-      inv => inv.workspaceId === workspaceId && inv.status === "pending"
-    )
-
-    if (existingInvitation) {
+    if (existingInvitations.some(invitation => invitation.workspaceId === validatedWorkspaceId)) {
       throw new Error("Invitation already sent to this user")
     }
 
+    await enforceInvitationRateLimit(session.email, validatedWorkspaceId)
+
     // Create invitation
-    const invitationId = `invitation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    invitationId = SecurityService.generateSecureId("invitation")
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    const expiresAt = new Date(now.getTime() + INVITATION_LIFETIME_MS)
 
     const invitation: Invitation = {
       id: invitationId,
-      workspaceId,
+      workspaceId: validatedWorkspaceId,
       workspaceName: workspace.name,
       inviterEmail: session.email,
       inviterUsername: session.username,
@@ -85,14 +132,30 @@ export async function sendWorkspaceInvitation(workspaceId: string, inviteeEmail:
       expiresAt: expiresAt.toISOString()
     }
 
-    // Save invitation
-    await redis.set(`invitation:${invitationId}`, JSON.stringify(invitation))
+    uniquenessKey = invitationUniquenessKey(validatedWorkspaceId, inviteeEmail)
+    claimedUniqueness = await redis.setIfAbsent(uniquenessKey, invitationId, {
+      ex: Math.ceil(INVITATION_LIFETIME_MS / 1000),
+    })
+    if (!claimedUniqueness) {
+      throw new Error("Invitation already sent to this user")
+    }
 
-    // Add to user's invitations list
-    await redis.sadd(`user:${inviteeEmail}:invitations`, invitationId)
+    try {
+      await redis.set(`invitation:${invitationId}`, JSON.stringify(invitation), {
+        ex: Math.ceil(INVITATION_LIFETIME_MS / 1000),
+      })
+      await redis.sadd(`user:${inviteeEmail}:invitations`, invitationId)
+    } catch (error) {
+      await redis.del(uniquenessKey)
+      await redis.del(`invitation:${invitationId}`)
+      throw error
+    }
 
-    console.log(`[Saathi] Sent invitation ${invitationId} to ${inviteeEmail} for workspace ${workspaceId}`)
+    console.log(`[Saathi] Created invitation ${SecurityService.hashForLogging(invitationId)} for workspace ${validatedWorkspaceId}`)
   } catch (error) {
+    if (claimedUniqueness && uniquenessKey && invitationId) {
+      await redis.del(uniquenessKey).catch(() => undefined)
+    }
     console.error("[Saathi] Error sending invitation:", error)
     throw error
   }
@@ -107,25 +170,19 @@ async function loadUserInvitations(userEmail: string): Promise<Invitation[]> {
   for (const invitationId of invitationIds) {
     const invitationData = await redis.get(`invitation:${invitationId}`)
     if (invitationData) {
-      let invitation: Invitation
-      if (typeof invitationData === "string") {
-        invitation = JSON.parse(invitationData)
-      } else {
-        invitation = invitationData as Invitation
-      }
+      const invitation = parseInvitation(invitationData)
 
       // Check if invitation is expired
-      if (new Date(invitation.expiresAt) > new Date()) {
+      if (invitation.status === "pending" && new Date(invitation.expiresAt) > new Date()) {
         invitations.push(invitation)
       } else {
-        // Clean up expired invitation
-        await redis.del(`invitation:${invitationId}`)
-        const userInvitations = await redis.smembers(`user:${normalizedUserEmail}:invitations`)
-        const updatedInvitations = userInvitations.filter((id: string) => id !== invitationId)
-        await redis.del(`user:${normalizedUserEmail}:invitations`)
-        if (updatedInvitations.length > 0) {
-          await redis.sadd(`user:${normalizedUserEmail}:invitations`, ...updatedInvitations)
+        if (invitation.status === "pending") {
+          const expiredInvitation = transitionInvitation(invitation, "expired")
+          await redis.set(`invitation:${invitation.id}`, JSON.stringify(expiredInvitation), {
+            ex: INVITATION_RECORD_RETENTION_SECONDS,
+          })
         }
+        await removePendingInvitation(invitation)
       }
     }
   }
@@ -149,37 +206,81 @@ export async function getUserInvitations(userEmail: string): Promise<Invitation[
 
 // Accept workspace invitation
 export async function acceptInvitation(invitationId: string): Promise<void> {
+  let claimKey: string | null = null
+  let claimToken: string | null = null
+
   try {
     const session = await getSession()
     if (!session) {
       throw new Error("Not authenticated")
     }
 
+    const validatedInvitationId = SecurityService.validateInput(schemas.invitationId, invitationId)
+
     // Get invitation
-    const invitationData = await redis.get(`invitation:${invitationId}`)
+    const invitationData = await redis.get(`invitation:${validatedInvitationId}`)
     if (!invitationData) {
       throw new Error("Invitation not found")
     }
 
-    let invitation: Invitation
-    if (typeof invitationData === "string") {
-      invitation = JSON.parse(invitationData)
-    } else {
-      invitation = invitationData as Invitation
-    }
+    let invitation = parseInvitation(invitationData)
 
     // Verify invitation belongs to current user
     if (normalizeEmail(invitation.inviteeEmail) !== normalizeEmail(session.email)) {
       throw new Error("Invitation does not belong to current user")
     }
 
-    // Check if invitation is still pending
+    // Accept is idempotent for the invited user.
+    if (invitation.status === "accepted") {
+      await removePendingInvitation(invitation)
+      return
+    }
+
     if (invitation.status !== "pending") {
       throw new Error("Invitation is no longer pending")
     }
 
     // Check if invitation is expired
     if (new Date(invitation.expiresAt) <= new Date()) {
+      const expiredInvitation = transitionInvitation(invitation, "expired")
+      await redis.set(`invitation:${invitation.id}`, JSON.stringify(expiredInvitation), {
+        ex: INVITATION_RECORD_RETENTION_SECONDS,
+      })
+      await removePendingInvitation(invitation)
+      throw new Error("Invitation has expired")
+    }
+
+    // One short-lived claim prevents concurrent accepts for the same invitation.
+    claimKey = invitationAcceptClaimKey(invitation.id)
+    claimToken = SecurityService.generateSecureId("accept")
+    const claimed = await redis.setIfAbsent(claimKey, claimToken, { ex: ACCEPT_CLAIM_SECONDS })
+    if (!claimed) {
+      const latestData = await redis.get(`invitation:${invitation.id}`)
+      if (latestData && parseInvitation(latestData).status === "accepted") return
+      throw new Error("Invitation is already being accepted")
+    }
+
+    // Re-read after claiming so a previous winner is observed before mutation.
+    const latestInvitationData = await redis.get(`invitation:${invitation.id}`)
+    if (!latestInvitationData) {
+      throw new Error("Invitation not found")
+    }
+    invitation = parseInvitation(latestInvitationData)
+    if (invitation.status === "accepted") {
+      if (claimKey && claimToken) {
+        await releaseInvitationClaim(claimKey, claimToken)
+      }
+      return
+    }
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer pending")
+    }
+    if (new Date(invitation.expiresAt) <= new Date()) {
+      const expiredInvitation = transitionInvitation(invitation, "expired")
+      await redis.set(`invitation:${invitation.id}`, JSON.stringify(expiredInvitation), {
+        ex: INVITATION_RECORD_RETENTION_SECONDS,
+      })
+      await removePendingInvitation(invitation)
       throw new Error("Invitation has expired")
     }
 
@@ -191,8 +292,8 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
 
     // Add user to workspace
     const newMember = {
-      id: session.email,
-      email: session.email,
+      id: normalizeEmail(session.email),
+      email: normalizeEmail(session.email),
       username: session.username,
       role: "member" as const,
       joinedAt: new Date().toISOString()
@@ -202,32 +303,19 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
     if (!alreadyMember) {
       workspace.members.push(newMember)
     }
-    console.log(`[Saathi] Adding member ${session.email} to workspace ${invitation.workspaceId}`)
-    console.log(`[Saathi] Workspace now has ${workspace.members.length} members`)
     await redis.set(`workspace:${invitation.workspaceId}`, JSON.stringify(workspace))
-    console.log(`[Saathi] Workspace ${invitation.workspaceId} saved successfully`)
 
     // Add workspace to user's workspace list
-    console.log(`[Saathi] Adding workspace ${invitation.workspaceId} to user ${session.email} workspace list`)
-    await redis.sadd(`user:${session.email}:workspaces`, invitation.workspaceId)
-
-    // Verify it was added
-    const userWorkspaces = await redis.smembers(`user:${session.email}:workspaces`)
-    console.log(`[Saathi] User ${session.email} now has workspaces:`, userWorkspaces)
+    await redis.sadd(`user:${normalizeEmail(session.email)}:workspaces`, invitation.workspaceId)
 
     // Update invitation status
-    invitation.status = "accepted"
-    await redis.set(`invitation:${invitationId}`, JSON.stringify(invitation))
+    const acceptedInvitation = transitionInvitation(invitation, "accepted")
+    await redis.set(`invitation:${invitation.id}`, JSON.stringify(acceptedInvitation), {
+      ex: INVITATION_RECORD_RETENTION_SECONDS,
+    })
 
     // Remove invitation from user's pending list
-    console.log(`[Saathi] Removing accepted invitation ${invitationId} from user ${session.email} invitation list`)
-    const userInvitations = await redis.smembers(`user:${session.email}:invitations`)
-    const updatedInvitations = userInvitations.filter((id: string) => id !== invitationId)
-    await redis.del(`user:${session.email}:invitations`)
-    if (updatedInvitations.length > 0) {
-      await redis.sadd(`user:${session.email}:invitations`, ...updatedInvitations)
-    }
-    console.log(`[Saathi] User ${session.email} now has ${updatedInvitations.length} pending invitations`)
+    await removePendingInvitation(acceptedInvitation)
 
     // Track invitation acceptance activity
     if (!alreadyMember) {
@@ -280,8 +368,11 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
     }
 
     revalidatePath('/dashboard')
-    console.log(`[Saathi] User ${session.email} accepted invitation to workspace ${invitation.workspaceId}`)
+    console.log(`[Saathi] User ${SecurityService.hashForLogging(session.email)} accepted invitation to workspace ${invitation.workspaceId}`)
   } catch (error) {
+    if (claimKey && claimToken) {
+      await releaseInvitationClaim(claimKey, claimToken)
+    }
     console.error("[Saathi] Error accepting invitation:", error)
     throw error
   }
@@ -295,29 +386,44 @@ export async function declineInvitation(invitationId: string): Promise<void> {
       throw new Error("Not authenticated")
     }
 
+    const validatedInvitationId = SecurityService.validateInput(schemas.invitationId, invitationId)
+
     // Get invitation
-    const invitationData = await redis.get(`invitation:${invitationId}`)
+    const invitationData = await redis.get(`invitation:${validatedInvitationId}`)
     if (!invitationData) {
       throw new Error("Invitation not found")
     }
 
-    let invitation: Invitation
-    if (typeof invitationData === "string") {
-      invitation = JSON.parse(invitationData)
-    } else {
-      invitation = invitationData as Invitation
-    }
+    const invitation = parseInvitation(invitationData)
 
     // Verify invitation belongs to current user
     if (normalizeEmail(invitation.inviteeEmail) !== normalizeEmail(session.email)) {
       throw new Error("Invitation does not belong to current user")
     }
 
-    // Update invitation status
-    invitation.status = "declined"
-    await redis.set(`invitation:${invitationId}`, JSON.stringify(invitation))
+    if (invitation.status === "declined") {
+      await removePendingInvitation(invitation)
+      return
+    }
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer pending")
+    }
+    if (new Date(invitation.expiresAt) <= new Date()) {
+      const expiredInvitation = transitionInvitation(invitation, "expired")
+      await redis.set(`invitation:${invitation.id}`, JSON.stringify(expiredInvitation), {
+        ex: INVITATION_RECORD_RETENTION_SECONDS,
+      })
+      await removePendingInvitation(invitation)
+      throw new Error("Invitation has expired")
+    }
 
-    console.log(`[Saathi] User ${session.email} declined invitation to workspace ${invitation.workspaceId}`)
+    const declinedInvitation = transitionInvitation(invitation, "declined")
+    await redis.set(`invitation:${invitation.id}`, JSON.stringify(declinedInvitation), {
+      ex: INVITATION_RECORD_RETENTION_SECONDS,
+    })
+    await removePendingInvitation(declinedInvitation)
+
+    console.log(`[Saathi] User ${SecurityService.hashForLogging(session.email)} declined invitation to workspace ${invitation.workspaceId}`)
   } catch (error) {
     console.error("[Saathi] Error declining invitation:", error)
     throw error

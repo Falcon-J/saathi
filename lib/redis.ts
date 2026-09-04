@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis"
-import { env, getRedisConfig, isDevelopment } from "./env"
-import { shouldUseMockRedis } from "./redis-policy"
+import { env, getRedisConfig, isDevelopment } from "./env.ts"
+import { shouldUseMockRedis } from "./redis-policy.ts"
 
 function compareStreamIds(left: string, right: string): number {
   const [leftMilliseconds, leftSequence] = left.split("-").map(Number)
@@ -179,6 +179,34 @@ class RedisService {
       setTimeout(() => this.mockStore.delete(key), options.ex * 1000)
     }
     return "OK"
+  }
+
+  async setIfAbsent(key: string, value: any, options?: { ex?: number }): Promise<boolean> {
+    const serializedValue = this.serializeValue(value)
+
+    if (this.isConnected && this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          const result = await this.redis!.set(key, serializedValue, {
+            nx: true,
+            ...(options?.ex ? { ex: options.ex } : {}),
+          } as any)
+          return result === "OK"
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis SET NX failed for key ${key}:`, error)
+      }
+    }
+
+    this.assertMockStorageEnabled()
+    if (this.mockStore.has(key)) return false
+
+    this.mockStore.set(key, serializedValue)
+    if (options?.ex) {
+      const expiryTimer = setTimeout(() => this.mockStore.delete(key), options.ex * 1000)
+      expiryTimer.unref?.()
+    }
+    return true
   }
 
   async del(key: string): Promise<number> {

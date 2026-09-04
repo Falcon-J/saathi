@@ -172,9 +172,8 @@ export async function inviteMemberToWorkspace(workspaceId: string, memberEmail: 
     const { sendWorkspaceInvitation } = await import("./invitations")
     await sendWorkspaceInvitation(workspaceId, normalizedMemberEmail)
 
-    // Note: Real-time notifications would be implemented here
-    // For now, invitations are stored and checked when user loads the app
-    console.log(`[Saathi] Invitation sent to ${normalizedMemberEmail} for workspace ${workspace.name}`)
+    // Email delivery is intentionally not implied until a provider is configured.
+    console.log(`[Saathi] In-app invitation created for workspace ${workspace.name}`)
   } catch (error) {
     console.error("[Saathi] Error inviting member to workspace:", error)
     throw error
