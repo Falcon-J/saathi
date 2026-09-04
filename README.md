@@ -20,6 +20,7 @@
 - **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
 - **Durable usage counters** for task creation/completion, member growth, and unique contributors
 - **Stateless server layer** designed for serverless deployment with Redis-backed authority
+- **Explicit reliability contract** covering authenticated subscriptions, bounded replay, duplicate-safe delivery, resync after retention gaps, and targeted Redis-backed task limits
 
 ---
 
@@ -73,6 +74,13 @@ User A creates task
   → SSE event pushed to all subscribers
   → User B's UI updates (latencyMs stamped on each event)
 ```
+
+The realtime contract and recovery guarantees are documented in [`docs/realtime.md`](docs/realtime.md). Architecture ownership is in [`docs/architecture.md`](docs/architecture.md), and reproducible failure exercises are in [`docs/failure-exercises/`](docs/failure-exercises/).
+
+### Health checks
+
+- `GET /api/health/live` checks that the application process is serving requests.
+- `GET /api/health/ready` checks that Redis is reachable; it returns `503` when the collaboration service is not ready.
 
 ### Workspace Usage
 
@@ -220,7 +228,7 @@ The verifier uses synthetic, non-personal prompts and prints only date, model, c
 SSE works over standard HTTP/1.1 with no protocol upgrade — compatible with Vercel and all reverse proxies. Browser auto-reconnects via `retry` field. All writes go through Server Actions, so the client→server WebSocket channel is unnecessary.
 
 **Why Redis Streams over Pub/Sub?**
-Pub/Sub messages are lost if no subscriber is active. Streams are a persistent, ordered log — each SSE connection maintains its own cursor (`lastSeenId`) and independently reads from any offset via `XRANGE`. Reconnecting clients resume from the current timestamp, not the beginning.
+Pub/Sub messages are lost if no subscriber is active. Streams are a bounded, ordered log — each SSE connection maintains its own cursor (`Last-Event-ID`) and independently reads from any retained offset via `XRANGE`. Reconnecting clients replay retained events; when retention has expired, Saathi emits `resync-required` and refetches authoritative task state.
 
 **Why polling instead of blocking stream reads?**
 Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. The route polls every 100ms; actual delivery latency must be measured with the authenticated load test and depends on Redis, network, and runtime conditions.
@@ -232,11 +240,13 @@ Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported.
 - [x] Replace first-visit slideshow onboarding with a permanent product guide.
 - [x] Keep Overview focused on quick add, complete/reopen, and safe title edit/delete, with Board as the detailed-control surface.
 - [ ] Run the optional Groq assistant against a real key; keep it disabled until the sanitized live matrix passes.
-- [x] Deploy the current release candidate; Vercel reports `c203f2d` Ready/Current and the public `/guide` route loads.
+- [ ] Validate the current deployed commit, Redis persistence, authentication, and public `/guide` route against the release gates below.
 - [ ] Validate the deployed Vercel environment, Redis persistence, authentication, SSE recovery, two-user collaboration, mobile layout, and deployment logs.
 - [ ] Run the authenticated concurrency benchmark and record reproducible p50/p95/p99 evidence before using numeric resume claims.
 
 The permanent `/guide` page documents current assistant capabilities and limits. The AI feature remains off by default.
+
+The authenticated SSE benchmark was not reproducible in the current environment on 2026-09-05 because no disposable authenticated session, workspace ID, or development publisher secret was configured. See [`docs/benchmarks/2026-09-05-authenticated-sse.md`](docs/benchmarks/2026-09-05-authenticated-sse.md) for the exact attempted command and required inputs. No concurrency or latency numbers are claimed.
 
 ### Resume wording
 
