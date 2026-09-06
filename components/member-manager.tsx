@@ -1,14 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Plus, Users, Loader2 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Member } from "@/app/actions/workspaces"
+import { getWorkspaceInvitations, resendInvitation, revokeInvitation, type Invitation } from "@/app/actions/invitations"
+import { getMutationError } from "@/lib/mutation-result"
 import { normalizeEmail } from "@/lib/identity"
 
 interface MemberManagerProps {
+  workspaceId: string
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
@@ -16,7 +19,10 @@ interface MemberManagerProps {
   onRemoveMember: (memberEmail: string) => Promise<any>
 }
 
-export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember }: MemberManagerProps) {
+export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember }: MemberManagerProps) {
+  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [invitationOperation, setInvitationOperation] = useState<string | null>(null)
+  const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null)
   const [newMemberInput, setNewMemberInput] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
@@ -26,6 +32,29 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
   // Check if current user is the workspace owner
   const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
   const isOwner = normalizedCurrentUserEmail === normalizeEmail(workspaceOwnerId)
+  const loadInvitations = useCallback(async () => {
+    if (!isOwner) return
+    try {
+      setInvitations(await getWorkspaceInvitations(workspaceId))
+      setInvitationLoadError(null)
+    } catch (caughtError) {
+      setInvitationLoadError(caughtError instanceof Error ? caughtError.message : "Unable to load invitations.")
+    }
+  }, [isOwner, workspaceId])
+  useEffect(() => { void loadInvitations() }, [loadInvitations])
+
+  const changeInvitation = async (id: string, action: "resend" | "revoke") => {
+    setInvitationOperation(id)
+    setLastError(null)
+    try {
+      const result = await (action === "resend" ? resendInvitation(id) : revokeInvitation(id))
+      if (result.error) throw new Error(result.error)
+      await loadInvitations()
+    } catch (caughtError) {
+      setLastError(caughtError instanceof Error ? caughtError.message : "Unable to update invitation.")
+    } finally { setInvitationOperation(null) }
+  }
+
 
   const handleAddMember = async () => {
     const email = newMemberInput.trim()
@@ -46,7 +75,10 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
     setLastError(null)
 
     try {
-      await onAddMember(email)
+      const result = await onAddMember(email)
+      const mutationError = getMutationError(result)
+      if (mutationError) throw new Error(mutationError)
+      await loadInvitations()
       setNewMemberInput("")
       setLastError(null)
     } catch (error) {
@@ -64,27 +96,22 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
   const handleRemoveMember = async (memberEmail: string) => {
     setOperatingMemberEmail(memberEmail)
     try {
-      await onRemoveMember(memberEmail)
+      const result = await onRemoveMember(memberEmail)
+      const mutationError = getMutationError(result)
+      if (mutationError) throw new Error(mutationError)
+    } catch (caughtError) {
+      setLastError(caughtError instanceof Error ? caughtError.message : "Unable to remove member.")
     } finally {
       setRemoveConfirm(null)
       setOperatingMemberEmail(null)
     }
   }
 
-  // Helper functions for confirmation dialog
-  const isOwnerLeavingAsOnlyMember = (memberEmail: string) => {
-    const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(memberEmail))
-    return member &&
-      normalizeEmail(member.email) === normalizedCurrentUserEmail &&
-      member.role === "owner" &&
-      members.length === 1
-  }
-
   // Check if user can remove a specific member
   const canRemoveMember = (member: Member) => {
     // Owner can remove anyone except themselves (unless they're leaving)
     if (isOwner) {
-      return normalizeEmail(member.email) !== normalizedCurrentUserEmail || members.length === 1
+      return normalizeEmail(member.email) !== normalizedCurrentUserEmail
     }
     // Regular members can only remove themselves (leave workspace)
     return normalizeEmail(member.email) === normalizedCurrentUserEmail
@@ -92,15 +119,11 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
 
   const getConfirmationTitle = () => {
     if (!removeConfirm) return "Remove Member"
-    return isOwnerLeavingAsOnlyMember(removeConfirm) ? "Delete Workspace" : "Remove Member"
+    return normalizeEmail(removeConfirm) === normalizedCurrentUserEmail ? "Leave Workspace" : "Remove Member"
   }
 
   const getConfirmationDescription = () => {
     if (!removeConfirm) return "Are you sure you want to remove this member from the workspace?"
-
-    if (isOwnerLeavingAsOnlyMember(removeConfirm)) {
-      return "You are the only member of this workspace. Leaving will permanently delete the workspace and all its tasks. This action cannot be undone."
-    }
 
     const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(removeConfirm))
     const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
@@ -114,10 +137,6 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
 
   const getConfirmationActionLabel = () => {
     if (!removeConfirm) return "Remove"
-
-    if (isOwnerLeavingAsOnlyMember(removeConfirm)) {
-      return "Delete Workspace"
-    }
 
     const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(removeConfirm))
     const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
@@ -139,6 +158,8 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Input
+                  aria-label="Invite by email"
+                  type="email"
                   placeholder="Invite by email..."
                   value={newMemberInput}
                   onChange={(e) => setNewMemberInput(e.target.value)}
@@ -147,6 +168,7 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                   className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm disabled:opacity-50"
                 />
                 <Button
+                  aria-label="Send invitation"
                   onClick={handleAddMember}
                   disabled={isAdding || !newMemberInput.trim()}
                   size="sm"
@@ -156,16 +178,13 @@ export function MemberManager({ members, currentUserEmail, workspaceOwnerId, onA
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                An in-app invitation will appear when they next sign in.
+                The invitation appears in their account. Email status is shown below.
               </p>
-              {lastError && (
-                <p className="rounded-[var(--saathi-radius-control)] border border-[#ffb3ad] bg-[#fff2f0] px-3 py-2 text-xs text-[#a61b13]" role="alert">
-                  {lastError}. Review the email address and try again.
-                </p>
-              )}
             </div>
           )}
 
+          {lastError && <p role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{lastError}</p>}
+          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · {invitation.deliveryStatus === "sent" ? "Email accepted by provider" : invitation.deliveryStatus === "failed" ? "Email failed" : invitation.deliveryStatus === "unconfigured" ? "Email unavailable; in-app invitation only" : "Email queued"}</p>{invitation.status === "pending" && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "resend")}>Resend</Button><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "revoke")}>Revoke</Button></div>}</div>)}</section>}
           {/* Members List */}
           <div className="space-y-2">
             {members.length === 0 ? (

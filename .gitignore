@@ -53,3 +53,9 @@ MAANG_*.md
 
 # Session/debug artifacts
 cookies.txt
+# Local verification logs
+*-results.txt
+
+.local-test/
+
+.playwright-cli/

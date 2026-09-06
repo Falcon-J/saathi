@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SSEEvent } from '@/lib/types'
+import { shouldProcessEvent } from '@/lib/realtime-sse'
 
 export function useSSE(url: string, options?: {
     onMessage?: (event: SSEEvent) => void
@@ -13,6 +14,7 @@ export function useSSE(url: string, options?: {
     const [error, setError] = useState<string | null>(null)
     const eventSourceRef = useRef<EventSource | null>(null)
     const optionsRef = useRef(options)
+    const seenEventIdsRef = useRef(new Set<string>())
 
     useEffect(() => {
         optionsRef.current = options
@@ -37,6 +39,10 @@ export function useSSE(url: string, options?: {
 
             eventSource.onmessage = (event) => {
                 try {
+                    if (!shouldProcessEvent(seenEventIdsRef.current, event.lastEventId)) {
+                        return
+                    }
+
                     const data = JSON.parse(event.data) as SSEEvent
                     optionsRef.current?.onMessage?.(data)
                 } catch (err) {
@@ -67,6 +73,7 @@ export function useSSE(url: string, options?: {
     }, [])
 
     useEffect(() => {
+        seenEventIdsRef.current.clear()
         connect()
 
         return () => {

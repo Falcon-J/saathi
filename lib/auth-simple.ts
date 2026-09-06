@@ -1,215 +1,93 @@
 "use server"
 
-import { cookies } from "next/headers"
-import { redis } from "./redis"
-import crypto from "crypto"
-import { hashPassword, verifyPassword } from "./passwords"
-import { normalizeEmail } from "./identity"
-import { loadStoredSession } from "./session-boundary"
+import { cookies } from 'next/headers'
+import { createClient } from './supabase/server'
+import { getAuthCallbackUrl } from './supabase/config'
+import { validateCredentials, resolveVerifiedSession } from './supabase/auth-boundary'
+import { getProfile } from './data/profiles'
+import { normalizeEmail } from './identity'
 
-// Simple session configuration
-const SESSION_DURATION = 24 * 60 * 60 // 24 hours in seconds
+type AuthResult = { success?: boolean; error?: string; confirmationRequired?: boolean; message?: string }
+const unavailable = { error: 'Account service is temporarily unavailable. Please try again.' }
 
-function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) && email.length <= 255
-}
-
-function validatePassword(password: string): boolean {
-  return password.length >= 6 && password.length <= 128
-}
-
-function validateUsername(username: string): boolean {
-  return username.length >= 2 && username.length <= 50 && /^[a-zA-Z0-9_\s-]+$/.test(username)
-}
-
-function generateSessionId(): string {
-  return crypto.randomBytes(32).toString('hex')
-}
-
-export async function signup(email: string, username: string, password: string) {
+export async function signup(email: string, username: string, password: string): Promise<AuthResult> {
+  if (typeof email !== 'string' || typeof username !== 'string' || typeof password !== 'string') return { error: 'Enter valid account details.' }
+  const normalizedEmail = normalizeEmail(email)
+  const invalid = validateCredentials(normalizedEmail, password, username)
+  if (invalid) return { error: invalid }
   try {
-    const normalizedEmail = normalizeEmail(email)
-    const normalizedUsername = username.trim()
-    console.log("[Saathi] Signup attempt for:", normalizedEmail)
-
-    // Validate inputs
-    if (!validateEmail(normalizedEmail)) {
-      return { error: "Please enter a valid email address" }
-    }
-
-    if (!validateUsername(normalizedUsername)) {
-      return { error: "Username must be 2-50 characters, letters, numbers, spaces, hyphens, or underscores only" }
-    }
-
-    if (!validatePassword(password)) {
-      return { error: "Password must be 6-128 characters" }
-    }
-
-    // Check if user already exists
-    const existingUser = await redis.get(`user:${normalizedEmail}`)
-    if (existingUser) {
-      return { error: "Email already registered" }
-    }
-
-    // Store user with plain password (simplified for now)
-    const userData = {
+    const client = await createClient()
+    const { data, error } = await client.auth.signUp({
       email: normalizedEmail,
-      username: normalizedUsername,
-      password: await hashPassword(password),
-      createdAt: new Date().toISOString()
-    }
-    await redis.set(`user:${normalizedEmail}`, JSON.stringify(userData))
-
-    // Create session and auto-login
-    const sessionId = generateSessionId()
-    const sessionData = { email: normalizedEmail, username: normalizedUsername }
-    await redis.set(`session:${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_DURATION })
-
-    // Set cookie
-    const cookieStore = await cookies()
-    cookieStore.set("auth-session", sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: SESSION_DURATION,
-      path: "/",
+      password,
+      options: { data: { username: username.trim() }, emailRedirectTo: getAuthCallbackUrl() },
     })
-
-    console.log("[Saathi] Signup successful for:", normalizedEmail)
-    return { success: true, email: normalizedEmail, username: normalizedUsername }
-  } catch (error) {
-    console.error("[Saathi] Signup error:", error)
-    if (redis.getStatus().type === "unavailable") {
-      return { error: "Saathi's workspace service is temporarily unavailable. Please try again.", code: "service_unavailable" as const }
-    }
-    return { error: "Signup failed" }
-  }
+    if (error) return { error: 'Could not create the account. Check your details or try signing in.' }
+    // Launch requires verified email. Supabase must have email confirmation enabled.
+    if (data.session && !data.user?.email_confirmed_at) await client.auth.signOut({ scope: 'local' })
+    return { success: true, confirmationRequired: !data.session || !data.user?.email_confirmed_at, message: 'Check your email to verify your account. If you already have an account, sign in or reset your password.' }
+  } catch { return unavailable }
 }
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string): Promise<AuthResult> {
+  if (typeof email !== 'string' || typeof password !== 'string') return { error: 'Enter your email and password.' }
+  const normalizedEmail = normalizeEmail(email)
+  if (!normalizedEmail || !password || password.length > 128) return { error: 'Enter your email and password.' }
   try {
-    const normalizedEmail = normalizeEmail(email)
-    console.log("[Saathi] Login attempt for:", normalizedEmail)
-
-    // Validate inputs
-    if (!validateEmail(normalizedEmail)) {
-      return { error: "Please enter a valid email address" }
-    }
-
-    if (!password) {
-      return { error: "Password is required" }
-    }
-
-    // Get user data
-    const userData = await redis.get(`user:${normalizedEmail}`)
-
-    // Create test user for development if needed
-    if (!userData && normalizedEmail === "test@saathi.build") {
-      console.log("[Saathi] Creating test user for development")
-      const testUser = { email, username: "Test User", password: await hashPassword("test123"), createdAt: new Date().toISOString() }
-      await redis.set(`user:${email}`, JSON.stringify(testUser))
-
-      if (password === "test123") {
-        const sessionId = generateSessionId()
-        const sessionData = { email: normalizedEmail, username: testUser.username }
-        await redis.set(`session:${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_DURATION })
-
-        const cookieStore = await cookies()
-        cookieStore.set("auth-session", sessionId, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: SESSION_DURATION,
-          path: "/",
-        })
-
-        console.log("[Saathi] Test user login successful")
-        return { success: true, email, username: testUser.username }
-      }
-    }
-
-    if (!userData) {
-      return { error: "Invalid email or password" }
-    }
-
-    // Parse user data
-    const user = typeof userData === "string" ? JSON.parse(userData) : userData
-
-    // Check password and upgrade legacy plaintext records after a valid login.
-    const passwordCheck = await verifyPassword(password, user.password)
-    if (!passwordCheck.valid) {
-      return { error: "Invalid email or password" }
-    }
-
-    if (passwordCheck.needsRehash) {
-      await redis.set(`user:${normalizedEmail}`, JSON.stringify({
-        ...user,
-        password: await hashPassword(password),
-      }))
-    }
-
-    // Create session
-    const sessionId = generateSessionId()
-    const sessionData = { email: normalizedEmail, username: user.username }
-    await redis.set(`session:${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_DURATION })
-
-    // Set cookie
-    const cookieStore = await cookies()
-    cookieStore.set("auth-session", sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: SESSION_DURATION,
-      path: "/",
-    })
-
-    console.log("[Saathi] Login successful for:", normalizedEmail)
-    return { success: true, email: normalizedEmail, username: user.username }
-  } catch (error) {
-    console.error("[Saathi] Login error:", error)
-    if (redis.getStatus().type === "unavailable") {
-      return { error: "Saathi's workspace service is temporarily unavailable. Please try again.", code: "service_unavailable" as const }
-    }
-    return { error: "Login failed. Please try again." }
-  }
-}
-
-export async function logout() {
-  try {
-    const cookieStore = await cookies()
-    const sessionId = cookieStore.get("auth-session")?.value
-
-    // Delete session from Redis if it exists
-    if (sessionId) {
-      await redis.del(`session:${sessionId}`)
-    }
-
-    // Clear the cookie
-    cookieStore.set("auth-session", "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 0,
-      path: "/",
-    })
-
-    console.log("[Saathi] Logout successful")
+    const client = await createClient()
+    const { data, error } = await client.auth.signInWithPassword({ email: normalizedEmail, password })
+    if (error || !data.user?.email_confirmed_at) return { error: 'Unable to sign in. Check your email and password, and verify your email before signing in.' }
     return { success: true }
-  } catch (error) {
-    console.error("[Saathi] Logout error:", error)
-    return { error: "Logout failed" }
-  }
+  } catch { return unavailable }
+}
+
+export async function logout(): Promise<AuthResult> {
+  try {
+    const client = await createClient()
+    const { error } = await client.auth.signOut({ scope: 'local' })
+    if (error) return { error: 'Could not sign out. Please try again.' }
+    // Remove any obsolete cookie left over from the pre-Supabase release.
+    const store = await cookies()
+    store.delete('auth-session')
+    return { success: true }
+  } catch { return unavailable }
 }
 
 export async function getSession() {
   try {
-    const cookieStore = await cookies()
-    const sessionId = cookieStore.get("auth-session")?.value
-
-    return loadStoredSession(sessionId, (id) => redis.get(`session:${id}`))
-  } catch (error) {
-    console.error("[Saathi] Session lookup failed:", error)
-    return null
+    const client = await createClient({ readOnly: true })
+    const { data: { user }, error } = await client.auth.getUser()
+    if (error) {
+      if (!error.status || error.status >= 500) throw new Error('Account service unavailable')
+      return null
+    }
+    return await resolveVerifiedSession(user, getProfile)
+  } catch {
+    throw new Error('Account service is temporarily unavailable. Please try again.')
   }
+}
+
+export async function requestPasswordReset(email: string): Promise<AuthResult> {
+  if (typeof email !== 'string') return { error: 'Please enter a valid email address.' }
+  const normalizedEmail = normalizeEmail(email)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > 255) return { error: 'Please enter a valid email address.' }
+  try {
+    const client = await createClient()
+    const { error } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo: getAuthCallbackUrl('/reset-password') })
+    if (error) return { error: 'Could not request a reset email. Please wait and try again.' }
+    return { success: true, message: 'If an account exists for this email, you will receive a password reset link. Open it in this browser.' }
+  } catch { return unavailable }
+}
+
+export async function updatePassword(password: string): Promise<AuthResult> {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) return { error: 'Password must be 8–128 characters.' }
+  try {
+    const client = await createClient()
+    const { data: { user }, error: authError } = await client.auth.getUser()
+    if (authError || !user?.email_confirmed_at) return { error: 'This recovery session has expired. Request a new reset link.' }
+    const { error } = await client.auth.updateUser({ password })
+    if (error) return { error: 'Could not update the password. Use a different password or request a new reset link.' }
+    const { error: logoutError } = await client.auth.signOut({ scope: 'local' })
+    return { success: true, message: logoutError ? 'Password updated. Sign out from the workspace when you finish.' : 'Password updated. Sign in with your new password.' }
+  } catch { return unavailable }
 }

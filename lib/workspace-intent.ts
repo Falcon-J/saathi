@@ -30,6 +30,9 @@ export const workspacePlanSchema = z.object({
   tasks: z.array(generatedTaskSchema).min(3).max(8),
 }).strict()
 
+// Review may remove every suggestion. Manual creation never requires AI tasks.
+export const reviewedWorkspacePlanSchema = workspacePlanSchema.extend({ tasks: z.array(generatedTaskSchema).max(8) })
+
 const commandActionSchema = z.enum([
   "complete_task",
   "add_task",

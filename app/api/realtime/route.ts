@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server"
-import { cookies } from "next/headers"
-import { redis } from "@/lib/redis"
+import { getSession } from "@/lib/auth-simple"
+import { getDb } from "@/lib/db/client"
 import { realtimeService } from "@/lib/realtime"
-import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
-import { loadStoredSession } from "@/lib/session-boundary"
 import { schemas } from "@/lib/security"
 import { createSingleFlightPoll, getInitialStreamCursor, getReplayStatus } from "@/lib/realtime-sse"
 import { getRateLimits } from "@/lib/env"
@@ -51,18 +49,8 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
     let releaseSseConnection: (() => Promise<void>) | undefined
     try {
-        // Verify authentication directly (not via server action)
-        const cookieStore = await cookies()
-        const sessionId = cookieStore.get("auth-session")?.value
-
-        if (!sessionId) {
-            return new Response("Unauthorized", { status: 401 })
-        }
-
-        const session = await loadStoredSession(sessionId, (id) => redis.get(`session:${id}`))
-        if (!session) {
-            return new Response("Unauthorized", { status: 401 })
-        }
+        const session = await getSession()
+        if (!session) return new Response('Unauthorized', { status: 401 })
 
         // Get workspace ID from query params
         const { searchParams } = new URL(request.url)
@@ -74,12 +62,11 @@ export async function GET(request: NextRequest) {
         }
         const workspaceId = workspaceIdResult.data
 
-        const workspaceData = await redis.get(`workspace:${workspaceId}`)
-        const authorization = authorizeWorkspaceMember(workspaceData, session.email)
-        if (!authorization.allowed) {
-            return new Response(authorization.message, { status: authorization.status })
+        const authorized = async () => {
+            const rows = await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id=${session.id}`
+            return rows.length > 0
         }
-
+        if (!await authorized()) return new Response("Forbidden", { status: 403 })
         try {
             const { sse } = getRateLimits()
             releaseSseConnection = await acquireSseConnectionLease({
@@ -171,6 +158,7 @@ export async function GET(request: NextRequest) {
                 const pollForEvents = createSingleFlightPoll(async () => {
                     if (closed) return
                     try {
+                        if (!await authorized()) { cleanupStream?.(); return }
                         const newEvents = await realtimeService.readNewEvents(
                             workspaceId,
                             lastSeenId,

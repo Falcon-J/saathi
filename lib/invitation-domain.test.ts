@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   canTransitionInvitation,
   getInvitationExpiry,
+  getPublicInvitationError,
   transitionInvitation,
 } from "./invitation-domain.ts"
 
@@ -27,5 +28,16 @@ test("transitionInvitation rejects terminal-state overwrite", () => {
   assert.throws(
     () => transitionInvitation({ status: "accepted" }, "declined"),
     /Invitation is no longer pending/,
+  )
+})
+
+test("invitation errors expose expected guidance but hide infrastructure details", () => {
+  assert.equal(
+    getPublicInvitationError(new Error("Invitation already sent to this user")),
+    "Invitation already sent to this user",
+  )
+  assert.equal(
+    getPublicInvitationError(new Error("Redis SET NX failed for key secret")),
+    "Unable to create the invitation. Please try again.",
   )
 })

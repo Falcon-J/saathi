@@ -5,7 +5,7 @@ import LandingPage from "./landing/page"
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
-  const session = await getSession()
+  const session = await getSession().catch(() => null)
 
   if (session) {
     redirect("/dashboard")

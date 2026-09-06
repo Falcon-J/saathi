@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react"
 import { login, signup } from "@/lib/auth-simple"
+import { safeAuthRedirect } from "@/lib/supabase/auth-boundary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useNotifications } from "@/hooks/use-notifications"
@@ -23,6 +24,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<string | null>(null)
   const isSignup = mode === "signup"
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -55,12 +57,18 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
 
       if (result.success) {
+        if (result.confirmationRequired) {
+          setConfirmation(result.message || "Check your email to verify your account. Open the link in this browser.")
+          return
+        }
         window.localStorage.setItem("auth-change", Date.now().toString())
         success(
           isSignup ? "Account created" : "Signed in",
           isSignup ? "Create your first workspace to get started." : "Welcome back to Saathi.",
         )
-        setTimeout(() => router.replace("/dashboard"), 300)
+        const redirect = new URLSearchParams(window.location.search).get("redirect")
+        router.replace(safeAuthRedirect(redirect))
+        router.refresh()
       }
     } catch (error) {
       console.error("Auth form error:", error)
@@ -105,7 +113,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {confirmation ? <div role="status" className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold">Check your email</h3><p className="text-sm text-muted-foreground">{confirmation} Open the link in this browser.</p><Link href="/login" className="text-primary underline">Return to sign in</Link></div> : <form onSubmit={handleSubmit} className="space-y-4">
               <FieldShell label="Email" icon={<Mail className="size-4" />}>
                 <Input
                   type="email"
@@ -129,7 +137,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder={isSignup ? "At least 6 characters" : "Enter your password"}
+                  placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
                   autoComplete={isSignup ? "new-password" : "current-password"}
                   disabled={loading}
                   required
@@ -151,7 +159,9 @@ export function AuthForm({ mode }: AuthFormProps) {
               <Button type="submit" className="h-11 w-full" disabled={loading}>
                 {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
               </Button>
-            </form>
+            </form>}
+
+            {!isSignup && <p className="mt-4 text-center text-sm"><Link className="text-primary hover:underline" href="/forgot-password">Forgot password?</Link></p>}
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {isSignup ? "Already have an account?" : "New to Saathi?"}{" "}

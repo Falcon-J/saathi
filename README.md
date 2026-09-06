@@ -4,7 +4,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://typescriptlang.org)
-[![Redis](https://img.shields.io/badge/Upstash-Redis-red?logo=redis)](https://upstash.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ecf8e?logo=postgresql)](https://supabase.com)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
@@ -14,13 +14,13 @@
 - **Execution-first Overview** that separates Today, Next, and Completed work
 - **Detailed Board** for status, priority, date/time due dates, estimates, assignment, filtering, and CSV import
 - **Optional Groq assistant** for bounded workspace planning and single safe task changes
-- **Event-driven backend** using native Redis Streams (`XADD`/`XRANGE`) with cursor-based SSE consumers
+- **Transactional backend** using Supabase Auth and PostgreSQL for all durable product state
 - **Per-event real-time latency instrumentation** via Server-Sent Events
 - **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
 - **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
 - **Durable usage counters** for task creation/completion, member growth, and unique contributors
-- **Stateless server layer** designed for serverless deployment with Redis-backed authority
-- **Explicit reliability contract** covering authenticated subscriptions, bounded replay, duplicate-safe delivery, resync after retention gaps, and targeted Redis-backed task limits
+- **Stateless server layer** designed for serverless deployment with PostgreSQL-backed authority
+- **Explicit reliability contract** covering authenticated subscriptions, bounded replay, duplicate-safe delivery, resync after retention gaps, and transactional outbox publication
 
 ---
 
@@ -35,31 +35,32 @@ Browser (React)
 Next.js 16 (Stateless)
   Server Actions: tasks / workspaces / invitations
   Route Handler:  GET /api/realtime
-    ├── Auth: cookie → Redis session lookup
+    ├── Auth: Supabase session cookie → verified user/profile
     ├── Poll: XRANGE every 100ms (cursor-based)
     └── Heartbeat: presence refresh every 30s
         │
-        ▼ Upstash REST
+        ├── Supabase PostgreSQL
+        │     profiles, workspaces, members, tasks, invitations
+        │     activity events, transactional outbox
+        │
+        ▼ Upstash REST (ephemeral collaboration state)
 Upstash Redis
   stream:{workspaceId}    ← Redis Stream (event log, XTRIM 1000)
-  session:{id}            ← Auth sessions (24h TTL)
-  workspace:{id}          ← Workspace + member data
-  task:{id}               ← Task records
-presence:{wsId}:active  ← Online users (5min TTL)
+  presence:{wsId}:active  ← Online users (5min TTL)
 ```
 
 ### Internal Module Ownership
 
-Saathi is intentionally a modular monolith: one Next.js deployment with explicit code ownership and one Redis authority.
+Saathi is intentionally a modular monolith: one Next.js deployment with explicit code ownership. Supabase owns identity and durable state; Redis is limited to rate limits, presence, idempotency claims, and realtime transport.
 
 | Module | Current owner | Responsibility |
 |---|---|---|
-| Identity | `lib/auth-simple.ts`, `lib/passwords.ts` | Sessions, identity, password hashing |
-| Workspace | `app/actions/workspaces.ts` | Workspaces, membership, invitations, ownership |
+| Identity | `lib/auth-simple.ts`, `lib/supabase/` | Supabase sessions, identity, profile projection |
+| Workspace | `lib/data/workspaces.ts`, `app/actions/workspaces.ts` | Workspaces, membership, ownership |
 | Work | `app/tasks/actions.ts`, `hooks/use-workspaces.ts` | Task records, permissions, optimistic board state |
 | Realtime | `lib/realtime.ts`, `app/api/realtime/route.ts` | Redis Streams, SSE delivery, presence |
-| Activity | Workspace and invitation actions | User-visible change history, co-located until volume justifies extraction |
-| Migration | `app/actions/migration.ts`, `lib/csv.ts` | Bounded CSV task import with row-level errors |
+| Activity | `lib/data/events.ts` | Durable activity facts and outbox publication |
+| Invitations | `lib/data/invitations.ts`, `lib/email-delivery.ts` | Invitation lifecycle and bounded email delivery |`r`n| Migration | `drizzle/`, `scripts/migrate-database.mjs`, `lib/csv.ts` | Schema migrations and bounded CSV task import |
 
 CSV task imports accept `title`, `description`, `priority`, `dueDate`, `dueAt`, `estimatedMinutes`, and `assigneeEmail`. `dueDate` remains supported for date-only tasks; `dueAt` is an ISO timestamp for a specific time.
 
@@ -80,7 +81,7 @@ The realtime contract and recovery guarantees are documented in [`docs/realtime.
 ### Health checks
 
 - `GET /api/health/live` checks that the application process is serving requests.
-- `GET /api/health/ready` checks that Redis is reachable; it returns `503` when the collaboration service is not ready.
+- `GET /api/health/ready` checks PostgreSQL and Redis; it returns `503` when a required dependency is not ready.
 
 ### Workspace Usage
 
@@ -90,7 +91,7 @@ Authenticated workspace members can inspect durable activation signals with:
 GET /api/usage?workspaceId={workspaceId}
 ```
 
-The response reports task creation, task completion, member additions, and unique contributors. These counters live in Redis so they are not tied to one serverless instance.
+The response reports task creation, task completion, member additions, and unique contributors. These counters are derived from PostgreSQL activity events and remain consistent across serverless instances.
 
 ---
 
@@ -101,9 +102,9 @@ The response reports task creation, task completion, member additions, and uniqu
 | Framework | Next.js 16 (App Router) |
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS + shadcn/ui |
-| Database | Upstash Redis (serverless REST) |
+| Database | Supabase PostgreSQL |
 | Real-time | Server-Sent Events + Redis Streams |
-| Auth | Session-based (httpOnly cookie + Redis) |
+| Auth | Supabase Auth (httpOnly cookie refresh) |
 | Deployment | Vercel |
 
 ---
@@ -114,20 +115,21 @@ The response reports task creation, task completion, member additions, and uniqu
 - Node.js 18+
 - npm or pnpm
 
-### Run locally (no Redis needed)
+### Run locally
 
 ```bash
 git clone https://github.com/Falcon-J/saathi.git
 cd saathi
 npm install
+npm run db:migrate
 npm run dev
 ```
 
-The app runs with an in-memory mock Redis by default — no external services required.
+The app can render locally without external services, but authenticated workspace flows require Supabase and PostgreSQL configuration. Redis remains optional in development for realtime and rate-limit behavior.
 
 Visit [http://localhost:3000](http://localhost:3000)
 
-Register a local account from the sign-up page. Development data stays in the in-memory mock Redis store when Redis credentials are not configured.
+Register from the sign-up page after configuring the Supabase URL and publishable key. Durable workspaces and tasks are stored in PostgreSQL.
 
 ---
 
@@ -136,13 +138,23 @@ Register a local account from the sign-up page. Development data stays in the in
 Create `.env.local` in the project root:
 
 ```env
-# Required for production — skip for local dev (uses mock Redis)
+## Required for authenticated workspace flows
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+DATABASE_URL=postgresql://server-only-runtime-role:password@host:5432/postgres
+
+## Required for production realtime and scheduled outbox delivery
 UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
+CRON_SECRET=long-random-scheduler-secret
 
-# Optional — defaults work for local dev
-NEXTAUTH_SECRET=your-secure-random-secret
-NEXTAUTH_URL=http://localhost:3000
+# Local-only migration identity (keep separate from DATABASE_URL)
+DATABASE_MIGRATION_URL=postgresql://migration-role:password@host:5432/postgres
+
+# Public callback origin and invitation email delivery
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+RESEND_API_KEY=your-resend-key
+EMAIL_FROM=Saathi <noreply@your-domain.com>
 
 # Optional AI workspace assistant — keep disabled until configured and verified
 NEXT_PUBLIC_ENABLE_AI_WORKSPACE=false
@@ -150,7 +162,7 @@ GROQ_API_KEY=your-server-only-groq-key
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Get free Upstash Redis credentials at [upstash.com](https://upstash.com) — the free tier is sufficient.
+Use the values in `.env.example`; keep database, auth, Resend, and scheduler credentials server-side.
 
 ---
 
@@ -161,7 +173,7 @@ Get free Upstash Redis credentials at [upstash.com](https://upstash.com) — the
 git push origin main
 
 # 2. Import at vercel.com/new
-# 3. Add Redis and authentication environment variables
+# 3. Add Supabase, PostgreSQL, Redis, email, and scheduler environment variables
 # 4. Optionally add the Groq variables and enable the AI feature flag
 # 5. Deploy
 ```
@@ -184,9 +196,11 @@ saathi/
 │   ├── useRealtime.ts   # EventSource wrapper + event dispatch
 │   └── use-workspaces.ts # State + optimistic updates
 ├── lib/
-│   ├── redis.ts         # RedisService: XADD, XRANGE, XTRIM, GET, SET
-│   ├── realtime.ts      # RealtimeService: publishEvent(), readNewEvents()
-│   └── auth-simple.ts   # Session management
+│   ├── data/             # PostgreSQL workspace, task, invitation, and event owners
+│   ├── db/               # PostgreSQL connection and schema boundary
+│   ├── redis.ts          # Ephemeral streams, presence, rate limits, idempotency
+│   ├── realtime.ts       # RealtimeService: publishEvent(), readNewEvents()
+│   └── auth-simple.ts    # Supabase identity/profile boundary
 └── scripts/
     └── load-test.ts     # 250-connection SSE load test
 ```
@@ -240,8 +254,8 @@ Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported.
 - [x] Replace first-visit slideshow onboarding with a permanent product guide.
 - [x] Keep Overview focused on quick add, complete/reopen, and safe title edit/delete, with Board as the detailed-control surface.
 - [ ] Run the optional Groq assistant against a real key; keep it disabled until the sanitized live matrix passes.
-- [ ] Validate the current deployed commit, Redis persistence, authentication, and public `/guide` route against the release gates below.
-- [ ] Validate the deployed Vercel environment, Redis persistence, authentication, SSE recovery, two-user collaboration, mobile layout, and deployment logs.
+- [ ] Validate the current deployed commit, PostgreSQL persistence, authentication, and public `/guide` route against the release gates below.
+- [ ] Validate the deployed Vercel environment, PostgreSQL persistence, authentication, SSE recovery, two-user collaboration, mobile layout, and deployment logs.
 - [ ] Run the authenticated concurrency benchmark and record reproducible p50/p95/p99 evidence before using numeric resume claims.
 
 The permanent `/guide` page documents current assistant capabilities and limits. The AI feature remains off by default.
@@ -252,7 +266,7 @@ The authenticated SSE benchmark was not reproducible in the current environment 
 
 Use architecture claims now:
 
-> Built a collaborative task manager with Next.js, TypeScript, Redis Streams, and authenticated Server-Sent Events; centralized workspace authorization and added optimistic task workflows with reconnect handling.
+> Built a collaborative task manager with Next.js, TypeScript, PostgreSQL, Redis Streams, and authenticated Server-Sent Events; centralized workspace authorization and added optimistic task workflows with reconnect handling.
 
 Add measured numbers only after the benchmark evidence is captured. A passing controlled local run can support “validated 200+ concurrent authenticated SSE connections in local testing” plus the measured p50/p95/p99 values. It cannot support a universal production-capacity or fixed-latency claim.
 

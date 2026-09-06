@@ -28,14 +28,14 @@ test('selects the most visible valid dashboard section without losing the curren
   )
 })
 
-test('routes work, team, and realtime navigation to the board view', () => {
+test('routes each destination to its owning workspace view', () => {
   assert.deepEqual(getDashboardNavigationTarget('project-board'), {
     sectionId: 'project-board',
     view: 'board',
   })
   assert.deepEqual(getDashboardNavigationTarget('team-panel'), {
     sectionId: 'team-panel',
-    view: 'board',
+    view: 'team',
   })
   assert.deepEqual(getDashboardNavigationTarget('realtime-panel'), {
     sectionId: 'realtime-panel',

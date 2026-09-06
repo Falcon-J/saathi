@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { RealtimeEvent } from '@/lib/realtime'
+import { shouldProcessEvent } from '@/lib/realtime-sse'
 
 interface UseRealtimeOptions {
     workspaceId: string
@@ -11,6 +12,7 @@ interface UseRealtimeOptions {
     onTaskToggled?: (data: any) => void
     onUserJoined?: (data: any) => void
     onUserLeft?: (data: any) => void
+    onResyncRequired?: () => void
     onError?: (error: Event) => void
 }
 
@@ -22,6 +24,7 @@ export function useRealtime(options: UseRealtimeOptions) {
 
     const eventSourceRef = useRef<EventSource | null>(null)
     const optionsRef = useRef(options)
+    const seenEventIdsRef = useRef(new Set<string>())
 
     useEffect(() => {
         optionsRef.current = options
@@ -32,6 +35,11 @@ export function useRealtime(options: UseRealtimeOptions) {
         const currentOptions = optionsRef.current
 
         switch (event.type) {
+            case 'workspace-created':
+            case 'member-added':
+            case 'member-removed':
+                currentOptions.onResyncRequired?.()
+                break
             case 'task-created':
                 currentOptions.onTaskCreated?.(event)
                 break
@@ -70,13 +78,17 @@ export function useRealtime(options: UseRealtimeOptions) {
             eventSourceRef.current = eventSource
 
             eventSource.onopen = () => {
-                console.log('[Realtime] SSE connection opened')
+                optionsRef.current.onResyncRequired?.()
                 setIsConnected(true)
                 setError(null)
             }
 
             eventSource.onmessage = (event) => {
                 try {
+                    if (!shouldProcessEvent(seenEventIdsRef.current, event.lastEventId)) {
+                        return
+                    }
+
                     const data = JSON.parse(event.data)
 
                     if (data.type === 'connected') {
@@ -92,6 +104,10 @@ export function useRealtime(options: UseRealtimeOptions) {
                         if (data.data?.activeUsers) {
                             setActiveUsers(data.data.activeUsers)
                         }
+                    } else if (data.type === 'resync-required') {
+                        setIsConnected(true)
+                        setError('Refreshing after a missed realtime update')
+                        optionsRef.current.onResyncRequired?.()
                     } else {
                         setIsConnected(true)
                         setError(null)
@@ -125,6 +141,7 @@ export function useRealtime(options: UseRealtimeOptions) {
 
     useEffect(() => {
         if (options.workspaceId) {
+            seenEventIdsRef.current.clear()
             connect()
         }
 

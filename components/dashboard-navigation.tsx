@@ -12,8 +12,8 @@ import {
 } from "@/lib/dashboard-navigation"
 
 const dashboardNavigationItems = [
-  { id: "workspace-header", label: "Home", Icon: Home },
-  { id: "project-board", label: "My work", Icon: LayoutGrid },
+  { id: "workspace-header", label: "Overview", Icon: Home },
+  { id: "project-board", label: "Board", Icon: LayoutGrid },
   { id: "team-panel", label: "Team", Icon: Users },
   { id: "realtime-panel", label: "Realtime", Icon: Activity },
 ] as const
@@ -59,11 +59,15 @@ export function DashboardNavigation({
   hasWorkspace,
   showSecondary = true,
   onOpenBoard,
+  onOpenOverview,
+  onOpenTeam,
 }: {
   mode: "rail" | "mobile"
   hasWorkspace: boolean
   showSecondary?: boolean
   onOpenBoard?: () => void
+  onOpenOverview?: () => void
+  onOpenTeam?: () => void
 }) {
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("workspace-header")
 
@@ -104,8 +108,9 @@ export function DashboardNavigation({
       window.history.replaceState(null, "", `#${target.sectionId}`)
     }
 
-    if (target.view === "board" && onOpenBoard) {
-      onOpenBoard()
+    const openView = target.view === "team" ? onOpenTeam : target.view === "overview" ? onOpenOverview : onOpenBoard
+    if (openView) {
+      openView()
       window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget))
       return
     }
@@ -115,7 +120,7 @@ export function DashboardNavigation({
 
   const compact = mode === "mobile"
   if (!hasWorkspace) return null
-  const visibleItems = showSecondary ? dashboardNavigationItems : dashboardNavigationItems.slice(0, 2)
+  const visibleItems = dashboardNavigationItems.slice(0, 3)
 
   return (
     <nav

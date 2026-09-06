@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Activity, CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, RefreshCw, Users } from "lucide-react"
-import { applyNaturalLanguageCommand, generateWorkspaceFromIntent } from "@/app/actions/workspace-intent"
+import { Activity, CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, RefreshCw, Users, Settings } from "lucide-react"
+import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { InvitationNotifications } from "@/components/invitation-notifications"
@@ -14,9 +14,10 @@ import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
 import { TaskList } from "@/components/task-list"
 import { UsageSummary } from "@/components/usage-summary"
-import { WorkspaceCommandBar } from "@/components/workspace-command-bar"
+import { WorkspaceSettings } from "@/components/workspace-settings"
+import { getDashboardState } from "@/lib/dashboard-state"
+import type { WorkspacePlan } from "@/lib/workspace-intent"
 import { WorkspaceCreateForm } from "@/components/workspace-create-form"
-import { WorkspaceNameInlineEditor } from "@/components/workspace-name-inline-editor"
 import { WorkspaceOverview } from "@/components/workspace-overview"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -31,7 +32,7 @@ import { normalizeEmail } from "@/lib/identity"
 import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
 type SessionUser = { email: string; username: string }
-type WorkspaceView = "overview" | "board"
+type WorkspaceView = "overview" | "board" | "team" | "settings"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null)
   const welcomeShownRef = useRef(false)
   const router = useRouter()
   const { success, error, info } = useNotifications()
@@ -62,8 +64,7 @@ export default function Dashboard() {
           sessionStorage.setItem(welcomeKey, "true")
         }
       } catch (authError) {
-        console.error("Dashboard auth check failed:", authError)
-        router.replace("/login")
+        setAuthErrorMessage("Account service is temporarily unavailable.")
       } finally {
         setLoading(false)
       }
@@ -79,6 +80,7 @@ export default function Dashboard() {
 
   const {
     workspaces,
+    loading: workspacesLoading,
     currentWorkspaceId,
     setCurrentWorkspaceId,
     tasks,
@@ -192,29 +194,25 @@ export default function Dashboard() {
     }
   }
 
-  const handleCreateWorkspace = async (value: string) => {
-    if (aiWorkspaceEnabled) {
-      const result = await generateWorkspaceFromIntent(value)
-      if (result.error || !result.workspace) return { error: result.error ?? "Unable to create the workspace." }
-      await refreshWorkspaces()
-      setCurrentWorkspaceId(result.workspace.id)
-    } else {
-      const workspace = await createWorkspace(value)
-      if (!workspace) return { error: "Unable to create the workspace." }
-      setCurrentWorkspaceId(workspace.id)
-    }
+  const finishWorkspaceCreation = (workspaceId: string) => {
+    setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
     setWorkspaceView("overview")
+  }
+
+  const handleCreateWorkspace = async (name: string, details: { summary: string; targetDate: string | null }) => {
+    const workspace = await createWorkspace(name, details)
+    if (!workspace) return { error: "Unable to create the workspace." }
+    finishWorkspaceCreation(workspace.id)
     return {}
   }
 
-  const handleCommand = async (command: string) => {
-    if (!currentWorkspaceId) return { error: "Select a workspace first." }
-    const result = await applyNaturalLanguageCommand(currentWorkspaceId, command)
-    if (!result.error) {
-      await Promise.all([refreshTasks(), refreshWorkspaces()])
-    }
-    return result
+  const handleApprovePlan = async (plan: WorkspacePlan) => {
+    const result = await createWorkspaceFromPlan(plan)
+    if (result.error || !result.workspace) return { error: result.error ?? "Unable to create the workspace." }
+    await refreshWorkspaces()
+    finishWorkspaceCreation(result.workspace.id)
+    return {}
   }
 
   const handleSelectWorkspace = (workspaceId: string) => {
@@ -244,11 +242,13 @@ export default function Dashboard() {
     }
   }
 
+  if (authErrorMessage) return <main className='p-8'><p role='alert'>{authErrorMessage}</p><Button onClick={() => window.location.reload()}>Retry</Button></main>
   if (loading || !user) {
     return <PageLoader label="Loading your workspace..." />
   }
 
-  const showWorkspace = Boolean(currentWorkspace) && !creatingWorkspace
+  const dashboardState = getDashboardState({ authenticated: Boolean(user), loading: workspacesLoading, error: workspaceError, workspaceCount: workspaces.length, creating: creatingWorkspace })
+  const showWorkspace = dashboardState === "workspace" && Boolean(currentWorkspace)
 
   return (
     <main className="saathi-shell saathi-dashboard min-h-screen">
@@ -280,10 +280,10 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board"} onOpenBoard={() => setWorkspaceView("board")} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board" || workspaceView === "team"} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-20 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col lg:items-center">
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board"} onOpenBoard={() => setWorkspaceView("board")} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board" || workspaceView === "team"} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
           <Avatar className="mt-auto size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
         </aside>
 
@@ -291,7 +291,7 @@ export default function Dashboard() {
           <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
-            {workspaceError ? (
+            {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError ? (
               <section className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-8 text-center" role="alert">
                 <h2 className="text-xl font-semibold">Workspace unavailable</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{workspaceError}. Your data was not changed.</p>
@@ -304,6 +304,8 @@ export default function Dashboard() {
                 canCancel={workspaces.length > 0}
                 onCancel={() => setCreatingWorkspace(false)}
                 onCreate={handleCreateWorkspace}
+                onSuggest={generateWorkspaceDraft}
+                onApprove={handleApprovePlan}
               />
             ) : currentWorkspace ? (
               <>
@@ -313,9 +315,11 @@ export default function Dashboard() {
                       <WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex rounded-lg bg-secondary p-1" aria-label="Workspace view">
+                      <div className="flex flex-wrap rounded-lg bg-secondary p-1" aria-label="Workspace view">
                         <Button type="button" size="sm" variant={workspaceView === "overview" ? "default" : "ghost"} onClick={() => setWorkspaceView("overview")}><ListChecks className="size-4" />Overview</Button>
                         <Button type="button" size="sm" variant={workspaceView === "board" ? "default" : "ghost"} onClick={() => setWorkspaceView("board")}><LayoutGrid className="size-4" />Board</Button>
+                        <Button type="button" size="sm" variant={workspaceView === "team" ? "default" : "ghost"} onClick={() => setWorkspaceView("team")}><Users className="size-4" />Team</Button>
+                        {isCurrentWorkspaceOwner && <Button type="button" size="sm" variant={workspaceView === "settings" ? "default" : "ghost"} onClick={() => setWorkspaceView("settings")}><Settings className="size-4" />Settings</Button>}
                       </div>
                       <Badge variant="outline" className="bg-card"><span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground"}`} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
                       {isCurrentWorkspaceOwner && <Badge className="border-primary/30 bg-primary/10 text-primary"><Crown className="mr-1 size-3" />Owner</Badge>}
@@ -330,7 +334,11 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {workspaceView === "overview" ? (
+                {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
+                  <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} />
+                ) : workspaceView === "team" ? (
+                  <Card id="team-panel"><CardHeader><CardTitle>Team</CardTitle><CardDescription>{currentWorkspace.members.length} members in this workspace.</CardDescription></CardHeader><CardContent><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
+                ) : workspaceView === "overview" || workspaceView === "settings" ? (
                   taskError ? (
                     <section id="project-board" className="rounded-xl border border-border bg-card p-8 text-center" role="alert">
                       <p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p>
@@ -346,15 +354,7 @@ export default function Dashboard() {
                       onEditTask={handleEditTask}
                       onDeleteTask={handleDeleteTask}
                       onOpenBoard={() => setWorkspaceView("board")}
-                      title={
-                        <WorkspaceNameInlineEditor
-                          workspaceId={currentWorkspace.id}
-                          currentName={currentWorkspace.name}
-                          isOwner={Boolean(isCurrentWorkspaceOwner)}
-                          onNameUpdated={refreshWorkspaces}
-                        />
-                      }
-                      commandBar={aiWorkspaceEnabled ? <WorkspaceCommandBar onCommand={handleCommand} /> : undefined}
+                      title={<span>{currentWorkspace.name}</span>}
                     />
                   )
                 ) : (
@@ -377,7 +377,6 @@ export default function Dashboard() {
                       </Card>
                     </div>
                     <aside className="space-y-4 xl:col-span-3">
-                      <Card id="team-panel" className="scroll-mt-32"><CardHeader className="border-b border-border"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5 text-primary" />Team</CardTitle><CardDescription>{currentWorkspace.members.length} member{currentWorkspace.members.length === 1 ? "" : "s"}</CardDescription></CardHeader><CardContent className="p-0"><MemberManager members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
                       <Card id="realtime-panel" className="scroll-mt-32"><CardHeader className="border-b border-border"><CardTitle className="flex items-center gap-2 text-lg"><Activity className="size-5 text-primary" />Connection</CardTitle><CardDescription>Workspace updates and recovery.</CardDescription></CardHeader><CardContent className="space-y-4 pt-4 text-sm"><div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Status</span><span className={realtime.isConnected ? "text-[var(--saathi-success)]" : "text-muted-foreground"}>{realtime.isConnected ? "Live" : "Offline"}</span></div><div><p className="font-medium">{realtime.activeUsers.length} active now</p><div className="mt-2 flex flex-wrap gap-1.5" aria-label="Active workspace members">{realtime.activeUsers.length > 0 ? realtime.activeUsers.map((email) => <Badge key={email} variant="secondary" title={email}>{email === user.email ? "You" : email.split("@")[0]}</Badge>) : <span className="text-xs text-muted-foreground">No other members are online.</span>}</div></div></CardContent></Card>
                       <UsageSummary workspaceId={currentWorkspace.id} refreshToken={`${tasks.length}:${metrics.completed}:${currentWorkspace.members.length}`} />
                     </aside>

@@ -1,5 +1,7 @@
 // Shared TypeScript interfaces and types
 
+import type { RealtimeEventType } from "./realtime.ts"
+
 export interface User {
     email: string
     username: string
@@ -55,7 +57,7 @@ export interface TaskUpdate {
 
 export interface SSEEvent {
     type: 'connected' | 'heartbeat' | 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'workspace-created' | 'member-added' | 'member-removed' | 'user-joined' | 'user-left'
-    data?: any
+    data?: Record<string, unknown>
     timestamp: number
     deliveredAt?: number
     latencyMs?: number | null
@@ -63,11 +65,11 @@ export interface SSEEvent {
 
 // Real-time event types
 export interface RealtimeEvent {
-    type: 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'user-joined' | 'user-left' | 'workspace-created' | 'member-added' | 'member-removed'
+    type: RealtimeEventType
     workspaceId: string
     userId: string
     timestamp: number
-    data: any
+    data: Record<string, unknown>
 }
 
 // API Response types
