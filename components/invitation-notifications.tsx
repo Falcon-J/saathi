@@ -19,6 +19,7 @@ interface InvitationNotificationsProps {
 }
 
 export function InvitationNotifications({ userEmail, onInvitationAccepted }: InvitationNotificationsProps) {
+    const [inlineError, setInlineError] = useState<string | null>(null)
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
@@ -28,8 +29,9 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         try {
             const userInvitations = await getUserInvitations(userEmail)
             setInvitations(userInvitations.filter(inv => inv.status === "pending"))
+            setInlineError(null)
         } catch (error) {
-            console.error("[Saathi] Failed to load invitations:", error)
+            setInlineError(error instanceof Error ? error.message : "Unable to load invitations.")
         } finally {
             setLoading(false)
         }
@@ -44,7 +46,9 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     const handleAcceptInvitation = async (invitation: Invitation) => {
         setProcessingId(invitation.id)
         try {
-            await acceptInvitation(invitation.id)
+            const result = await acceptInvitation(invitation.id)
+            if (result.error) throw new Error(result.error)
+            setInlineError(null)
             success("Invitation accepted", `You've joined ${invitation.workspaceName}`)
 
             // Remove from local state
@@ -53,6 +57,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
             // Notify parent component to refresh workspaces
             onInvitationAccepted?.()
         } catch (caughtError: unknown) {
+            setInlineError(caughtError instanceof Error ? caughtError.message : "Unable to update invitation.")
             error("Unable to accept invitation", caughtError instanceof Error ? caughtError.message : "Failed to accept invitation")
         } finally {
             setProcessingId(null)
@@ -62,12 +67,15 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     const handleDeclineInvitation = async (invitation: Invitation) => {
         setProcessingId(invitation.id)
         try {
-            await declineInvitation(invitation.id)
+            const result = await declineInvitation(invitation.id)
+            if (result.error) throw new Error(result.error)
+            setInlineError(null)
             success("Invitation declined", `You declined to join ${invitation.workspaceName}`)
 
             // Remove from local state
             setInvitations(prev => prev.filter(inv => inv.id !== invitation.id))
         } catch (caughtError: unknown) {
+            setInlineError(caughtError instanceof Error ? caughtError.message : "Unable to update invitation.")
             error("Unable to decline invitation", caughtError instanceof Error ? caughtError.message : "Failed to decline invitation")
         } finally {
             setProcessingId(null)
@@ -77,12 +85,13 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     // Don't render anything while loading — prevents layout shift
     if (loading) return null
 
-    if (invitations.length === 0) {
+    if (invitations.length === 0 && !inlineError) {
         return null
     }
 
     return (
         <div className="mb-4 space-y-4">
+            {inlineError && <div role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm"><p>{inlineError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Refresh invitations</Button></div>}
             <div className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-primary" />
                 <h3 className="font-medium text-foreground">
@@ -121,7 +130,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                                 <Button
                                     size="sm"
                                     onClick={() => handleAcceptInvitation(invitation)}
-                                    disabled={processingId === invitation.id}
+                                    disabled={Boolean(processingId)}
                                     className="bg-[var(--saathi-success)] text-white hover:bg-[color-mix(in_srgb,var(--saathi-success)_90%,black)]"
                                 >
                                     <Check className="w-4 h-4 mr-1" />
@@ -131,7 +140,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleDeclineInvitation(invitation)}
-                                    disabled={processingId === invitation.id}
+                                    disabled={Boolean(processingId)}
                                     className="border-destructive/30 text-destructive hover:bg-destructive/10"
                                 >
                                     <X className="w-4 h-4 mr-1" />

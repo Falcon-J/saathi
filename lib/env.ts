@@ -160,22 +160,8 @@ export const getSmtpConfig = () => {
     }
 }
 
-// Validation for production
-if (isProduction) {
-    const { url, token } = getRedisConfig()
-
-    if (!url || !token) {
-        console.error('❌ Production Error: Redis configuration is required in production')
-        console.error('Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN')
-        process.exit(1)
-    }
-
-    if (env.NEXTAUTH_SECRET === 'dev-secret-key-change-in-production-please') {
-        console.error('❌ Production Error: Please change NEXTAUTH_SECRET in production')
-        console.error('Generate a secure secret with: openssl rand -base64 32')
-        process.exit(1)
-    }
-}
+// Deployment validation is explicit in validate-env. Redis itself fails closed
+// at runtime when configuration is absent; importing a module must not exit a build.
 
 // Log configuration on startup
 console.log(`🚀 Saathi ${env.APP_VERSION} starting in ${env.NODE_ENV} mode`)

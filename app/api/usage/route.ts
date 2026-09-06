@@ -1,29 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-simple"
-import { authorizeWorkspaceMember } from "@/lib/workspace-policy"
-import { redis } from "@/lib/redis"
+import { getDb } from "@/lib/db/client"
 import { getWorkspaceUsage } from "@/lib/usage"
-
 export const dynamic = "force-dynamic"
-
-export async function GET(request: NextRequest) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const workspaceId = new URL(request.url).searchParams.get("workspaceId")
-  if (!workspaceId) {
-    return NextResponse.json({ error: "Workspace ID required" }, { status: 400 })
-  }
-
-  const authorization = authorizeWorkspaceMember(
-    await redis.get(`workspace:${workspaceId}`),
-    session.email,
-  )
-  if (!authorization.allowed) {
-    return NextResponse.json({ error: authorization.message }, { status: authorization.status })
-  }
-
-  return NextResponse.json({ workspaceId, usage: await getWorkspaceUsage(workspaceId) })
+export async function GET(request:Request){
+  try{const session=await getSession();if(!session)return Response.json({error:"Unauthorized"},{status:401});
+    const id=new URL(request.url).searchParams.get("workspaceId");if(!id)return Response.json({error:"Workspace required"},{status:400});
+    const [member]=await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${id} AND user_id=${session.id}`;
+    if(!member)return Response.json({error:"Forbidden"},{status:403});return Response.json({workspaceId:id,usage:await getWorkspaceUsage(id)})
+  }catch{return Response.json({error:"Service unavailable"},{status:503})}
 }

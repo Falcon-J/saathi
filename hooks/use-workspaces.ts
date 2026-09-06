@@ -14,12 +14,16 @@ import { useRealtime } from "@/hooks/useRealtime"
 import type { RealtimeEvent } from "@/lib/realtime"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { normalizeEmail } from "@/lib/identity"
+import { getMutationError } from "@/lib/mutation-result"
 
 export function useWorkspaces(userEmail?: string) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedUserEmail, setLoadedUserEmail] = useState<string | null>(null)
+  const selectionRef = useRef({ workspaceId: currentWorkspaceId, userEmail })
+  useEffect(() => { selectionRef.current = { workspaceId: currentWorkspaceId, userEmail } }, [currentWorkspaceId, userEmail])
   const [workspaceError, setWorkspaceError] = useState<string | null>(null)
   const [taskError, setTaskError] = useState<string | null>(null)
   const [tasksLoading, setTasksLoading] = useState(false)
@@ -35,50 +39,32 @@ export function useWorkspaces(userEmail?: string) {
     })
   }, [])
 
-  const applyRealtimeTaskEvent = useCallback((event: RealtimeEvent) => {
-    if (!userEmail) {
-      return
-    }
-
-    if (event.workspaceId !== currentWorkspaceId) {
-      return
-    }
-
-    const task = event.data?.task ?? event.data
-
-    const taskId = event.type === "task-deleted" ? event.data?.taskId ?? task?.id : task?.id
-    if (taskId && pendingTaskIdsRef.current.has(taskId)) {
-      return
-    }
-
-    updateTasks((currentTasks) => {
-      switch (event.type) {
-        case "task-created":
-          if (!task?.id) return currentTasks
-          return currentTasks.some((existing) => existing.id === task.id)
-            ? currentTasks
-            : [task, ...currentTasks]
-        case "task-updated":
-        case "task-toggled": {
-          if (!task?.id) return currentTasks
-          const currentTask = currentTasks.find((existing) => existing.id === task.id)
-          if (
-            currentTask?.updatedAt
-            && task.updatedAt
-            && new Date(task.updatedAt).getTime() < new Date(currentTask.updatedAt).getTime()
-          ) {
-            return currentTasks
-          }
-          return currentTasks.map((existing) => existing.id === task.id ? { ...existing, ...task } : existing)
-        }
-        case "task-deleted":
-          if (!taskId) return currentTasks
-          return currentTasks.filter((existing) => existing.id !== taskId)
-        default:
-          return currentTasks
+  const handleRealtimeResync = useCallback(async () => {
+    if (!currentWorkspaceId || !userEmail) return
+    try {
+      const [result, updatedWorkspaces] = await Promise.all([getTasks(currentWorkspaceId), getUserWorkspaces(userEmail)])
+      if (selectionRef.current.workspaceId !== currentWorkspaceId || selectionRef.current.userEmail !== userEmail) return
+      setWorkspaces(updatedWorkspaces)
+      setWorkspaceError(null)
+      if (!updatedWorkspaces.some(workspace => workspace.id === currentWorkspaceId)) {
+        setCurrentWorkspaceId(updatedWorkspaces[0]?.id ?? null)
+        updateTasks(() => [])
+        return
       }
-    })
+      if (result.tasks) {
+        setTaskError(null)
+        updateTasks(() => result.tasks ?? [])
+      } else if (result.error) setTaskError(result.error)
+    } catch (caughtError) {
+      if (selectionRef.current.workspaceId === currentWorkspaceId && selectionRef.current.userEmail === userEmail) {
+        setTaskError(caughtError instanceof Error ? caughtError.message : "Unable to refresh workspace")
+      }
+    }
   }, [currentWorkspaceId, updateTasks, userEmail])
+
+  const applyRealtimeTaskEvent = useCallback((event: RealtimeEvent) => {
+    if (event.workspaceId === currentWorkspaceId) void handleRealtimeResync()
+  }, [currentWorkspaceId, handleRealtimeResync])
 
   const realtime = useRealtime({
     workspaceId: currentWorkspaceId ?? "",
@@ -86,12 +72,14 @@ export function useWorkspaces(userEmail?: string) {
     onTaskUpdated: applyRealtimeTaskEvent,
     onTaskToggled: applyRealtimeTaskEvent,
     onTaskDeleted: applyRealtimeTaskEvent,
+    onResyncRequired: handleRealtimeResync,
   })
 
   // Load user workspaces
   useEffect(() => {
     if (!userEmail) {
       setLoading(false)
+      setLoadedUserEmail(null)
       setWorkspaceError(null)
       setWorkspaces([])
       setCurrentWorkspaceId(null)
@@ -123,6 +111,7 @@ export function useWorkspaces(userEmail?: string) {
         }
       } finally {
         if (!cancelled) {
+          setLoadedUserEmail(userEmail)
           setLoading(false)
         }
       }
@@ -181,6 +170,7 @@ export function useWorkspaces(userEmail?: string) {
       setTasksLoading(true)
       try {
         const result = await getTasks(workspaceId)
+        if (selectionRef.current.workspaceId !== workspaceId) return null
         if (result.tasks) {
           setTaskError(null)
           updateTasks(() => result.tasks ?? [])
@@ -189,9 +179,9 @@ export function useWorkspaces(userEmail?: string) {
         if (result.error) setTaskError(result.error)
       } catch (error) {
         console.error("[Saathi] Failed to refresh tasks after a mutation error:", error)
-        setTaskError(error instanceof Error ? error.message : "Unable to load tasks")
+        if (selectionRef.current.workspaceId === workspaceId) setTaskError(error instanceof Error ? error.message : "Unable to load tasks")
       } finally {
-        setTasksLoading(false)
+        if (selectionRef.current.workspaceId === workspaceId) setTasksLoading(false)
       }
       return null
     },
@@ -199,11 +189,11 @@ export function useWorkspaces(userEmail?: string) {
   )
 
   const handleCreateWorkspace = useCallback(
-    async (name: string) => {
+    async (name: string, details?: { summary?: string; targetDate?: string | null }) => {
       if (!userEmail) return
 
       try {
-        const newWorkspace = await createWorkspaceAction(name)
+        const newWorkspace = await createWorkspaceAction(name, details)
         setWorkspaces(prev => [...prev, newWorkspace])
         setCurrentWorkspaceId(newWorkspace.id)
         success("Workspace created", `"${name}" workspace has been created successfully`)
@@ -226,10 +216,11 @@ export function useWorkspaces(userEmail?: string) {
           return result
         }
         // Optimistic update - add task immediately to UI
-        if (result.task) {
-          updateTasks((prev) => [result.task, ...prev.filter((task) => task.id !== result.task.id)])
+        const createdTask = result.task
+        if (createdTask && selectionRef.current.workspaceId === currentWorkspaceId) {
+          updateTasks((prev) => [createdTask, ...prev.filter((task) => task.id !== createdTask.id)])
         }
-        return result.task
+        return createdTask
       } catch (error) {
         console.error("[Saathi] Failed to add task:", error)
         throw error
@@ -242,6 +233,7 @@ export function useWorkspaces(userEmail?: string) {
     async (taskId: string) => {
       if (!currentWorkspaceId) return
       const originalTask = tasksRef.current.find((task) => task.id === taskId)
+      if (pendingTaskIdsRef.current.has(taskId)) return { error: "This task is already being updated. Please wait." }
       pendingTaskIdsRef.current.add(taskId)
       try {
         // Optimistic update - toggle immediately in UI
@@ -252,11 +244,11 @@ export function useWorkspaces(userEmail?: string) {
             : task
         ))
 
-        const result = await toggleTask(taskId, originalTask?.updatedAt)
+        const result = await toggleTask(taskId, originalTask?.version ?? originalTask?.updatedAt)
         if (result.error) {
           // Revert optimistic update on error
           const refreshedTasks = await refreshTasksForWorkspace(currentWorkspaceId)
-          if (!refreshedTasks) {
+          if (!refreshedTasks && selectionRef.current.workspaceId === currentWorkspaceId) {
             updateTasks((prev) => prev.map((task) => (
               task.id === taskId && originalTask
                 ? originalTask
@@ -265,11 +257,13 @@ export function useWorkspaces(userEmail?: string) {
           }
           throw new Error(result.error)
         }
-        if (result.task) {
-          updateTasks((prev) => prev.map((task) => task.id === taskId ? result.task : task))
+        const toggledTask = result.task
+        if (toggledTask && selectionRef.current.workspaceId === currentWorkspaceId) {
+          updateTasks((prev) => prev.map((task) => task.id === taskId ? toggledTask : task))
         }
       } catch (error) {
         console.error("[Saathi] Failed to toggle task:", error)
+        await refreshTasksForWorkspace(currentWorkspaceId)
         throw error
       } finally {
         pendingTaskIdsRef.current.delete(taskId)
@@ -282,16 +276,17 @@ export function useWorkspaces(userEmail?: string) {
     async (taskId: string) => {
       if (!currentWorkspaceId) return
       const taskToDelete = tasksRef.current.find((task) => task.id === taskId)
+      if (pendingTaskIdsRef.current.has(taskId)) return { error: "This task is already being updated. Please wait." }
       pendingTaskIdsRef.current.add(taskId)
       try {
         // Optimistic update - remove immediately from UI
         updateTasks((prev) => prev.filter((task) => task.id !== taskId))
 
-        const result = await deleteTask(taskId, taskToDelete?.updatedAt)
+        const result = await deleteTask(taskId, taskToDelete?.version ?? taskToDelete?.updatedAt)
         if (result.error) {
           // Revert optimistic update on error
           const refreshedTasks = await refreshTasksForWorkspace(currentWorkspaceId)
-          if (!refreshedTasks && taskToDelete) {
+          if (!refreshedTasks && taskToDelete && selectionRef.current.workspaceId === currentWorkspaceId) {
             updateTasks((prev) => [...prev.filter((task) => task.id !== taskId), taskToDelete].sort((a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             ))
@@ -300,6 +295,7 @@ export function useWorkspaces(userEmail?: string) {
         }
       } catch (error) {
         console.error("[Saathi] Failed to delete task:", error)
+        await refreshTasksForWorkspace(currentWorkspaceId)
         throw error
       } finally {
         pendingTaskIdsRef.current.delete(taskId)
@@ -312,6 +308,7 @@ export function useWorkspaces(userEmail?: string) {
     async (taskId: string, updates: TaskUpdate) => {
       if (!currentWorkspaceId) return
       const originalTask = tasksRef.current.find((task) => task.id === taskId)
+      if (pendingTaskIdsRef.current.has(taskId)) return { error: "This task is already being updated. Please wait." }
       pendingTaskIdsRef.current.add(taskId)
       try {
         // Optimistic update - update immediately in UI
@@ -326,22 +323,24 @@ export function useWorkspaces(userEmail?: string) {
           }
         }))
 
-        const result = await updateTask(taskId, updates, originalTask?.updatedAt)
+        const result = await updateTask(taskId, updates, originalTask?.version ?? originalTask?.updatedAt)
         if (result.error) {
           // Revert optimistic update on error
           const refreshedTasks = await refreshTasksForWorkspace(currentWorkspaceId)
-          if (!refreshedTasks && originalTask) {
+          if (!refreshedTasks && originalTask && selectionRef.current.workspaceId === currentWorkspaceId) {
             updateTasks((prev) => prev.map((task) => (
               task.id === taskId ? originalTask : task
             )))
           }
           throw new Error(result.error)
         }
-        if (result.task) {
-          updateTasks((prev) => prev.map((task) => task.id === taskId ? result.task : task))
+        const editedTask = result.task
+        if (editedTask && selectionRef.current.workspaceId === currentWorkspaceId) {
+          updateTasks((prev) => prev.map((task) => task.id === taskId ? editedTask : task))
         }
       } catch (error) {
         console.error("[Saathi] Failed to edit task:", error)
+        await refreshTasksForWorkspace(currentWorkspaceId)
         throw error
       } finally {
         pendingTaskIdsRef.current.delete(taskId)
@@ -354,6 +353,7 @@ export function useWorkspaces(userEmail?: string) {
     async (taskId: string, assignedTo: string | null) => {
       if (!currentWorkspaceId) return
       const originalTask = tasksRef.current.find((task) => task.id === taskId)
+      if (pendingTaskIdsRef.current.has(taskId)) return { error: "This task is already being updated. Please wait." }
       pendingTaskIdsRef.current.add(taskId)
       try {
         // Optimistic update - assign immediately in UI
@@ -363,22 +363,24 @@ export function useWorkspaces(userEmail?: string) {
             : task
         ))
 
-        const result = await updateTask(taskId, { assigneeEmail: assignedTo || undefined }, originalTask?.updatedAt)
+        const result = await updateTask(taskId, { assigneeEmail: assignedTo || undefined }, originalTask?.version ?? originalTask?.updatedAt)
         if (result.error) {
           // Revert optimistic update on error
           const refreshedTasks = await refreshTasksForWorkspace(currentWorkspaceId)
-          if (!refreshedTasks && originalTask) {
+          if (!refreshedTasks && originalTask && selectionRef.current.workspaceId === currentWorkspaceId) {
             updateTasks((prev) => prev.map((task) => (
               task.id === taskId ? originalTask : task
             )))
           }
           throw new Error(result.error)
         }
-        if (result.task) {
-          updateTasks((prev) => prev.map((task) => task.id === taskId ? result.task : task))
+        const assignedTask = result.task
+        if (assignedTask && selectionRef.current.workspaceId === currentWorkspaceId) {
+          updateTasks((prev) => prev.map((task) => task.id === taskId ? assignedTask : task))
         }
       } catch (error) {
         console.error("[Saathi] Failed to assign task:", error)
+        await refreshTasksForWorkspace(currentWorkspaceId)
         throw error
       } finally {
         pendingTaskIdsRef.current.delete(taskId)
@@ -392,18 +394,19 @@ export function useWorkspaces(userEmail?: string) {
       if (!currentWorkspaceId || !userEmail) return
 
       try {
-        await inviteMemberToWorkspace(currentWorkspaceId, email)
+        const result = await inviteMemberToWorkspace(currentWorkspaceId, email)
+        const invitationError = getMutationError(result)
+        if (invitationError) throw new Error(invitationError)
+
         success("Invitation created", `An in-app invitation is waiting for ${email}.`)
         // Note: Member won't be added until they accept the invitation
         // No need to refresh workspaces here
       } catch (error) {
         console.error("[Saathi] Failed to send invitation:", error)
-        const errorMessage = error instanceof Error ? error.message : "Failed to send invitation"
-        notifyError("Failed to send invitation", errorMessage)
         throw error
       }
     },
-    [currentWorkspaceId, userEmail, success, notifyError],
+    [currentWorkspaceId, userEmail, success],
   )
 
   // Add function to refresh workspaces (for when invitations are accepted)
@@ -413,6 +416,7 @@ export function useWorkspaces(userEmail?: string) {
 
       try {
         const updatedWorkspaces = await getUserWorkspaces(userEmail)
+        if (selectionRef.current.userEmail !== userEmail) return
         setWorkspaceError(null)
         setWorkspaces(updatedWorkspaces)
         setCurrentWorkspaceId((currentId) => (
@@ -453,7 +457,7 @@ export function useWorkspaces(userEmail?: string) {
         // select the first available workspace or clear selection
         const workspaceStillExists = updatedWorkspaces.some(w => w.id === currentWorkspaceId)
         if (!workspaceStillExists) {
-          info("Workspace deleted", "You were the last member, so the workspace has been deleted")
+          info("Workspace access ended", "You no longer have access to this workspace")
           if (updatedWorkspaces.length > 0) {
             setCurrentWorkspaceId(updatedWorkspaces[0].id)
           } else {
@@ -482,9 +486,17 @@ export function useWorkspaces(userEmail?: string) {
   return {
     workspaces,
     currentWorkspaceId,
-    setCurrentWorkspaceId,
+    setCurrentWorkspaceId: (workspaceId: string) => {
+      if (workspaceId !== currentWorkspaceId) {
+        selectionRef.current = { workspaceId, userEmail }
+        updateTasks(() => [])
+        setTaskError(null)
+        setTasksLoading(true)
+        setCurrentWorkspaceId(workspaceId)
+      }
+    },
     tasks,
-    loading,
+    loading: loading || Boolean(userEmail && loadedUserEmail !== userEmail),
     createWorkspace: handleCreateWorkspace,
     addTask: handleAddTask,
     toggleTask: handleToggleTask,

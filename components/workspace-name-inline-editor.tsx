@@ -9,6 +9,7 @@ import { useNotifications } from "@/hooks/use-notifications"
 
 interface WorkspaceNameInlineEditorProps {
     workspaceId: string
+    expectedVersion: number
     currentName: string
     isOwner: boolean
     onNameUpdated?: () => void
@@ -17,6 +18,7 @@ interface WorkspaceNameInlineEditorProps {
 
 export function WorkspaceNameInlineEditor({
     workspaceId,
+    expectedVersion,
     currentName,
     isOwner,
     onNameUpdated,
@@ -53,7 +55,7 @@ export function WorkspaceNameInlineEditor({
         setIsLoading(true)
 
         try {
-            await updateWorkspaceName(workspaceId, name.trim())
+            await updateWorkspaceName(workspaceId, name.trim(), expectedVersion)
             setIsEditing(false)
             success("Workspace renamed", "Your workspace name has been updated.")
 

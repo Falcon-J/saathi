@@ -15,13 +15,13 @@ export type DashboardSectionVisibility = {
 
 export function getDashboardNavigationTarget(id: DashboardSectionId): {
   sectionId: DashboardSectionId
-  view: "overview" | "board" | null
+  view: "overview" | "board" | "team" | null
 } {
   if (id === "workspace-header") {
-    return { sectionId: id, view: null }
+    return { sectionId: id, view: "overview" }
   }
 
-  return { sectionId: id, view: "board" }
+  return { sectionId: id, view: id === "team-panel" ? "team" : "board" }
 }
 
 export function normalizeDashboardActiveSection(

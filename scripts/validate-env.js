@@ -51,7 +51,17 @@ function validateEnvironment() {
       );
     }
 
-    // Authentication - using simple auth system, no NextAuth required
+    for (const name of ["DATABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_APP_URL", "CRON_SECRET"]) {
+      if (!env[name]) errors.push(`${name} is required in production`);
+    }
+    if (!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) errors.push("Supabase publishable key is required");
+    if (env.CRON_SECRET && env.CRON_SECRET.length < 32) errors.push("CRON_SECRET must be at least 32 characters");
+    const invitationEmailVars = ["RESEND_API_KEY", "EMAIL_FROM", "RESEND_WEBHOOK_SECRET"];
+    const configuredInvitationEmailVars = invitationEmailVars.filter((name) => Boolean(env[name]));
+    if (configuredInvitationEmailVars.length > 0 && configuredInvitationEmailVars.length < invitationEmailVars.length) {
+      const missingVars = invitationEmailVars.filter((name) => !env[name]);
+      errors.push(`Invitation email delivery config is incomplete. Missing: ${missingVars.join(", ")}`);
+    }
 
     // Security checks
     if (env.DEBUG === "true") {
@@ -73,7 +83,7 @@ function validateEnvironment() {
   });
 
   // URL validations
-  const urlVars = ["UPSTASH_REDIS_REST_URL", "KV_REST_API_URL", "KV_URL"];
+  const urlVars = ["UPSTASH_REDIS_REST_URL", "KV_REST_API_URL", "KV_URL", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_APP_URL"];
   urlVars.forEach((varName) => {
     if (env[varName] && !isValidUrl(env[varName])) {
       errors.push(`${varName} must be a valid URL`);
@@ -172,7 +182,7 @@ function validateEnvironment() {
     console.log();
     log("💡 Tips:", "blue");
     log("   • Copy .env.example to .env.local for development");
-    log("   • Generate NEXTAUTH_SECRET with: openssl rand -base64 32");
+    log("   • Configure Supabase Auth and PostgreSQL; keep credentials outside source control");
     log("   • Set up Redis at https://upstash.com/ for production");
     log("   • See DEPLOYMENT.md for detailed setup instructions");
     console.log();
@@ -180,7 +190,7 @@ function validateEnvironment() {
   }
 
   console.log();
-  log("🚀 Environment is ready for deployment!", "green");
+  log("Configuration shape checked. Runtime and deployment verification are separate.", "green");
 }
 
 function isValidUrl(string) {
