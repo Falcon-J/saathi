@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm"
-import { pgTable, uuid, varchar, text, integer, timestamp, jsonb, primaryKey, foreignKey, uniqueIndex, check, index } from "drizzle-orm/pg-core"
+import { pgTable, uuid, varchar, text, integer, timestamp, jsonb, primaryKey, foreignKey, uniqueIndex, check, index, date } from "drizzle-orm/pg-core"
 
 const times = () => ({ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow() })
 // auth.users linkage, signup trigger, deferred owner FK and RLS are maintained in SQL migrations.
@@ -35,13 +35,14 @@ export const tasks = pgTable("tasks", {
   id: uuid("id").primaryKey(), workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 200 }).notNull(), description: varchar("description", { length: 1000 }),
   status: text("status").notNull().default("todo"), priority: text("priority").notNull().default("medium"), bucket: text("bucket"),
-  dueAt: timestamp("due_at", { withTimezone: true }), estimatedMinutes: integer("estimated_minutes"), assigneeUserId: uuid("assignee_user_id"),
+  dueDate: date("due_date"), dueAt: timestamp("due_at", { withTimezone: true }), estimatedMinutes: integer("estimated_minutes"), assigneeUserId: uuid("assignee_user_id"),
   createdByUserId: uuid("created_by_user_id").notNull().references(() => profiles.id), version: integer("version").notNull().default(1), ...times(),
 }, t => [
   foreignKey({ columns: [t.workspaceId, t.assigneeUserId], foreignColumns: [workspaceMembers.workspaceId, workspaceMembers.userId] }),
   check("tasks_title_check", sql`length(trim(${t.title})) > 0`), check("tasks_status_check", sql`${t.status} IN ('todo','in_progress','done')`),
   check("tasks_priority_check", sql`${t.priority} IN ('low','medium','high')`), check("tasks_bucket_check", sql`${t.bucket} IN ('today','next')`),
   check("tasks_estimated_minutes_check", sql`${t.estimatedMinutes} BETWEEN 1 AND 1440`), check("tasks_version_check", sql`${t.version} > 0`),
+  check("task_deadline_exclusive", sql`${t.dueDate} IS NULL OR ${t.dueAt} IS NULL`),
   index("tasks_workspace_idx").on(t.workspaceId, t.createdAt),
 ])
 

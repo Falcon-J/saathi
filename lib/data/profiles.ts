@@ -1,4 +1,4 @@
-import { getDb } from '../db/client'
+import { getDb } from '../db/client.ts'
 
 export async function getProfile(id: string): Promise<{ id: string; username: string } | null> {
   const rows = await getDb()`select id, username from public.profiles where id = ${id} limit 1`

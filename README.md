@@ -60,7 +60,8 @@ Saathi is intentionally a modular monolith: one Next.js deployment with explicit
 | Work | `app/tasks/actions.ts`, `hooks/use-workspaces.ts` | Task records, permissions, optimistic board state |
 | Realtime | `lib/realtime.ts`, `app/api/realtime/route.ts` | Redis Streams, SSE delivery, presence |
 | Activity | `lib/data/events.ts` | Durable activity facts and outbox publication |
-| Invitations | `lib/data/invitations.ts`, `lib/email-delivery.ts` | Invitation lifecycle and bounded email delivery |`r`n| Migration | `drizzle/`, `scripts/migrate-database.mjs`, `lib/csv.ts` | Schema migrations and bounded CSV task import |
+| Invitations | `lib/data/invitations.ts`, `lib/email-delivery.ts` | Invitation lifecycle and bounded email delivery |
+| Migration | `drizzle/`, `scripts/migrate-database.mjs`, `lib/csv.ts` | Schema migrations and bounded CSV task import |
 
 CSV task imports accept `title`, `description`, `priority`, `dueDate`, `dueAt`, `estimatedMinutes`, and `assigneeEmail`. `dueDate` remains supported for date-only tasks; `dueAt` is an ISO timestamp for a specific time.
 
