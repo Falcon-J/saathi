@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { getAssistantGuide } from "./product-guide.ts"
 
 test("describes the exact AI actions available to a user", () => {
@@ -46,4 +48,11 @@ test("limits documented Groq context to non-secret workspace planning data", () 
     "redis_credentials",
     "member_email",
   ])
+})
+
+test("guide describes persisted and realtime ownership accurately", () => {
+  const source = readFileSync(path.join(process.cwd(), "app", "guide", "page.tsx"), "utf8")
+  assert.match(source, /PostgreSQL remains the source of truth/)
+  assert.match(source, /Redis carries realtime updates/)
+  assert.doesNotMatch(source, /Redis remains the source of truth/)
 })

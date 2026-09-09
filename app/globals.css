@@ -4,44 +4,44 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f5f5f7;
-  --foreground: #1d1d1f;
+  --background: #f7f8fc;
+  --foreground: #111936;
   --card: #ffffff;
-  --card-foreground: #1d1d1f;
+  --card-foreground: #111936;
   --popover: #ffffff;
-  --popover-foreground: #1d1d1f;
-  --primary: #007aff;
+  --popover-foreground: #111936;
+  --primary: #5b4df7;
   --primary-foreground: #ffffff;
-  --secondary: #f2f2f7;
-  --secondary-foreground: #1d1d1f;
-  --muted: #f2f2f7;
-  --muted-foreground: #6e6e73;
-  --accent: #e8f2ff;
-  --accent-foreground: #005ecb;
+  --secondary: #f1f2f8;
+  --secondary-foreground: #111936;
+  --muted: #f1f2f8;
+  --muted-foreground: #66708f;
+  --accent: #eeecff;
+  --accent-foreground: #4938e8;
   --destructive: #ff3b30;
   --destructive-foreground: #ffffff;
-  --border: #d2d2d7;
+  --border: #e1e5ef;
   --input: #ffffff;
-  --ring: #007aff;
-  --chart-1: #007aff;
+  --ring: #5b4df7;
+  --chart-1: #5b4df7;
   --chart-2: #34c759;
   --chart-3: #ff9f0a;
   --chart-4: #af52de;
   --chart-5: #6e6e73;
   --radius: 0.5rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #1d1d1f;
-  --sidebar-primary: #007aff;
+  --sidebar-foreground: #111936;
+  --sidebar-primary: #5b4df7;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f2f2f7;
-  --sidebar-accent-foreground: #1d1d1f;
-  --sidebar-border: #e5e5ea;
-  --sidebar-ring: #007aff;
-  --surface-lowest: #f5f5f7;
-  --surface-low: #f2f2f7;
+  --sidebar-accent: #eeecff;
+  --sidebar-accent-foreground: #4938e8;
+  --sidebar-border: #e7e9f2;
+  --sidebar-ring: #5b4df7;
+  --surface-lowest: #f7f8fc;
+  --surface-low: #f1f2f8;
   --surface: #ffffff;
   --surface-high: #ffffff;
-  --surface-highest: #e5e5ea;
+  --surface-highest: #e7e9f2;
   --saathi-success: #34c759;
   --saathi-warning: #ff9f0a;
   --saathi-danger: #ff3b30;
@@ -106,14 +106,14 @@
 
 @layer components {
   .saathi-dashboard {
-    --saathi-surface-page: #f5f5f7;
+    --saathi-surface-page: #f7f8fc;
     --saathi-surface-default: #ffffff;
     --saathi-surface-navigation: #ffffff;
-    --saathi-surface-subtle: #f2f2f7;
-    --saathi-border-subtle: #e5e5ea;
-    --saathi-border-default: #d2d2d7;
-    --saathi-brand: #007aff;
-    --saathi-info: #007aff;
+    --saathi-surface-subtle: #f1f2f8;
+    --saathi-border-subtle: #e7e9f2;
+    --saathi-border-default: #e1e5ef;
+    --saathi-brand: #5b4df7;
+    --saathi-info: #5b4df7;
     --saathi-success: #34c759;
     --saathi-warning: #ff9f0a;
     --saathi-danger: #ff3b30;
@@ -129,30 +129,30 @@
     --saathi-type-page-title: 1.5rem;
     --saathi-type-label: 0.75rem;
     --background: var(--saathi-surface-page);
-    --foreground: #1d1d1f;
+    --foreground: #111936;
     --card: var(--saathi-surface-default);
-    --card-foreground: #1d1d1f;
+    --card-foreground: #111936;
     --popover: var(--saathi-surface-default);
-    --popover-foreground: #1d1d1f;
+    --popover-foreground: #111936;
     --primary: var(--saathi-brand);
     --primary-foreground: #ffffff;
     --secondary: var(--saathi-surface-subtle);
-    --secondary-foreground: #1d1d1f;
+    --secondary-foreground: #111936;
     --muted: var(--saathi-surface-subtle);
-    --muted-foreground: #6e6e73;
-    --accent: #e8f2ff;
-    --accent-foreground: #005ecb;
+    --muted-foreground: #66708f;
+    --accent: #eeecff;
+    --accent-foreground: #4938e8;
     --destructive: var(--saathi-danger);
     --destructive-foreground: #ffffff;
     --border: var(--saathi-border-default);
     --input: var(--saathi-surface-default);
     --ring: var(--saathi-brand);
     --sidebar: var(--saathi-surface-navigation);
-    --sidebar-foreground: #1d1d1f;
+    --sidebar-foreground: #111936;
     --sidebar-primary: var(--saathi-brand);
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: var(--saathi-surface-subtle);
-    --sidebar-accent-foreground: #1d1d1f;
+    --sidebar-accent-foreground: #4938e8;
     --sidebar-border: var(--saathi-border-subtle);
     --sidebar-ring: var(--saathi-brand);
     --surface-lowest: var(--saathi-surface-page);
@@ -172,7 +172,7 @@
   .saathi-dashboard .saathi-panel {
     background: var(--card);
     border-color: var(--border);
-    box-shadow: 0 1px 2px rgb(29 29 31 / 0.05);
+    box-shadow: 0 10px 30px rgb(44 50 89 / 0.06);
     backdrop-filter: none;
   }
 
@@ -189,7 +189,7 @@
   .saathi-panel {
     background: var(--card);
     border: 1px solid var(--border);
-    box-shadow: 0 1px 2px rgb(29 29 31 / 0.05);
+    box-shadow: 0 10px 30px rgb(44 50 89 / 0.06);
     backdrop-filter: none;
   }
 

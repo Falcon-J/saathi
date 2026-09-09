@@ -8,13 +8,13 @@ const taskFilterSource = readFileSync(path.join(__dirname, "..", "..", "componen
 
 test("dashboard exposes semantic Saathi design tokens", () => {
   const expectedTokens = {
-    "--saathi-surface-page": "#f5f5f7",
+    "--saathi-surface-page": "#f7f8fc",
     "--saathi-surface-default": "#ffffff",
     "--saathi-surface-navigation": "#ffffff",
-    "--saathi-border-subtle": "#e5e5ea",
-    "--saathi-border-default": "#d2d2d7",
-    "--saathi-brand": "#007aff",
-    "--saathi-info": "#007aff",
+    "--saathi-border-subtle": "#e7e9f2",
+    "--saathi-border-default": "#e1e5ef",
+    "--saathi-brand": "#5b4df7",
+    "--saathi-info": "#5b4df7",
     "--saathi-success": "#34c759",
     "--saathi-warning": "#ff9f0a",
     "--saathi-danger": "#ff3b30",
@@ -38,9 +38,9 @@ test("shared Saathi tokens provide the approved light system", () => {
   assert.ok(rootBlock, "expected a :root token block")
 
   const expectedTokens = {
-    "--background": "#f5f5f7",
-    "--foreground": "#1d1d1f",
-    "--primary": "#007aff",
+    "--background": "#f7f8fc",
+    "--foreground": "#111936",
+    "--primary": "#5b4df7",
     "--saathi-success": "#34c759",
     "--saathi-danger": "#ff3b30",
   }

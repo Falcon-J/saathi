@@ -19,3 +19,10 @@ test("authentication forms render recoverable errors inline", () => {
   assert.doesNotMatch(source, /saathi-grid/)
   assert.doesNotMatch(source, /Workspace gateway|SSE task updates/)
 })
+
+test("authentication suite uses the approved split layout without unsupported providers", () => {
+  assert.match(source, /lg:grid-cols-2/)
+  assert.match(source, /Work together\. Go further\./)
+  assert.match(source, /Forgot password\?/)
+  assert.doesNotMatch(source, /Continue with Google|Remember me/)
+})

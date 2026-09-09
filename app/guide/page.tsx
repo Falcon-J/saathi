@@ -87,7 +87,7 @@ export default function GuidePage() {
         <section className="mt-12 overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm" aria-labelledby="assistant-title">
           <div className="border-b border-border bg-secondary/40 px-5 py-6 sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Chat with the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant translates plain-language intent into one bounded workspace change. Redis remains the source of truth.</p></div></div>
+              <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Plan with the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant proposes one bounded, reviewable workspace change. PostgreSQL remains the source of truth; Redis carries realtime updates.</p></div></div>
               <Badge className={aiAvailable ? "w-fit bg-[var(--saathi-success)] text-white" : "w-fit bg-secondary text-secondary-foreground"}>{aiAvailable ? "Available" : "Optional · currently off"}</Badge>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function GuidePage() {
           </div>
         </section>
 
-        <section className="mt-10 flex flex-col gap-4 rounded-[var(--saathi-radius-container)] bg-[#1d1d1f] px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <section className="mt-10 flex flex-col gap-4 rounded-[var(--saathi-radius-container)] bg-[#111936] px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div><h2 className="text-xl font-semibold">Ready to move work forward?</h2><p className="mt-1 text-sm text-white/65">Return to your workspace and start with one clear next action.</p></div>
           <Button asChild className="w-fit bg-white text-[#1d1d1f] hover:bg-white/90"><Link href="/dashboard">Open workspace<ArrowRight className="size-4" /></Link></Button>
         </section>

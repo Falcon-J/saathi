@@ -4,6 +4,7 @@ const assert = require("node:assert/strict")
 const path = require("node:path")
 
 const source = readFileSync(path.join(__dirname, "page.tsx"), "utf8")
+const layoutSource = readFileSync(path.join(__dirname, "layout.tsx"), "utf8")
 
 test("dashboard keeps realtime recovery next to the board", () => {
   assert.match(source, /role="status"/)
@@ -23,4 +24,11 @@ test("dashboard navigation and logout expose explicit loading and failure states
 test("app and dashboard routes provide intentional loading UI", () => {
   assert.equal(existsSync(path.join(__dirname, "..", "loading.tsx")), true)
   assert.equal(existsSync(path.join(__dirname, "loading.tsx")), true)
+})
+
+test("temporary account and workspace failures keep recovery explicit", () => {
+  assert.match(layoutSource, /Workspace temporarily unavailable/)
+  assert.match(layoutSource, /Your data is safe/)
+  assert.match(source, /Your data was not changed/)
+  assert.match(source, /Try again/)
 })
