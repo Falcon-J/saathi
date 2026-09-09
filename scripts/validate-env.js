@@ -56,8 +56,11 @@ function validateEnvironment() {
     }
     if (!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) errors.push("Supabase publishable key is required");
     if (env.CRON_SECRET && env.CRON_SECRET.length < 32) errors.push("CRON_SECRET must be at least 32 characters");
-    for (const name of ["RESEND_API_KEY", "EMAIL_FROM", "RESEND_WEBHOOK_SECRET"]) {
-      if (!env[name]) errors.push(`${name} is required in production for invitation delivery`);
+    const invitationEmailVars = ["RESEND_API_KEY", "EMAIL_FROM", "RESEND_WEBHOOK_SECRET"];
+    const configuredInvitationEmailVars = invitationEmailVars.filter((name) => Boolean(env[name]));
+    if (configuredInvitationEmailVars.length > 0 && configuredInvitationEmailVars.length < invitationEmailVars.length) {
+      const missingVars = invitationEmailVars.filter((name) => !env[name]);
+      errors.push(`Invitation email delivery config is incomplete. Missing: ${missingVars.join(", ")}`);
     }
 
     // Security checks
