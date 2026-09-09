@@ -89,24 +89,24 @@ export function AuthForm({ mode }: AuthFormProps) {
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.72fr)] lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-12 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-8">
         <section className="order-2 hidden rounded-[var(--saathi-radius-container)] border border-border bg-card p-7 lg:order-1 lg:block">
-          <p className="saathi-label text-[var(--saathi-success)]">A calm place to work</p>
-          <h1 className="mt-4 max-w-md text-4xl font-semibold tracking-[-0.035em]">Collaborate with clarity.</h1>
+          <p className="saathi-label text-primary">From intention to execution</p>
+          <h1 className="mt-4 max-w-md text-4xl font-semibold tracking-[-0.035em]">Plan, assign, and move forward together.</h1>
           <p className="mt-4 max-w-md text-base leading-7 text-muted-foreground">
             Keep the work, the people, and the next decision in one focused workspace.
           </p>
           <BoardPreview />
           <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-4 text-[var(--saathi-success)]" />
-            Built for teams that value calm, clear delivery.
+            Work together. Go further.
           </p>
         </section>
 
         <section className="order-1 mx-auto w-full max-w-md lg:order-2">
           <div className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-6 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-8">
             <div className="mb-7">
-              <p className="saathi-label text-[var(--saathi-success)]">{isSignup ? "New account" : "Secure sign in"}</p>
+              <p className="saathi-label text-primary">{isSignup ? "New account" : "Secure sign in"}</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">{isSignup ? "Create your account" : "Welcome back"}</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {isSignup ? "Create your account, then set up a workspace for the work you want to move forward." : "Sign in to return to your workspace."}

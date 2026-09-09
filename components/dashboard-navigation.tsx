@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Activity, Home, LayoutGrid, Users } from "lucide-react"
+import { Home, LayoutGrid, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getDashboardNavigationTarget,
@@ -12,10 +12,9 @@ import {
 } from "@/lib/dashboard-navigation"
 
 const dashboardNavigationItems = [
-  { id: "workspace-header", label: "Overview", Icon: Home },
-  { id: "project-board", label: "Board", Icon: LayoutGrid },
-  { id: "team-panel", label: "Team", Icon: Users },
-  { id: "realtime-panel", label: "Realtime", Icon: Activity },
+  { id: "workspace-header", label: "Home", Icon: Home },
+  { id: "project-board", label: "My Tasks", Icon: LayoutGrid },
+  { id: "team-panel", label: "People", Icon: Users },
 ] as const
 
 function NavigationItem({
@@ -41,15 +40,15 @@ function NavigationItem({
       aria-label={label}
       title={label}
       className={cn(
-        "flex items-center justify-center rounded-[var(--saathi-radius-control)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-        compact ? "min-h-10 flex-1 gap-2 px-3 text-xs font-medium" : "size-11",
+        "flex items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        compact ? "min-h-10 flex-1 justify-center gap-2 px-3 text-xs font-medium" : "min-h-10 w-full justify-start gap-3 px-3 text-sm font-medium",
         active
           ? "bg-accent text-primary"
           : "text-muted-foreground hover:bg-secondary hover:text-foreground",
       )}
     >
       <Icon className="size-5" aria-hidden="true" />
-      {compact && <span>{label}</span>}
+      <span>{label}</span>
     </button>
   )
 }
@@ -126,7 +125,7 @@ export function DashboardNavigation({
     <nav
       aria-label="Workspace navigation"
       className={cn(
-        compact ? "flex gap-1 border-b border-border bg-card px-2 py-2" : "flex w-full flex-col items-center gap-2",
+        compact ? "flex gap-1 border-b border-border bg-card px-2 py-2" : "flex w-full flex-col gap-1",
       )}
     >
       {visibleItems.map((item) => (
