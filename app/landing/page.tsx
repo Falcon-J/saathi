@@ -1,6 +1,5 @@
 import Link from "next/link"
-import Image from "next/image"
-import { ArrowRight, BarChart3, Check, CheckCircle2, ListChecks, UsersRound } from "lucide-react"
+import { ArrowRight, BarChart3, ListChecks, UsersRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SaathiLogo } from "@/components/saathi-logo"
 
@@ -15,7 +14,7 @@ export default function LandingPage() {
           </Link>
 
           <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <Link href="#product" className="hover:text-foreground">Product</Link><Link href="#features" className="hover:text-foreground">Features</Link><span className="cursor-not-allowed text-muted-foreground/60" aria-disabled="true" title="Pricing is not available yet">Pricing</span><Link href="/guide" className="hover:text-foreground">About</Link>
+            <Link href="#product" className="hover:text-foreground">Product</Link><Link href="#features" className="hover:text-foreground">Features</Link><span className="cursor-not-allowed text-muted-foreground/60" aria-disabled="true" title="Pricing is not available yet">Pricing</span><Link href="/guide" className="hover:text-foreground">Guide</Link>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" className="text-foreground"><Link href="/login">Sign in</Link></Button>
@@ -26,44 +25,46 @@ export default function LandingPage() {
 
       <section id="product" className="mx-auto grid max-w-7xl gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16 lg:px-8 lg:py-20">
         <div className="max-w-xl">
-          <p className="saathi-label text-primary">From intention to execution</p>
-          <p className="sr-only">Move work forward. A focused workspace for teams that build together.</p>
+          <p className="saathi-label text-primary">FROM INTENTION TO EXECUTION</p>
+          <p className="sr-only">A focused workspace for teams to plan clearly, move together, and finish what matters.</p>
           <h1 className="mt-4 text-5xl font-semibold leading-[0.98] tracking-[-0.055em] text-foreground sm:text-6xl lg:text-7xl">
-            Turn ideas into<br />real progress<br />with <span className="text-primary">Saathi.</span>
+            Make progress<br />visible.
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-8 text-muted-foreground sm:text-xl">
-            Saathi is an outcome driven collaborative workspace for individuals and teams. Plan, assign, track and ship — all in one place.
+            A focused workspace for teams to plan clearly, move together, and finish what matters.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg" className="rounded-full">
-              <Link href="/register">Get started for free
+              <Link href="/register">Create your workspace
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href="/login"><span className="mr-1 grid size-5 place-items-center rounded-full border border-primary/30 text-primary">▶</span>Watch demo</Link>
+              <Link href="/guide">Explore the guide <ArrowRight className="size-4" /></Link>
             </Button>
           </div>
         </div>
 
-        <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_52%_45%,#eeecff_0%,#f7f8fc_62%,transparent_74%)]" aria-label="Saathi collaborative planning illustration">
-          <Image src="/saathi-hero-texture.png" alt="" fill className="object-cover opacity-30 mix-blend-multiply" priority />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_48%,transparent_0%,transparent_35%,#f7f8fc_78%)]" />
-          <div className="absolute left-[11%] top-[17%] w-[58%] rotate-[-7deg] rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[var(--saathi-shadow-float)] backdrop-blur-sm sm:p-7">
-            <div className="flex items-start gap-3"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-white"><Check className="size-5" /></span><div><p className="text-lg font-semibold leading-tight sm:text-xl">Build something<br />great together.</p><div className="mt-4 flex -space-x-2"><span className="size-7 rounded-full border-2 border-white bg-[#f4b6a6]" /><span className="size-7 rounded-full border-2 border-white bg-[#9db5ff]" /><span className="size-7 rounded-full border-2 border-white bg-[#f2d18d]" /><span className="grid size-7 place-items-center rounded-full border-2 border-white bg-white text-xs text-primary">+</span></div></div></div>
+        <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] border border-border bg-[radial-gradient(circle_at_58%_38%,#ddf4ee_0%,#f7f7f4_62%,transparent_76%)] p-5 sm:p-8" aria-label="Saathi collaborative workspace preview">
+          <div className="absolute right-[-8%] top-[8%] size-64 rounded-full bg-[#bfe9df]/60 blur-3xl" />
+          <div className="relative z-10 mt-8 overflow-hidden rounded-2xl border border-[#c9d8d5] bg-white shadow-[var(--saathi-shadow-float)] sm:mt-4">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs text-muted-foreground"><span className="font-semibold text-foreground">Today</span><span>Activity · 4 updates</span></div>
+            <div className="grid grid-cols-[92px_minmax(0,1fr)_112px] divide-x divide-border">
+              <div className="space-y-3 bg-[#f4faf8] p-3 text-xs text-muted-foreground"><p className="font-semibold text-primary">Home</p><p>My work</p><p>Board</p><p>Team</p><p>Settings</p></div>
+              <div className="p-4 sm:p-5"><div className="mb-4 flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Acme Product</p><p className="text-lg font-semibold">What needs your attention?</p></div><span className="rounded-md bg-[#dff4ee] px-2 py-1 text-xs font-medium text-primary">5 tasks</span></div><div className="space-y-2"><div className="flex items-center gap-2 rounded-lg border border-border p-3 text-xs"><span className="size-2 rounded-full bg-[#ef8a74]" /><span className="flex-1">Finalize product messaging</span><span className="rounded bg-[#fff0e7] px-1.5 py-0.5 text-[#b9533f]">Today</span></div><div className="flex items-center gap-2 rounded-lg border border-border p-3 text-xs"><span className="size-2 rounded-full bg-primary" /><span className="flex-1">Prepare launch plan</span><span className="rounded bg-[#dff4ee] px-1.5 py-0.5 text-primary">Next</span></div><div className="flex items-center gap-2 rounded-lg border border-border p-3 text-xs"><span className="size-2 rounded-full bg-[#9cb6aa]" /><span className="flex-1">Review customer feedback</span><span className="rounded bg-secondary px-1.5 py-0.5 text-muted-foreground">Later</span></div></div></div>
+              <div className="hidden space-y-4 bg-[#fbfcfb] p-4 text-xs sm:block"><p className="font-semibold">Activity</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Priya</span> completed a task</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Rohan</span> moved work</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Meera</span> added a comment</p></div>
+            </div>
           </div>
-          <div className="absolute right-[8%] top-[34%] w-[34%] rotate-[8deg] rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[var(--saathi-shadow-float)] backdrop-blur-sm sm:p-6"><div className="space-y-3 text-sm font-medium"><p className="flex items-center gap-2"><CheckCircle2 className="size-5 text-primary" />Plan</p><p className="flex items-center gap-2"><CheckCircle2 className="size-5 text-primary" />Execute</p><p className="flex items-center gap-2"><CheckCircle2 className="size-5 text-primary" />Ship</p></div></div>
-          <div className="absolute bottom-[12%] left-[43%] rounded-2xl border border-white/80 bg-white/85 px-5 py-4 text-center text-sm font-medium shadow-[var(--saathi-shadow-float)] backdrop-blur-sm sm:px-7 sm:py-5">Ideas<br /><span className="text-primary">→</span><br />Impact</div>
-          <div className="absolute bottom-[6%] right-[8%] text-5xl text-primary/80">⌁</div>
+          <div className="absolute bottom-5 left-6 rounded-full border border-primary/20 bg-white/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:bottom-8 sm:left-10">Clear next step →</div>
         </section>
       </section>
 
       <section id="features" className="border-t border-border bg-card">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-3 lg:px-8">
           {[
-            { icon: ListChecks, title: "Plan with clarity", copy: "Turn ideas into structured plans." },
-            { icon: UsersRound, title: "Work together", copy: "Align and move as a team." },
-            { icon: BarChart3, title: "Stay on track", copy: "Make progress, faster." },
+            { icon: ListChecks, title: "Clear next steps", copy: "Turn ideas into actionable plans with clarity." },
+            { icon: UsersRound, title: "Shared ownership", copy: "Keep everyone aligned and accountable." },
+            { icon: BarChart3, title: "Visible progress", copy: "See what’s moving, what’s next, and what’s done." },
           ].map(({ icon: Icon, title, copy }) => (
             <article key={title} className="flex gap-3 border-r-0 border-border last:border-0 md:border-r md:px-5 md:first:pl-0">
               <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">

@@ -8,13 +8,13 @@ const taskFilterSource = readFileSync(path.join(__dirname, "..", "..", "componen
 
 test("dashboard exposes semantic Saathi design tokens", () => {
   const expectedTokens = {
-    "--saathi-surface-page": "#f7f8fc",
+    "--saathi-surface-page": "#f7f7f4",
     "--saathi-surface-default": "#ffffff",
     "--saathi-surface-navigation": "#ffffff",
     "--saathi-border-subtle": "#e7e9f2",
     "--saathi-border-default": "#e1e5ef",
-    "--saathi-brand": "#5b4df7",
-    "--saathi-info": "#5b4df7",
+    "--saathi-brand": "#0f766e",
+    "--saathi-info": "#0f766e",
     "--saathi-success": "#34c759",
     "--saathi-warning": "#ff9f0a",
     "--saathi-danger": "#ff3b30",
@@ -24,9 +24,9 @@ test("dashboard exposes semantic Saathi design tokens", () => {
     "--saathi-radius-container": "0.75rem",
     "--saathi-type-page-title": "1.5rem",
     "--saathi-type-label": "0.75rem",
-    "--saathi-brand-deep": "#111936",
-    "--saathi-brand-soft": "#eeecff",
-    "--saathi-surface-wash": "#f4f5ff",
+    "--saathi-brand-deep": "#202426",
+    "--saathi-brand-soft": "#ddf4ee",
+    "--saathi-surface-wash": "#f1f8f5",
     "--saathi-width-rail": "15rem",
     "--saathi-control-height": "2.75rem",
   }
@@ -43,9 +43,9 @@ test("shared Saathi tokens provide the approved light system", () => {
   assert.ok(rootBlock, "expected a :root token block")
 
   const expectedTokens = {
-    "--background": "#f7f8fc",
-    "--foreground": "#111936",
-    "--primary": "#5b4df7",
+    "--background": "#f7f7f4",
+    "--foreground": "#202426",
+    "--primary": "#0f766e",
     "--saathi-success": "#34c759",
     "--saathi-danger": "#ff3b30",
   }

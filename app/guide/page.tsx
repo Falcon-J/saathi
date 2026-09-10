@@ -67,11 +67,11 @@ export default function GuidePage() {
         <div className="mb-8 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
           <aside className="hidden rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 lg:block">
             <p className="saathi-label text-primary">In this guide</p>
-            <nav className="mt-4 space-y-1 text-sm"><a className="block rounded-md bg-primary/10 px-3 py-2 font-medium text-primary" href="#core-flow-title">Overview</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI assistance</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI limits</a></nav>
+            <nav className="mt-4 space-y-1 text-sm"><a className="block rounded-md bg-accent px-3 py-2 font-medium text-primary" href="#core-flow-title">Overview</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-actions">AI assistance</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-limits">AI limits</a></nav>
           </aside>
           <div>
         <section className="max-w-3xl">
-          <Badge variant="outline" className="bg-card"><CircleHelp className="mr-1.5 size-3.5 text-primary" />Available anytime</Badge>
+          <Badge variant="outline" className="bg-card uppercase tracking-[0.12em]"><CircleHelp className="mr-1.5 size-3.5 text-primary" />Available anytime</Badge>
           <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">Know what Saathi can do.</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
             Saathi keeps execution simple: decide the outcome, focus on today, and open the full board only when you need more control.
@@ -80,20 +80,20 @@ export default function GuidePage() {
           </div>
         </div>
 
-        <section className="mt-10 grid gap-4 md:grid-cols-2" aria-labelledby="core-flow-title">
+        <section className="mt-10 max-w-4xl space-y-4" aria-labelledby="core-flow-title">
           <h2 id="core-flow-title" className="sr-only">Core workflow</h2>
           {workspaceSteps.map(({ icon: Icon, title, description }, index) => (
-            <Card key={title} className="rounded-[var(--saathi-radius-card)] p-5 shadow-sm sm:p-6">
+            <Card key={title} className="rounded-[var(--saathi-radius-card)] border-border bg-card p-5 shadow-sm sm:p-6">
               <div className="flex items-start gap-4">
-                <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="size-5" /></div>
-                <div><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Step {index + 1}</p><h3 className="mt-1 text-lg font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p></div>
+                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-primary"><span className="text-sm font-semibold">{index + 1}</span></div>
+                <div><p className="text-xs font-semibold uppercase tracking-[0.08em] text-primary">Step {index + 1}</p><h3 className="mt-1 text-lg font-semibold">{title}</h3><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p></div>
               </div>
             </Card>
           ))}
         </section>
 
         <section id="limits" className="mt-12 overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm" aria-labelledby="assistant-title">
-          <div className="border-b border-border bg-secondary/40 px-5 py-6 sm:px-8">
+          <div className="border-b border-border bg-accent/60 px-5 py-6 sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Plan with the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant proposes one bounded, reviewable workspace change. PostgreSQL remains the source of truth; Redis carries realtime updates.</p></div></div>
               <Badge className={aiAvailable ? "w-fit bg-[var(--saathi-success)] text-white" : "w-fit bg-secondary text-secondary-foreground"}>{aiAvailable ? "Available" : "Optional · currently off"}</Badge>
@@ -101,7 +101,7 @@ export default function GuidePage() {
           </div>
 
           <div className="grid gap-8 px-5 py-7 sm:px-8 lg:grid-cols-2">
-            <div>
+            <div id="assistant-actions">
               <h3 className="font-semibold">What it can do</h3>
               <div className="mt-4 space-y-4">
                 {assistant.supportedActionIds.map((actionId) => {
@@ -110,7 +110,7 @@ export default function GuidePage() {
                 })}
               </div>
             </div>
-            <div>
+            <div id="assistant-limits">
               <h3 className="font-semibold">Intentional limits</h3>
               <div className="mt-4 space-y-3">
                 {assistant.unsupportedActionIds.map((actionId) => <div key={actionId} className="flex gap-3 text-sm text-muted-foreground"><XCircle className="mt-0.5 size-4 shrink-0" /><span>{assistantLimits[actionId]}</span></div>)}
