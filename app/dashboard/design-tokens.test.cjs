@@ -24,6 +24,11 @@ test("dashboard exposes semantic Saathi design tokens", () => {
     "--saathi-radius-container": "0.75rem",
     "--saathi-type-page-title": "1.5rem",
     "--saathi-type-label": "0.75rem",
+    "--saathi-brand-deep": "#111936",
+    "--saathi-brand-soft": "#eeecff",
+    "--saathi-surface-wash": "#f4f5ff",
+    "--saathi-width-rail": "15rem",
+    "--saathi-control-height": "2.75rem",
   }
 
   for (const [token, value] of Object.entries(expectedTokens)) {

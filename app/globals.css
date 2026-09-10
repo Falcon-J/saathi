@@ -45,6 +45,13 @@
   --saathi-success: #34c759;
   --saathi-warning: #ff9f0a;
   --saathi-danger: #ff3b30;
+  --saathi-brand-deep: #111936;
+  --saathi-brand-soft: #eeecff;
+  --saathi-surface-wash: #f4f5ff;
+  --saathi-shadow-card: 0 12px 32px rgb(44 50 89 / 0.08);
+  --saathi-shadow-float: 0 24px 64px rgb(91 77 247 / 0.16);
+  --saathi-width-rail: 15rem;
+  --saathi-control-height: 2.75rem;
 }
 
 @theme inline {
@@ -117,6 +124,13 @@
     --saathi-success: #34c759;
     --saathi-warning: #ff9f0a;
     --saathi-danger: #ff3b30;
+    --saathi-brand-deep: #111936;
+    --saathi-brand-soft: #eeecff;
+    --saathi-surface-wash: #f4f5ff;
+    --saathi-shadow-card: 0 12px 32px rgb(44 50 89 / 0.08);
+    --saathi-shadow-float: 0 24px 64px rgb(91 77 247 / 0.16);
+    --saathi-width-rail: 15rem;
+    --saathi-control-height: 2.75rem;
     --saathi-space-1: 0.5rem;
     --saathi-space-2: 1rem;
     --saathi-space-3: 1.5rem;

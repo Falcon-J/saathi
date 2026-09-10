@@ -5,10 +5,12 @@ const path = require("node:path")
 
 const source = readFileSync(path.join(__dirname, "dashboard-navigation.tsx"), "utf8")
 
-test("workspace navigation names only currently supported destinations", () => {
+test("workspace navigation exposes the reference destinations honestly", () => {
   assert.match(source, /label: "Home"/)
   assert.match(source, /label: "My Tasks"/)
   assert.match(source, /label: "People"/)
-  assert.doesNotMatch(source, /\{compact && <span>/)
-  assert.doesNotMatch(source, /label: "Projects"|label: "Calendar"|label: "AI Assistant"/)
+  assert.match(source, /label: "Projects"/)
+  assert.match(source, /label: "Calendar"/)
+  assert.match(source, /label: "AI Assistant"/)
+  assert.match(source, /not available yet/)
 })

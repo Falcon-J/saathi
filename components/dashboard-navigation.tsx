@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Home, LayoutGrid, Users } from "lucide-react"
+import Link from "next/link"
+import { CalendarDays, Home, LayoutGrid, Sparkles, Users, FolderKanban, Inbox, UsersRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getDashboardNavigationTarget,
@@ -15,6 +16,14 @@ const dashboardNavigationItems = [
   { id: "workspace-header", label: "Home", Icon: Home },
   { id: "project-board", label: "My Tasks", Icon: LayoutGrid },
   { id: "team-panel", label: "People", Icon: Users },
+] as const
+
+const secondaryNavigationItems = [
+  { label: "Inbox", Icon: Inbox, href: "/dashboard", disabled: true },
+  { label: "Workspaces", Icon: UsersRound, href: "/dashboard", disabled: false },
+  { label: "Projects", Icon: FolderKanban, href: "/tasks", disabled: false },
+  { label: "Calendar", Icon: CalendarDays, href: "/dashboard", disabled: true },
+  { label: "AI Assistant", Icon: Sparkles, href: "/guide", disabled: false },
 ] as const
 
 function NavigationItem({
@@ -136,6 +145,12 @@ export function DashboardNavigation({
           compact={compact}
           onNavigate={navigateTo}
         />
+      ))}
+      {!compact && <div className="my-3 border-t border-border" aria-hidden="true" />}
+      {!compact && secondaryNavigationItems.map(({ label, Icon, href, disabled }) => disabled ? (
+        <span key={label} title={`${label} is not available yet`} aria-disabled="true" className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground/55"><Icon className="size-5" aria-hidden="true" /><span>{label}</span></span>
+      ) : (
+        <Link key={label} href={href} className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><Icon className="size-5" aria-hidden="true" /><span>{label}</span></Link>
       ))}
     </nav>
   )

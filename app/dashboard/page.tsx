@@ -14,6 +14,7 @@ import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
 import { TaskList } from "@/components/task-list"
 import { UsageSummary } from "@/components/usage-summary"
+import { InsightsView } from "@/components/insights-view"
 import { WorkspaceSettings } from "@/components/workspace-settings"
 import { getDashboardState } from "@/lib/dashboard-state"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
@@ -32,7 +33,7 @@ import { normalizeEmail } from "@/lib/identity"
 import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
 type SessionUser = { email: string; username: string }
-type WorkspaceView = "overview" | "board" | "team" | "settings"
+type WorkspaceView = "overview" | "board" | "team" | "settings" | "insights"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 
@@ -335,6 +336,7 @@ export default function Dashboard() {
                         <Button type="button" size="sm" variant={workspaceView === "overview" ? "default" : "ghost"} onClick={() => setWorkspaceView("overview")}><ListChecks className="size-4" />Overview</Button>
                         <Button type="button" size="sm" variant={workspaceView === "board" ? "default" : "ghost"} onClick={() => setWorkspaceView("board")}><LayoutGrid className="size-4" />Board</Button>
                         <Button type="button" size="sm" variant={workspaceView === "team" ? "default" : "ghost"} onClick={() => setWorkspaceView("team")}><Users className="size-4" />Team</Button>
+                        <Button type="button" size="sm" variant={workspaceView === "insights" ? "default" : "ghost"} onClick={() => setWorkspaceView("insights")}><Activity className="size-4" />Insights</Button>
                         {isCurrentWorkspaceOwner && <Button type="button" size="sm" variant={workspaceView === "settings" ? "default" : "ghost"} onClick={() => setWorkspaceView("settings")}><Settings className="size-4" />Settings</Button>}
                       </div>
                       <Badge variant="outline" className="bg-card"><span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground"}`} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
@@ -350,7 +352,9 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
+                {workspaceView === "insights" ? (
+                  <InsightsView workspaceId={currentWorkspace.id} connected={realtime.isConnected} />
+                ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (
                   <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} />
                 ) : workspaceView === "team" ? (
                   <Card id="team-panel"><CardHeader><CardTitle>Team</CardTitle><CardDescription>{currentWorkspace.members.length} members in this workspace.</CardDescription></CardHeader><CardContent><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>

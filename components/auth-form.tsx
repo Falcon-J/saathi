@@ -95,8 +95,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         <section className="order-1 mx-auto w-full max-w-md">
           <div className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-6 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-8">
             <div className="mb-7">
-              <p className="saathi-label text-primary">{isSignup ? "New account" : "Secure sign in"}</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">{isSignup ? "Create your account" : "Welcome back"}</h2>
+            <p className="saathi-label text-primary">{isSignup ? "Create account" : "Welcome back"}</p>
+              <h2 className="mt-3 text-4xl font-semibold leading-[1.05] tracking-[-0.04em]">{isSignup ? "Create your account" : "Sign in to continue"}</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {isSignup ? "Create your account, then set up a workspace for the work you want to move forward." : "Sign in to return to your workspace."}
               </p>
@@ -162,9 +162,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         </section>
 
         <section className="order-2 hidden min-h-[520px] items-center justify-center lg:flex">
-          <div className="relative flex w-full max-w-xl flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_center,#eeecff_0%,#f7f8fc_66%,transparent_72%)] p-12 text-center">
+          <div className="relative flex w-full max-w-xl flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_center,#eeecff_0%,#f7f8fc_66%,transparent_72%)] p-10 text-center">
             <Image src="/saathi-auth-illustration.png" alt="A collaborative checklist and paper plane" width={430} height={430} className="relative z-10 w-full max-w-[430px] object-contain" priority />
-            <p className="mt-4 font-[cursive] text-2xl text-primary">Work together. Go further.</p>
+            <p className="mt-2 font-[cursive] text-2xl text-primary">{isSignup ? "Ideas bring people together." : "Work together. Go further."}</p>
           </div>
         </section>
       </div>

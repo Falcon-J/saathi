@@ -1,31 +1,8 @@
 import Link from "next/link"
-import { ArrowRight, CheckCircle2, ListChecks, UsersRound } from "lucide-react"
+import Image from "next/image"
+import { ArrowRight, BarChart3, Check, CheckCircle2, ListChecks, UsersRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SaathiLogo } from "@/components/saathi-logo"
-
-const boardColumns = [
-  {
-    title: "To do",
-    tone: "border-t-[#007aff]",
-    tasks: ["Shape the launch plan", "Write onboarding copy"],
-  },
-  {
-    title: "In progress",
-    tone: "border-t-[#ff9f0a]",
-    tasks: ["Design the first flow", "Invite the team"],
-  },
-  {
-    title: "Done",
-    tone: "border-t-[#34c759]",
-    tasks: ["Set up the workspace", "Define the first milestone"],
-  },
-]
-
-const benefits = [
-  { icon: UsersRound, title: "Work together", copy: "Keep ownership and the next step visible to everyone." },
-  { icon: ListChecks, title: "Stay focused", copy: "Use a small board to turn plans into clear work." },
-  { icon: CheckCircle2, title: "Move with confidence", copy: "See progress without adding process overhead." },
-]
 
 export default function LandingPage() {
   return (
@@ -47,12 +24,12 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section id="product" className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16 lg:px-8 lg:py-24">
+      <section id="product" className="mx-auto grid max-w-7xl gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16 lg:px-8 lg:py-20">
         <div className="max-w-xl">
           <p className="saathi-label text-primary">From intention to execution</p>
           <p className="sr-only">Move work forward. A focused workspace for teams that build together.</p>
-          <h1 className="mt-4 text-5xl font-semibold tracking-[-0.055em] text-foreground sm:text-6xl lg:text-7xl">
-            A better way<br />to work <span className="text-primary">together.</span>
+          <h1 className="mt-4 text-5xl font-semibold leading-[0.98] tracking-[-0.055em] text-foreground sm:text-6xl lg:text-7xl">
+            Turn ideas into<br />real progress<br />with <span className="text-primary">Saathi.</span>
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-8 text-muted-foreground sm:text-xl">
             Saathi is an outcome driven collaborative workspace for individuals and teams. Plan, assign, track and ship — all in one place.
@@ -64,60 +41,32 @@ export default function LandingPage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href="/login">Sign in</Link>
+              <Link href="/login"><span className="mr-1 grid size-5 place-items-center rounded-full border border-primary/30 text-primary">▶</span>Watch demo</Link>
             </Button>
           </div>
-          <p className="mt-6 text-sm text-muted-foreground">Start with one workspace, one board, and the work that matters now.</p>
         </div>
 
-        <section className="relative overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card/70 p-3 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-5" aria-label="Saathi board preview">
-          <div className="relative z-10">
-          <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
-            <div className="flex items-center gap-2.5">
-              <SaathiLogo className="size-8" />
-              <div>
-                <p className="font-semibold">Product launch</p>
-                <p className="text-xs text-muted-foreground">A shared board for your team</p>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--saathi-success)]">
-              <span className="size-2 rounded-full bg-[var(--saathi-success)]" />
-              Live
-            </span>
+        <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_52%_45%,#eeecff_0%,#f7f8fc_62%,transparent_74%)]" aria-label="Saathi collaborative planning illustration">
+          <Image src="/saathi-hero-texture.png" alt="" fill className="object-cover opacity-30 mix-blend-multiply" priority />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_52%_48%,transparent_0%,transparent_35%,#f7f8fc_78%)]" />
+          <div className="absolute left-[11%] top-[17%] w-[58%] rotate-[-7deg] rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[var(--saathi-shadow-float)] backdrop-blur-sm sm:p-7">
+            <div className="flex items-start gap-3"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-white"><Check className="size-5" /></span><div><p className="text-lg font-semibold leading-tight sm:text-xl">Build something<br />great together.</p><div className="mt-4 flex -space-x-2"><span className="size-7 rounded-full border-2 border-white bg-[#f4b6a6]" /><span className="size-7 rounded-full border-2 border-white bg-[#9db5ff]" /><span className="size-7 rounded-full border-2 border-white bg-[#f2d18d]" /><span className="grid size-7 place-items-center rounded-full border-2 border-white bg-white text-xs text-primary">+</span></div></div></div>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            {boardColumns.map((column) => (
-              <article key={column.title} className={`min-w-0 rounded-[var(--saathi-radius-card)] border border-border border-t-[3px] ${column.tone} bg-background p-3`}>
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">{column.title}</h2>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{column.tasks.length}</span>
-                </div>
-                <div className="space-y-2">
-                  {column.tasks.map((task, index) => (
-                    <div key={task} className="rounded-[var(--saathi-radius-control)] border border-border bg-card p-3 text-sm shadow-[0_1px_2px_rgb(29_29_31/0.04)]">
-                      <div className="flex items-start gap-2">
-                        {column.title === "Done" ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--saathi-success)]" /> : <span className="mt-0.5 size-4 shrink-0 rounded-full border border-border" />}
-                        <span>{task}</span>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{index === 0 ? "Today" : "This week"}</span>
-                        <span className="size-5 rounded-full bg-secondary" aria-hidden="true" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div></div>
+          <div className="absolute right-[8%] top-[34%] w-[34%] rotate-[8deg] rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[var(--saathi-shadow-float)] backdrop-blur-sm sm:p-6"><div className="space-y-3 text-sm font-medium"><p className="flex items-center gap-2"><CheckCircle2 className="size-5 text-primary" />Plan</p><p className="flex items-center gap-2"><CheckCircle2 className="size-5 text-primary" />Execute</p><p className="flex items-center gap-2"><CheckCircle2 className="size-5 text-primary" />Ship</p></div></div>
+          <div className="absolute bottom-[12%] left-[43%] rounded-2xl border border-white/80 bg-white/85 px-5 py-4 text-center text-sm font-medium shadow-[var(--saathi-shadow-float)] backdrop-blur-sm sm:px-7 sm:py-5">Ideas<br /><span className="text-primary">→</span><br />Impact</div>
+          <div className="absolute bottom-[6%] right-[8%] text-5xl text-primary/80">⌁</div>
         </section>
       </section>
 
       <section id="features" className="border-t border-border bg-card">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-3 lg:px-8">
-          {benefits.map(({ icon: Icon, title, copy }) => (
-            <article key={title} className="flex gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-primary">
+          {[
+            { icon: ListChecks, title: "Plan with clarity", copy: "Turn ideas into structured plans." },
+            { icon: UsersRound, title: "Work together", copy: "Align and move as a team." },
+            { icon: BarChart3, title: "Stay on track", copy: "Make progress, faster." },
+          ].map(({ icon: Icon, title, copy }) => (
+            <article key={title} className="flex gap-3 border-r-0 border-border last:border-0 md:border-r md:px-5 md:first:pl-0">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="size-5" />
               </span>
               <div>
