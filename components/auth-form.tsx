@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react"
+import { Loader2, LockKeyhole, Mail, UserRound } from "lucide-react"
 import { login, signup } from "@/lib/auth-simple"
 import { safeAuthRedirect } from "@/lib/supabase/auth-boundary"
 import { Button } from "@/components/ui/button"
@@ -80,30 +81,18 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <main className="saathi-shell min-h-screen">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex h-16 max-w-6xl items-center px-4 sm:px-6 lg:px-8">
+      <header className="bg-transparent">
+        <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Saathi home">
             <SaathiLogo className="size-9" priority />
             <span className="text-lg font-semibold tracking-tight">Saathi</span>
           </Link>
+          <p className="text-sm text-muted-foreground">{isSignup ? "Already have an account?" : "Don't have an account?"} <Link className="font-semibold text-foreground hover:text-primary" href={isSignup ? "/login" : "/register"}>{isSignup ? "Sign in" : "Get started"}</Link></p>
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-12 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <section className="order-2 hidden rounded-[var(--saathi-radius-container)] border border-border bg-card p-7 lg:order-1 lg:block">
-          <p className="saathi-label text-primary">From intention to execution</p>
-          <h1 className="mt-4 max-w-md text-4xl font-semibold tracking-[-0.035em]">Plan, assign, and move forward together.</h1>
-          <p className="mt-4 max-w-md text-base leading-7 text-muted-foreground">
-            Keep the work, the people, and the next decision in one focused workspace.
-          </p>
-          <BoardPreview />
-          <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="size-4 text-[var(--saathi-success)]" />
-            Work together. Go further.
-          </p>
-        </section>
-
-        <section className="order-1 mx-auto w-full max-w-md lg:order-2">
+      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-14 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:px-8">
+        <section className="order-1 mx-auto w-full max-w-md">
           <div className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-6 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-8">
             <div className="mb-7">
               <p className="saathi-label text-primary">{isSignup ? "New account" : "Secure sign in"}</p>
@@ -171,6 +160,13 @@ export function AuthForm({ mode }: AuthFormProps) {
             </p>
           </div>
         </section>
+
+        <section className="order-2 hidden min-h-[520px] items-center justify-center lg:flex">
+          <div className="relative flex w-full max-w-xl flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_center,#eeecff_0%,#f7f8fc_66%,transparent_72%)] p-12 text-center">
+            <Image src="/saathi-auth-illustration.png" alt="A collaborative checklist and paper plane" width={430} height={430} className="relative z-10 w-full max-w-[430px] object-contain" priority />
+            <p className="mt-4 font-[cursive] text-2xl text-primary">Work together. Go further.</p>
+          </div>
+        </section>
       </div>
     </main>
   )
@@ -182,23 +178,5 @@ function FieldShell({ label, icon, children }: { label: string; icon: React.Reac
       <span className="flex items-center gap-2 text-sm font-medium text-foreground">{icon}{label}</span>
       {children}
     </label>
-  )
-}
-
-function BoardPreview() {
-  return (
-    <div className="mt-8 grid grid-cols-3 gap-2 rounded-[var(--saathi-radius-card)] border border-border bg-background p-3">
-      {[
-        ["To do", "border-t-primary"],
-        ["In progress", "border-t-[var(--saathi-warning)]"],
-        ["Done", "border-t-[var(--saathi-success)]"],
-      ].map(([label, tone]) => (
-        <div key={label} className={`min-w-0 border-t-2 ${tone} pt-2`}>
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <div className="mt-2 h-11 rounded-[var(--saathi-radius-control)] border border-border bg-card" />
-          <div className="mt-2 h-8 rounded-[var(--saathi-radius-control)] border border-border bg-card" />
-        </div>
-      ))}
-    </div>
   )
 }

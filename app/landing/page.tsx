@@ -30,37 +30,36 @@ const benefits = [
 export default function LandingPage() {
   return (
     <main className="saathi-shell min-h-screen">
-      <header className="border-b border-border bg-card">
+      <header className="bg-transparent">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Saathi home">
             <SaathiLogo className="size-9" priority />
             <span className="text-lg font-semibold tracking-tight">Saathi</span>
           </Link>
 
+          <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+            <Link href="#product" className="hover:text-foreground">Product</Link><Link href="#features" className="hover:text-foreground">Features</Link><span className="cursor-not-allowed text-muted-foreground/60" aria-disabled="true" title="Pricing is not available yet">Pricing</span><Link href="/guide" className="hover:text-foreground">About</Link>
+          </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" className="text-foreground">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild className="hidden sm:inline-flex">
-              <Link href="/register">Create an account</Link>
-            </Button>
+            <Button asChild variant="ghost" className="text-foreground"><Link href="/login">Sign in</Link></Button>
+            <Button asChild className="hidden rounded-full sm:inline-flex"><Link href="/register">Get started <span className="sr-only">Create an account</span></Link></Button>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,0.76fr)_minmax(0,1.24fr)] lg:items-center lg:gap-16 lg:px-8 lg:py-24">
+      <section id="product" className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16 lg:px-8 lg:py-24">
         <div className="max-w-xl">
-          <p className="saathi-label text-[var(--saathi-success)]">Collaborative task management</p>
-          <h1 className="mt-4 text-5xl font-semibold tracking-[-0.045em] text-foreground sm:text-6xl lg:text-7xl">
-            Move work forward.
+          <p className="saathi-label text-primary">From intention to execution</p>
+          <p className="sr-only">Move work forward. A focused workspace for teams that build together.</p>
+          <h1 className="mt-4 text-5xl font-semibold tracking-[-0.055em] text-foreground sm:text-6xl lg:text-7xl">
+            A better way<br />to work <span className="text-primary">together.</span>
           </h1>
-          <p className="mt-6 text-lg leading-8 text-muted-foreground sm:text-xl">
-            A focused workspace for teams that build together.
+          <p className="mt-6 max-w-lg text-lg leading-8 text-muted-foreground sm:text-xl">
+            Saathi is an outcome driven collaborative workspace for individuals and teams. Plan, assign, track and ship — all in one place.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link href="/register">
-                Create an account
+            <Button asChild size="lg" className="rounded-full">
+              <Link href="/register">Get started for free
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -71,7 +70,8 @@ export default function LandingPage() {
           <p className="mt-6 text-sm text-muted-foreground">Start with one workspace, one board, and the work that matters now.</p>
         </div>
 
-        <section className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-3 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-5" aria-label="Saathi board preview">
+        <section className="relative overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card/70 p-3 shadow-[0_12px_32px_rgb(29_29_31/0.08)] sm:p-5" aria-label="Saathi board preview">
+          <div className="relative z-10">
           <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-2.5">
               <SaathiLogo className="size-8" />
@@ -109,11 +109,11 @@ export default function LandingPage() {
                 </div>
               </article>
             ))}
-          </div>
+          </div></div>
         </section>
       </section>
 
-      <section className="border-t border-border bg-card">
+      <section id="features" className="border-t border-border bg-card">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-3 lg:px-8">
           {benefits.map(({ icon: Icon, title, copy }) => (
             <article key={title} className="flex gap-3">

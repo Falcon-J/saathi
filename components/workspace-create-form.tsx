@@ -6,7 +6,6 @@ import { CircleHelp, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { SaathiLogo } from "@/components/saathi-logo"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
 
 type WorkspaceCreateFormProps = {
@@ -59,13 +58,14 @@ export function WorkspaceCreateForm({ aiEnabled, canCancel, onCancel, onCreate, 
   }
 
   return (
-    <section className="mx-auto flex max-w-2xl items-center justify-center px-4 py-10">
-      <div className="w-full text-center">
-        <SaathiLogo className="mx-auto mb-6 size-12" />
+    <section className="mx-auto max-w-5xl px-4 py-10">
+      <div className="mb-8 max-w-2xl">
         <p className="saathi-label text-primary">Start with intention</p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight">{draft ? "Review your plan" : "Start something new"}</h2>
-        <p className="mt-3 text-sm text-muted-foreground">{draft ? "Edit or remove suggested tasks. Nothing is saved until you create the workspace." : "Name your workspace, set a goal, and start organizing your work."}</p>
-        <form onSubmit={submit} className="mt-8 space-y-5 rounded-[var(--saathi-radius-container)] border border-border bg-card p-5 text-left shadow-sm">
+        <h2 className="mt-3 text-3xl font-bold tracking-tight">{draft ? "Review your plan" : "Turn your intention into a workspace"}</h2>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{draft ? "Edit or remove suggested tasks. Nothing is saved until you create the workspace." : "Give your idea a home. Set it up in minutes and start turning plans into progress with your team."}</p>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
+        <form onSubmit={submit} className="space-y-5 rounded-[var(--saathi-radius-container)] border border-border bg-card p-5 text-left shadow-sm sm:p-6">
           <div className="space-y-2"><label htmlFor="workspace-name" className="text-sm font-medium">Workspace name</label><Input id="workspace-name" required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} disabled={Boolean(busy)} placeholder="Portfolio launch" /></div>
           <div className="space-y-2"><label htmlFor="workspace-goal" className="text-sm font-medium">Goal {draft ? "" : "(optional)"}</label><Textarea id="workspace-goal" required={Boolean(draft)} maxLength={240} value={goal} onChange={(event) => setGoal(event.target.value)} disabled={Boolean(busy)} placeholder="What do you want to achieve together?" /></div>
           <div className="space-y-2"><label htmlFor="workspace-target" className="text-sm font-medium">Target date (optional)</label><Input id="workspace-target" type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} disabled={Boolean(busy)} /></div>
@@ -79,8 +79,14 @@ export function WorkspaceCreateForm({ aiEnabled, canCancel, onCancel, onCreate, 
           </div>
           {aiEnabled && !draft && <p className="text-xs text-muted-foreground">Optional: Help me plan sends your goal and target date to our AI provider to suggest tasks.</p>}
         </form>
-        <Button asChild variant="ghost" size="sm" className="mt-6 text-muted-foreground"><Link href="/guide"><CircleHelp className="size-4" />See how Saathi works</Link></Button>
+        <aside className="rounded-[var(--saathi-radius-container)] border border-primary/15 bg-[radial-gradient(circle_at_top,#eeecff_0%,#ffffff_70%)] p-6">
+          <div className="flex items-center gap-2 text-sm font-semibold"><span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">✦</span>AI Assistant <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-primary">Beta</span></div>
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">Describe what you want to achieve and Saathi can suggest a small, reviewable first plan. You approve every task before it is saved.</p>
+          <div className="mt-6 space-y-3 text-sm text-muted-foreground"><p className="rounded-lg border border-border bg-card/80 p-3">Launch a new product</p><p className="rounded-lg border border-border bg-card/80 p-3">Plan a marketing campaign</p><p className="rounded-lg border border-border bg-card/80 p-3">Organize an internal event</p></div>
+          {!aiEnabled && <p className="mt-5 text-xs text-muted-foreground">AI planning is currently unavailable. Manual workspace creation remains available.</p>}
+        </aside>
       </div>
-    </section>
+        <Button asChild variant="ghost" size="sm" className="mt-6 text-muted-foreground"><Link href="/guide"><CircleHelp className="size-4" />See how Saathi works</Link></Button>
+     </section>
   )
 }

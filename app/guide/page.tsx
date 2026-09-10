@@ -64,6 +64,12 @@ export default function GuidePage() {
       </header>
 
       <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-6 sm:py-14">
+        <div className="mb-8 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <aside className="hidden rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 lg:block">
+            <p className="saathi-label text-primary">In this guide</p>
+            <nav className="mt-4 space-y-1 text-sm"><a className="block rounded-md bg-primary/10 px-3 py-2 font-medium text-primary" href="#core-flow-title">Overview</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI assistance</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI limits</a></nav>
+          </aside>
+          <div>
         <section className="max-w-3xl">
           <Badge variant="outline" className="bg-card"><CircleHelp className="mr-1.5 size-3.5 text-primary" />Available anytime</Badge>
           <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">Know what Saathi can do.</h1>
@@ -71,6 +77,8 @@ export default function GuidePage() {
             Saathi keeps execution simple: decide the outcome, focus on today, and open the full board only when you need more control.
           </p>
         </section>
+          </div>
+        </div>
 
         <section className="mt-10 grid gap-4 md:grid-cols-2" aria-labelledby="core-flow-title">
           <h2 id="core-flow-title" className="sr-only">Core workflow</h2>
@@ -84,7 +92,7 @@ export default function GuidePage() {
           ))}
         </section>
 
-        <section className="mt-12 overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm" aria-labelledby="assistant-title">
+        <section id="limits" className="mt-12 overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm" aria-labelledby="assistant-title">
           <div className="border-b border-border bg-secondary/40 px-5 py-6 sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Plan with the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant proposes one bounded, reviewable workspace change. PostgreSQL remains the source of truth; Redis carries realtime updates.</p></div></div>
