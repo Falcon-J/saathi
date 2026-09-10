@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { requestPasswordReset, updatePassword } from '@/lib/auth-simple'
 import { SaathiLogo } from '@/components/saathi-logo'
@@ -49,7 +50,7 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
         </div>
       </section>
       <aside className="hidden min-h-[430px] items-center justify-center rounded-[2rem] bg-[radial-gradient(circle_at_center,#eeecff_0%,#f7f8fc_70%)] p-10 lg:flex">
-        <div className="max-w-sm text-center"><div className="mx-auto grid size-28 place-items-center rounded-[2rem] bg-primary/10 text-primary"><KeyRound className="size-12" /></div><p className="mt-8 text-2xl font-semibold">{requesting ? 'A small step back to big progress.' : 'All set. Back to what matters.'}</p><p className="mt-3 text-sm leading-6 text-muted-foreground">Your account recovery stays secure and your workspace data remains unchanged.</p></div>
+        <div className="max-w-sm text-center"><Image src="/saathi-unavailable-illustration.png" alt="A secure recovery document" width={320} height={320} className="mx-auto w-full max-w-[320px] object-contain" /><p className="mt-3 font-[cursive] text-2xl text-primary">{requesting ? 'A small step back to big progress.' : 'All set!'}</p><p className="mt-3 text-sm leading-6 text-muted-foreground">Your account recovery stays secure and your workspace data remains unchanged.</p></div>
       </aside>
     </div>
   </main>

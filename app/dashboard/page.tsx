@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Activity, CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, RefreshCw, Users, Settings } from "lucide-react"
+import { Activity, Bell, CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, Plus, RefreshCw, Search, Sparkles, UserPlus, Users, Settings } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
@@ -256,12 +256,11 @@ export default function Dashboard() {
         <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <SaathiLogo className="size-9" priority />
-            <div>
-              <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
-              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">Move from intention to action</p>
-            </div>
+            <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
           </div>
+          <label className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground md:flex"><Search className="size-4" /><input aria-label="Search workspace" placeholder="Search tasks, projects, or people..." className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground" /></label>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" aria-label="Notifications"><Bell className="size-4" /></Button>
             <Button asChild variant="ghost" size="icon">
               <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
                 <CircleHelp className="size-5" />
@@ -282,14 +281,31 @@ export default function Dashboard() {
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
       <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board" || workspaceView === "team"} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
-        <aside className="hidden w-52 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
+        <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
+          <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
           <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board" || workspaceView === "team"} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
-          <Avatar className="mt-auto size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+          <div className="mt-auto flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
         </aside>
 
         <div className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
+
+            {showWorkspace && dashboardState === "workspace" && (
+              <section className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="saathi-label text-primary">Your workspace</p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Good morning, {user.username} 👋</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Let&apos;s make progress today.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("board")}><Plus className="size-4 text-primary" />New task</Button>
+                  <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button>
+                  <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
+                  <Button asChild variant="outline" className="justify-start bg-card"><Link href="/guide"><CircleHelp className="size-4 text-primary" />Guide</Link></Button>
+                </div>
+              </section>
+            )}
 
             {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError ? (
               <section className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-8 text-center" role="alert">
