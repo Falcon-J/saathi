@@ -258,9 +258,9 @@ export default function Dashboard() {
             <SaathiLogo className="size-9" priority />
             <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
           </div>
-          <label className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground md:flex"><Search className="size-4" /><input aria-label="Search workspace" placeholder="Search tasks, projects, or people..." className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground" /></label>
+          <label className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground md:flex"><Search className="size-4" /><input aria-label="Search workspace (coming soon)" placeholder="Search (coming soon)" disabled className="min-w-0 flex-1 cursor-not-allowed bg-transparent outline-none placeholder:text-muted-foreground" /></label>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" aria-label="Notifications"><Bell className="size-4" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Notifications (coming soon)" title="Notifications are coming soon" disabled><Bell className="size-4" /></Button>
             <Button asChild variant="ghost" size="icon">
               <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
                 <CircleHelp className="size-5" />
@@ -300,7 +300,7 @@ export default function Dashboard() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("board")}><Plus className="size-4 text-primary" />New task</Button>
-                  <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button>
+                  {aiWorkspaceEnabled ? <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button> : <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>}
                   <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
                   <Button asChild variant="outline" className="justify-start bg-card"><Link href="/guide"><CircleHelp className="size-4 text-primary" />Guide</Link></Button>
                 </div>

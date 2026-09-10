@@ -38,7 +38,7 @@ export default function LandingPage() {
           </Link>
 
           <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <Link href="#product" className="hover:text-foreground">Product</Link><Link href="#features" className="hover:text-foreground">Features</Link><Link href="#pricing" className="hover:text-foreground">Pricing</Link><Link href="/guide" className="hover:text-foreground">About</Link>
+            <Link href="#product" className="hover:text-foreground">Product</Link><Link href="#features" className="hover:text-foreground">Features</Link><span className="cursor-not-allowed text-muted-foreground/60" aria-disabled="true" title="Pricing is not available yet">Pricing</span><Link href="/guide" className="hover:text-foreground">About</Link>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" className="text-foreground"><Link href="/login">Sign in</Link></Button>
@@ -128,7 +128,6 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
-      <section id="pricing" className="sr-only" aria-label="Pricing">Saathi starts with a focused workspace and no hidden workflow changes.</section>
     </main>
   )
 }

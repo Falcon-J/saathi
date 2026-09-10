@@ -67,7 +67,7 @@ export default function GuidePage() {
         <div className="mb-8 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
           <aside className="hidden rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 lg:block">
             <p className="saathi-label text-primary">In this guide</p>
-            <nav className="mt-4 space-y-1 text-sm"><a className="block rounded-md bg-primary/10 px-3 py-2 font-medium text-primary" href="#core-flow-title">Overview</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI assistance</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#limits">Tips &amp; best practices</a></nav>
+            <nav className="mt-4 space-y-1 text-sm"><a className="block rounded-md bg-primary/10 px-3 py-2 font-medium text-primary" href="#core-flow-title">Overview</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI assistance</a><a className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary" href="#assistant-title">AI limits</a></nav>
           </aside>
           <div>
         <section className="max-w-3xl">
