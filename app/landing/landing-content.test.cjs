@@ -16,5 +16,6 @@ test("landing page keeps the focused Saathi entry hierarchy", () => {
   assert.match(source, /Clear next steps/)
   assert.match(source, /Shared ownership/)
   assert.match(source, /Visible progress/)
+  assert.match(source, /grid-cols-\[92px_minmax\(0,1fr\)\] divide-x divide-border sm:grid-cols-\[92px_minmax\(0,1fr\)_112px\]/)
   assert.doesNotMatch(source, /Command center|Live engine|SSE task updates/)
 })

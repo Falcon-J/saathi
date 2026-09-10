@@ -56,3 +56,13 @@ test("guide describes persisted and realtime ownership accurately", () => {
   assert.match(source, /Redis carries realtime updates/)
   assert.doesNotMatch(source, /Redis remains the source of truth/)
 })
+
+test("guide navigation anchors point to the visible sections", () => {
+  const source = readFileSync(path.join(process.cwd(), "app", "guide", "page.tsx"), "utf8")
+  assert.match(source, /href="#core-flow-title"/)
+  assert.match(source, /href="#assistant-actions"/)
+  assert.match(source, /href="#assistant-limits"/)
+  assert.match(source, /<h2 id="core-flow-title"/)
+  assert.match(source, /<div id="assistant-actions"/)
+  assert.match(source, /<div id="assistant-limits"/)
+})
