@@ -46,6 +46,18 @@ export const tasks = pgTable("tasks", {
   index("tasks_workspace_idx").on(t.workspaceId, t.createdAt),
 ])
 
+export const taskComments = pgTable("task_comments", {
+  id: uuid("id").primaryKey(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  authorUserId: uuid("author_user_id").notNull().references(() => profiles.id),
+  body: varchar("body", { length: 2000 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  check("task_comments_body_check", sql`length(trim(${t.body})) > 0`),
+  index("task_comments_task_created_idx").on(t.taskId, t.createdAt),
+])
+
 export const activityEvents = pgTable("activity_events", {
   id: uuid("id").primaryKey(), workspaceId: uuid("workspace_id").notNull(), actorUserId: uuid("actor_user_id").notNull().references(() => profiles.id),
   eventType: text("event_type").notNull(), entityType: text("entity_type").notNull(), entityId: uuid("entity_id").notNull(),

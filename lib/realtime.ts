@@ -7,6 +7,7 @@ export type RealtimeEventType =
     | 'task-updated'
     | 'task-deleted'
     | 'task-toggled'
+    | 'task-comment-created'
     | 'user-joined'
     | 'user-left'
     | 'workspace-created'
@@ -32,6 +33,7 @@ const realtimeEventSchema = z.object({
         'task-updated',
         'task-deleted',
         'task-toggled',
+        'task-comment-created',
         'user-joined',
         'user-left',
         'workspace-created',
