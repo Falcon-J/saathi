@@ -27,7 +27,15 @@ export const taskUpdateSchema = z.object({
     (value) => !value || (value.length <= 255 && emailPattern.test(value)),
     "Task assignee is invalid",
   ).transform((value) => value?.toLowerCase()),
-}).strict()
+}).strict().superRefine((value, context) => {
+  if (value.dueDate && value.dueAt) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Use either a due date or due time",
+      path: ["dueAt"],
+    })
+  }
+})
 
 export type TaskUpdate = z.infer<typeof taskUpdateSchema>
 

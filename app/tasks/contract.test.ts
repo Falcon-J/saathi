@@ -26,6 +26,13 @@ test("accepts an ISO due time and preserves an estimate", () => {
   })
 })
 
+test("rejects a task update that supplies both a due date and due time", () => {
+  assert.equal(normalizeTaskUpdates({
+    dueDate: "2026-09-15",
+    dueAt: "2026-09-15T14:30:00.000Z",
+  }).error, "Use either a due date or due time")
+})
+
 test("rejects an invalid due time", () => {
   assert.equal(typeof normalizeTaskUpdates({ dueAt: "tomorrow afternoon" }).error, "string")
 })
