@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Activity, Bell, CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, Plus, RefreshCw, Search, Sparkles, UserPlus, Users, Settings } from "lucide-react"
+import { CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, Plus, RefreshCw, Sparkles, UserPlus, Users, Settings } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
@@ -13,8 +13,6 @@ import { PageLoader } from "@/components/page-loader"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
 import { TaskList } from "@/components/task-list"
-import { UsageSummary } from "@/components/usage-summary"
-import { InsightsView } from "@/components/insights-view"
 import { WorkspaceSettings } from "@/components/workspace-settings"
 import { getDashboardState } from "@/lib/dashboard-state"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
@@ -33,7 +31,7 @@ import { normalizeEmail } from "@/lib/identity"
 import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
 type SessionUser = { email: string; username: string }
-type WorkspaceView = "overview" | "board" | "team" | "settings" | "insights"
+type WorkspaceView = "overview" | "board" | "team" | "settings"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 
@@ -259,9 +257,7 @@ export default function Dashboard() {
             <SaathiLogo className="size-9" priority />
             <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
           </div>
-          <label className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground md:flex"><Search className="size-4" /><input aria-label="Search workspace (coming soon)" placeholder="Search (coming soon)" disabled className="min-w-0 flex-1 cursor-not-allowed bg-transparent outline-none placeholder:text-muted-foreground" /></label>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" aria-label="Notifications (coming soon)" title="Notifications are coming soon" disabled><Bell className="size-4" /></Button>
             <Button asChild variant="ghost" size="icon">
               <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
                 <CircleHelp className="size-5" />
@@ -336,7 +332,6 @@ export default function Dashboard() {
                         <Button type="button" size="sm" variant={workspaceView === "overview" ? "default" : "ghost"} onClick={() => setWorkspaceView("overview")}><ListChecks className="size-4" />Overview</Button>
                         <Button type="button" size="sm" variant={workspaceView === "board" ? "default" : "ghost"} onClick={() => setWorkspaceView("board")}><LayoutGrid className="size-4" />Board</Button>
                         <Button type="button" size="sm" variant={workspaceView === "team" ? "default" : "ghost"} onClick={() => setWorkspaceView("team")}><Users className="size-4" />Team</Button>
-                        <Button type="button" size="sm" variant={workspaceView === "insights" ? "default" : "ghost"} onClick={() => setWorkspaceView("insights")}><Activity className="size-4" />Insights</Button>
                         {isCurrentWorkspaceOwner && <Button type="button" size="sm" variant={workspaceView === "settings" ? "default" : "ghost"} onClick={() => setWorkspaceView("settings")}><Settings className="size-4" />Settings</Button>}
                       </div>
                       <Badge variant="outline" className="bg-card"><span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground"}`} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
@@ -352,9 +347,7 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {workspaceView === "insights" ? (
-                  <InsightsView workspaceId={currentWorkspace.id} connected={realtime.isConnected} />
-                ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (
+                {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
                   <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} />
                 ) : workspaceView === "team" ? (
                   <Card id="team-panel"><CardHeader><CardTitle>Team</CardTitle><CardDescription>{currentWorkspace.members.length} members in this workspace.</CardDescription></CardHeader><CardContent><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
@@ -378,9 +371,8 @@ export default function Dashboard() {
                     />
                   )
                 ) : (
-                  <section className="grid items-start gap-4 xl:grid-cols-12">
-                    <div className="min-w-0 xl:col-span-9">
-                      <Card id="project-board" className="scroll-mt-32 overflow-hidden rounded-[var(--saathi-radius-container)]">
+                  <section className="min-w-0">
+                    <Card id="project-board" className="overflow-hidden rounded-[var(--saathi-radius-container)]">
                         <CardHeader className="border-b border-border">
                           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div><CardTitle className="flex items-center gap-2 text-xl"><LayoutGrid className="size-5 text-primary" />Project Board</CardTitle><CardDescription>{metrics.active} active, {metrics.completed} completed.</CardDescription></div>
@@ -394,12 +386,7 @@ export default function Dashboard() {
                             <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
                           )}
                         </CardContent>
-                      </Card>
-                    </div>
-                    <aside className="space-y-4 xl:col-span-3">
-                      <Card id="realtime-panel" className="scroll-mt-32"><CardHeader className="border-b border-border"><CardTitle className="flex items-center gap-2 text-lg"><Activity className="size-5 text-primary" />Connection</CardTitle><CardDescription>Workspace updates and recovery.</CardDescription></CardHeader><CardContent className="space-y-4 pt-4 text-sm"><div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Status</span><span className={realtime.isConnected ? "text-[var(--saathi-success)]" : "text-muted-foreground"}>{realtime.isConnected ? "Live" : "Offline"}</span></div><div><p className="font-medium">{realtime.activeUsers.length} active now</p><div className="mt-2 flex flex-wrap gap-1.5" aria-label="Active workspace members">{realtime.activeUsers.length > 0 ? realtime.activeUsers.map((email) => <Badge key={email} variant="secondary" title={email}>{email === user.email ? "You" : email.split("@")[0]}</Badge>) : <span className="text-xs text-muted-foreground">No other members are online.</span>}</div></div></CardContent></Card>
-                      <UsageSummary workspaceId={currentWorkspace.id} refreshToken={`${tasks.length}:${metrics.completed}:${currentWorkspace.members.length}`} />
-                    </aside>
+                    </Card>
                   </section>
                 )}
               </>
