@@ -11,13 +11,14 @@ import { Progress } from "@/components/ui/progress"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { groupTasksForOverview } from "@/lib/task-overview"
 import { formatTaskDue } from "@/lib/task-time"
+import { WorkspaceAdvisor } from "@/components/workspace-advisor"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
   tasks: Task[]
   loading: boolean
   onToggleTask: (taskId: string) => Promise<unknown>
-  onAddTask: (title: string) => Promise<unknown>
+  onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
   onDeleteTask: (taskId: string) => Promise<unknown>
   onOpenBoard: () => void
@@ -178,6 +179,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </div>
           {addError && <p role="alert" className="mt-2 text-sm text-destructive">{addError}</p>}
         </form>
+        <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />
         {loading ? (
           <div role="status" className="space-y-3">
             {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-secondary" />)}

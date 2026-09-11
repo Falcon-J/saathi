@@ -370,7 +370,7 @@ export default function Dashboard() {
                       tasks={tasks}
                       loading={tasksLoading}
                       onToggleTask={handleToggleTask}
-                      onAddTask={(title) => handleAddTask(title, undefined, "medium", undefined, "today")}
+                      onAddTask={handleAddTask}
                       onEditTask={handleEditTask}
                       onDeleteTask={handleDeleteTask}
                       onOpenBoard={() => setWorkspaceView("board")}
