@@ -11,13 +11,12 @@ interface TaskCardProps {
   title: string
   completed: boolean
   dueDate?: string
-  categories?: string[]
   onToggle: (id: string) => void
   onDelete: (id: string) => void
   onUpdate: (id: string, updates: Partial<Task>) => void
 }
 
-export function TaskCard({ id, title, completed, dueDate, categories, onToggle, onDelete, onUpdate }: TaskCardProps) {
+export function TaskCard({ id, title, completed, dueDate, onToggle, onDelete, onUpdate }: TaskCardProps) {
   const [isEditing, setIsEditing] = useState(false)
 
   const isDueToday = dueDate && new Date(dueDate).toDateString() === new Date().toDateString()
@@ -33,7 +32,6 @@ export function TaskCard({ id, title, completed, dueDate, categories, onToggle, 
             completed,
             priority: "medium",
             dueDate,
-            categories,
             createdAt: "",
             updatedAt: "",
             workspaceId: "",
@@ -88,11 +86,6 @@ export function TaskCard({ id, title, completed, dueDate, categories, onToggle, 
                   {new Date(dueDate).toLocaleDateString()}
                 </div>
               )}
-              {categories?.map((cat) => (
-                <div key={cat} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
-                  {cat}
-                </div>
-              ))}
             </div>
           </div>
         </Card>
