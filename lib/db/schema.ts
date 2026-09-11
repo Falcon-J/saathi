@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm"
-import { pgTable, uuid, varchar, text, integer, timestamp, jsonb, primaryKey, foreignKey, uniqueIndex, check, index, date } from "drizzle-orm/pg-core"
+import { pgTable, uuid, varchar, text, integer, bigint, timestamp, jsonb, primaryKey, foreignKey, uniqueIndex, check, index, date } from "drizzle-orm/pg-core"
 
 const times = () => ({ createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow() })
 // auth.users linkage, signup trigger, deferred owner FK and RLS are maintained in SQL migrations.
@@ -56,6 +56,23 @@ export const taskComments = pgTable("task_comments", {
 }, t => [
   check("task_comments_body_check", sql`length(trim(${t.body})) > 0`),
   index("task_comments_task_created_idx").on(t.taskId, t.createdAt),
+])
+
+export const aiOperationLogs = pgTable("ai_operation_logs", {
+  id: uuid("id").primaryKey(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  requestingUserId: uuid("requesting_user_id").notNull().references(() => profiles.id),
+  capability: text("capability").notNull(),
+  outcome: text("outcome").notNull(),
+  latencyMs: integer("latency_ms").notNull(),
+  estimatedCostMicros: bigint("estimated_cost_micros", { mode: "number" }).notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  check("ai_operation_logs_capability_check", sql`${t.capability} IN ('summarize_workspace','identify_attention','draft_task')`),
+  check("ai_operation_logs_outcome_check", sql`${t.outcome} IN ('success','provider_unavailable','rate_limited','invalid_response','disabled','unauthorized')`),
+  check("ai_operation_logs_latency_check", sql`${t.latencyMs} >= 0`),
+  check("ai_operation_logs_cost_check", sql`${t.estimatedCostMicros} >= 0`),
+  index("ai_operation_logs_created_idx").on(t.createdAt),
 ])
 
 export const activityEvents = pgTable("activity_events", {
