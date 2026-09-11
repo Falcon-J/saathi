@@ -6,7 +6,6 @@ import { Home, LayoutGrid, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getDashboardNavigationTarget,
-  normalizeDashboardActiveSection,
   selectActiveDashboardSection,
   type DashboardSectionId,
 } from "@/lib/dashboard-navigation"
@@ -56,14 +55,12 @@ function NavigationItem({
 export function DashboardNavigation({
   mode,
   hasWorkspace,
-  showSecondary = true,
   onOpenBoard,
   onOpenOverview,
   onOpenTeam,
 }: {
   mode: "rail" | "mobile"
   hasWorkspace: boolean
-  showSecondary?: boolean
   onOpenBoard?: () => void
   onOpenOverview?: () => void
   onOpenTeam?: () => void
@@ -71,8 +68,6 @@ export function DashboardNavigation({
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("workspace-header")
 
   useEffect(() => {
-    setActiveSection((currentSection) => normalizeDashboardActiveSection(currentSection, showSecondary))
-
     const sections = dashboardNavigationItems
       .map((item) => document.getElementById(item.id))
       .filter((section): section is HTMLElement => section !== null)
@@ -95,7 +90,7 @@ export function DashboardNavigation({
 
     sections.forEach((section) => observer.observe(section))
     return () => observer.disconnect()
-  }, [hasWorkspace, showSecondary])
+  }, [hasWorkspace])
 
   const navigateTo = (id: DashboardSectionId) => {
     const target = getDashboardNavigationTarget(id)

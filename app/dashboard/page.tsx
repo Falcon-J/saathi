@@ -276,11 +276,11 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board" || workspaceView === "team"} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} showSecondary={workspaceView === "board" || workspaceView === "team"} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
           <div className="mt-auto flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
         </aside>
 
