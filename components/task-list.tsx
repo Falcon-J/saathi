@@ -20,6 +20,7 @@ import { getMutationError } from "@/lib/mutation-result"
 import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
 import { formatTaskCreatedAt, formatTaskDue, localDateTimeToIso } from "@/lib/task-time"
 import { TaskComments } from "@/components/task-comments"
+import type { RealtimeEvent } from "@/lib/realtime"
 
 interface Task {
   id: string
@@ -48,6 +49,7 @@ interface TaskListProps {
   onToggleTask: (id: string) => Promise<any>
   onDeleteTask: (id: string) => Promise<any>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
+  commentRefreshEvent?: RealtimeEvent | null
 }
 
 export const TaskList = memo(function TaskList({
@@ -60,6 +62,7 @@ export const TaskList = memo(function TaskList({
   onToggleTask,
   onDeleteTask,
   onEditTask,
+  commentRefreshEvent,
 }: TaskListProps) {
   const [input, setInput] = useState("")
   const [description, setDescription] = useState("")
@@ -493,6 +496,7 @@ export const TaskList = memo(function TaskList({
         error={editError}
         isSaving={Boolean(editingTask && operatingTaskId === editingTask.id)}
         members={members}
+        commentRefreshEvent={commentRefreshEvent}
         onDraftChange={updateEditingDraft}
         onClose={closeEditor}
         onSubmit={saveEditor}
@@ -537,6 +541,7 @@ function TaskEditorDialog({
   error,
   isSaving,
   members,
+  commentRefreshEvent,
   onDraftChange,
   onClose,
   onSubmit,
@@ -546,6 +551,7 @@ function TaskEditorDialog({
   error: string | null
   isSaving: boolean
   members: Member[]
+  commentRefreshEvent?: RealtimeEvent | null
   onDraftChange: (changes: Partial<TaskEditorDraft>) => void
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -664,7 +670,7 @@ function TaskEditorDialog({
                 </div>
               </section>
 
-              <TaskComments taskId={task.id} />
+              <TaskComments taskId={task.id} refreshEvent={commentRefreshEvent} />
 
               {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
             </div>

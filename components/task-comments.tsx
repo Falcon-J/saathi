@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState, type FormEvent } from "react"
 import { Loader2, MessageSquare } from "lucide-react"
 import { addTaskComment, getTaskComments } from "@/app/actions/comments"
 import type { TaskComment } from "@/lib/data/comments"
+import type { RealtimeEvent } from "@/lib/realtime"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
-export function TaskComments({ taskId }: { taskId: string }) {
+export function TaskComments({ taskId, refreshEvent }: { taskId: string; refreshEvent?: RealtimeEvent | null }) {
   const [comments, setComments] = useState<TaskComment[]>([])
   const [body, setBody] = useState("")
   const [loading, setLoading] = useState(true)
@@ -29,6 +30,11 @@ export function TaskComments({ taskId }: { taskId: string }) {
   useEffect(() => {
     void loadComments()
   }, [loadComments])
+
+  useEffect(() => {
+    if (refreshEvent?.type !== "task-comment-created" || refreshEvent.data.taskId !== taskId) return
+    void loadComments()
+  }, [loadComments, refreshEvent, taskId])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

@@ -391,7 +391,7 @@ export default function Dashboard() {
                           {taskError ? (
                             <div className="p-8 text-center" role="alert"><p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p><Button onClick={() => void refreshTasks()} variant="outline" className="mt-4">Try again</Button></div>
                           ) : (
-                            <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
+                            <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
                           )}
                         </CardContent>
                       </Card>

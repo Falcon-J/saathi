@@ -16,3 +16,9 @@ test("task comments provide explicit loading and failure states", () => {
   assert.match(source, /role=\"alert\"/)
   assert.match(source, /Unable to load comments/)
 })
+
+test("task comments refresh only for their own realtime comment event", () => {
+  assert.match(source, /refreshEvent/)
+  assert.match(source, /task-comment-created/)
+  assert.match(source, /refreshEvent\.data\.taskId !== taskId/)
+})
