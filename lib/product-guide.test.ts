@@ -52,11 +52,11 @@ test("limits documented Groq context to non-secret workspace planning data", () 
   ])
 })
 
-test("guide describes persisted and realtime ownership accurately", () => {
+test("guide describes the product boundary without infrastructure jargon", () => {
   const source = readFileSync(path.join(process.cwd(), "app", "guide", "page.tsx"), "utf8")
-  assert.match(source, /PostgreSQL remains the source of truth/)
-  assert.match(source, /Redis carries realtime updates/)
-  assert.doesNotMatch(source, /Redis remains the source of truth/)
+  assert.match(source, /Your workspace remains the source of truth/)
+  assert.match(source, /What the assistant receives/)
+  assert.doesNotMatch(source, /PostgreSQL|Redis carries realtime updates|What is shared with Groq/)
 })
 
 test("guide navigation anchors point to the visible sections", () => {

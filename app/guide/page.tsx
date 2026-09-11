@@ -94,7 +94,7 @@ export default function GuidePage() {
         <section id="limits" className="mt-12 overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm" aria-labelledby="assistant-title">
           <div className="border-b border-border bg-accent/60 px-5 py-6 sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Use the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant provides grounded summaries, attention signals, and reviewable task drafts. PostgreSQL remains the source of truth; Redis carries realtime updates.</p></div></div>
+              <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Use the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant provides grounded summaries, attention signals, and reviewable task drafts. Your workspace remains the source of truth, and approved changes stay visible to the team.</p></div></div>
               <Badge className={aiAvailable ? "w-fit bg-[var(--saathi-success)] text-white" : "w-fit bg-secondary text-secondary-foreground"}>{aiAvailable ? "Available" : "Optional · currently off"}</Badge>
             </div>
           </div>
@@ -115,8 +115,8 @@ export default function GuidePage() {
                 {assistant.unsupportedActionIds.map((actionId) => <div key={actionId} className="flex gap-3 text-sm text-muted-foreground"><XCircle className="mt-0.5 size-4 shrink-0" /><span>{assistantLimits[actionId]}</span></div>)}
               </div>
               <div className="mt-6 rounded-lg border border-border bg-secondary/45 p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold"><LockKeyhole className="size-4 text-primary" />What is shared with Groq</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">For planning: your goal text. For advice: the workspace name, summary, and compact task details. Passwords, session cookies, Redis credentials, and member email addresses are not included.</p>
+                <p className="flex items-center gap-2 text-sm font-semibold"><LockKeyhole className="size-4 text-primary" />What the assistant receives</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">For planning: your goal text. For advice: the workspace name, summary, and compact task details. Passwords, session cookies, credentials, and member email addresses are not included.</p>
               </div>
             </div>
           </div>
