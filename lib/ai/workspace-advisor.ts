@@ -13,7 +13,11 @@ const taskDraftSchema = z.object({
   dueDate: z.string().nullable(),
   dueAt: z.string().nullable(),
   estimatedMinutes: z.number().int().min(1).max(1440).nullable(),
-}).strict()
+}).strict().superRefine((value, context) => {
+  if (value.dueDate && value.dueAt) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Use either a due date or due time", path: ["dueDate"] })
+  }
+})
 
 const advisorAttentionSchema = z.object({
   taskId: z.string().trim().min(1),

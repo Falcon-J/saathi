@@ -29,6 +29,22 @@ test("rejects an AI proposal that attempts an unsupported mutation", () => {
   }), /invalid/i)
 })
 
+test("rejects a draft that contains both deadline representations", () => {
+  assert.throws(() => parseAdvisorResponse({
+    capability: "draft_task",
+    answer: "Review the launch checklist.",
+    attention: [],
+    draft: {
+      title: "Review the launch checklist",
+      description: null,
+      priority: "high",
+      dueDate: "2026-09-20",
+      dueAt: "2026-09-20T10:00:00.000Z",
+      estimatedMinutes: 30,
+    },
+  }), /deadline|invalid/i)
+})
+
 test("builds a minimum task projection without server-owned fields", () => {
   const projection = buildAdvisorProjection({
     name: "Launch",
