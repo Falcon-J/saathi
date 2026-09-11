@@ -19,6 +19,7 @@ import type { TaskUpdate } from "@/app/tasks/contract"
 import { getMutationError } from "@/lib/mutation-result"
 import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
 import { formatTaskCreatedAt, formatTaskDue, localDateTimeToIso } from "@/lib/task-time"
+import { TaskComments } from "@/components/task-comments"
 
 interface Task {
   id: string
@@ -662,6 +663,8 @@ function TaskEditorDialog({
                   </div>
                 </div>
               </section>
+
+              <TaskComments taskId={task.id} />
 
               {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
             </div>
