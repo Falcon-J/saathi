@@ -67,7 +67,6 @@ export type AdvisorProjection = {
     priority: AdvisorWorkspace["tasks"][number]["priority"]
     dueDate: string | null
     dueAt: string | null
-    assigneeEmail: string | null
   }>
 }
 
@@ -91,7 +90,6 @@ export function buildAdvisorProjection(workspace: AdvisorWorkspace): AdvisorProj
       priority: task.priority,
       dueDate: task.dueDate ?? null,
       dueAt: task.dueAt ?? null,
-      assigneeEmail: task.assigneeEmail ?? null,
     })),
   }
 }

@@ -13,7 +13,6 @@ const projection: AdvisorProjection = {
     priority: "high",
     dueDate: null,
     dueAt: null,
-    assigneeEmail: "member@example.com",
   }],
 }
 

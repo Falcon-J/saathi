@@ -27,17 +27,16 @@ export const metadata: Metadata = {
 
 const assistantActions: Record<string, { title: string; description: string }> = {
   plan_workspace: { title: "Plan a workspace", description: "Turn one outcome into a focused workspace with 3–8 useful first steps." },
-  add_task: { title: "Add a task", description: "Create one new task in the workspace you currently have open." },
-  complete_task: { title: "Complete a task", description: "Mark one existing task complete using its current workspace context." },
-  move_task: { title: "Move work", description: "Move one task between Today and Next so attention stays intentional." },
-  rename_workspace: { title: "Rename the workspace", description: "Give the current workspace a clearer outcome-oriented name." },
+  summarize_workspace: { title: "Summarize the workspace", description: "Turn the current workspace context into a concise progress summary." },
+  identify_attention: { title: "Find attention items", description: "Surface tasks that may need attention from their current status and timing." },
+  draft_task: { title: "Draft a task", description: "Suggest one task with a title, details, priority, timing, and estimate for your review." },
 }
 
 const assistantLimits: Record<string, string> = {
-  delete_content: "It will not delete tasks or workspaces.",
+  autonomous_mutation: "It will not change tasks or workspaces without your review and confirmation.",
   manage_members: "It will not invite or remove workspace members.",
   assign_tasks: "It will not assign work to people.",
-  run_multiple_changes: "Each instruction performs one supported change at a time.",
+  store_content: "Raw prompts, workspace context, and model responses are not stored by default.",
 }
 
 const workspaceSteps = [
@@ -95,7 +94,7 @@ export default function GuidePage() {
         <section id="limits" className="mt-12 overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm" aria-labelledby="assistant-title">
           <div className="border-b border-border bg-accent/60 px-5 py-6 sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Plan with the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant proposes one bounded, reviewable workspace change. PostgreSQL remains the source of truth; Redis carries realtime updates.</p></div></div>
+              <div className="flex items-start gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><Bot className="size-5" /></div><div><h2 id="assistant-title" className="text-2xl font-bold">Use the Saathi assistant</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The assistant provides grounded summaries, attention signals, and reviewable task drafts. PostgreSQL remains the source of truth; Redis carries realtime updates.</p></div></div>
               <Badge className={aiAvailable ? "w-fit bg-[var(--saathi-success)] text-white" : "w-fit bg-secondary text-secondary-foreground"}>{aiAvailable ? "Available" : "Optional · currently off"}</Badge>
             </div>
           </div>
@@ -117,14 +116,14 @@ export default function GuidePage() {
               </div>
               <div className="mt-6 rounded-lg border border-border bg-secondary/45 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold"><LockKeyhole className="size-4 text-primary" />What is shared with Groq</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">For planning: your goal text. For a command: workspace ID and name, plus compact task IDs, titles, statuses, and Today/Next buckets. Passwords, session cookies, Redis credentials, and member email addresses are not included.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">For planning: your goal text. For advice: the workspace name, summary, and compact task details. Passwords, session cookies, Redis credentials, and member email addresses are not included.</p>
               </div>
             </div>
           </div>
 
           <div className="border-t border-border px-5 py-5 sm:px-8">
             <p className="text-sm font-medium">Try requests like:</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted-foreground"><span className="rounded-full bg-secondary px-3 py-1.5">“Add a task to draft the launch brief”</span><span className="rounded-full bg-secondary px-3 py-1.5">“Move the metrics review to Next”</span><span className="rounded-full bg-secondary px-3 py-1.5">“Mark the release checklist complete”</span></div>
+            <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted-foreground"><span className="rounded-full bg-secondary px-3 py-1.5">“What should we focus on next?”</span><span className="rounded-full bg-secondary px-3 py-1.5">“Which tasks need attention?”</span><span className="rounded-full bg-secondary px-3 py-1.5">“Draft a task for the launch brief”</span></div>
           </div>
         </section>
 

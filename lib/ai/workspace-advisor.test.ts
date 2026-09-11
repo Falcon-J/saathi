@@ -57,7 +57,6 @@ test("builds a minimum task projection without server-owned fields", () => {
       priority: "high",
       dueDate: null,
       dueAt: null,
-      assigneeEmail: "member@example.com",
       createdBy: "owner@example.com",
       version: 3,
     }],
@@ -73,9 +72,9 @@ test("builds a minimum task projection without server-owned fields", () => {
       priority: "high",
       dueDate: null,
       dueAt: null,
-      assigneeEmail: "member@example.com",
     }],
   })
   assert.equal("version" in projection.tasks[0], false)
   assert.equal("createdBy" in projection.tasks[0], false)
+  assert.equal("assigneeEmail" in projection.tasks[0], false)
 })
