@@ -375,7 +375,7 @@ export default function Dashboard() {
                     <Card id="project-board" className="overflow-hidden rounded-[var(--saathi-radius-container)]">
                         <CardHeader className="border-b border-border">
                           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div><CardTitle className="flex items-center gap-2 text-xl"><LayoutGrid className="size-5 text-primary" />Project Board</CardTitle><CardDescription>{metrics.active} active, {metrics.completed} completed.</CardDescription></div>
+                            <div><CardTitle className="flex items-center gap-2 text-xl"><LayoutGrid className="size-5 text-primary" />Task board</CardTitle><CardDescription>{metrics.active} active, {metrics.completed} completed.</CardDescription></div>
                             <TaskImport workspaceId={currentWorkspace.id} onImported={refreshTasks} />
                           </div>
                         </CardHeader>
