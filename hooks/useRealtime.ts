@@ -10,6 +10,7 @@ interface UseRealtimeOptions {
     onTaskUpdated?: (data: any) => void
     onTaskDeleted?: (data: any) => void
     onTaskToggled?: (data: any) => void
+    onTaskCommentCreated?: (data: any) => void
     onUserJoined?: (data: any) => void
     onUserLeft?: (data: any) => void
     onResyncRequired?: () => void
@@ -51,6 +52,9 @@ export function useRealtime(options: UseRealtimeOptions) {
                 break
             case 'task-toggled':
                 currentOptions.onTaskToggled?.(event)
+                break
+            case 'task-comment-created':
+                currentOptions.onTaskCommentCreated?.(event)
                 break
             case 'user-joined':
                 currentOptions.onUserJoined?.(event)
