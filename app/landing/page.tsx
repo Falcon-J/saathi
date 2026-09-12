@@ -7,17 +7,7 @@ import { SaathiLogo } from "@/components/saathi-logo"
 export default function LandingPage() {
   return (
     <main className="saathi-shell min-h-screen overflow-hidden">
-      <header>
-        <div className="mx-auto flex h-20 max-w-7xl items-center px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Saathi home">
-            <SaathiLogo className="size-9" priority />
-            <span className="text-lg font-semibold tracking-tight">Saathi</span>
-          </Link>
-
-        </div>
-      </header>
-
-      <section id="product" className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden">
+      <section id="product" className="relative isolate min-h-[100svh] overflow-hidden">
         <Image
           src="/saathi-landing-hero.png"
           alt="A team turning shared intent into clear next steps"
@@ -26,8 +16,12 @@ export default function LandingPage() {
           sizes="100vw"
           className="object-cover object-center"
         />
+        <Link href="/" className="absolute left-4 top-5 z-10 flex items-center gap-2.5 sm:left-6 lg:left-8" aria-label="Saathi home">
+          <SaathiLogo className="size-9" priority />
+          <span className="text-lg font-semibold tracking-tight">Saathi</span>
+        </Link>
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#f7f7f4] via-[#f7f7f4]/85 to-transparent lg:w-[64%]" />
-        <div className="relative mx-auto flex min-h-[calc(100svh-5rem)] max-w-7xl items-start px-4 pb-24 pt-[clamp(3rem,15vh,8rem)] sm:px-6 lg:px-8">
+        <div className="relative mx-auto flex min-h-[100svh] max-w-7xl items-start px-4 pb-24 pt-[clamp(7rem,15vh,10rem)] sm:px-6 lg:px-8">
         <div className="max-w-[27rem]">
             <h1 className="max-w-[22rem] text-5xl font-semibold leading-[0.98] tracking-[-0.06em] text-foreground sm:text-6xl lg:text-6xl">
               Turn shared intent into <span className="text-primary">clear progress.</span>

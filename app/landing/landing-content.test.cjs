@@ -13,6 +13,7 @@ test("landing page stays a focused Saathi entry screen", () => {
   assert.match(source, /href="\/guide"/)
   assert.match(source, /See how it works/)
   assert.match(source, /saathi-landing-hero\.png/)
+  assert.match(source, /absolute left-4 top-5 z-10/)
   assert.doesNotMatch(source, /Pricing/)
-  assert.doesNotMatch(source, /Product|Features|Everything in one place|Focused work\. Shared progress\.|A calmer way to move together|Saathi gives your team one focused workspace/)
+  assert.doesNotMatch(source, /<header|Product|Features|Everything in one place|Focused work\. Shared progress\.|A calmer way to move together|Saathi gives your team one focused workspace/)
 })
