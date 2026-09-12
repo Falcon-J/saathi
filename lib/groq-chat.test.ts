@@ -83,3 +83,24 @@ test("rejects rate limits, refusals, missing output, and invalid JSON", async ()
     choices: [{ message: { content: "not-json" } }],
   }), { status: 200 })), /valid response/i)
 })
+
+test("aborts a provider request after the configured timeout", async () => {
+  let aborted = false
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    init?.signal?.addEventListener("abort", () => { aborted = true }, { once: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    throw new Error("aborted")
+  }
+
+  await assert.rejects(() => requestGroqStructuredResponse({
+    apiKey: "test-key",
+    name: "test_response",
+    schema,
+    instructions: "Return the answer.",
+    input: "hello",
+    timeoutMs: 1,
+    parse: (value) => value,
+    fetchImpl,
+  }), /took too long/i)
+  assert.equal(aborted, true)
+})
