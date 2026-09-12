@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Home, LayoutGrid, Users } from "lucide-react"
+import { Home, LayoutGrid, Settings, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getDashboardNavigationTarget,
@@ -58,12 +58,18 @@ export function DashboardNavigation({
   onOpenBoard,
   onOpenOverview,
   onOpenTeam,
+  isOwner,
+  settingsActive,
+  onOpenSettings,
 }: {
   mode: "rail" | "mobile"
   hasWorkspace: boolean
   onOpenBoard?: () => void
   onOpenOverview?: () => void
   onOpenTeam?: () => void
+  isOwner?: boolean
+  settingsActive?: boolean
+  onOpenSettings?: () => void
 }) {
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("workspace-header")
 
@@ -132,6 +138,23 @@ export function DashboardNavigation({
           onNavigate={navigateTo}
         />
       ))}
+      {isOwner && onOpenSettings && (
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          aria-current={settingsActive ? "location" : undefined}
+          aria-label="Settings"
+          title="Settings"
+          className={cn(
+            "flex items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            compact ? "min-h-10 flex-1 justify-center gap-2 px-3 text-xs font-medium" : "min-h-10 w-full justify-start gap-3 px-3 text-sm font-medium",
+            settingsActive ? "bg-accent text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+          )}
+        >
+          <Settings className="size-5" aria-hidden="true" />
+          <span>Settings</span>
+        </button>
+      )}
     </nav>
   )
 }

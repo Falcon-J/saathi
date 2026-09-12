@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, Plus, RefreshCw, Sparkles, UserPlus, Users, Settings } from "lucide-react"
+import { CircleHelp, Crown, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("overview")
+  const [quickAddRequest, setQuickAddRequest] = useState(0)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
@@ -286,11 +287,11 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} />
           {showWorkspace && (
             <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
               <p className="text-xs font-medium text-muted-foreground">Current workspace</p>
@@ -313,8 +314,8 @@ export default function Dashboard() {
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">A shared place to turn intention into steady progress.</p>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:max-w-[30rem] lg:justify-end">
-                  <Button onClick={() => setWorkspaceView("board")}><Plus className="size-4" />New task</Button>
-                  {aiWorkspaceEnabled ? <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button> : <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>}
+                  <Button onClick={() => { setWorkspaceView("overview"); setQuickAddRequest((request) => request + 1) }}><Plus className="size-4" />New task</Button>
+                  <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>
                   <Button variant="outline" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
                 </div>
               </section>
@@ -344,12 +345,6 @@ export default function Dashboard() {
                       <WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex flex-wrap rounded-lg bg-secondary p-1" aria-label="Workspace view">
-                        <Button type="button" size="sm" variant={workspaceView === "overview" ? "default" : "ghost"} onClick={() => setWorkspaceView("overview")}><ListChecks className="size-4" />Overview</Button>
-                        <Button type="button" size="sm" variant={workspaceView === "board" ? "default" : "ghost"} onClick={() => setWorkspaceView("board")}><LayoutGrid className="size-4" />Board</Button>
-                        <Button type="button" size="sm" variant={workspaceView === "team" ? "default" : "ghost"} onClick={() => setWorkspaceView("team")}><Users className="size-4" />Team</Button>
-                        {isCurrentWorkspaceOwner && <Button type="button" size="sm" variant={workspaceView === "settings" ? "default" : "ghost"} onClick={() => setWorkspaceView("settings")}><Settings className="size-4" />Settings</Button>}
-                      </div>
                       <Badge variant="outline" className="bg-card"><span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground"}`} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
                       {isCurrentWorkspaceOwner && <Badge className="border-primary/30 bg-primary/10 text-primary"><Crown className="mr-1 size-3" />Owner</Badge>}
                     </div>
@@ -380,10 +375,8 @@ export default function Dashboard() {
                       loading={tasksLoading}
                       onToggleTask={handleToggleTask}
                       onAddTask={handleAddTask}
-                      onEditTask={handleEditTask}
-                      onDeleteTask={handleDeleteTask}
                       onOpenBoard={() => setWorkspaceView("board")}
-                      aiEnabled={aiWorkspaceEnabled}
+                      focusQuickAdd={quickAddRequest}
                       title={<span>{currentWorkspace.name}</span>}
                     />
                   )
