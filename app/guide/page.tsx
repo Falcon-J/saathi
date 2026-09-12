@@ -28,24 +28,23 @@ export const metadata: Metadata = {
 }
 
 const assistantActions: Record<string, { title: string; description: string }> = {
-  plan_workspace: { title: "Plan a workspace", description: "Turn one outcome into a focused workspace with 3–8 useful first steps." },
-  summarize_workspace: { title: "Summarize the workspace", description: "Turn the current workspace context into a concise progress summary." },
-  identify_attention: { title: "Find attention items", description: "Surface tasks that may need attention from their current status and timing." },
-  draft_task: { title: "Draft a task", description: "Suggest one task with a title, details, priority, timing, and estimate for your review." },
+  plan_workspace: { title: "Plan a workspace", description: "Turn one outcome into a focused workspace with useful first steps." },
+  summarize_workspace: { title: "Summarize the workspace", description: "Turn workspace context into a concise progress summary." },
+  identify_attention: { title: "Find attention items", description: "Surface tasks that may need attention." },
+  draft_task: { title: "Draft a task", description: "Prepare one task draft for your review." },
 }
 
 const assistantLimits: Record<string, string> = {
-  autonomous_mutation: "It will not change tasks or workspaces without your review and confirmation.",
-  manage_members: "It will not invite or remove workspace members.",
-  assign_tasks: "It will not assign work to people.",
+  autonomous_mutation: "Changes require your review and confirmation.",
+  manage_members: "It will not invite, remove, or assign workspace members.",
   store_content: "Raw prompts, workspace context, and model responses are not stored by default.",
 }
 
 const workflowSteps = [
-  { number: "01", icon: Target, title: "Start with an outcome", description: "Create a workspace manually, or describe the result you want when the optional assistant is enabled." },
-  { number: "02", icon: List, title: "Focus on what is next", description: "Overview keeps Today, Next, and Completed visible without turning every visit into board administration." },
-  { number: "03", icon: Grid2X2, title: "Use Board for detail", description: "Open Board when you need status, priority, due dates, ownership, search, import, or deletion." },
-  { number: "04", icon: Users, title: "Move together", description: "Invite members and receive live workspace updates through the existing Redis and SSE collaboration flow." },
+  { number: "01", icon: Target, title: "Start with an outcome", description: "Set the outcome and start with a focused workspace." },
+  { number: "02", icon: List, title: "Focus on what is next", description: "Use Overview to see Today, Next, and Completed." },
+  { number: "03", icon: Grid2X2, title: "Use Board for detail", description: "Open Board for ownership, dates, priority, and search." },
+  { number: "04", icon: Users, title: "Move together", description: "Invite teammates and keep everyone aligned." },
 ]
 
 const requestExamples = [
@@ -56,7 +55,6 @@ const requestExamples = [
 
 export default function GuidePage() {
   const assistant = getAssistantGuide(isAiWorkspaceEnabled())
-  const aiAvailable = assistant.availability === "available"
 
   return (
     <main className="saathi-shell min-h-screen bg-[#f7f7f4] text-[#12203a]">
@@ -121,13 +119,13 @@ export default function GuidePage() {
           <p className="saathi-label text-primary">Your AI partner</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h2 id="assistant-title" className="text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Use the Saathi assistant</h2>
-            <Badge className={aiAvailable ? "bg-[#e4f5e9] text-[#087c55] hover:bg-[#e4f5e9]" : "bg-[#ecefea] text-[#53627a] hover:bg-[#ecefea]"}>
-              <span className={aiAvailable ? "mr-1.5 size-2 rounded-full bg-[#14a56f]" : "mr-1.5 size-2 rounded-full bg-[#8a958d]"} />
-              {aiAvailable ? "Available" : "Optional · currently off"}
+            <Badge className="bg-[#e4f5e9] text-[#087c55] hover:bg-[#e4f5e9]">
+              <span className="mr-1.5 size-2 rounded-full bg-[#14a56f]" />
+              Optional
             </Badge>
           </div>
           <p className="mt-3 max-w-4xl text-base leading-7 text-[#53627a] sm:text-lg">
-            The assistant provides grounded summaries, attention signals, and reviewable task drafts. Your workspace remains the source of truth, and approved changes stay visible to the team.
+            Use AI for grounded summaries, attention signals, and task drafts that stay under your review.
           </p>
         </div>
 
@@ -151,15 +149,14 @@ export default function GuidePage() {
             <Card id="assistant-limits" className="rounded-2xl border-[#dfe6e1] bg-white/65 p-5 shadow-none sm:p-6">
               <h3 className="flex items-center gap-2 text-base font-semibold"><LockKeyhole className="size-5 text-primary" />Intentional limits</h3>
               <div className="mt-5 space-y-3">
-                {assistant.unsupportedActionIds.map((actionId) => <div key={actionId} className="flex gap-3 text-sm leading-5 text-[#53627a]"><XCircle className="mt-0.5 size-4 shrink-0 text-[#e45c50]" /><span>{assistantLimits[actionId]}</span></div>)}
+                {assistant.unsupportedActionIds.filter((actionId) => actionId !== "assign_tasks").map((actionId) => <div key={actionId} className="flex gap-3 text-sm leading-5 text-[#53627a]"><XCircle className="mt-0.5 size-4 shrink-0 text-[#e45c50]" /><span>{assistantLimits[actionId]}</span></div>)}
               </div>
             </Card>
             <Card className="rounded-2xl border-0 bg-[#edf5f0] p-5 shadow-none sm:p-6">
-              <h3 className="flex items-center gap-2 text-base font-semibold"><Database className="size-5 text-primary" />What the assistant receives</h3>
+              <h3 className="flex items-center gap-2 text-base font-semibold"><Database className="size-5 text-primary" />Data handling</h3>
               <ul className="mt-4 space-y-2 text-sm leading-5 text-[#53627a]">
-                <li className="flex gap-2"><span className="text-primary">•</span><span>For planning: your goal text.</span></li>
-                <li className="flex gap-2"><span className="text-primary">•</span><span>For advice: workspace name, summary, and compact task details.</span></li>
-                <li className="flex gap-2"><span className="text-primary">•</span><span>Passwords, session cookies, credentials, and member email addresses are not included.</span></li>
+                <li className="flex gap-2"><span className="text-primary">•</span><span>Only the goal or compact workspace context needed for the request is shared.</span></li>
+                <li className="flex gap-2"><span className="text-primary">•</span><span>Passwords, credentials, cookies, and member email addresses are excluded; raw prompts and responses are not stored by default.</span></li>
               </ul>
             </Card>
           </div>
@@ -181,9 +178,6 @@ export default function GuidePage() {
           <p className="mt-2 text-base text-[#53627a]">Return to your workspace and start with one clear next action.</p>
           <Button asChild className="mt-6 rounded-full"><Link href="/dashboard">Open workspace <ArrowRight className="size-4" /></Link></Button>
         </div>
-        <div className="absolute -right-10 -top-16 hidden size-80 rounded-full bg-[#d9e7dc] lg:block" />
-        <div className="absolute bottom-0 right-16 hidden h-36 w-28 rounded-t-[2rem] bg-[#c3d7c8] lg:block" />
-        <div className="absolute bottom-0 right-36 hidden h-24 w-24 rounded-t-[1.5rem] bg-white/70 lg:block" />
       </section>
     </main>
   )
