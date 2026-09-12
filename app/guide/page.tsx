@@ -125,7 +125,7 @@ export default function GuidePage() {
             </Badge>
           </div>
           <p className="mt-3 max-w-4xl text-base leading-7 text-[#53627a] sm:text-lg">
-            Use AI for grounded summaries, attention signals, and task drafts that stay under your review.
+            Use AI for grounded summaries, attention signals, and task drafts that stay under your review. Your workspace remains the source of truth, and approved changes stay visible to the team.
           </p>
         </div>
 
@@ -153,7 +153,7 @@ export default function GuidePage() {
               </div>
             </Card>
             <Card className="rounded-2xl border-0 bg-[#edf5f0] p-5 shadow-none sm:p-6">
-              <h3 className="flex items-center gap-2 text-base font-semibold"><Database className="size-5 text-primary" />Data handling</h3>
+              <h3 className="flex items-center gap-2 text-base font-semibold"><Database className="size-5 text-primary" />What the assistant receives</h3>
               <ul className="mt-4 space-y-2 text-sm leading-5 text-[#53627a]">
                 <li className="flex gap-2"><span className="text-primary">•</span><span>Only the goal or compact workspace context needed for the request is shared.</span></li>
                 <li className="flex gap-2"><span className="text-primary">•</span><span>Passwords, credentials, cookies, and member email addresses are excluded; raw prompts and responses are not stored by default.</span></li>
