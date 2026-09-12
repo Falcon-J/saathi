@@ -3,11 +3,12 @@
 import { cookies } from 'next/headers'
 import { createClient } from './supabase/server'
 import { getAuthCallbackUrl } from './supabase/config'
-import { validateCredentials, resolveVerifiedSession } from './supabase/auth-boundary'
+import { validateCredentials, resolveVerifiedSession, safeAuthRedirect } from './supabase/auth-boundary'
 import { getProfile } from './data/profiles'
 import { normalizeEmail } from './identity'
 
 type AuthResult = { success?: boolean; error?: string; confirmationRequired?: boolean; message?: string }
+type OAuthResult = { url?: string; error?: string }
 const unavailable = { error: 'Account service is temporarily unavailable. Please try again.' }
 
 export async function signup(email: string, username: string, password: string): Promise<AuthResult> {
@@ -38,6 +39,18 @@ export async function login(email: string, password: string): Promise<AuthResult
     const { data, error } = await client.auth.signInWithPassword({ email: normalizedEmail, password })
     if (error || !data.user?.email_confirmed_at) return { error: 'Unable to sign in. Check your email and password, and verify your email before signing in.' }
     return { success: true }
+  } catch { return unavailable }
+}
+
+export async function loginWithGoogle(next?: string | null): Promise<OAuthResult> {
+  try {
+    const client = await createClient()
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: getAuthCallbackUrl(safeAuthRedirect(next)) },
+    })
+    if (error || !data.url) return { error: 'Could not start Google sign-in. Please try again.' }
+    return { url: data.url }
   } catch { return unavailable }
 }
 
