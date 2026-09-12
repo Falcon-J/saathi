@@ -5,18 +5,14 @@ const path = require("node:path")
 
 const source = readFileSync(path.join(__dirname, "page.tsx"), "utf8")
 
-test("landing page keeps the focused Saathi entry hierarchy", () => {
+test("landing page stays a focused Saathi entry screen", () => {
   assert.match(source, /Turn shared intent into <span className="text-primary">clear progress\.<\/span>/)
-  assert.match(source, /Saathi gives your team one focused workspace to decide what matters, take the next step, and see the work move forward\./)
-  assert.match(source, /A calmer way to move together/)
   assert.match(source, /Create your workspace/)
-  assert.match(source, /See how it works/)
   assert.match(source, /href="\/login"/)
   assert.match(source, /href="\/register"/)
+  assert.match(source, /href="\/guide"/)
+  assert.match(source, /See how it works/)
   assert.match(source, /saathi-landing-hero\.png/)
-  assert.match(source, /Clear next steps/)
-  assert.match(source, /Shared ownership/)
-  assert.match(source, /Visible progress/)
   assert.doesNotMatch(source, /Pricing/)
-  assert.doesNotMatch(source, /Command center|Live engine|SSE task updates|Project Board/)
+  assert.doesNotMatch(source, /Product|Features|Everything in one place|Focused work\. Shared progress\.|A calmer way to move together|Saathi gives your team one focused workspace/)
 })
