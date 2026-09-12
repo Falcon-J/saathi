@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, BookOpen, CheckSquare, HelpCircle, LifeBuoy, Search, Send, Sparkles, Users } from "lucide-react"
+import { ArrowRight, BookOpen, CheckSquare, HelpCircle, LifeBuoy, Send, Sparkles, Users } from "lucide-react"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -12,11 +12,11 @@ export const metadata: Metadata = {
 
 const topics = [
   { icon: Sparkles, title: "Getting started", description: "Set up your account and get moving.", href: "/guide" },
-  { icon: Users, title: "Workspaces", description: "Organize teams, projects, and people.", href: "/guide#core-flow-title" },
-  { icon: CheckSquare, title: "Tasks", description: "Plan, assign, and track work.", href: "/tasks" },
-  { icon: Send, title: "Invitations", description: "Bring your team on board.", href: "/guide#limits" },
+  { icon: Users, title: "Workspaces", description: "Keep one outcome and its members together.", href: "/guide#core-flow-title" },
+  { icon: CheckSquare, title: "Tasks", description: "Create, assign, move, and complete work.", href: "/guide#core-flow-title" },
+  { icon: Send, title: "Invitations", description: "Bring teammates into the workspace.", href: "/guide#core-flow-title" },
   { icon: Users, title: "Real-time collaboration", description: "Work together in one place.", href: "/guide#core-flow-title" },
-  { icon: Sparkles, title: "AI assistance", description: "Use AI to plan, write, and get unstuck.", href: "/guide#assistant-title" },
+  { icon: Sparkles, title: "AI assistance", description: "Get grounded summaries, attention signals, and task drafts.", href: "/guide#assistant-title" },
 ]
 
 export default function HelpPage() {
@@ -25,7 +25,6 @@ export default function HelpPage() {
       <header className="border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3" aria-label="Saathi home"><SaathiLogo className="size-9" priority /><span className="font-semibold">Saathi</span></Link>
-          <label className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border border-border bg-secondary/45 px-3 py-2 text-sm text-muted-foreground md:flex"><Search className="size-4" /><input aria-label="Search help articles" placeholder="Search help articles, guides, or topics..." className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground" /></label>
           <Button asChild variant="outline" size="sm"><Link href="/guide">Product guide<ArrowRight className="size-4" /></Link></Button>
         </div>
       </header>
@@ -38,7 +37,7 @@ export default function HelpPage() {
 
         <div>
           <section className="relative overflow-hidden rounded-[var(--saathi-radius-container)] border border-border bg-card px-6 py-10 sm:px-10 sm:py-12">
-            <div className="relative z-10 max-w-xl"><p className="saathi-label text-primary">Help center</p><h1 className="mt-4 text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-5xl">How can we help you?</h1><p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground">Learn how Saathi helps you turn ideas into meaningful work, together.</p><label className="mt-7 flex max-w-xl items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground"><Search className="size-4" /><input aria-label="Search guides, tutorials, or answers" placeholder="Search for guides, tutorials, or answers..." className="min-w-0 flex-1 bg-transparent outline-none" /></label></div>
+            <div className="relative z-10 max-w-xl"><p className="saathi-label text-primary">Help center</p><h1 className="mt-4 text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-5xl">How can we help you?</h1><p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground">Start with the product guide, or contact us if your team needs help moving work forward.</p><Button asChild className="mt-7"><Link href="/guide">Read the product guide<ArrowRight className="size-4" /></Link></Button></div>
             <div className="pointer-events-none absolute -right-8 -top-10 hidden size-64 rounded-full bg-primary/10 blur-3xl sm:block" /><div className="pointer-events-none absolute bottom-[-6rem] right-12 hidden size-72 rotate-12 rounded-[3rem] bg-accent sm:block" />
           </section>
 

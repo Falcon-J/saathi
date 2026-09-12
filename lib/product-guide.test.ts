@@ -10,16 +10,15 @@ test("describes the exact AI actions available to a user", () => {
   assert.equal(guide.availability, "available")
   assert.deepEqual(guide.supportedActionIds, [
     "plan_workspace",
-    "add_task",
-    "complete_task",
-    "move_task",
-    "rename_workspace",
+    "summarize_workspace",
+    "identify_attention",
+    "draft_task",
   ])
   assert.deepEqual(guide.unsupportedActionIds, [
-    "delete_content",
+    "autonomous_mutation",
     "manage_members",
     "assign_tasks",
-    "run_multiple_changes",
+    "store_content",
   ])
 })
 
@@ -27,7 +26,7 @@ test("explains disabled availability without hiding the assistant contract", () 
   const guide = getAssistantGuide(false)
 
   assert.equal(guide.availability, "not_enabled")
-  assert.equal(guide.supportedActionIds.length, 5)
+  assert.equal(guide.supportedActionIds.length, 4)
 })
 
 test("limits documented Groq context to non-secret workspace planning data", () => {
@@ -35,12 +34,15 @@ test("limits documented Groq context to non-secret workspace planning data", () 
 
   assert.deepEqual(guide.sharedContextIds, [
     "goal_text",
-    "workspace_id",
     "workspace_name",
+    "workspace_summary",
     "task_id",
     "task_title",
+    "task_description",
     "task_status",
-    "task_bucket",
+    "task_priority",
+    "task_due_date",
+    "task_due_at",
   ])
   assert.deepEqual(guide.neverSharedIds, [
     "password",
@@ -50,9 +52,9 @@ test("limits documented Groq context to non-secret workspace planning data", () 
   ])
 })
 
-test("guide describes persisted and realtime ownership accurately", () => {
+test("guide describes the product boundary without infrastructure jargon", () => {
   const source = readFileSync(path.join(process.cwd(), "app", "guide", "page.tsx"), "utf8")
-  assert.match(source, /PostgreSQL remains the source of truth/)
-  assert.match(source, /Redis carries realtime updates/)
-  assert.doesNotMatch(source, /Redis remains the source of truth/)
+  assert.match(source, /Your workspace remains the source of truth/)
+  assert.match(source, /What the assistant receives/)
+  assert.doesNotMatch(source, /PostgreSQL|Redis carries realtime updates|What is shared with Groq/)
 })

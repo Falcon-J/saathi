@@ -12,7 +12,7 @@ export interface Task {
   id: string; workspaceId: string; title: string; description?: string; completed: boolean; status?: TaskStatus;
   priority: "low" | "medium" | "high"; dueDate?: string; dueAt?: string; bucket?: "today" | "next";
   estimatedMinutes?: number; assigneeEmail?: string; createdAt: string; updatedAt: string; createdBy: string;
-  version?: number; categories?: string[]; assignedTo?: string;
+  version?: number;
 }
 export type TaskMutationResult = {success?: true;error?: string;task?: Task;code?: "rate_limited";retryAfterSeconds?: number}
 function publicError(error: unknown): TaskMutationResult {

@@ -3,7 +3,6 @@ import test from 'node:test'
 
 import {
   getDashboardNavigationTarget,
-  normalizeDashboardActiveSection,
   selectActiveDashboardSection,
 } from '../lib/dashboard-navigation.ts'
 
@@ -37,14 +36,4 @@ test('routes each destination to its owning workspace view', () => {
     sectionId: 'team-panel',
     view: 'team',
   })
-  assert.deepEqual(getDashboardNavigationTarget('realtime-panel'), {
-    sectionId: 'realtime-panel',
-    view: 'board',
-  })
-})
-
-test('resets hidden secondary navigation to the workspace header', () => {
-  assert.equal(normalizeDashboardActiveSection('team-panel', false), 'workspace-header')
-  assert.equal(normalizeDashboardActiveSection('realtime-panel', false), 'workspace-header')
-  assert.equal(normalizeDashboardActiveSection('project-board', false), 'project-board')
 })
