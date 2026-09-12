@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, CalendarDays, Check, Circle, Clock3, Pencil, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, Circle, Clock3, Pencil, Plus, Target, Trash2, X } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
 import type { TaskUpdate } from "@/app/tasks/contract"
@@ -22,6 +22,7 @@ type WorkspaceOverviewProps = {
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
   onDeleteTask: (taskId: string) => Promise<unknown>
   onOpenBoard: () => void
+  aiEnabled: boolean
   title?: React.ReactNode
   commandBar?: React.ReactNode
 }
@@ -122,7 +123,7 @@ function TaskSection({ title, tasks, empty, onToggleTask, onEditTask, onDeleteTa
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onEditTask, onDeleteTask, onOpenBoard, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onEditTask, onDeleteTask, onOpenBoard, aiEnabled, title, commandBar }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
@@ -149,7 +150,8 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
       <header className="border-b border-border px-5 py-6 sm:px-8 sm:py-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-primary"><Target className="size-4" />Your progress</div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="text-2xl font-bold tracking-tight sm:text-3xl">{title ?? workspace.name}</div>
               {workspace.targetDate && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatTaskDue(undefined, workspace.targetDate)}</span>}
             </div>
@@ -162,7 +164,13 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
         </div>
       </header>
       <div className="space-y-8 px-5 py-6 sm:px-8 sm:py-8">
-        <form onSubmit={handleQuickAdd} className="rounded-lg border border-border bg-secondary/35 p-3">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.today.length}</p><p className="mt-1 text-xs text-muted-foreground">Due today</p></div>
+          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.next.length}</p><p className="mt-1 text-xs text-muted-foreground">Coming next</p></div>
+          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.completed.length}</p><p className="mt-1 text-xs text-muted-foreground">Completed</p></div>
+        </div>
+        <form onSubmit={handleQuickAdd} className="rounded-xl border border-primary/20 bg-[var(--saathi-surface-wash)] p-4">
+          <p className="mb-3 text-sm font-semibold">What needs to move forward?</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={newTaskTitle}
@@ -179,7 +187,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </div>
           {addError && <p role="alert" className="mt-2 text-sm text-destructive">{addError}</p>}
         </form>
-        <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />
+        {aiEnabled && <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />}
         {loading ? (
           <div role="status" className="space-y-3">
             {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-secondary" />)}

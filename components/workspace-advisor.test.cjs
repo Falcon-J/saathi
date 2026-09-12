@@ -13,5 +13,7 @@ test("advisor panel keeps AI contextual and reviewable", () => {
   assert.match(source, /Review task draft/)
   assert.match(source, /Create task/)
   assert.match(source, /onAddTask/)
+  assert.match(source, /retryAfterSeconds/)
+  assert.match(source, /aria-busy/)
   assert.doesNotMatch(source, /autoCreate|autonomous|saveWithoutReview/i)
 })

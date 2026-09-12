@@ -9,5 +9,6 @@ test("workspace overview mounts the advisor with the full task creation path", (
   assert.match(overview, /import \{ WorkspaceAdvisor \}/)
   assert.match(overview, /<WorkspaceAdvisor workspaceId=\{workspace\.id\}/)
   assert.match(overview, /onAddTask=\{onAddTask\}/)
+  assert.match(overview, /aiEnabled && <WorkspaceAdvisor/)
   assert.match(dashboard, /<WorkspaceOverview[\s\S]*onAddTask=\{handleAddTask\}/)
 })

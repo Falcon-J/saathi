@@ -252,11 +252,21 @@ export default function Dashboard() {
   return (
     <main className="saathi-shell saathi-dashboard min-h-screen">
       <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <SaathiLogo className="size-9" priority />
             <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
           </div>
+          <button
+            type="button"
+            onClick={() => setWorkspaceView("board")}
+            className="hidden h-10 min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-background px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:flex md:max-w-[31rem]"
+            aria-label="Open task board"
+          >
+            <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Open the task board</span>
+            <kbd className="ml-auto hidden rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground lg:inline">⌘ K</kbd>
+          </button>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="icon">
               <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
@@ -281,7 +291,14 @@ export default function Dashboard() {
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
           <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
-          <div className="mt-auto flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
+          {showWorkspace && (
+            <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Current workspace</p>
+              <p className="mt-1 truncate text-sm font-semibold">{currentWorkspace?.name}</p>
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{metrics.active} active tasks</span><span>{metrics.completed} done</span></div>
+            </div>
+          )}
+          <div className="mt-4 flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -289,17 +306,16 @@ export default function Dashboard() {
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
             {showWorkspace && dashboardState === "workspace" && (
-              <section className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <section className="mb-6 flex flex-col gap-5 rounded-[var(--saathi-radius-container)] border border-border bg-card px-5 py-6 shadow-sm sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="saathi-label text-primary">Your workspace</p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Good morning, {user.username} 👋</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Let&apos;s make progress today.</p>
+                  <p className="saathi-label text-primary">{currentWorkspace?.name}</p>
+                  <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.05em] sm:text-4xl">Move work forward, {user.username}.</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">A shared place to turn intention into steady progress.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("board")}><Plus className="size-4 text-primary" />New task</Button>
-                  {aiWorkspaceEnabled ? <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button> : <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>}
-                  <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
-                  <Button asChild variant="outline" className="justify-start bg-card"><Link href="/guide"><CircleHelp className="size-4 text-primary" />Guide</Link></Button>
+                <div className="flex flex-wrap gap-2 lg:max-w-[30rem] lg:justify-end">
+                  <Button onClick={() => setWorkspaceView("board")}><Plus className="size-4" />New task</Button>
+                  {aiWorkspaceEnabled ? <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button> : <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>}
+                  <Button variant="outline" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
                 </div>
               </section>
             )}
@@ -322,7 +338,7 @@ export default function Dashboard() {
               />
             ) : currentWorkspace ? (
               <>
-                <section id="workspace-header" className="mb-5 scroll-mt-32 rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 shadow-sm sm:p-5">
+                <section id="workspace-header" className="mb-5 scroll-mt-32 rounded-[var(--saathi-radius-card)] border border-border bg-card p-3 shadow-sm sm:p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} />
@@ -350,7 +366,7 @@ export default function Dashboard() {
                 {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
                   <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} />
                 ) : workspaceView === "team" ? (
-                  <Card id="team-panel"><CardHeader><CardTitle>Team</CardTitle><CardDescription>{currentWorkspace.members.length} members in this workspace.</CardDescription></CardHeader><CardContent><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
+                  <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Work better together.</CardTitle><CardDescription>Invite your team, manage members, and keep everyone aligned.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (
                   taskError ? (
                     <section id="project-board" className="rounded-xl border border-border bg-card p-8 text-center" role="alert">
@@ -367,6 +383,7 @@ export default function Dashboard() {
                       onEditTask={handleEditTask}
                       onDeleteTask={handleDeleteTask}
                       onOpenBoard={() => setWorkspaceView("board")}
+                      aiEnabled={aiWorkspaceEnabled}
                       title={<span>{currentWorkspace.name}</span>}
                     />
                   )
