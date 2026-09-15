@@ -17,7 +17,7 @@
     "verify:groq": "npx tsx scripts/verify-groq.ts",
     "db:migrate": "node scripts/migrate-database.mjs",
     "db:check": "drizzle-kit check",
-    "local:postgres:up": "docker compose -f docker-compose.local.yml up -d postgres",
+    "local:postgres:up": "docker compose -f docker-compose.local.yml up -d --wait --wait-timeout 60 postgres",
     "local:postgres:down": "docker compose -f docker-compose.local.yml down",
     "local:postgres:logs": "docker compose -f docker-compose.local.yml logs postgres",
     "test:database": "node --experimental-strip-types --test --experimental-test-isolation=none --test-force-exit lib/db/schema.test.ts && node --experimental-strip-types --test --experimental-test-isolation=none --test-force-exit lib/data/workspaces.test.ts && node --experimental-strip-types --test --experimental-test-isolation=none --test-force-exit lib/data/collaboration.test.ts"
