@@ -249,6 +249,11 @@ export default function Dashboard() {
     setWorkspaceView("board")
   }
 
+  const handleOpenSettings = () => {
+    setWorkspaceView("settings")
+    window.history.replaceState(null, "", "#settings-panel")
+  }
+
   const handleLogout = async () => {
     if (loggingOut) return
 
@@ -315,11 +320,11 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
           {showWorkspace && (
             <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
               <p className="text-xs font-medium text-muted-foreground">Current workspace</p>
@@ -334,7 +339,7 @@ export default function Dashboard() {
           <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
-            {showWorkspace && dashboardState === "workspace" && workspaceView !== "board" && (
+            {showWorkspace && dashboardState === "workspace" && workspaceView === "overview" && (
               <section className="mb-6 flex flex-col gap-5 rounded-[var(--saathi-radius-container)] border border-border bg-card px-5 py-6 shadow-sm sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="saathi-label text-primary">{currentWorkspace?.name}</p>
@@ -387,7 +392,7 @@ export default function Dashboard() {
                 )}
 
                 {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
-                  <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} />
+                  <section id="settings-panel"><WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
                 ) : workspaceView === "team" ? (
                   <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Work better together.</CardTitle><CardDescription>Invite your team, manage members, and keep everyone aligned.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /></CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (

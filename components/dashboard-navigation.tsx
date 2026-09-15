@@ -143,7 +143,7 @@ export function DashboardNavigation({
         <NavigationItem
           key={item.id}
           {...item}
-          active={activeSection === item.id}
+          active={activeSection === item.id && activeView !== "settings"}
           compact={compact}
           onNavigate={navigateTo}
         />
