@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
 import { formatTaskDue } from "@/lib/task-time"
+import { ActivityHistory } from "@/components/activity-history"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
@@ -20,6 +21,7 @@ type WorkspaceOverviewProps = {
   focusQuickAdd?: number
   title?: React.ReactNode
   commandBar?: React.ReactNode
+  realtimeSignal?: number
 }
 
 function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown> }) {
@@ -63,7 +65,7 @@ function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tas
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar, realtimeSignal }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
@@ -154,6 +156,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </Button>
         </div>
         {commandBar}
+        <ActivityHistory workspaceId={workspace.id} refreshSignal={realtimeSignal} />
       </div>
     </section>
   )

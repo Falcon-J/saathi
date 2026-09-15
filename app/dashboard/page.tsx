@@ -378,6 +378,7 @@ export default function Dashboard() {
                       onOpenBoard={() => setWorkspaceView("board")}
                       focusQuickAdd={quickAddRequest}
                       title={<span>{currentWorkspace.name}</span>}
+                      realtimeSignal={realtime.lastEvent?.timestamp}
                     />
                   )
                 ) : (
