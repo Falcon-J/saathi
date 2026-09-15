@@ -132,6 +132,25 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 Register from the sign-up page after configuring the Supabase URL and publishable key. Durable workspaces and tasks are stored in PostgreSQL.
 
+### Disposable local PostgreSQL
+
+The repository includes a local-only PostgreSQL container for migrations and database integration tests. It is not a Supabase Auth server and must not be used with hosted or production data.
+
+```bash
+npm run local:postgres:up
+
+# PowerShell
+$env:DATABASE_MIGRATION_URL="postgresql://postgres:postgres@localhost:55439/postgres"
+$env:DATABASE_TEST_URL="postgresql://postgres:postgres@localhost:55439/postgres"
+node scripts/bootstrap-test-database.mjs
+npm run db:migrate
+npm run test:database
+
+npm run local:postgres:down
+```
+
+Local Redis is intentionally not included here: the application uses the Upstash REST contract, while development without Upstash credentials uses its explicit mock adapter. Validate the real Redis path with a disposable Upstash environment before beta release.
+
 ---
 
 ## Environment Variables

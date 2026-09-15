@@ -18,6 +18,10 @@ Run this checklist only when the environment has:
 - a beta app origin with matching server configuration;
 - optional AI credentials, if AI validation is being executed.
 
+For local database validation, start the repository's disposable PostgreSQL service with `npm run local:postgres:up`, set `DATABASE_MIGRATION_URL` and `DATABASE_TEST_URL` to `postgresql://postgres:postgres@localhost:55439/postgres`, run `node scripts/bootstrap-test-database.mjs`, then run `npm run db:migrate` and `npm run test:database`. This provides a SQL identity fixture, not a local Supabase Auth service.
+
+The local application may use its explicit mock Redis mode. The production Redis adapter requires an Upstash REST environment and must be validated separately with disposable hosted credentials.
+
 Do not use production data or production credentials for this run. Record the deployment and configuration reference before changing any external setting.
 
 ## Evidence format
