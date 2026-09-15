@@ -18,6 +18,7 @@ type WorkspaceOverviewProps = {
   tasks: Task[]
   loading: boolean
   onToggleTask: (taskId: string) => Promise<unknown>
+  onOpenTask: (taskId: string) => void
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
   onOpenBoard: () => void
   focusQuickAdd?: number
@@ -26,7 +27,7 @@ type WorkspaceOverviewProps = {
   realtimeSignal?: number
 }
 
-function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown> }) {
+function TaskRow({ task, onToggleTask, onOpenTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const done = task.completed || task.status === "done"
 
   return (
@@ -40,7 +41,14 @@ function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: st
         {done ? <Check className="size-4" /> : <Circle className="size-5" />}
       </button>
       <div className="min-w-0 flex-1">
-        <p className={`text-sm font-medium sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>{task.title}</p>
+        <button
+          type="button"
+          onClick={() => onOpenTask(task.id)}
+          className={`text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+          aria-label={`Open ${task.title} task`}
+        >
+          {task.title}
+        </button>
         {(task.dueAt || task.dueDate || task.estimatedMinutes) && (
           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {task.estimatedMinutes && <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{task.estimatedMinutes}m</span>}
@@ -52,7 +60,7 @@ function TaskRow({ task, onToggleTask }: { task: Task; onToggleTask: (taskId: st
   )
 }
 
-function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown> }) {
+function TaskSection({ title, tasks, empty, onToggleTask, onOpenTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const headingId = `overview-${title.toLowerCase()}`
   return (
     <section aria-labelledby={headingId}>
@@ -62,12 +70,12 @@ function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tas
       </div>
       {tasks.length === 0
         ? <p className="py-6 text-sm text-muted-foreground">{empty}</p>
-        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} />)}
+        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} onOpenTask={onOpenTask} />)}
     </section>
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar, realtimeSignal }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar, realtimeSignal }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
@@ -144,9 +152,9 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </div>
         ) : (
           <>
-            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} />
-            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} />
-            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} />
+            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
           </>
         )}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/35 p-4 sm:flex-row sm:items-center sm:justify-between">

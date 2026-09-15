@@ -48,6 +48,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "board" : workspaceViewFromHash(window.location.hash))
+  const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
   const [quickAddRequest, setQuickAddRequest] = useState(0)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -255,6 +256,18 @@ export default function Dashboard() {
     window.history.replaceState(null, "", "#settings-panel")
   }
 
+  const handleOpenBoard = () => {
+    setTaskToOpen(null)
+    setWorkspaceView("board")
+    window.history.replaceState(null, "", "#project-board")
+  }
+
+  const handleOpenTask = (taskId: string) => {
+    setTaskToOpen(taskId)
+    setWorkspaceView("board")
+    window.history.replaceState(null, "", "#project-board")
+  }
+
   const handleLogout = async () => {
     if (loggingOut) return
 
@@ -294,7 +307,7 @@ export default function Dashboard() {
           </div>
           <button
             type="button"
-            onClick={() => setWorkspaceView("board")}
+            onClick={handleOpenBoard}
             className="hidden h-10 min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-background px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:flex md:max-w-[31rem]"
             aria-label="Open task board"
           >
@@ -321,11 +334,11 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
           {showWorkspace && (
             <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
               <p className="text-xs font-medium text-muted-foreground">Current workspace</p>
@@ -408,8 +421,9 @@ export default function Dashboard() {
                       tasks={tasks}
                       loading={tasksLoading}
                       onToggleTask={handleToggleTask}
+                      onOpenTask={handleOpenTask}
                       onAddTask={handleAddTask}
-                      onOpenBoard={() => setWorkspaceView("board")}
+                      onOpenBoard={handleOpenBoard}
                       focusQuickAdd={quickAddRequest}
                       title={<span>{currentWorkspace.name}</span>}
                       realtimeSignal={realtime.lastEvent?.timestamp}
@@ -428,7 +442,7 @@ export default function Dashboard() {
                           {taskError ? (
                             <div className="p-8 text-center" role="alert"><p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p><Button onClick={() => void refreshTasks()} variant="outline" className="mt-4">Try again</Button></div>
                           ) : (
-                            <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
+                            <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
                           )}
                         </CardContent>
                     </Card>

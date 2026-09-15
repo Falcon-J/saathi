@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, memo, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, useMemo, memo, useRef, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -49,6 +49,7 @@ interface TaskListProps {
   onToggleTask: (id: string) => Promise<any>
   onDeleteTask: (id: string) => Promise<any>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
+  openTaskId?: string | null
   commentRefreshEvent?: RealtimeEvent | null
 }
 
@@ -62,6 +63,7 @@ export const TaskList = memo(function TaskList({
   onToggleTask,
   onDeleteTask,
   onEditTask,
+  openTaskId,
   commentRefreshEvent,
 }: TaskListProps) {
   const [input, setInput] = useState("")
@@ -82,6 +84,21 @@ export const TaskList = memo(function TaskList({
   const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
   const [selectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
   const [selectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const openedTaskIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!openTaskId) {
+      openedTaskIdRef.current = null
+      return
+    }
+    if (openedTaskIdRef.current === openTaskId) return
+    const task = tasks.find((item) => item.id === openTaskId)
+    if (!task) return
+    openedTaskIdRef.current = openTaskId
+    setEditingTask(task)
+    setEditingDraft(toTaskEditorDraft(task))
+    setEditError(null)
+  }, [openTaskId, tasks])
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
