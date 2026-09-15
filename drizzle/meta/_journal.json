@@ -22,6 +22,27 @@
       "when": 1788652800000,
       "idx": 2,
       "tag": "0002_deadlines_and_delivery"
+    },
+    {
+      "breakpoints": true,
+      "version": "7",
+      "when": 1788739200000,
+      "idx": 3,
+      "tag": "0003_task_comments"
+    },
+    {
+      "breakpoints": true,
+      "version": "7",
+      "when": 1788825600000,
+      "idx": 4,
+      "tag": "0004_ai_operation_logs"
+    },
+    {
+      "breakpoints": true,
+      "version": "7",
+      "when": 1788912000000,
+      "idx": 5,
+      "tag": "0005_outbox_claims"
     }
   ]
 }
