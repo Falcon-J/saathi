@@ -554,8 +554,9 @@ function TaskEditorDialog({
         </DialogHeader>
 
         {task && draft && (
-          <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <form id="task-editor-form" className="space-y-6 px-5 py-5 sm:px-6" onSubmit={onSubmit}>
               <section aria-labelledby="task-details-heading" className="space-y-4">
                 <div>
                   <h3 id="task-details-heading" className="text-sm font-semibold">Task details</h3>
@@ -650,16 +651,19 @@ function TaskEditorDialog({
                 </div>
               </section>
 
-              <TaskComments taskId={task.id} refreshEvent={commentRefreshEvent} />
-
               {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
+              </form>
+
+              <div className="px-5 pb-5 sm:px-6">
+                <TaskComments taskId={task.id} refreshEvent={commentRefreshEvent} />
+              </div>
             </div>
 
             <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>
+              <Button type="submit" form="task-editor-form" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>
             </DialogFooter>
-          </form>
+          </div>
         )}
       </DialogContent>
     </Dialog>
