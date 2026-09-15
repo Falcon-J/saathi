@@ -36,10 +36,17 @@ type WorkspaceView = "overview" | "board" | "team" | "settings"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 
+function workspaceViewFromHash(hash: string): WorkspaceView {
+  if (hash === "#workspace-header") return "overview"
+  if (hash === "#team-panel") return "team"
+  if (hash === "#settings-panel") return "settings"
+  return "board"
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("overview")
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "board" : workspaceViewFromHash(window.location.hash))
   const [quickAddRequest, setQuickAddRequest] = useState(0)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -198,7 +205,7 @@ export default function Dashboard() {
   const finishWorkspaceCreation = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
-    setWorkspaceView("overview")
+    setWorkspaceView("board")
   }
 
   const handleCreateWorkspace = async (name: string, details: { summary: string; targetDate: string | null }) => {
@@ -212,14 +219,14 @@ export default function Dashboard() {
     if (!currentWorkspace) return
     await archiveWorkspace(currentWorkspace.id, currentWorkspace.version)
     await refreshWorkspaces()
-    setWorkspaceView("overview")
+    setWorkspaceView("board")
   }
 
   const handleDeleteWorkspace = async () => {
     if (!currentWorkspace) return
     await deleteWorkspace(currentWorkspace.id)
     await refreshWorkspaces()
-    setWorkspaceView("overview")
+    setWorkspaceView("board")
   }
 
   const handleTransferOwnership = async (memberUserId: string) => {
@@ -239,7 +246,7 @@ export default function Dashboard() {
   const handleSelectWorkspace = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
-    setWorkspaceView("overview")
+    setWorkspaceView("board")
   }
 
   const handleLogout = async () => {
@@ -308,11 +315,11 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={() => setWorkspaceView("settings")} />
           {showWorkspace && (
             <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
               <p className="text-xs font-medium text-muted-foreground">Current workspace</p>

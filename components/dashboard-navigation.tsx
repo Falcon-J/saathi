@@ -55,6 +55,7 @@ function NavigationItem({
 export function DashboardNavigation({
   mode,
   hasWorkspace,
+  activeView,
   onOpenBoard,
   onOpenOverview,
   onOpenTeam,
@@ -64,6 +65,7 @@ export function DashboardNavigation({
 }: {
   mode: "rail" | "mobile"
   hasWorkspace: boolean
+  activeView?: "overview" | "board" | "team" | "settings"
   onOpenBoard?: () => void
   onOpenOverview?: () => void
   onOpenTeam?: () => void
@@ -71,7 +73,13 @@ export function DashboardNavigation({
   settingsActive?: boolean
   onOpenSettings?: () => void
 }) {
-  const [activeSection, setActiveSection] = useState<DashboardSectionId>("workspace-header")
+  const [activeSection, setActiveSection] = useState<DashboardSectionId>(activeView === "board" ? "project-board" : activeView === "team" ? "team-panel" : "workspace-header")
+
+  useEffect(() => {
+    if (activeView === "board") setActiveSection("project-board")
+    else if (activeView === "team") setActiveSection("team-panel")
+    else if (activeView === "overview") setActiveSection("workspace-header")
+  }, [activeView])
 
   useEffect(() => {
     const sections = dashboardNavigationItems
