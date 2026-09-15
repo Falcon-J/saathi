@@ -60,7 +60,7 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
 }
 export async function listInvitationRecords(actor:Actor,workspaceId?:string):Promise<Invitation[]> {
   return getDb().begin("isolation level repeatable read read only",async tx=>{
-    if(workspaceId){const [w]=await tx`SELECT id FROM workspaces WHERE id=${workspaceId} AND owner_user_id=${actor.id}`;if(!w)throw new InvitationError("Only the owner can view workspace invitations")}
+    if(workspaceId){const [w]=await tx`SELECT id FROM workspaces WHERE id=${workspaceId} AND owner_user_id=${actor.id} AND archived_at IS NULL`;if(!w)throw new InvitationError("Only the owner can view active workspace invitations")}
     const rows=workspaceId ? await tx`SELECT id FROM workspace_invitations WHERE workspace_id=${workspaceId} ORDER BY created_at DESC LIMIT 100`
       : await tx`SELECT id FROM workspace_invitations WHERE invitee_email=${actor.email.toLowerCase()} AND status='pending' AND expires_at>now() ORDER BY created_at DESC LIMIT 100`
     return Promise.all(rows.map(r=>projection(tx,r.id)))
@@ -79,7 +79,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
     if(!location)throw new InvitationError("Invitation unavailable")
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${location.workspace_id} FOR UPDATE`
     const [i]=await tx`SELECT * FROM workspace_invitations WHERE id=${id} FOR UPDATE`
-    if(!w || !i)throw new InvitationError("Invitation unavailable")
+    if(!w || !i || w.archived_at)throw new InvitationError("Invitation unavailable")
     const ownerAction=action==="revoked"||action==="resend"
     if(ownerAction?w.owner_user_id!==actor.id:i.invitee_email!==actor.email.toLowerCase())throw new InvitationError("This invitation is not available for your account")
     if(action==="accepted" && i.status==="accepted" && i.accepted_by_user_id===actor.id)return w.id as string
