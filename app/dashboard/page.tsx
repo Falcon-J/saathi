@@ -14,6 +14,7 @@ import { PageLoader } from "@/components/page-loader"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
 import { TaskList } from "@/components/task-list"
+import { TimeSensitiveGreeting } from "@/components/time-sensitive-greeting"
 import { WorkspaceSettings } from "@/components/workspace-settings"
 import { getDashboardState } from "@/lib/dashboard-state"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
@@ -343,7 +344,7 @@ export default function Dashboard() {
               <section className="mb-6 flex flex-col gap-5 rounded-[var(--saathi-radius-container)] border border-border bg-card px-5 py-6 shadow-sm sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="saathi-label text-primary">{currentWorkspace?.name}</p>
-                  <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.05em] sm:text-4xl">Move work forward, {user.username}.</h2>
+                  <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.05em] sm:text-4xl"><TimeSensitiveGreeting username={user.username} /></h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">A shared place to turn intention into steady progress.</p>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:max-w-[30rem] lg:justify-end">
