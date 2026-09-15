@@ -101,7 +101,7 @@ export async function updateWorkspaceRecord(userId: string, workspaceId: string,
     if (row.version !== expectedVersion) throw new Error("Workspace changed. Refresh and try again.")
     await tx`UPDATE workspaces SET name = ${data.name}, summary = ${data.summary}, target_at = ${data.targetAt},
       timezone = ${data.timezone}, version = version + 1, updated_at = now() WHERE id = ${workspaceId} AND version = ${expectedVersion}`
-    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-created", entityType: "workspace", entityId: workspaceId,
+    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
       metadata: { action: "workspace_updated" } })
     return (await readWorkspace(workspaceId, userId, tx))!
   })

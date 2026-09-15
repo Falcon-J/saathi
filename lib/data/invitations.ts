@@ -54,7 +54,7 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
     const id=randomUUID()
     await tx`INSERT INTO workspace_invitations(id,workspace_id,inviter_user_id,invitee_email,expires_at) VALUES(${id},${workspaceId},${actor.id},${recipient},now()+interval '7 days')`
     await queueEmail(tx,id)
-    await appendDomainEvent(tx,{workspaceId,actorUserId:actor.id,type:"workspace-created",entityType:"invitation",entityId:id,metadata:{action:"invitation_created"}})
+    await appendDomainEvent(tx,{workspaceId,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:"invitation_created"}})
     return projection(tx,id)
   })
 }
@@ -90,7 +90,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
       const [recent]=await tx`SELECT created_at,status FROM invitation_emails WHERE invitation_id=${id} ORDER BY created_at DESC LIMIT 1`
       if(recent && (recent.status==="queued" || Date.now()-new Date(recent.created_at).getTime()<60000))throw new InvitationError("An invitation email is already queued or was just sent")
       await queueEmail(tx,id)
-      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"workspace-created",entityType:"invitation",entityId:id,metadata:{action:"invitation_resent"}})
+      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:"invitation_resent"}})
       return w.id as string
     }
     await tx`UPDATE workspace_invitations SET status=${action},responded_at=now(),updated_at=now(),accepted_by_user_id=${action==="accepted"?actor.id:null} WHERE id=${id}`
@@ -99,7 +99,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
       await tx`INSERT INTO workspace_members(workspace_id,user_id) VALUES(${w.id},${actor.id}) ON CONFLICT DO NOTHING`
       await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"member-added",entityType:"invitation",entityId:id})
     }else{
-      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"workspace-created",entityType:"invitation",entityId:id,metadata:{action:`invitation_${action}`}})
+      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:`invitation_${action}`}})
     }
     return w.id as string
   })

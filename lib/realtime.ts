@@ -11,6 +11,8 @@ export type RealtimeEventType =
     | 'user-joined'
     | 'user-left'
     | 'workspace-created'
+    | 'workspace-updated'
+    | 'invitation-updated'
     | 'member-added'
     | 'member-removed'
 
@@ -37,6 +39,8 @@ const realtimeEventSchema = z.object({
         'user-joined',
         'user-left',
         'workspace-created',
+        'workspace-updated',
+        'invitation-updated',
         'member-added',
         'member-removed',
     ]),
