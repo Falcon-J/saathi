@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { groupTasksForOverview } from "./task-overview.ts"
 import { calendarDateKey } from "./task-time.ts"
+import { todayCalendarDate } from "./task-time.ts"
 
 const baseTask = {
   title: "Task",
@@ -12,6 +13,12 @@ const baseTask = {
 test("keeps valid date-only deadlines as calendar dates", () => {
   assert.equal(calendarDateKey("2026-09-03"), "2026-09-03")
   assert.equal(calendarDateKey("2026-02-30"), null)
+})
+
+test("derives Today from the workspace timezone", () => {
+  const now = new Date("2026-09-15T23:30:00.000Z")
+  assert.equal(todayCalendarDate("Asia/Kolkata", now), "2026-09-16")
+  assert.equal(todayCalendarDate("America/Los_Angeles", now), "2026-09-15")
 })
 
 test("groups completed tasks separately from execution buckets", () => {

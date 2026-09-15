@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
-import { formatTaskDue } from "@/lib/task-time"
+import { formatTaskDue, todayCalendarDate } from "@/lib/task-time"
 import { ActivityHistory } from "@/components/activity-history"
 
 type WorkspaceOverviewProps = {
@@ -66,7 +66,7 @@ function TaskSection({ title, tasks, empty, onToggleTask }: { title: string; tas
 }
 
 export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar, realtimeSignal }: WorkspaceOverviewProps) {
-  const groups = groupTasksForOverview(tasks)
+  const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)

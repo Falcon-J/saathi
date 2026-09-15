@@ -24,6 +24,12 @@ export function calendarDateKey(value?: string): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10)
 }
 
+export function todayCalendarDate(timeZone = "UTC", now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now)
+  const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
 export function localDateTimeToIso(date: string, time: string): string | undefined {
   if (!date || !time) return undefined
   const parsed = new Date(`${date}T${time}`)
