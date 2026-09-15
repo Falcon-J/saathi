@@ -49,3 +49,13 @@ test("uses due dates for legacy tasks without an explicit bucket", () => {
   assert.deepEqual(groups.today.map((task) => task.id), ["overdue", "undated"])
   assert.deepEqual(groups.next.map((task) => task.id), ["future"])
 })
+
+test("uses an explicit due date over a stale planning bucket", () => {
+  const groups = groupTasksForOverview([
+    { ...baseTask, id: "future", bucket: "today", dueDate: "2026-09-03" },
+    { ...baseTask, id: "today", bucket: "next", dueDate: "2026-09-02" },
+  ], "2026-09-02")
+
+  assert.deepEqual(groups.today.map((task) => task.id), ["today"])
+  assert.deepEqual(groups.next.map((task) => task.id), ["future"])
+})

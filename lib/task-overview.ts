@@ -32,18 +32,15 @@ export function groupTasksForOverview<TTask extends OverviewTask>(
       continue
     }
 
-    if (task.bucket === "next") {
-      groups.next.push(task)
-      continue
-    }
-    if (task.bucket === "today") {
-      groups.today.push(task)
+    // An explicit deadline is authoritative; bucket is only a fallback for older undated tasks.
+    const dueDate = calendarDateKey(task.dueDate || task.dueAt)
+    if (dueDate) {
+      if (dueDate > today) groups.next.push(task)
+      else groups.today.push(task)
       continue
     }
 
-    // Prefer the explicit calendar date so a local due time does not shift the board day at UTC boundaries.
-    const dueDate = calendarDateKey(task.dueDate || task.dueAt)
-    if (dueDate && dueDate > today) groups.next.push(task)
+    if (task.bucket === "next") groups.next.push(task)
     else groups.today.push(task)
   }
 
