@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { X, Plus, Users, Loader2 } from "lucide-react"
+import { X, Plus, Users, Loader2, Crown } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Member } from "@/app/actions/workspaces"
 import { getWorkspaceInvitations, resendInvitation, revokeInvitation, type Invitation } from "@/app/actions/invitations"
@@ -17,9 +17,10 @@ interface MemberManagerProps {
   workspaceOwnerId: string
   onAddMember: (emailOrUsername: string) => Promise<any>
   onRemoveMember: (memberEmail: string) => Promise<any>
+  onTransferOwnership?: (memberUserId: string) => Promise<any>
 }
 
-export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember }: MemberManagerProps) {
+export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember, onTransferOwnership }: MemberManagerProps) {
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [invitationOperation, setInvitationOperation] = useState<string | null>(null)
   const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null)
@@ -27,6 +28,8 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
   const [isAdding, setIsAdding] = useState(false)
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
   const [operatingMemberEmail, setOperatingMemberEmail] = useState<string | null>(null)
+  const [transferConfirm, setTransferConfirm] = useState<Member | null>(null)
+  const [transferring, setTransferring] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
 
   // Check if current user is the workspace owner
@@ -104,6 +107,22 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
     } finally {
       setRemoveConfirm(null)
       setOperatingMemberEmail(null)
+    }
+  }
+
+  const handleTransferOwnership = async () => {
+    if (!transferConfirm || !onTransferOwnership) return
+    setTransferring(true)
+    setLastError(null)
+    try {
+      const result = await onTransferOwnership(transferConfirm.userId)
+      const mutationError = getMutationError(result)
+      if (mutationError) throw new Error(mutationError)
+    } catch (caughtError) {
+      setLastError(caughtError instanceof Error ? caughtError.message : "Unable to transfer ownership.")
+    } finally {
+      setTransferring(false)
+      setTransferConfirm(null)
     }
   }
 
@@ -205,15 +224,10 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
                     <span className="text-xs text-muted-foreground">{member.email}</span>
                   </div>
                   {/* Only show remove button if user has permission */}
-                  {canRemoveMember(member) && (
-                    <button
-                      onClick={() => setRemoveConfirm(member.email)}
-                      className="text-muted-foreground hover:text-destructive transition-colors"
-                      title={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : "Remove member"}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isOwner && onTransferOwnership && member.role !== "owner" && <button type="button" onClick={() => setTransferConfirm(member)} className="text-muted-foreground hover:text-primary transition-colors" title={`Make ${member.username} the owner`}><Crown className="w-4 h-4" /></button>}
+                    {canRemoveMember(member) && <button type="button" onClick={() => setRemoveConfirm(member.email)} className="text-muted-foreground hover:text-destructive transition-colors" title={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : "Remove member"}><X className="w-4 h-4" /></button>}
+                  </div>
                 </div>
               ))
             )}
@@ -230,6 +244,15 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
         onConfirm={() => removeConfirm && handleRemoveMember(removeConfirm)}
         onCancel={() => setRemoveConfirm(null)}
         isLoading={operatingMemberEmail === removeConfirm}
+      />
+      <ConfirmDialog
+        open={Boolean(transferConfirm)}
+        title="Transfer workspace ownership"
+        description={transferConfirm ? `Make ${transferConfirm.username} the owner? You will remain a member without owner controls.` : "Transfer workspace ownership?"}
+        actionLabel="Transfer ownership"
+        onConfirm={() => void handleTransferOwnership()}
+        onCancel={() => setTransferConfirm(null)}
+        isLoading={transferring}
       />
     </>
   )
