@@ -2,6 +2,28 @@ function pad(value: number): string {
   return String(value).padStart(2, "0")
 }
 
+export function calendarDateKey(value?: string): string | null {
+  if (!value) return null
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number)
+    const parsed = new Date(Date.UTC(year, month - 1, day))
+
+    if (
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      return null
+    }
+
+    return value
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10)
+}
+
 export function localDateTimeToIso(date: string, time: string): string | undefined {
   if (!date || !time) return undefined
   const parsed = new Date(`${date}T${time}`)

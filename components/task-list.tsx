@@ -254,26 +254,6 @@ export const TaskList = memo(function TaskList({
     }
   }
 
-  const isOverdue = (dueDate?: string) => {
-    if (!dueDate) return false
-    return new Date(dueDate) < new Date()
-  }
-
-  const formatDueDate = (dueDate?: string) => {
-    if (!dueDate) return null
-    const date = new Date(dueDate)
-    const today = new Date()
-    const diffTime = date.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) return "Today"
-    if (diffDays === 1) return "Tomorrow"
-    if (diffDays === -1) return "Yesterday"
-    if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`
-    if (diffDays <= 7) return `${diffDays} days left`
-    return date.toLocaleDateString()
-  }
-
   const completedCount = tasks.filter((t) => t.completed).length
   const getTaskStatus = (task: Task) => task.status ?? (task.completed ? "done" : "todo")
   const todoTasks = filteredTasks.filter((task) => getTaskStatus(task) === "todo")

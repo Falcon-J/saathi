@@ -1,12 +1,18 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { groupTasksForOverview } from "./task-overview.ts"
+import { calendarDateKey } from "./task-time.ts"
 
 const baseTask = {
   title: "Task",
   completed: false,
   status: "todo" as const,
 }
+
+test("keeps valid date-only deadlines as calendar dates", () => {
+  assert.equal(calendarDateKey("2026-09-03"), "2026-09-03")
+  assert.equal(calendarDateKey("2026-02-30"), null)
+})
 
 test("groups completed tasks separately from execution buckets", () => {
   const groups = groupTasksForOverview([
