@@ -124,6 +124,23 @@ export async function archiveWorkspaceRecord(userId: string, workspaceId: string
   await flushOutbox(workspaceId)
 }
 
+export async function transferWorkspaceOwnershipRecord(userId: string, workspaceId: string, newOwnerUserId: string, expectedVersion: number): Promise<void> {
+  if (!newOwnerUserId || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new Error("Workspace ownership transfer is invalid")
+  await getDb().begin(async tx => {
+    const row = await requireWorkspaceOwner(tx, workspaceId, userId)
+    if (row.archived_at) throw new Error("Archived workspaces cannot transfer ownership")
+    if (row.version !== expectedVersion) throw new Error("Workspace changed. Refresh and try again.")
+    if (newOwnerUserId === userId) throw new Error("Choose another workspace member")
+    const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id = ${workspaceId} AND user_id = ${newOwnerUserId}`
+    if (!member) throw new Error("New owner must already be a workspace member")
+    await tx`UPDATE workspaces SET owner_user_id = ${newOwnerUserId}, version = version + 1, updated_at = now()
+      WHERE id = ${workspaceId} AND version = ${expectedVersion}`
+    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
+      metadata: { action: "ownership_transferred" } })
+  })
+  await flushOutbox(workspaceId)
+}
+
 export async function removeWorkspaceMember(userId: string, workspaceId: string, memberEmail: string): Promise<void> {
   await getDb().begin(async tx => {
     const rows = await tx`SELECT * FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`
