@@ -334,7 +334,7 @@ export default function Dashboard() {
           <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
-            {showWorkspace && dashboardState === "workspace" && (
+            {showWorkspace && dashboardState === "workspace" && workspaceView !== "board" && (
               <section className="mb-6 flex flex-col gap-5 rounded-[var(--saathi-radius-container)] border border-border bg-card px-5 py-6 shadow-sm sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="saathi-label text-primary">{currentWorkspace?.name}</p>

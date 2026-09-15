@@ -82,6 +82,8 @@ export function DashboardNavigation({
   }, [activeView])
 
   useEffect(() => {
+    if (activeView) return
+
     const sections = dashboardNavigationItems
       .map((item) => document.getElementById(item.id))
       .filter((section): section is HTMLElement => section !== null)
@@ -104,7 +106,7 @@ export function DashboardNavigation({
 
     sections.forEach((section) => observer.observe(section))
     return () => observer.disconnect()
-  }, [hasWorkspace])
+  }, [activeView, hasWorkspace])
 
   const navigateTo = (id: DashboardSectionId) => {
     const target = getDashboardNavigationTarget(id)
