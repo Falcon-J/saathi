@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
-import { formatTaskDue, todayCalendarDate } from "@/lib/task-time"
+import { formatCalendarDate, formatTaskDue, todayCalendarDate } from "@/lib/task-time"
 import { ActivityHistory } from "@/components/activity-history"
 
 type WorkspaceOverviewProps = {
@@ -100,7 +100,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
             <div className="flex items-center gap-2 text-sm font-medium text-primary"><Target className="size-4" />Your progress</div>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="text-2xl font-bold tracking-tight sm:text-3xl">{title ?? workspace.name}</div>
-              {workspace.targetDate && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatTaskDue(undefined, workspace.targetDate)}</span>}
+              {workspace.targetAt && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatCalendarDate(workspace.targetAt, workspace.timezone)}</span>}
             </div>
             {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
           </div>

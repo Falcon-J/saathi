@@ -30,6 +30,19 @@ export function todayCalendarDate(timeZone = "UTC", now = new Date()): string {
   return `${values.year}-${values.month}-${values.day}`
 }
 
+export function calendarDateAt(value?: string, timeZone = "UTC"): string {
+  if (!value) return ""
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? "" : todayCalendarDate(timeZone, parsed)
+}
+
+export function formatCalendarDate(value?: string, timeZone = "UTC"): string | null {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return new Intl.DateTimeFormat(undefined, { timeZone, month: "short", day: "numeric", year: "numeric" }).format(parsed)
+}
+
 export function localDateTimeToIso(date: string, time: string): string | undefined {
   if (!date || !time) return undefined
   const parsed = new Date(`${date}T${time}`)

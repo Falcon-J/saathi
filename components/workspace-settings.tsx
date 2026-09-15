@@ -5,11 +5,12 @@ import { updateWorkspace, type Workspace } from "@/app/actions/workspaces"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { calendarDateAt } from "@/lib/task-time"
 
 export function WorkspaceSettings({ workspace, onSaved, onArchived, onDeleted }: { workspace: Workspace; onSaved: () => Promise<void>; onArchived?: () => Promise<void>; onDeleted?: () => Promise<void> }) {
   const [name, setName] = useState(workspace.name)
   const [summary, setSummary] = useState(workspace.summary ?? "")
-  const [targetDate, setTargetDate] = useState(workspace.targetDate?.slice(0, 10) ?? "")
+  const [targetDate, setTargetDate] = useState(calendarDateAt(workspace.targetAt ?? undefined, workspace.timezone))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)

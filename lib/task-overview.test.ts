@@ -1,8 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { groupTasksForOverview } from "./task-overview.ts"
-import { calendarDateKey } from "./task-time.ts"
-import { todayCalendarDate } from "./task-time.ts"
+import { calendarDateKey, calendarDateAt, todayCalendarDate } from "./task-time.ts"
 
 const baseTask = {
   title: "Task",
@@ -19,6 +18,12 @@ test("derives Today from the workspace timezone", () => {
   const now = new Date("2026-09-15T23:30:00.000Z")
   assert.equal(todayCalendarDate("Asia/Kolkata", now), "2026-09-16")
   assert.equal(todayCalendarDate("America/Los_Angeles", now), "2026-09-15")
+})
+
+test("keeps workspace target dates in the workspace timezone", () => {
+  const target = "2026-09-15T23:30:00.000Z"
+  assert.equal(calendarDateAt(target, "Asia/Kolkata"), "2026-09-16")
+  assert.equal(calendarDateAt(target, "America/Los_Angeles"), "2026-09-15")
 })
 
 test("groups completed tasks separately from execution buckets", () => {
