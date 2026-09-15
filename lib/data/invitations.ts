@@ -45,7 +45,7 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
   if(recipient===actor.email.toLowerCase())throw new InvitationError("You cannot invite yourself to the workspace")
   return getDb().begin(async tx=>{
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${workspaceId} FOR UPDATE`
-    if(!w || w.owner_user_id!==actor.id)throw new InvitationError("Only workspace owner can send invitations")
+    if(!w || w.owner_user_id!==actor.id || w.archived_at)throw new InvitationError("Only an active workspace owner can send invitations")
     const [member]=await tx`SELECT m.user_id FROM workspace_members m JOIN auth.users u ON u.id=m.user_id WHERE m.workspace_id=${workspaceId} AND lower(u.email)=${recipient}`
     if(member)throw new InvitationError("User is already a member of this workspace")
     await tx`UPDATE workspace_invitations SET status='expired',updated_at=now() WHERE workspace_id=${workspaceId} AND invitee_email=${recipient} AND status='pending' AND expires_at<=now()`

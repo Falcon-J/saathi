@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CircleHelp, Crown, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
+import { archiveWorkspace } from "@/app/actions/workspaces"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { InvitationNotifications } from "@/components/invitation-notifications"
@@ -207,6 +208,13 @@ export default function Dashboard() {
     return {}
   }
 
+  const handleArchiveWorkspace = async () => {
+    if (!currentWorkspace) return
+    await archiveWorkspace(currentWorkspace.id, currentWorkspace.version)
+    await refreshWorkspaces()
+    setWorkspaceView("overview")
+  }
+
   const handleApprovePlan = async (plan: WorkspacePlan) => {
     const result = await createWorkspaceFromPlan(plan)
     if (result.error || !result.workspace) return { error: result.error ?? "Unable to create the workspace." }
@@ -359,7 +367,7 @@ export default function Dashboard() {
                 )}
 
                 {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
-                  <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} />
+                  <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} />
                 ) : workspaceView === "team" ? (
                   <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Work better together.</CardTitle><CardDescription>Invite your team, manage members, and keep everyone aligned.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (
