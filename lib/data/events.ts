@@ -16,7 +16,15 @@ export async function appendDomainEvent(tx: Transaction, event: {
 }
 
 /** Best effort only. A failed publication leaves the durable row for retry. */
-export async function flushOutbox(workspaceId?: string): Promise<void> {
+export type OutboxFlushResult = {
+  attempted: number
+  published: number
+  failed: number
+  unavailable: boolean
+}
+
+export async function flushOutbox(workspaceId?: string): Promise<OutboxFlushResult> {
+  const result: OutboxFlushResult = { attempted: 0, published: 0, failed: 0, unavailable: false }
   try {
     const { realtimeService } = await import("../realtime.ts")
     await getDb().begin(async tx => {
@@ -24,18 +32,23 @@ export async function flushOutbox(workspaceId?: string): Promise<void> {
         AND (${workspaceId ?? null}::uuid IS NULL OR workspace_id = ${workspaceId ?? null}::uuid)
         ORDER BY created_at LIMIT 25 FOR UPDATE SKIP LOCKED`
       for (const row of rows) {
+        result.attempted++
         try {
           await realtimeService.publishEvent(row.payload)
           await tx`UPDATE outbox_events SET published_at = now(), attempt_count = attempt_count + 1,
             last_error_category = NULL WHERE id = ${row.id}`
+          result.published++
         } catch {
           await tx`UPDATE outbox_events SET attempt_count = attempt_count + 1,
             last_error_category = 'PUBLICATION_UNAVAILABLE' WHERE id = ${row.id}`
+          result.failed++
         }
       }
     })
   } catch {
     // A committed domain mutation stays successful if the retry worker is unavailable.
+    result.unavailable = true
     console.warn("[Saathi] Outbox delivery deferred")
   }
+  return result
 }

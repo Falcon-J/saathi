@@ -8,3 +8,8 @@ test("the authenticated internal worker enforces AI metadata retention", () => {
   assert.match(source, /deleteExpiredAiOperations/)
   assert.match(source, /await deleteExpiredAiOperations\(\)/)
 })
+
+test("the internal worker exposes degraded delivery to its caller", () => {
+  assert.match(source, /status: degraded \? "deferred" : "ok"/)
+  assert.match(source, /status: degraded \? 503 : 200/)
+})
