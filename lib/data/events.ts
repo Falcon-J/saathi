@@ -27,24 +27,31 @@ export async function flushOutbox(workspaceId?: string): Promise<OutboxFlushResu
   const result: OutboxFlushResult = { attempted: 0, published: 0, failed: 0, unavailable: false }
   try {
     const { realtimeService } = await import("../realtime.ts")
-    await getDb().begin(async tx => {
-      const rows = await tx`SELECT id, payload FROM outbox_events WHERE published_at IS NULL
-        AND (${workspaceId ?? null}::uuid IS NULL OR workspace_id = ${workspaceId ?? null}::uuid)
-        ORDER BY created_at LIMIT 25 FOR UPDATE SKIP LOCKED`
-      for (const row of rows) {
-        result.attempted++
-        try {
-          await realtimeService.publishEvent(row.payload)
-          await tx`UPDATE outbox_events SET published_at = now(), attempt_count = attempt_count + 1,
-            last_error_category = NULL WHERE id = ${row.id}`
-          result.published++
-        } catch {
-          await tx`UPDATE outbox_events SET attempt_count = attempt_count + 1,
-            last_error_category = 'PUBLICATION_UNAVAILABLE' WHERE id = ${row.id}`
-          result.failed++
-        }
+    const claimToken = randomUUID()
+    const rows = await getDb().begin(async tx => tx`UPDATE outbox_events SET claimed_at = now(), claim_token = ${claimToken}
+      WHERE id IN (
+        SELECT id FROM outbox_events
+        WHERE published_at IS NULL AND (claimed_at IS NULL OR claimed_at < now() - interval '5 minutes')
+          AND (${workspaceId ?? null}::uuid IS NULL OR workspace_id = ${workspaceId ?? null}::uuid)
+        ORDER BY created_at LIMIT 25 FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id, payload`)
+
+    for (const row of rows) {
+      result.attempted++
+      try {
+        await realtimeService.publishEvent(row.payload)
+        await getDb()`UPDATE outbox_events SET published_at = now(), attempt_count = attempt_count + 1,
+          last_error_category = NULL, claimed_at = NULL, claim_token = NULL
+          WHERE id = ${row.id} AND claim_token = ${claimToken}`
+        result.published++
+      } catch {
+        await getDb()`UPDATE outbox_events SET attempt_count = attempt_count + 1,
+          last_error_category = 'PUBLICATION_UNAVAILABLE', claimed_at = NULL, claim_token = NULL
+          WHERE id = ${row.id} AND claim_token = ${claimToken}`
+        result.failed++
       }
-    })
+    }
   } catch {
     // A committed domain mutation stays successful if the retry worker is unavailable.
     result.unavailable = true
