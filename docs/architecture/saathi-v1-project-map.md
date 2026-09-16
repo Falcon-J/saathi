@@ -115,8 +115,8 @@ flowchart LR
 | Capability | Route/module | Status |
 | --- | --- | --- |
 | Member list | `components/member-manager.tsx`, workspace projection | Implemented in code |
-| Invite member | `app/actions/invitations.ts`, invitation data modules | Implemented in code; email delivery pending verification |
-| Accept/decline/revoke/expire invitation | `lib/data/invitations.ts`, invitation route | Implemented in code; two-user/manual verification pending |
+| Invite member | `app/actions/invitations.ts`, invitation data modules | Implemented in code; a recipient need not already have an account; email delivery pending verification |
+| Accept/decline/revoke/expire invitation | `lib/data/invitations.ts`, invitation route | Implemented in code; invitation link supports account creation or sign-in; two-user/manual verification pending |
 | Remove member and unassign open tasks | `lib/data/workspaces.ts` | Implemented in code; manual verification pending |
 | Ownership controls | Workspace owner checks, `app/actions/workspaces.ts` | Implemented in code; two-user/manual verification pending |
 | Workspace settings | `components/workspace-settings.tsx` | Implemented in code; live archive/delete/transfer verification pending |
