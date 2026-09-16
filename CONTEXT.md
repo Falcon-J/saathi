@@ -11,7 +11,8 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 - **Owner**: the single workspace member allowed to edit workspace settings, manage membership, transfer ownership, archive, or delete the workspace.
 - **Member**: a user who can read the workspace and participate in its tasks.
 - **Invitation**: a time-limited request for one normalized email address to join one workspace.
-- **Task**: a unit of work belonging to exactly one workspace.
+- **Task**: one independently actionable outcome, normally owned by one member and belonging to exactly one workspace.
+- **Task comment**: an immutable member-authored note that adds execution context to one task.
 - **Activity event**: a durable audit fact created by a successful domain mutation.
 - **Realtime event**: an ephemeral notification that tells connected clients to refresh authoritative data.
 - **Workspace version**: an integer incremented on workspace metadata changes to detect stale edits.
@@ -20,7 +21,7 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 ## Authoritative ownership
 
 - Supabase Auth owns identity, passwords, verification, recovery, and sessions.
-- Supabase PostgreSQL owns profiles, workspaces, membership, invitations, tasks, activity events, and durable outbox events.
+- Supabase PostgreSQL owns profiles, workspaces, membership, invitations, tasks, task comments, activity events, and durable outbox events.
 - Upstash Redis owns rate-limit state, short-lived idempotency claims, presence, and realtime streams.
 - SSE transports notifications only. A client always reconciles against PostgreSQL after reconnect or a version mismatch.
 - Groq may interpret user intent but never authorizes users or confirms persistence.
@@ -52,4 +53,4 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 - Existing Redis Streams and SSE event names remain compatible during the persistence transition.
 - Existing Redis durable records are retained temporarily for rollback but are not dual-written.
 - The PostgreSQL cutover starts with an intentionally empty dataset unless a separate import is explicitly approved.
-- Date and time are represented by `dueAt`/`targetAt` instants plus an IANA workspace timezone; legacy date-only fields are removed at the cutover.
+- A task uses either a date-only `dueDate` or a precise `dueAt` instant, plus the workspace IANA timezone for rendering. Existing date-only commitments remain calendar dates rather than being converted to instants.
