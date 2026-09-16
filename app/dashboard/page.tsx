@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleHelp, Crown, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
+import { CircleHelp, Crown, Keyboard, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@/app/actions/workspaces"
 import type { TaskUpdate } from "@/app/tasks/contract"
@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { getSession, logout } from "@/lib/auth-simple"
@@ -50,6 +51,8 @@ export default function Dashboard() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "board" : workspaceViewFromHash(window.location.hash))
   const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
   const [quickAddRequest, setQuickAddRequest] = useState(0)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [isMac, setIsMac] = useState(false)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
@@ -87,6 +90,10 @@ export default function Dashboard() {
     window.addEventListener("storage", handleStorageChange)
     return () => window.removeEventListener("storage", handleStorageChange)
   }, [info, router])
+
+  useEffect(() => {
+    setIsMac(navigator.platform.toUpperCase().includes("MAC") || navigator.userAgent.includes("Mac OS X"))
+  }, [])
 
   useEffect(() => {
     const handleHashChange = () => setWorkspaceView(workspaceViewFromHash(window.location.hash))
@@ -322,17 +329,18 @@ export default function Dashboard() {
             <SaathiLogo className="size-9" priority />
             <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenBoard}
-            className="hidden h-10 min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-background px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:flex md:max-w-[31rem]"
-            aria-label="Open task board"
-          >
-            <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">Open the task board</span>
-            <kbd className="ml-auto hidden rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground lg:inline">⌘ K</kbd>
-          </button>
+          <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => setShortcutsOpen(true)}
+              variant="ghost"
+              size="icon"
+              aria-label="Keyboard shortcuts"
+              title="Keyboard shortcuts"
+            >
+              <Keyboard className="size-5" />
+            </Button>
             <Button asChild variant="ghost" size="icon">
               <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
                 <CircleHelp className="size-5" />
@@ -349,6 +357,29 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <DialogContent className="border-border bg-card text-card-foreground sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Keyboard shortcuts</DialogTitle>
+            <DialogDescription>Use these shortcuts to move around Saathi faster.</DialogDescription>
+          </DialogHeader>
+          <div className="divide-y divide-border rounded-lg border border-border">
+            <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <span>Open task board</span>
+              <kbd className="rounded border border-border bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">{isMac ? "⌘ K" : "Ctrl K"}</kbd>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <span>Toggle sidebar</span>
+              <kbd className="rounded border border-border bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">{isMac ? "⌘ B" : "Ctrl B"}</kbd>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <span>Close an open dialog</span>
+              <kbd className="rounded border border-border bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">Esc</kbd>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
       <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>

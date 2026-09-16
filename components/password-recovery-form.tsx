@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { requestPasswordReset, updatePassword } from '@/lib/auth-simple'
 import { SaathiLogo } from '@/components/saathi-logo'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { CheckCircle2, KeyRound, Mail } from 'lucide-react'
 
 export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -25,7 +27,14 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
     try {
       const result = mode === 'request' ? await requestPasswordReset(email) : await updatePassword(password)
       if (result.error) setError(result.error)
-      else if (result.success) setMessage(result.message || 'Request completed.')
+      else if (result.success) {
+        if (mode === 'update') {
+          router.replace('/login?reset=success')
+          router.refresh()
+        } else {
+          setMessage(result.message || 'Request completed.')
+        }
+      }
     } catch { setError('Account service is temporarily unavailable. Please try again.') }
     finally { setPending(false) }
   }
