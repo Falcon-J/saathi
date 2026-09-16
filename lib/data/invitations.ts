@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { getDb, type Transaction } from "../db/client.ts"
+import { renderInvitationEmail } from "../email-templates.ts"
 import { appendDomainEvent, flushOutbox } from "./events.ts"
 import type { InvitationStatus } from "../invitation-domain.ts"
 
@@ -36,10 +37,8 @@ async function queueEmail(tx:Transaction,invitationId:string) {
   const origin=new URL(base)
   if(origin.protocol!=="https:" && !["localhost","127.0.0.1"].includes(origin.hostname))throw new InvitationError("Invitation email is not configured")
   const link=new URL(`/invitations/${invitationId}`,origin).toString()
-  await tx`INSERT INTO invitation_emails(id,invitation_id,payload) VALUES(${randomUUID()},${invitationId},${tx.json({
-    from,to:[invite.inviteeEmail],subject:"You have been invited to a Saathi workspace",
-    text:`${invite.inviterUsername} invited you to ${invite.workspaceName}.\n\nOpen the invitation, then create an account or sign in with the email address that received this invitation to review and accept:\n${link}\n\nThis invitation expires in seven days. Ignore this email if it was unexpected.`
-  })})`
+  const email=renderInvitationEmail({inviterName:invite.inviterUsername,workspaceName:invite.workspaceName,invitationUrl:link})
+  await tx`INSERT INTO invitation_emails(id,invitation_id,payload) VALUES(${randomUUID()},${invitationId},${tx.json({from,to:[invite.inviteeEmail],...email})})`
 }
 export async function createInvitationRecord(actor:Actor,workspaceId:string,email:string):Promise<Invitation> {
   const parsed=z.string().trim().email().max(255).safeParse(email)

@@ -26,6 +26,10 @@ test("dashboard keeps keyboard and browser navigation aligned with the active vi
   assert.match(source, /event\.metaKey \|\| event\.ctrlKey/)
   assert.match(source, /event\.preventDefault\(\)/)
   assert.match(source, /window\.addEventListener\("hashchange", handleHashChange\)/)
+  assert.match(source, /aria-label="Keyboard shortcuts"/)
+  assert.match(source, /<Dialog open=\{shortcutsOpen\}/)
+  assert.match(source, /isMac \? "⌘ K" : "Ctrl K"/)
+  assert.doesNotMatch(source, />Open the task board</)
 })
 
 test("app and dashboard routes provide intentional loading UI", () => {

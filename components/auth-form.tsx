@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -28,7 +28,12 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
+  const [passwordResetComplete, setPasswordResetComplete] = useState(false)
   const isSignup = mode === "signup"
+
+  useEffect(() => {
+    if (!isSignup) setPasswordResetComplete(new URLSearchParams(window.location.search).get("reset") === "success")
+  }, [isSignup])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -131,6 +136,8 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <h1 className="text-[2rem] font-semibold leading-none tracking-[-0.055em] text-[#122039] sm:text-[clamp(1.1rem,4.5vh,2.5rem)] lg:text-[clamp(1.75rem,4vh,2.25rem)]">{isSignup ? "Create an account" : "Sign in"}</h1>
                 {!isSignup && <p className="mt-1 text-sm leading-5 text-[#66758d] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] sm:leading-tight lg:text-sm lg:leading-5">Enter your details to continue.</p>}
               </div>
+
+              {passwordResetComplete && !confirmation && <div role="status" className="mt-5 rounded-xl border border-[#b9ddd3] bg-[#f1faf7] p-4 text-sm leading-5 text-[#245b51]"><p className="font-semibold text-[#122039]">Password updated</p><p className="mt-1">Sign in with your new password.</p></div>}
 
               {confirmation ? (
                 <div role="status" className="mt-8 space-y-4 rounded-xl border border-[#dfe8e5] bg-[#f5faf8] p-5">

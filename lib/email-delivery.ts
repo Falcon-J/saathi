@@ -1,4 +1,4 @@
-export type EmailRequest={from:string;to:string[];subject:string;text:string}
+export type EmailRequest={from:string;to:string[];subject:string;text:string;html?:string}
 export type Delivery={status:"sent";providerId:string}|{status:"retry"|"failed";category:string}
 export async function deliverInvitationEmail(id:string,payload:EmailRequest,key:string,send:typeof fetch=fetch):Promise<Delivery>{
   try{
