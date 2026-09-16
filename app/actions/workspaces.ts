@@ -62,13 +62,13 @@ export async function transferWorkspaceOwnership(workspaceId: string, newOwnerUs
   revalidatePath("/dashboard")
 }
 
-export async function inviteMemberToWorkspace(workspaceId: string, memberEmail: string): Promise<{ success: true } | { error: string }> {
+export async function inviteMemberToWorkspace(workspaceId: string, memberEmail: string) {
   try {
     await requireSession()
     const { sendWorkspaceInvitation } = await import("./invitations")
     const result = await sendWorkspaceInvitation(workspaceId, normalizeEmail(memberEmail))
     if (result.error) return { error: result.error }
-    return { success: true }
+    return { success: true, invitation: result.invitation }
   } catch (error) {
     return { error: getPublicInvitationError(error) }
   }

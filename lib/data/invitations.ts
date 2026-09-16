@@ -10,6 +10,9 @@ export interface Invitation {
   inviteeEmail:string;status:InvitationStatus;createdAt:string;expiresAt:string;
   deliveryStatus:"queued"|"sent"|"failed"|"unconfigured"|"cancelled"|"delivered"|"bounced"|"complained";
 }
+export interface InvitationPreview {
+  id:string;workspaceName:string;inviterUsername:string;status:"pending";expiresAt:string;
+}
 type Actor={id:string;email:string}
 const iso=(v:Date|string)=>new Date(v).toISOString()
 async function projection(tx:Transaction,id:string):Promise<Invitation> {
@@ -35,7 +38,7 @@ async function queueEmail(tx:Transaction,invitationId:string) {
   const link=new URL(`/invitations/${invitationId}`,origin).toString()
   await tx`INSERT INTO invitation_emails(id,invitation_id,payload) VALUES(${randomUUID()},${invitationId},${tx.json({
     from,to:[invite.inviteeEmail],subject:"You have been invited to a Saathi workspace",
-    text:`${invite.inviterUsername} invited you to ${invite.workspaceName}.\n\nSign in with the invited email address to review and accept:\n${link}\n\nThis invitation expires in seven days. Ignore this email if it was unexpected.`
+    text:`${invite.inviterUsername} invited you to ${invite.workspaceName}.\n\nOpen the invitation, then create an account or sign in with the email address that received this invitation to review and accept:\n${link}\n\nThis invitation expires in seven days. Ignore this email if it was unexpected.`
   })})`
 }
 export async function createInvitationRecord(actor:Actor,workspaceId:string,email:string):Promise<Invitation> {
@@ -72,6 +75,13 @@ export async function readInvitationRecord(actor:Actor,id:string):Promise<Invita
       WHERE i.id=${id} AND (i.invitee_email=${actor.email.toLowerCase()} OR w.owner_user_id=${actor.id})`
     return allowed?projection(tx,id):null
   })
+}
+export async function readInvitationPreview(id:string):Promise<InvitationPreview|null> {
+  const [row]=await getDb()`SELECT i.id,i.expires_at,w.name AS workspace_name,p.username AS inviter_username
+    FROM workspace_invitations i JOIN workspaces w ON w.id=i.workspace_id
+    JOIN profiles p ON p.id=i.inviter_user_id
+    WHERE i.id=${id} AND i.status='pending' AND i.expires_at>now() AND w.archived_at IS NULL`
+  return row?{id:row.id,workspaceName:row.workspace_name,inviterUsername:row.inviter_username,status:"pending",expiresAt:iso(row.expires_at)}:null
 }
 export async function respondToInvitation(actor:Actor,id:string,action:"accepted"|"declined"|"revoked"|"resend"):Promise<void> {
   const workspaceId=await getDb().begin(async tx=>{

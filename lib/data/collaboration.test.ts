@@ -4,15 +4,26 @@ import { randomUUID } from "node:crypto"
 import { getDb } from "../db/client.ts"
 import { createWorkspaceRecord } from "./workspaces.ts"
 import { createTaskRecord,changeTaskRecord,listTaskRecords } from "./tasks.ts"
-import { createInvitationRecord,respondToInvitation } from "./invitations.ts"
+import { createInvitationRecord,readInvitationPreview,respondToInvitation } from "./invitations.ts"
 
 test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},async t=>{
   process.env.DATABASE_URL=process.env.DATABASE_TEST_URL
-  const db=getDb(),owner={id:randomUUID(),email:randomUUID()+"@example.test"},member={id:randomUUID(),email:randomUUID()+"@example.test"},outsider={id:randomUUID(),email:randomUUID()+"@example.test"}
+  const db=getDb(),owner={id:randomUUID(),email:randomUUID()+"@example.test"},member={id:randomUUID(),email:randomUUID()+"@example.test"},outsider={id:randomUUID(),email:randomUUID()+"@example.test"},newRecipientEmail=randomUUID()+"@example.test"
   await db`INSERT INTO auth.users(id,email) VALUES(${owner.id},${owner.email}),(${member.id},${member.email}),(${outsider.id},${outsider.email})`
   try{
     const workspace=await createWorkspaceRecord(owner.id,{name:"Integration fixture"})
     const invitation=await createInvitationRecord(owner,workspace.id,member.email)
+    const newRecipientInvitation=await createInvitationRecord(owner,workspace.id,newRecipientEmail)
+    await t.test("invitation is available before the recipient creates an account",async()=>{
+      const preview=await readInvitationPreview(newRecipientInvitation.id)
+      assert.ok(preview)
+      assert.equal(preview.id,newRecipientInvitation.id)
+      assert.equal(preview.workspaceName,"Integration fixture")
+      assert.ok(preview.inviterUsername.length>0)
+      assert.equal(preview.status,"pending")
+      assert.ok(new Date(preview.expiresAt).getTime()>Date.now())
+      assert.equal((await db`SELECT id FROM auth.users WHERE email=${newRecipientEmail}`).length,0)
+    })
     await t.test("duplicate invitation returns original; outsider cannot accept",async()=>{
       assert.equal((await createInvitationRecord(owner,workspace.id,member.email)).id,invitation.id)
       await assert.rejects(respondToInvitation(outsider,invitation.id,"accepted"),/not available/)
