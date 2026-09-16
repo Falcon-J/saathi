@@ -84,5 +84,6 @@ export const activityEvents = pgTable("activity_events", {
 export const outboxEvents = pgTable("outbox_events", {
   id: uuid("id").primaryKey(), workspaceId: uuid("workspace_id").notNull(), eventType: text("event_type").notNull(), payload: jsonb("payload").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), publishedAt: timestamp("published_at", { withTimezone: true }),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }), claimToken: uuid("claim_token"),
   attemptCount: integer("attempt_count").notNull().default(0), lastErrorCategory: text("last_error_category"),
 }, t => [index("outbox_pending_idx").on(t.createdAt).where(sql`${t.publishedAt} IS NULL`)])

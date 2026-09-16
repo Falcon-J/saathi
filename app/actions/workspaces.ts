@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { normalizeEmail } from "@/lib/identity"
 import { getPublicInvitationError } from "@/lib/invitation-domain"
 import {
-  createWorkspaceRecord, deleteWorkspaceRecord, listWorkspaces, readWorkspace,
+  archiveWorkspaceRecord, createWorkspaceRecord, deleteWorkspaceRecord, listWorkspaces, readWorkspace, transferWorkspaceOwnershipRecord,
   removeWorkspaceMember, updateWorkspaceRecord, type Workspace, type WorkspaceInput,
 } from "@/lib/data/workspaces"
 
@@ -47,6 +47,18 @@ export async function updateWorkspaceName(workspaceId: string, newName: string, 
   const current = await readWorkspace(workspaceId, session.id)
   if (!current) throw new Error("Workspace not found")
   await updateWorkspaceRecord(session.id, workspaceId, { ...current, name: newName }, expectedVersion)
+  revalidatePath("/dashboard")
+}
+
+export async function archiveWorkspace(workspaceId: string, expectedVersion: number): Promise<void> {
+  const session = await requireSession()
+  await archiveWorkspaceRecord(session.id, workspaceId, expectedVersion)
+  revalidatePath("/dashboard")
+}
+
+export async function transferWorkspaceOwnership(workspaceId: string, newOwnerUserId: string, expectedVersion: number): Promise<void> {
+  const session = await requireSession()
+  await transferWorkspaceOwnershipRecord(session.id, workspaceId, newOwnerUserId, expectedVersion)
   revalidatePath("/dashboard")
 }
 

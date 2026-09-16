@@ -45,7 +45,7 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
   if(recipient===actor.email.toLowerCase())throw new InvitationError("You cannot invite yourself to the workspace")
   return getDb().begin(async tx=>{
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${workspaceId} FOR UPDATE`
-    if(!w || w.owner_user_id!==actor.id)throw new InvitationError("Only workspace owner can send invitations")
+    if(!w || w.owner_user_id!==actor.id || w.archived_at)throw new InvitationError("Only an active workspace owner can send invitations")
     const [member]=await tx`SELECT m.user_id FROM workspace_members m JOIN auth.users u ON u.id=m.user_id WHERE m.workspace_id=${workspaceId} AND lower(u.email)=${recipient}`
     if(member)throw new InvitationError("User is already a member of this workspace")
     await tx`UPDATE workspace_invitations SET status='expired',updated_at=now() WHERE workspace_id=${workspaceId} AND invitee_email=${recipient} AND status='pending' AND expires_at<=now()`
@@ -54,13 +54,13 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
     const id=randomUUID()
     await tx`INSERT INTO workspace_invitations(id,workspace_id,inviter_user_id,invitee_email,expires_at) VALUES(${id},${workspaceId},${actor.id},${recipient},now()+interval '7 days')`
     await queueEmail(tx,id)
-    await appendDomainEvent(tx,{workspaceId,actorUserId:actor.id,type:"workspace-created",entityType:"invitation",entityId:id,metadata:{action:"invitation_created"}})
+    await appendDomainEvent(tx,{workspaceId,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:"invitation_created"}})
     return projection(tx,id)
   })
 }
 export async function listInvitationRecords(actor:Actor,workspaceId?:string):Promise<Invitation[]> {
   return getDb().begin("isolation level repeatable read read only",async tx=>{
-    if(workspaceId){const [w]=await tx`SELECT id FROM workspaces WHERE id=${workspaceId} AND owner_user_id=${actor.id}`;if(!w)throw new InvitationError("Only the owner can view workspace invitations")}
+    if(workspaceId){const [w]=await tx`SELECT id FROM workspaces WHERE id=${workspaceId} AND owner_user_id=${actor.id} AND archived_at IS NULL`;if(!w)throw new InvitationError("Only the owner can view active workspace invitations")}
     const rows=workspaceId ? await tx`SELECT id FROM workspace_invitations WHERE workspace_id=${workspaceId} ORDER BY created_at DESC LIMIT 100`
       : await tx`SELECT id FROM workspace_invitations WHERE invitee_email=${actor.email.toLowerCase()} AND status='pending' AND expires_at>now() ORDER BY created_at DESC LIMIT 100`
     return Promise.all(rows.map(r=>projection(tx,r.id)))
@@ -79,7 +79,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
     if(!location)throw new InvitationError("Invitation unavailable")
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${location.workspace_id} FOR UPDATE`
     const [i]=await tx`SELECT * FROM workspace_invitations WHERE id=${id} FOR UPDATE`
-    if(!w || !i)throw new InvitationError("Invitation unavailable")
+    if(!w || !i || w.archived_at)throw new InvitationError("Invitation unavailable")
     const ownerAction=action==="revoked"||action==="resend"
     if(ownerAction?w.owner_user_id!==actor.id:i.invitee_email!==actor.email.toLowerCase())throw new InvitationError("This invitation is not available for your account")
     if(action==="accepted" && i.status==="accepted" && i.accepted_by_user_id===actor.id)return w.id as string
@@ -90,7 +90,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
       const [recent]=await tx`SELECT created_at,status FROM invitation_emails WHERE invitation_id=${id} ORDER BY created_at DESC LIMIT 1`
       if(recent && (recent.status==="queued" || Date.now()-new Date(recent.created_at).getTime()<60000))throw new InvitationError("An invitation email is already queued or was just sent")
       await queueEmail(tx,id)
-      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"workspace-created",entityType:"invitation",entityId:id,metadata:{action:"invitation_resent"}})
+      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:"invitation_resent"}})
       return w.id as string
     }
     await tx`UPDATE workspace_invitations SET status=${action},responded_at=now(),updated_at=now(),accepted_by_user_id=${action==="accepted"?actor.id:null} WHERE id=${id}`
@@ -99,7 +99,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
       await tx`INSERT INTO workspace_members(workspace_id,user_id) VALUES(${w.id},${actor.id}) ON CONFLICT DO NOTHING`
       await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"member-added",entityType:"invitation",entityId:id})
     }else{
-      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"workspace-created",entityType:"invitation",entityId:id,metadata:{action:`invitation_${action}`}})
+      await appendDomainEvent(tx,{workspaceId:w.id,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:`invitation_${action}`}})
     }
     return w.id as string
   })

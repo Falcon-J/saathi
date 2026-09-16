@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleHelp, Crown, LayoutGrid, ListChecks, LogOut, Plus, RefreshCw, Sparkles, UserPlus, Users, Settings } from "lucide-react"
+import { CircleHelp, Crown, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
+import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@/app/actions/workspaces"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { InvitationNotifications } from "@/components/invitation-notifications"
@@ -13,6 +14,7 @@ import { PageLoader } from "@/components/page-loader"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
 import { TaskList } from "@/components/task-list"
+import { TimeSensitiveGreeting } from "@/components/time-sensitive-greeting"
 import { WorkspaceSettings } from "@/components/workspace-settings"
 import { getDashboardState } from "@/lib/dashboard-state"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
@@ -35,10 +37,19 @@ type WorkspaceView = "overview" | "board" | "team" | "settings"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 
+function workspaceViewFromHash(hash: string): WorkspaceView {
+  if (hash === "#workspace-header") return "overview"
+  if (hash === "#team-panel") return "team"
+  if (hash === "#settings-panel") return "settings"
+  return "board"
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("overview")
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "board" : workspaceViewFromHash(window.location.hash))
+  const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
+  const [quickAddRequest, setQuickAddRequest] = useState(0)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
@@ -76,6 +87,12 @@ export default function Dashboard() {
     window.addEventListener("storage", handleStorageChange)
     return () => window.removeEventListener("storage", handleStorageChange)
   }, [info, router])
+
+  useEffect(() => {
+    const handleHashChange = () => setWorkspaceView(workspaceViewFromHash(window.location.hash))
+    window.addEventListener("hashchange", handleHashChange)
+    return () => window.removeEventListener("hashchange", handleHashChange)
+  }, [])
 
   const {
     workspaces,
@@ -196,7 +213,7 @@ export default function Dashboard() {
   const finishWorkspaceCreation = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
-    setWorkspaceView("overview")
+    setWorkspaceView("board")
   }
 
   const handleCreateWorkspace = async (name: string, details: { summary: string; targetDate: string | null }) => {
@@ -204,6 +221,26 @@ export default function Dashboard() {
     if (!workspace) return { error: "Unable to create the workspace." }
     finishWorkspaceCreation(workspace.id)
     return {}
+  }
+
+  const handleArchiveWorkspace = async () => {
+    if (!currentWorkspace) return
+    await archiveWorkspace(currentWorkspace.id, currentWorkspace.version)
+    await refreshWorkspaces()
+    setWorkspaceView("board")
+  }
+
+  const handleDeleteWorkspace = async () => {
+    if (!currentWorkspace) return
+    await deleteWorkspace(currentWorkspace.id)
+    await refreshWorkspaces()
+    setWorkspaceView("board")
+  }
+
+  const handleTransferOwnership = async (memberUserId: string) => {
+    if (!currentWorkspace) return
+    await transferWorkspaceOwnership(currentWorkspace.id, memberUserId, currentWorkspace.version)
+    await refreshWorkspaces()
   }
 
   const handleApprovePlan = async (plan: WorkspacePlan) => {
@@ -217,7 +254,35 @@ export default function Dashboard() {
   const handleSelectWorkspace = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
-    setWorkspaceView("overview")
+    setWorkspaceView("board")
+  }
+
+  const handleOpenSettings = () => {
+    setWorkspaceView("settings")
+    window.history.replaceState(null, "", "#settings-panel")
+  }
+
+  const handleOpenBoard = useCallback(() => {
+    setTaskToOpen(null)
+    setWorkspaceView("board")
+    window.history.replaceState(null, "", "#project-board")
+  }, [])
+
+  useEffect(() => {
+    const handleKeyboardShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        handleOpenBoard()
+      }
+    }
+    window.addEventListener("keydown", handleKeyboardShortcut)
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
+  }, [handleOpenBoard])
+
+  const handleOpenTask = (taskId: string) => {
+    setTaskToOpen(taskId)
+    setWorkspaceView("board")
+    window.history.replaceState(null, "", "#project-board")
   }
 
   const handleLogout = async () => {
@@ -252,11 +317,21 @@ export default function Dashboard() {
   return (
     <main className="saathi-shell saathi-dashboard min-h-screen">
       <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <SaathiLogo className="size-9" priority />
             <h1 className="text-lg font-semibold leading-none tracking-tight">Saathi</h1>
           </div>
+          <button
+            type="button"
+            onClick={handleOpenBoard}
+            className="hidden h-10 min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-background px-3 text-left text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:flex md:max-w-[31rem]"
+            aria-label="Open task board"
+          >
+            <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Open the task board</span>
+            <kbd className="ml-auto hidden rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground lg:inline">⌘ K</kbd>
+          </button>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="icon">
               <Link href="/guide" aria-label="Open Saathi guide" title="How Saathi works">
@@ -276,30 +351,36 @@ export default function Dashboard() {
       </header>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} onOpenBoard={() => setWorkspaceView("board")} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} />
-          <div className="mt-auto flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
+          {showWorkspace && (
+            <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Current workspace</p>
+              <p className="mt-1 truncate text-sm font-semibold">{currentWorkspace?.name}</p>
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{metrics.active} active tasks</span><span>{metrics.completed} done</span></div>
+            </div>
+          )}
+          <div className="mt-4 flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
         </aside>
 
         <div className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
-            {showWorkspace && dashboardState === "workspace" && (
-              <section className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            {showWorkspace && dashboardState === "workspace" && workspaceView === "overview" && (
+              <section className="mb-6 flex flex-col gap-5 rounded-[var(--saathi-radius-container)] border border-border bg-card px-5 py-6 shadow-sm sm:px-7 sm:py-7 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="saathi-label text-primary">Your workspace</p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Good morning, {user.username} 👋</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Let&apos;s make progress today.</p>
+                  <p className="saathi-label text-primary">{currentWorkspace?.name}</p>
+                  <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-[-0.05em] sm:text-4xl"><TimeSensitiveGreeting username={user.username} /></h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">A shared place to turn intention into steady progress.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("board")}><Plus className="size-4 text-primary" />New task</Button>
-                  {aiWorkspaceEnabled ? <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Sparkles className="size-4 text-primary" />Plan with AI</Button> : <Button variant="outline" className="justify-start bg-card" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>}
-                  <Button variant="outline" className="justify-start bg-card" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
-                  <Button asChild variant="outline" className="justify-start bg-card"><Link href="/guide"><CircleHelp className="size-4 text-primary" />Guide</Link></Button>
+                <div className="flex flex-wrap gap-2 lg:max-w-[30rem] lg:justify-end">
+                  <Button onClick={() => { setWorkspaceView("overview"); setQuickAddRequest((request) => request + 1) }}><Plus className="size-4" />New task</Button>
+                  <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>
+                  <Button variant="outline" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
                 </div>
               </section>
             )}
@@ -322,18 +403,12 @@ export default function Dashboard() {
               />
             ) : currentWorkspace ? (
               <>
-                <section id="workspace-header" className="mb-5 scroll-mt-32 rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 shadow-sm sm:p-5">
+                <section id="workspace-header" className="mb-5 scroll-mt-32 rounded-[var(--saathi-radius-card)] border border-border bg-card p-3 shadow-sm sm:p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex flex-wrap rounded-lg bg-secondary p-1" aria-label="Workspace view">
-                        <Button type="button" size="sm" variant={workspaceView === "overview" ? "default" : "ghost"} onClick={() => setWorkspaceView("overview")}><ListChecks className="size-4" />Overview</Button>
-                        <Button type="button" size="sm" variant={workspaceView === "board" ? "default" : "ghost"} onClick={() => setWorkspaceView("board")}><LayoutGrid className="size-4" />Board</Button>
-                        <Button type="button" size="sm" variant={workspaceView === "team" ? "default" : "ghost"} onClick={() => setWorkspaceView("team")}><Users className="size-4" />Team</Button>
-                        {isCurrentWorkspaceOwner && <Button type="button" size="sm" variant={workspaceView === "settings" ? "default" : "ghost"} onClick={() => setWorkspaceView("settings")}><Settings className="size-4" />Settings</Button>}
-                      </div>
                       <Badge variant="outline" className="bg-card"><span className={`mr-1.5 size-2 rounded-full ${realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground"}`} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
                       {isCurrentWorkspaceOwner && <Badge className="border-primary/30 bg-primary/10 text-primary"><Crown className="mr-1 size-3" />Owner</Badge>}
                     </div>
@@ -348,9 +423,9 @@ export default function Dashboard() {
                 )}
 
                 {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
-                  <WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} />
+                  <section id="settings-panel"><WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
                 ) : workspaceView === "team" ? (
-                  <Card id="team-panel"><CardHeader><CardTitle>Team</CardTitle><CardDescription>{currentWorkspace.members.length} members in this workspace.</CardDescription></CardHeader><CardContent><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} /></CardContent></Card>
+                  <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Work better together.</CardTitle><CardDescription>Invite your team, manage members, and keep everyone aligned.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /></CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (
                   taskError ? (
                     <section id="project-board" className="rounded-xl border border-border bg-card p-8 text-center" role="alert">
@@ -363,11 +438,12 @@ export default function Dashboard() {
                       tasks={tasks}
                       loading={tasksLoading}
                       onToggleTask={handleToggleTask}
+                      onOpenTask={handleOpenTask}
                       onAddTask={handleAddTask}
-                      onEditTask={handleEditTask}
-                      onDeleteTask={handleDeleteTask}
-                      onOpenBoard={() => setWorkspaceView("board")}
+                      onOpenBoard={handleOpenBoard}
+                      focusQuickAdd={quickAddRequest}
                       title={<span>{currentWorkspace.name}</span>}
+                      realtimeSignal={realtime.eventRevision}
                     />
                   )
                 ) : (
@@ -383,7 +459,7 @@ export default function Dashboard() {
                           {taskError ? (
                             <div className="p-8 text-center" role="alert"><p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p><Button onClick={() => void refreshTasks()} variant="outline" className="mt-4">Try again</Button></div>
                           ) : (
-                            <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
+                            <TaskList tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
                           )}
                         </CardContent>
                     </Card>

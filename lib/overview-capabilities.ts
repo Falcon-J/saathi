@@ -1,5 +1,5 @@
 export const overviewCapabilities = {
-  overview: ["quick-add", "complete", "reopen", "edit", "delete"],
+  overview: ["quick-add", "complete", "reopen"],
   board: [
     "edit",
     "delete",

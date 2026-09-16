@@ -1,3 +1,5 @@
+import { calendarDateKey } from "./task-time.ts"
+
 type OverviewTask = {
   completed: boolean
   status?: "todo" | "in-progress" | "done"
@@ -11,12 +13,6 @@ export type TaskOverviewGroups<TTask extends OverviewTask> = {
   next: TTask[]
   completed: TTask[]
   completion: number
-}
-
-function dueDateKey(value?: string): string | null {
-  if (!value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10)
 }
 
 export function groupTasksForOverview<TTask extends OverviewTask>(
@@ -36,18 +32,15 @@ export function groupTasksForOverview<TTask extends OverviewTask>(
       continue
     }
 
-    if (task.bucket === "next") {
-      groups.next.push(task)
-      continue
-    }
-    if (task.bucket === "today") {
-      groups.today.push(task)
+    // An explicit deadline is authoritative; bucket is only a fallback for older undated tasks.
+    const dueDate = calendarDateKey(task.dueDate || task.dueAt)
+    if (dueDate) {
+      if (dueDate > today) groups.next.push(task)
+      else groups.today.push(task)
       continue
     }
 
-    // Prefer the explicit calendar date so a local due time does not shift the board day at UTC boundaries.
-    const dueDate = dueDateKey(task.dueDate || task.dueAt)
-    if (dueDate && dueDate > today) groups.next.push(task)
+    if (task.bucket === "next") groups.next.push(task)
     else groups.today.push(task)
   }
 

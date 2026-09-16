@@ -7,6 +7,7 @@ type GroqStructuredResponseOptions<T> = {
   input: string
   parse: (value: unknown) => T
   fetchImpl?: typeof fetch
+  timeoutMs?: number
 }
 
 type GroqResponseBody = {
@@ -27,19 +28,26 @@ export async function requestGroqStructuredResponse<T>({
   input,
   parse,
   fetchImpl = fetch,
+  timeoutMs = 20000,
 }: GroqStructuredResponseOptions<T>): Promise<T> {
   if (!apiKey?.trim()) {
     throw new Error("AI workspace creation is not configured yet.")
   }
 
-  let response: Response
+  const controller = new AbortController()
+  let timedOut = false
+  const timeout = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
   try {
-    response = await fetchImpl("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetchImpl("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model,
         messages: [
@@ -56,42 +64,48 @@ export async function requestGroqStructuredResponse<T>({
         },
       }),
     })
-  } catch {
+
+    if (response.status === 429) {
+      throw new Error("AI planning is busy right now. Please try again shortly.")
+    }
+    if (!response.ok) {
+      throw new Error("AI planning is temporarily unavailable. Please try again.")
+    }
+
+    let body: GroqResponseBody
+    try {
+      body = await response.json() as GroqResponseBody
+    } catch {
+      throw new Error("Saathi did not receive a valid response. Please try again.")
+    }
+
+    const message = body.choices?.[0]?.message
+    if (message?.refusal) {
+      throw new Error("Saathi could not understand that request. Please try a more specific description.")
+    }
+    if (!message?.content?.trim()) {
+      throw new Error("Saathi did not receive a valid response. Please try again.")
+    }
+
+    let parsedJson: unknown
+    try {
+      parsedJson = JSON.parse(message.content)
+    } catch {
+      throw new Error("Saathi did not receive a valid response. Please try again.")
+    }
+
+    try {
+      return parse(parsedJson)
+    } catch {
+      throw new Error("Saathi did not receive a valid response. Please try again.")
+    }
+  } catch (error) {
+    if (timedOut) {
+      throw new Error("AI planning took too long. Please try again.")
+    }
+    if (error instanceof Error) throw error
     throw new Error("AI planning is temporarily unavailable. Please try again.")
-  }
-
-  if (response.status === 429) {
-    throw new Error("AI planning is busy right now. Please try again shortly.")
-  }
-  if (!response.ok) {
-    throw new Error("AI planning is temporarily unavailable. Please try again.")
-  }
-
-  let body: GroqResponseBody
-  try {
-    body = await response.json() as GroqResponseBody
-  } catch {
-    throw new Error("Saathi did not receive a valid response. Please try again.")
-  }
-
-  const message = body.choices?.[0]?.message
-  if (message?.refusal) {
-    throw new Error("Saathi could not understand that request. Please try a more specific description.")
-  }
-  if (!message?.content?.trim()) {
-    throw new Error("Saathi did not receive a valid response. Please try again.")
-  }
-
-  let parsedJson: unknown
-  try {
-    parsedJson = JSON.parse(message.content)
-  } catch {
-    throw new Error("Saathi did not receive a valid response. Please try again.")
-  }
-
-  try {
-    return parse(parsedJson)
-  } catch {
-    throw new Error("Saathi did not receive a valid response. Please try again.")
+  } finally {
+    clearTimeout(timeout)
   }
 }

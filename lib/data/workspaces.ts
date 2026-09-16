@@ -98,15 +98,47 @@ export async function updateWorkspaceRecord(userId: string, workspaceId: string,
   if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new Error("Workspace version is required")
   const workspace = await getDb().begin(async tx => {
     const row = await requireWorkspaceOwner(tx, workspaceId, userId)
+    if (row.archived_at) throw new Error("Archived workspaces cannot be edited")
     if (row.version !== expectedVersion) throw new Error("Workspace changed. Refresh and try again.")
     await tx`UPDATE workspaces SET name = ${data.name}, summary = ${data.summary}, target_at = ${data.targetAt},
       timezone = ${data.timezone}, version = version + 1, updated_at = now() WHERE id = ${workspaceId} AND version = ${expectedVersion}`
-    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-created", entityType: "workspace", entityId: workspaceId,
+    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
       metadata: { action: "workspace_updated" } })
     return (await readWorkspace(workspaceId, userId, tx))!
   })
   await flushOutbox(workspaceId)
   return workspace
+}
+
+export async function archiveWorkspaceRecord(userId: string, workspaceId: string, expectedVersion: number): Promise<void> {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new Error("Workspace version is required")
+  await getDb().begin(async tx => {
+    const row = await requireWorkspaceOwner(tx, workspaceId, userId)
+    if (row.archived_at) throw new Error("Workspace is already archived")
+    if (row.version !== expectedVersion) throw new Error("Workspace changed. Refresh and try again.")
+    await tx`UPDATE workspaces SET archived_at = now(), version = version + 1, updated_at = now()
+      WHERE id = ${workspaceId} AND version = ${expectedVersion} AND archived_at IS NULL`
+    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
+      metadata: { action: "workspace_archived" } })
+  })
+  await flushOutbox(workspaceId)
+}
+
+export async function transferWorkspaceOwnershipRecord(userId: string, workspaceId: string, newOwnerUserId: string, expectedVersion: number): Promise<void> {
+  if (!newOwnerUserId || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new Error("Workspace ownership transfer is invalid")
+  await getDb().begin(async tx => {
+    const row = await requireWorkspaceOwner(tx, workspaceId, userId)
+    if (row.archived_at) throw new Error("Archived workspaces cannot transfer ownership")
+    if (row.version !== expectedVersion) throw new Error("Workspace changed. Refresh and try again.")
+    if (newOwnerUserId === userId) throw new Error("Choose another workspace member")
+    const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id = ${workspaceId} AND user_id = ${newOwnerUserId}`
+    if (!member) throw new Error("New owner must already be a workspace member")
+    await tx`UPDATE workspaces SET owner_user_id = ${newOwnerUserId}, version = version + 1, updated_at = now()
+      WHERE id = ${workspaceId} AND version = ${expectedVersion}`
+    await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
+      metadata: { action: "ownership_transferred" } })
+  })
+  await flushOutbox(workspaceId)
 }
 
 export async function removeWorkspaceMember(userId: string, workspaceId: string, memberEmail: string): Promise<void> {

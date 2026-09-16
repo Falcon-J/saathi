@@ -9,7 +9,8 @@ export async function POST(request:Request){
   if(!secret || secret.length<32)return Response.json({error:"Worker not configured"},{status:503})
   const expected=Buffer.from(`Bearer ${secret}`),actual=Buffer.from(header)
   if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return Response.json({error:"Unauthorized"},{status:401})
-  await flushOutbox();await flushInvitationEmails()
+  const outbox = await flushOutbox(); const invitations = await flushInvitationEmails()
   try { await deleteExpiredAiOperations() } catch { console.warn("[Saathi] AI operation retention cleanup deferred") }
-  return Response.json({status:"attempted"})
+  const degraded = outbox.unavailable || outbox.failed > 0 || invitations.unavailable || invitations.failed > 0
+  return Response.json({ status: degraded ? "deferred" : "ok", outbox, invitations }, { status: degraded ? 503 : 200 })
 }

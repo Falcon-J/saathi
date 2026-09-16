@@ -21,6 +21,7 @@ export function useRealtime(options: UseRealtimeOptions) {
     const [isConnected, setIsConnected] = useState(false)
     const [activeUsers, setActiveUsers] = useState<string[]>([])
     const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null)
+    const [eventRevision, setEventRevision] = useState(0)
     const [error, setError] = useState<string | null>(null)
 
     const eventSourceRef = useRef<EventSource | null>(null)
@@ -33,10 +34,13 @@ export function useRealtime(options: UseRealtimeOptions) {
 
     const handleEvent = useCallback((event: RealtimeEvent) => {
         setLastEvent(event)
+        setEventRevision(value => value + 1)
         const currentOptions = optionsRef.current
 
         switch (event.type) {
             case 'workspace-created':
+            case 'workspace-updated':
+            case 'invitation-updated':
             case 'member-added':
             case 'member-removed':
                 currentOptions.onResyncRequired?.()
@@ -158,6 +162,7 @@ export function useRealtime(options: UseRealtimeOptions) {
         isConnected,
         activeUsers,
         lastEvent,
+        eventRevision,
         error,
         connect,
         disconnect

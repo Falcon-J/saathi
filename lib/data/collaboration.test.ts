@@ -25,7 +25,8 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
     })
     await t.test("task assignment rejects non-members and preserves fields across partial edits",async()=>{
       await assert.rejects(createTaskRecord(owner.id,workspace.id,{title:"Invalid",assigneeEmail:outsider.email}),/workspace member/)
-      let task=await createTaskRecord(owner.id,workspace.id,{title:"Ship",description:"Keep this",priority:"high",assigneeEmail:member.email})
+      let task=await createTaskRecord(owner.id,workspace.id,{title:"Ship",description:"Keep this",priority:"high",dueDate:"2026-09-15",assigneeEmail:member.email})
+      assert.equal(task.dueDate,"2026-09-15")
       task=await changeTaskRecord(owner.id,task.id,"edit",{title:"Ship safely"},task.version)
       assert.equal(task.description,"Keep this");assert.equal(task.assigneeEmail,member.email)
       await assert.rejects(changeTaskRecord(owner.id,task.id,"edit",{title:"Stale"},1),/changed/)

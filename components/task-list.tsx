@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, memo, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, useMemo, memo, useRef, type FormEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -49,6 +49,7 @@ interface TaskListProps {
   onToggleTask: (id: string) => Promise<any>
   onDeleteTask: (id: string) => Promise<any>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
+  openTaskId?: string | null
   commentRefreshEvent?: RealtimeEvent | null
 }
 
@@ -62,6 +63,7 @@ export const TaskList = memo(function TaskList({
   onToggleTask,
   onDeleteTask,
   onEditTask,
+  openTaskId,
   commentRefreshEvent,
 }: TaskListProps) {
   const [input, setInput] = useState("")
@@ -82,6 +84,21 @@ export const TaskList = memo(function TaskList({
   const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
   const [selectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
   const [selectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const openedTaskIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!openTaskId) {
+      openedTaskIdRef.current = null
+      return
+    }
+    if (openedTaskIdRef.current === openTaskId) return
+    const task = tasks.find((item) => item.id === openTaskId)
+    if (!task) return
+    openedTaskIdRef.current = openTaskId
+    setEditingTask(task)
+    setEditingDraft(toTaskEditorDraft(task))
+    setEditError(null)
+  }, [openTaskId, tasks])
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -252,26 +269,6 @@ export const TaskList = memo(function TaskList({
       case 'low': return <Circle className="w-3 h-3" />
       default: return <Flag className="w-3 h-3" />
     }
-  }
-
-  const isOverdue = (dueDate?: string) => {
-    if (!dueDate) return false
-    return new Date(dueDate) < new Date()
-  }
-
-  const formatDueDate = (dueDate?: string) => {
-    if (!dueDate) return null
-    const date = new Date(dueDate)
-    const today = new Date()
-    const diffTime = date.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) return "Today"
-    if (diffDays === 1) return "Tomorrow"
-    if (diffDays === -1) return "Yesterday"
-    if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`
-    if (diffDays <= 7) return `${diffDays} days left`
-    return date.toLocaleDateString()
   }
 
   const completedCount = tasks.filter((t) => t.completed).length
@@ -574,8 +571,9 @@ function TaskEditorDialog({
         </DialogHeader>
 
         {task && draft && (
-          <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <form id="task-editor-form" className="space-y-6 px-5 py-5 sm:px-6" onSubmit={onSubmit}>
               <section aria-labelledby="task-details-heading" className="space-y-4">
                 <div>
                   <h3 id="task-details-heading" className="text-sm font-semibold">Task details</h3>
@@ -670,16 +668,19 @@ function TaskEditorDialog({
                 </div>
               </section>
 
-              <TaskComments taskId={task.id} refreshEvent={commentRefreshEvent} />
-
               {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
+              </form>
+
+              <div className="px-5 pb-5 sm:px-6">
+                <TaskComments taskId={task.id} refreshEvent={commentRefreshEvent} />
+              </div>
             </div>
 
             <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>
+              <Button type="submit" form="task-editor-form" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>
             </DialogFooter>
-          </form>
+          </div>
         )}
       </DialogContent>
     </Dialog>

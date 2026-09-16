@@ -1,72 +1,34 @@
 "use client"
 
-import { useState } from "react"
-import { ArrowRight, CalendarDays, Check, Circle, Clock3, Pencil, Plus, Trash2, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { ArrowRight, CalendarDays, Check, Circle, Clock3, Plus, Target } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
-import type { TaskUpdate } from "@/app/tasks/contract"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { ConfirmDialog } from "@/components/confirm-dialog"
 import { groupTasksForOverview } from "@/lib/task-overview"
-import { formatTaskDue } from "@/lib/task-time"
+import { formatCalendarDate, formatTaskDue, todayCalendarDate } from "@/lib/task-time"
+import { ActivityHistory } from "@/components/activity-history"
 import { WorkspaceAdvisor } from "@/components/workspace-advisor"
+import { isAiWorkspaceEnabled } from "@/lib/feature-flags"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
   tasks: Task[]
   loading: boolean
   onToggleTask: (taskId: string) => Promise<unknown>
+  onOpenTask: (taskId: string) => void
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
-  onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
-  onDeleteTask: (taskId: string) => Promise<unknown>
   onOpenBoard: () => void
+  focusQuickAdd?: number
   title?: React.ReactNode
   commandBar?: React.ReactNode
+  realtimeSignal?: number
 }
 
-function TaskRow({ task, onToggleTask, onEditTask, onDeleteTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown>; onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>; onDeleteTask: (taskId: string) => Promise<unknown> }) {
-  const [editing, setEditing] = useState(false)
-  const [draftTitle, setDraftTitle] = useState(task.title)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+function TaskRow({ task, onToggleTask, onOpenTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const done = task.completed || task.status === "done"
-
-  const saveTitle = async () => {
-    const title = draftTitle.trim()
-    if (!title) {
-      setError("A task title is required.")
-      return
-    }
-    if (title === task.title) {
-      setEditing(false)
-      return
-    }
-    setSaving(true)
-    setError(null)
-    try {
-      const result = await onEditTask(task.id, { title })
-      if (result && typeof result === "object" && "error" in result && typeof result.error === "string") {
-        setError(result.error)
-        return
-      }
-      setEditing(false)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const removeTask = async () => {
-    setSaving(true)
-    try {
-      await onDeleteTask(task.id)
-    } finally {
-      setSaving(false)
-      setConfirmDelete(false)
-    }
-  }
 
   return (
     <div className="relative flex min-h-14 items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
@@ -79,15 +41,14 @@ function TaskRow({ task, onToggleTask, onEditTask, onDeleteTask }: { task: Task;
         {done ? <Check className="size-4" /> : <Circle className="size-5" />}
       </button>
       <div className="min-w-0 flex-1">
-        {editing ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void saveTitle() } if (event.key === "Escape") setEditing(false) }} disabled={saving} autoFocus maxLength={200} aria-label={`Edit ${task.title}`} className="h-9 min-w-0 flex-1" />
-            <Button type="button" size="sm" onClick={() => void saveTitle()} disabled={saving}>Save</Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => setEditing(false)} disabled={saving} aria-label="Cancel edit"><X className="size-4" /></Button>
-          </div>
-        ) : (
-          <p className={`text-sm font-medium sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>{task.title}</p>
-        )}
+        <button
+          type="button"
+          onClick={() => onOpenTask(task.id)}
+          className={`text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+          aria-label={`Open ${task.title} task`}
+        >
+          {task.title}
+        </button>
         {(task.dueAt || task.dueDate || task.estimatedMinutes) && (
           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {task.estimatedMinutes && <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{task.estimatedMinutes}m</span>}
@@ -95,19 +56,11 @@ function TaskRow({ task, onToggleTask, onEditTask, onDeleteTask }: { task: Task;
           </div>
         )}
       </div>
-      {!editing && (
-        <div className="flex shrink-0 items-center gap-1">
-          <Button type="button" size="icon" variant="ghost" onClick={() => { setDraftTitle(task.title); setError(null); setEditing(true) }} aria-label={`Edit ${task.title}`} title="Edit task"><Pencil className="size-4" /></Button>
-          <Button type="button" size="icon" variant="ghost" onClick={() => setConfirmDelete(true)} aria-label={`Delete ${task.title}`} title="Delete task" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></Button>
-        </div>
-      )}
-      {error && <p role="alert" className="absolute left-11 top-full z-10 mt-1 text-xs text-destructive">{error}</p>}
-      <ConfirmDialog open={confirmDelete} title="Delete task?" description={`“${task.title}” will be removed from this workspace. This cannot be undone.`} actionLabel="Delete task" onConfirm={() => void removeTask()} onCancel={() => setConfirmDelete(false)} isLoading={saving} />
     </div>
   )
 }
 
-function TaskSection({ title, tasks, empty, onToggleTask, onEditTask, onDeleteTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>; onDeleteTask: (taskId: string) => Promise<unknown> }) {
+function TaskSection({ title, tasks, empty, onToggleTask, onOpenTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const headingId = `overview-${title.toLowerCase()}`
   return (
     <section aria-labelledby={headingId}>
@@ -117,16 +70,21 @@ function TaskSection({ title, tasks, empty, onToggleTask, onEditTask, onDeleteTa
       </div>
       {tasks.length === 0
         ? <p className="py-6 text-sm text-muted-foreground">{empty}</p>
-        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />)}
+        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} onOpenTask={onOpenTask} />)}
     </section>
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onAddTask, onEditTask, onDeleteTask, onOpenBoard, title, commandBar }: WorkspaceOverviewProps) {
-  const groups = groupTasksForOverview(tasks)
+export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar, realtimeSignal }: WorkspaceOverviewProps) {
+  const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [addingTask, setAddingTask] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+  const quickAddInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (focusQuickAdd) quickAddInputRef.current?.focus()
+  }, [focusQuickAdd])
 
   const handleQuickAdd = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -149,9 +107,10 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
       <header className="border-b border-border px-5 py-6 sm:px-8 sm:py-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-primary"><Target className="size-4" />Your progress</div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="text-2xl font-bold tracking-tight sm:text-3xl">{title ?? workspace.name}</div>
-              {workspace.targetDate && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatTaskDue(undefined, workspace.targetDate)}</span>}
+              {workspace.targetAt && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatCalendarDate(workspace.targetAt, "UTC")}</span>}
             </div>
             {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
           </div>
@@ -162,13 +121,21 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
         </div>
       </header>
       <div className="space-y-8 px-5 py-6 sm:px-8 sm:py-8">
-        <form onSubmit={handleQuickAdd} className="rounded-lg border border-border bg-secondary/35 p-3">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.today.length}</p><p className="mt-1 text-xs text-muted-foreground">Due today</p></div>
+          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.next.length}</p><p className="mt-1 text-xs text-muted-foreground">Coming next</p></div>
+          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.completed.length}</p><p className="mt-1 text-xs text-muted-foreground">Completed</p></div>
+        </div>
+        {isAiWorkspaceEnabled() && <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />}
+        <form onSubmit={handleQuickAdd} className="rounded-xl border border-primary/20 bg-[var(--saathi-surface-wash)] p-4">
+          <p className="mb-3 text-sm font-semibold">What needs to move forward?</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={newTaskTitle}
               onChange={(event) => setNewTaskTitle(event.target.value)}
               placeholder="Add something to do today"
               aria-label="New task title"
+              ref={quickAddInputRef}
               maxLength={200}
               disabled={addingTask}
               className="bg-card"
@@ -179,16 +146,15 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </div>
           {addError && <p role="alert" className="mt-2 text-sm text-destructive">{addError}</p>}
         </form>
-        <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />
         {loading ? (
           <div role="status" className="space-y-3">
             {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-secondary" />)}
           </div>
         ) : (
           <>
-            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />
-            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />
-            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} />
+            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
           </>
         )}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/35 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -201,6 +167,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onA
           </Button>
         </div>
         {commandBar}
+        <ActivityHistory workspaceId={workspace.id} refreshSignal={realtimeSignal} />
       </div>
     </section>
   )

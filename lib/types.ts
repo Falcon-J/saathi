@@ -56,7 +56,7 @@ export interface TaskUpdate {
 }
 
 export interface SSEEvent {
-    type: 'connected' | 'heartbeat' | 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'workspace-created' | 'member-added' | 'member-removed' | 'user-joined' | 'user-left'
+    type: 'connected' | 'heartbeat' | 'task-created' | 'task-updated' | 'task-deleted' | 'task-toggled' | 'workspace-created' | 'workspace-updated' | 'invitation-updated' | 'member-added' | 'member-removed' | 'user-joined' | 'user-left'
     data?: Record<string, unknown>
     timestamp: number
     deliveredAt?: number

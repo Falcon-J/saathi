@@ -8,6 +8,12 @@ import type { Task } from "../../app/tasks/actions.ts"
 
 export class TaskError extends Error {}
 const iso = (value: Date | string) => new Date(value).toISOString()
+const calendarDate = (value: Date | string | null | undefined) => {
+  if (!value) return undefined
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  const match = String(value).match(/^\d{4}-\d{2}-\d{2}/)
+  return match?.[0]
+}
 type Db = ReturnType<typeof getDb> | Transaction
 
 async function projectTask(db: Db, id: string): Promise<Task> {
@@ -17,7 +23,7 @@ async function projectTask(db: Db, id: string): Promise<Task> {
   if (!row) throw new TaskError("Task not found")
   return { id: row.id, workspaceId: row.workspace_id, title: row.title, description: row.description ?? undefined,
     status: row.status === "in_progress" ? "in-progress" : row.status, completed: row.status === "done",
-    dueDate: row.due_date ? String(row.due_date).slice(0,10) : undefined, priority: row.priority, bucket: row.bucket ?? undefined, dueAt: row.due_at ? iso(row.due_at) : undefined,
+    dueDate: calendarDate(row.due_date), priority: row.priority, bucket: row.bucket ?? undefined, dueAt: row.due_at ? iso(row.due_at) : undefined,
     estimatedMinutes: row.estimated_minutes ?? undefined, assigneeEmail: row.assignee_email ?? undefined,
     createdBy: row.creator_email, createdAt: iso(row.created_at), updatedAt: iso(row.updated_at), version: row.version }
 }

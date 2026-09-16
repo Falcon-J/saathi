@@ -44,14 +44,17 @@ export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorPro
   const [pending, setPending] = useState<Capability | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null)
 
   const ask = async (capability: Capability) => {
     setPending(capability)
     setError(null)
+    setRetryAfterSeconds(null)
     try {
       const result = await askWorkspaceAdvisor(workspaceId, capability, question)
       if (result.error) {
         setError(result.error)
+        setRetryAfterSeconds(result.code === "rate_limited" ? result.retryAfterSeconds ?? null : null)
         return
       }
       setResponse(result.response ?? null)
@@ -88,7 +91,7 @@ export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorPro
   }
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
+    <Card aria-busy={pending !== null || creating} className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
       <CardHeader className="gap-3 border-b border-border/70">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -97,7 +100,7 @@ export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorPro
           </div>
           <Badge variant="outline" className="shrink-0 bg-card text-xs">Review first</Badge>
         </div>
-        <Textarea value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} aria-label="Advisor question" placeholder="Ask about this workspace" className="min-h-20 bg-card" />
+        <Textarea value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} disabled={pending !== null || creating} aria-label="Advisor question" placeholder="Ask about this workspace" className="min-h-20 bg-card" />
         <div className="flex flex-wrap gap-2">
           {capabilities.map(({ value, label, icon: Icon }) => (
             <Button key={value} type="button" variant="outline" size="sm" onClick={() => void ask(value)} disabled={pending !== null || creating} className="bg-card">
@@ -107,7 +110,7 @@ export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorPro
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-5">
-        {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+        {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}{retryAfterSeconds ? ` Try again in ${Math.ceil(retryAfterSeconds / 60)} minutes.` : ""}</p>}
         {response && (
           <div className="space-y-4" aria-live="polite">
             <div className="flex gap-3 rounded-lg bg-secondary/50 p-3 text-sm leading-6">
