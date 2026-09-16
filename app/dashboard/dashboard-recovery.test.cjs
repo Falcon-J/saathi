@@ -21,6 +21,13 @@ test("dashboard navigation and logout expose explicit loading and failure states
   assert.match(source, /try \{[\s\S]*const result = await logout\(\)[\s\S]*catch \(caughtError\)/)
 })
 
+test("dashboard keeps keyboard and browser navigation aligned with the active view", () => {
+  assert.match(source, /window\.addEventListener\("keydown", handleKeyboardShortcut\)/)
+  assert.match(source, /event\.metaKey \|\| event\.ctrlKey/)
+  assert.match(source, /event\.preventDefault\(\)/)
+  assert.match(source, /window\.addEventListener\("hashchange", handleHashChange\)/)
+})
+
 test("app and dashboard routes provide intentional loading UI", () => {
   assert.equal(existsSync(path.join(__dirname, "..", "loading.tsx")), true)
   assert.equal(existsSync(path.join(__dirname, "loading.tsx")), true)

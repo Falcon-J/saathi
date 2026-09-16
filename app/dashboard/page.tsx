@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CircleHelp, Crown, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
@@ -87,6 +87,12 @@ export default function Dashboard() {
     window.addEventListener("storage", handleStorageChange)
     return () => window.removeEventListener("storage", handleStorageChange)
   }, [info, router])
+
+  useEffect(() => {
+    const handleHashChange = () => setWorkspaceView(workspaceViewFromHash(window.location.hash))
+    window.addEventListener("hashchange", handleHashChange)
+    return () => window.removeEventListener("hashchange", handleHashChange)
+  }, [])
 
   const {
     workspaces,
@@ -256,11 +262,22 @@ export default function Dashboard() {
     window.history.replaceState(null, "", "#settings-panel")
   }
 
-  const handleOpenBoard = () => {
+  const handleOpenBoard = useCallback(() => {
     setTaskToOpen(null)
     setWorkspaceView("board")
     window.history.replaceState(null, "", "#project-board")
-  }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyboardShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        handleOpenBoard()
+      }
+    }
+    window.addEventListener("keydown", handleKeyboardShortcut)
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
+  }, [handleOpenBoard])
 
   const handleOpenTask = (taskId: string) => {
     setTaskToOpen(taskId)
@@ -426,7 +443,7 @@ export default function Dashboard() {
                       onOpenBoard={handleOpenBoard}
                       focusQuickAdd={quickAddRequest}
                       title={<span>{currentWorkspace.name}</span>}
-                      realtimeSignal={realtime.lastEvent?.timestamp}
+                      realtimeSignal={realtime.eventRevision}
                     />
                   )
                 ) : (
