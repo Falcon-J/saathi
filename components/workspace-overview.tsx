@@ -110,7 +110,7 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onO
             <div className="flex items-center gap-2 text-sm font-medium text-primary"><Target className="size-4" />Your progress</div>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="text-2xl font-bold tracking-tight sm:text-3xl">{title ?? workspace.name}</div>
-              {workspace.targetAt && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatCalendarDate(workspace.targetAt, workspace.timezone)}</span>}
+              {workspace.targetAt && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatCalendarDate(workspace.targetAt, "UTC")}</span>}
             </div>
             {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
           </div>

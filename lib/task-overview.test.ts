@@ -20,10 +20,9 @@ test("derives Today from the workspace timezone", () => {
   assert.equal(todayCalendarDate("America/Los_Angeles", now), "2026-09-15")
 })
 
-test("keeps workspace target dates in the workspace timezone", () => {
-  const target = "2026-09-15T23:30:00.000Z"
-  assert.equal(calendarDateAt(target, "Asia/Kolkata"), "2026-09-16")
-  assert.equal(calendarDateAt(target, "America/Los_Angeles"), "2026-09-15")
+test("keeps stored workspace target dates on their UTC calendar day", () => {
+  const target = "2026-09-16T00:00:00.000Z"
+  assert.equal(calendarDateAt(target, "UTC"), "2026-09-16")
 })
 
 test("groups completed tasks separately from execution buckets", () => {
