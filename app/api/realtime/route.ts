@@ -9,6 +9,10 @@ import { acquireSseConnectionLease, RateLimitExceeded, SseConnectionLimitExceede
 
 export const dynamic = "force-dynamic"
 
+// Vercel serverless invocations are limited to 300 seconds. Close before the
+// platform limit so EventSource can reconnect with its Last-Event-ID cursor.
+const SSE_CONNECTION_MAX_DURATION_MS = 4 * 60 * 1000
+
 // Required for withCredentials: true on EventSource
 const SSE_HEADERS = {
     'Content-Type': 'text/event-stream',
@@ -44,7 +48,7 @@ export async function OPTIONS() {
  *  - Polls every 100ms for cursor-based event delivery
  *  - Each client maintains its own cursor (lastSeenId) into the stream
  *  - Heartbeat every 30s to refresh user presence and report active users
- *  - Auto-cleanup after 30 minutes to prevent dangling connections
+ *  - Auto-cleanup before the Vercel invocation limit so reconnect is graceful
  */
 export async function GET(request: NextRequest) {
     let releaseSseConnection: (() => Promise<void>) | undefined
@@ -250,8 +254,9 @@ export async function GET(request: NextRequest) {
                 request.signal.addEventListener('abort', cleanup)
                 if (request.signal.aborted) cleanup()
 
-                // Auto-cleanup after 30 minutes
-                cleanupTimer = setTimeout(cleanup, 30 * 60 * 1000)
+                // Close before Vercel's 300-second invocation limit. The browser
+                // reconnects automatically and resumes from Last-Event-ID.
+                cleanupTimer = setTimeout(cleanup, SSE_CONNECTION_MAX_DURATION_MS)
                 void sendHeartbeat()
             },
             cancel() {
