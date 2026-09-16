@@ -12,6 +12,7 @@ test("task comments require membership and create one durable activity event", {
   const owner = { id: randomUUID(), email: `${randomUUID()}@example.test` }
   const member = { id: randomUUID(), email: `${randomUUID()}@example.test` }
   const outsider = { id: randomUUID(), email: `${randomUUID()}@example.test` }
+  await db`INSERT INTO auth.users (id, email) VALUES (${owner.id}, ${owner.email})`
   const workspace = await createWorkspaceRecord(owner.id, { name: "Comments" })
 
   try {

@@ -33,10 +33,14 @@ async function projectComment(db: ReturnType<typeof getDb> | Transaction, id: st
   }
 }
 
-async function authorizedTask(tx: Transaction, actorId: string, taskId: string) {
-  const [task] = await tx`SELECT t.id, t.workspace_id, w.archived_at
-    FROM tasks t JOIN workspaces w ON w.id = t.workspace_id
-    WHERE t.id = ${taskId} FOR UPDATE`
+async function authorizedTask(tx: Transaction, actorId: string, taskId: string, lock = true) {
+  const [task] = lock
+    ? await tx`SELECT t.id, t.workspace_id, w.archived_at
+        FROM tasks t JOIN workspaces w ON w.id = t.workspace_id
+        WHERE t.id = ${taskId} FOR UPDATE`
+    : await tx`SELECT t.id, t.workspace_id, w.archived_at
+        FROM tasks t JOIN workspaces w ON w.id = t.workspace_id
+        WHERE t.id = ${taskId}`
   if (!task || task.archived_at) throw new TaskError("Workspace unavailable or access denied")
   const [member] = await tx`SELECT user_id FROM workspace_members
     WHERE workspace_id = ${task.workspace_id} AND user_id = ${actorId}`
@@ -46,7 +50,7 @@ async function authorizedTask(tx: Transaction, actorId: string, taskId: string) 
 
 export async function listTaskComments(actorId: string, taskId: string): Promise<TaskComment[]> {
   return getDb().begin("isolation level repeatable read read only", async tx => {
-    const task = await authorizedTask(tx, actorId, taskId)
+    const task = await authorizedTask(tx, actorId, taskId, false)
     const rows = await tx`SELECT c.id FROM task_comments c
       WHERE c.workspace_id = ${task.workspace_id} AND c.task_id = ${taskId}
       ORDER BY c.created_at ASC, c.id ASC`
