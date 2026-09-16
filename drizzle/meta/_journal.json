@@ -43,6 +43,13 @@
       "when": 1788912000000,
       "idx": 5,
       "tag": "0005_outbox_claims"
+    },
+    {
+      "breakpoints": true,
+      "version": "7",
+      "when": 1789555180000,
+      "idx": 6,
+      "tag": "0006_restrict_security_definer_functions"
     }
   ]
 }
