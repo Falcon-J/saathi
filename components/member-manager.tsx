@@ -31,6 +31,7 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
   const [transferConfirm, setTransferConfirm] = useState<Member | null>(null)
   const [transferring, setTransferring] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
+  const [copiedInvitationId, setCopiedInvitationId] = useState<string | null>(null)
 
   // Check if current user is the workspace owner
   const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
@@ -107,6 +108,16 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
     } finally {
       setRemoveConfirm(null)
       setOperatingMemberEmail(null)
+    }
+  }
+
+  const copyInvitationLink = async (id: string) => {
+    setLastError(null)
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/invitations/${id}`)
+      setCopiedInvitationId(id)
+    } catch {
+      setLastError("Unable to copy the invitation link. Please try again.")
     }
   }
 
@@ -197,13 +208,13 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                The invitation appears in their account. Email status is shown below.
+                The recipient can accept after they sign up or sign in with that email. Email status is shown below.
               </p>
             </div>
           )}
 
           {lastError && <p role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{lastError}</p>}
-          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · {invitation.deliveryStatus === "sent" ? "Email accepted by provider" : invitation.deliveryStatus === "failed" ? "Email failed" : invitation.deliveryStatus === "unconfigured" ? "Email unavailable; in-app invitation only" : "Email queued"}</p>{invitation.status === "pending" && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "resend")}>Resend</Button><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "revoke")}>Revoke</Button></div>}</div>)}</section>}
+          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · {invitation.deliveryStatus === "delivered" ? "Email delivered" : invitation.deliveryStatus === "sent" ? "Email accepted by provider" : invitation.deliveryStatus === "failed" || invitation.deliveryStatus === "bounced" || invitation.deliveryStatus === "complained" ? "Email could not be delivered; copy the invite link" : invitation.deliveryStatus === "unconfigured" ? "Email is not configured; copy the invite link" : invitation.deliveryStatus === "cancelled" ? "Email cancelled" : "Email queued"}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "resend")}>Resend</Button><Button size="sm" variant="outline" onClick={() => void copyInvitationLink(invitation.id)}>{copiedInvitationId === invitation.id ? "Copied" : "Copy invite link"}</Button><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "revoke")}>Revoke</Button></div>}</div>)}</section>}
           {/* Members List */}
           <div className="space-y-2">
             {members.length === 0 ? (
