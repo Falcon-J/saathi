@@ -512,7 +512,7 @@ export default function Dashboard() {
                 )}
 
                 {workspaceMode === "assistant" ? (
-                  <AssistantWorkspace workspace={currentWorkspace} tasks={tasks} aiEnabled={aiWorkspaceEnabled} onAddTask={handleAddTask} onOpenTask={handleOpenTask} onOpenWorkspace={handleOpenBoard} />
+                  <AssistantWorkspace workspace={currentWorkspace} tasks={tasks} aiEnabled={aiWorkspaceEnabled} onRefreshTasks={refreshTasks} onOpenTask={handleOpenTask} onOpenWorkspace={handleOpenBoard} />
                 ) : workspaceView === "activity" ? (
                   <Card id="activity-history" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Workspace record</p><CardTitle className="text-2xl tracking-[-0.04em]">Activity and history</CardTitle><CardDescription>Review durable events recorded by successful workspace mutations.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></CardContent></Card>
                 ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (

@@ -9,7 +9,7 @@ const dashboard = fs.readFileSync("app/dashboard/page.tsx", "utf8")
 test("assistant mode owns the optional, reviewable AI advisor", () => {
   assert.match(assistant, /WorkspaceAdvisor/)
   assert.match(assistant, /workspaceId=\{workspace\.id\}/)
-  assert.match(assistant, /onAddTask=\{onAddTask\}/)
+  assert.match(assistant, /onConfirmDraft=\{confirmDraft\}/)
   assert.match(assistant, /Assistant unavailable/)
   assert.doesNotMatch(overview, /WorkspaceAdvisor/)
   assert.match(dashboard, /<AssistantWorkspace[\s\S]*aiEnabled=\{aiWorkspaceEnabled\}/)

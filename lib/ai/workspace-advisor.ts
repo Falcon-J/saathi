@@ -6,7 +6,7 @@ export const advisorCapabilitySchema = z.enum([
   "draft_task",
 ])
 
-const taskDraftSchema = z.object({
+export const advisorTaskDraftSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(1000).nullable(),
   priority: z.enum(["low", "medium", "high"]),
@@ -28,7 +28,7 @@ export const advisorResponseSchema = z.object({
   capability: advisorCapabilitySchema,
   answer: z.string().trim().min(1).max(2000),
   attention: z.array(advisorAttentionSchema).max(8),
-  draft: taskDraftSchema.nullable(),
+  draft: advisorTaskDraftSchema.nullable(),
 }).strict().superRefine((value, context) => {
   if (value.capability === "draft_task" && !value.draft) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Draft task response must include a draft", path: ["draft"] })
@@ -39,6 +39,7 @@ export const advisorResponseSchema = z.object({
 })
 
 export type AdvisorResponse = z.infer<typeof advisorResponseSchema>
+export type AdvisorTaskDraft = z.infer<typeof advisorTaskDraftSchema>
 
 export type AdvisorWorkspace = {
   name: string

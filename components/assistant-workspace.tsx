@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, ListTodo, Sparkles } from "luc
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
 import { WorkspaceAdvisor } from "@/components/workspace-advisor"
+import { confirmWorkspaceAdvisorDraft } from "@/app/actions/workspace-advisor"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTaskDue, todayCalendarDate } from "@/lib/task-time"
@@ -13,22 +14,20 @@ type AssistantWorkspaceProps = {
   workspace: Workspace
   tasks: Task[]
   aiEnabled: boolean
-  onAddTask: (
-    title: string,
-    description?: string,
-    priority?: "low" | "medium" | "high",
-    dueDate?: string,
-    bucket?: "today" | "next",
-    estimatedMinutes?: number,
-    dueAt?: string,
-  ) => Promise<unknown>
+  onRefreshTasks: () => Promise<unknown>
   onOpenTask: (taskId: string) => void
   onOpenWorkspace: () => void
 }
 
-export function AssistantWorkspace({ workspace, tasks, aiEnabled, onAddTask, onOpenTask, onOpenWorkspace }: AssistantWorkspaceProps) {
+export function AssistantWorkspace({ workspace, tasks, aiEnabled, onRefreshTasks, onOpenTask, onOpenWorkspace }: AssistantWorkspaceProps) {
   const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
   const openTasks = tasks.filter((task) => !task.completed && task.status !== "done").length
+
+  const confirmDraft = async (draft: Parameters<typeof confirmWorkspaceAdvisorDraft>[1], idempotencyKey: string) => {
+    const result = await confirmWorkspaceAdvisorDraft(workspace.id, draft, idempotencyKey)
+    if (!result.error) await onRefreshTasks()
+    return result
+  }
 
   return (
     <section className="space-y-5" aria-label="Assistant workspace">
@@ -45,7 +44,7 @@ export function AssistantWorkspace({ workspace, tasks, aiEnabled, onAddTask, onO
             <div className="rounded-xl border border-border bg-background/80 p-4"><CheckCircle2 className="size-4 text-[var(--saathi-success)]" /><p className="mt-3 text-2xl font-semibold tracking-tight">{groups.completed.length}</p><p className="mt-1 text-xs text-muted-foreground">Completed</p></div>
           </div>
           {aiEnabled ? (
-            <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />
+            <WorkspaceAdvisor workspaceId={workspace.id} timeZone={workspace.timezone} onConfirmDraft={confirmDraft} />
           ) : (
             <div className="rounded-xl border border-border bg-secondary/35 p-5">
               <p className="text-sm font-semibold">Assistant unavailable</p>
