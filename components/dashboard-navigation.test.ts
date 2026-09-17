@@ -36,4 +36,8 @@ test('routes each destination to its owning workspace view', () => {
     sectionId: 'team-panel',
     view: 'team',
   })
+  assert.deepEqual(getDashboardNavigationTarget('activity-history'), {
+    sectionId: 'activity-history',
+    view: 'activity',
+  })
 })

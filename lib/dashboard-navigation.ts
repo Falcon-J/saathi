@@ -2,6 +2,7 @@ const dashboardSectionIds = [
   "workspace-header",
   "project-board",
   "team-panel",
+  "activity-history",
 ] as const
 
 export type DashboardSectionId = (typeof dashboardSectionIds)[number]
@@ -14,13 +15,15 @@ export type DashboardSectionVisibility = {
 
 export function getDashboardNavigationTarget(id: DashboardSectionId): {
   sectionId: DashboardSectionId
-  view: "overview" | "board" | "team" | null
+  view: "overview" | "board" | "team" | "activity" | null
 } {
   if (id === "workspace-header") {
     return { sectionId: id, view: "overview" }
   }
 
-  return { sectionId: id, view: id === "team-panel" ? "team" : "board" }
+  if (id === "team-panel") return { sectionId: id, view: "team" }
+  if (id === "activity-history") return { sectionId: id, view: "activity" }
+  return { sectionId: id, view: "board" }
 }
 
 const isDashboardSectionId = (id: string): id is DashboardSectionId =>

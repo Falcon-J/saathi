@@ -3,27 +3,18 @@
 import { useState } from "react"
 import { AlertTriangle, CheckCircle2, ListChecks, Sparkles } from "lucide-react"
 import { askWorkspaceAdvisor } from "@/app/actions/workspace-advisor"
-import type { AdvisorResponse } from "@/lib/ai/workspace-advisor"
+import type { AdvisorResponse, AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 
-type TaskPriority = "low" | "medium" | "high"
-type TaskBucket = "today" | "next"
 type TaskDraft = NonNullable<AdvisorResponse["draft"]>
 
 type WorkspaceAdvisorProps = {
   workspaceId: string
-  onAddTask: (
-    title: string,
-    description?: string,
-    priority?: TaskPriority,
-    dueDate?: string,
-    bucket?: TaskBucket,
-    estimatedMinutes?: number,
-    dueAt?: string,
-  ) => Promise<unknown>
+  timeZone?: string
+  onConfirmDraft: (draft: AdvisorTaskDraft, idempotencyKey: string) => Promise<unknown>
 }
 
 type Capability = AdvisorResponse["capability"]
@@ -38,7 +29,7 @@ function hasError(value: unknown): value is { error: string } {
   return Boolean(value && typeof value === "object" && "error" in value && typeof value.error === "string")
 }
 
-export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorProps) {
+export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: WorkspaceAdvisorProps) {
   const [question, setQuestion] = useState("What should we focus on next?")
   const [response, setResponse] = useState<AdvisorResponse | null>(null)
   const [pending, setPending] = useState<Capability | null>(null)
@@ -69,15 +60,7 @@ export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorPro
     setCreating(true)
     setError(null)
     try {
-      const result = await onAddTask(
-        draft.title,
-        draft.description ?? undefined,
-        draft.priority,
-        draft.dueDate ?? undefined,
-        undefined,
-        draft.estimatedMinutes ?? undefined,
-        draft.dueAt ?? undefined,
-      )
+      const result = await onConfirmDraft(draft, crypto.randomUUID())
       if (hasError(result)) {
         setError(result.error)
         return
@@ -138,7 +121,7 @@ export function WorkspaceAdvisor({ workspaceId, onAddTask }: WorkspaceAdvisorPro
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   {response.draft.estimatedMinutes && <span>{response.draft.estimatedMinutes} minutes</span>}
                   {response.draft.dueDate && <span>Due {response.draft.dueDate}</span>}
-                  {response.draft.dueAt && <span>Due {new Date(response.draft.dueAt).toLocaleString()}</span>}
+                  {response.draft.dueAt && <span>Due {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(response.draft.dueAt))}</span>}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button type="button" size="sm" onClick={() => void createDraft(response.draft!)} disabled={creating}>{creating ? "Creating…" : "Create task"}</Button>
