@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleHelp, Crown, Keyboard, LayoutGrid, LogOut, Plus, RefreshCw, UserPlus } from "lucide-react"
+import { CircleHelp, Crown, Keyboard, LayoutGrid, LogOut, PanelLeft, Plus, RefreshCw, UserPlus } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@/app/actions/workspaces"
 import type { TaskUpdate } from "@/app/tasks/contract"
@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
   const [quickAddRequest, setQuickAddRequest] = useState(0)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [isMac, setIsMac] = useState(false)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -281,6 +282,10 @@ export default function Dashboard() {
         event.preventDefault()
         handleOpenBoard()
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault()
+        setSidebarOpen((open) => !open)
+      }
     }
     window.addEventListener("keydown", handleKeyboardShortcut)
     return () => window.removeEventListener("keydown", handleKeyboardShortcut)
@@ -331,6 +336,18 @@ export default function Dashboard() {
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => setSidebarOpen((open) => !open)}
+              variant="ghost"
+              size="icon"
+              aria-label={sidebarOpen ? "Hide workspace navigation" : "Show workspace navigation"}
+              aria-pressed={sidebarOpen}
+              title={sidebarOpen ? "Hide workspace navigation" : "Show workspace navigation"}
+              className="hidden lg:inline-flex"
+            >
+              <PanelLeft className="size-5" />
+            </Button>
             <Button
               type="button"
               onClick={() => setShortcutsOpen(true)}
@@ -384,7 +401,7 @@ export default function Dashboard() {
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
       <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
-        <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
+        {sidebarOpen && <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
           <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
           {showWorkspace && (
@@ -395,7 +412,7 @@ export default function Dashboard() {
             </div>
           )}
           <div className="mt-4 flex items-center gap-3 border-t border-border px-3 pt-4"><Avatar className="size-9 border border-border"><AvatarFallback className="bg-secondary text-sm font-semibold">{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-semibold">{user.username}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div></div>
-        </aside>
+        </aside>}
 
         <div className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">

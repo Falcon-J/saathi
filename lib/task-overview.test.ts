@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { groupTasksForOverview } from "./task-overview.ts"
-import { calendarDateKey, calendarDateAt, todayCalendarDate } from "./task-time.ts"
+import { calendarDateKey, calendarDateAt, formatTaskDue, todayCalendarDate } from "./task-time.ts"
 
 const baseTask = {
   title: "Task",
@@ -25,6 +25,18 @@ test("keeps stored workspace target dates on their UTC calendar day", () => {
   assert.equal(calendarDateAt(target, "UTC"), "2026-09-16")
 })
 
+test("formats precise deadlines in the workspace timezone while preserving date-only deadlines", () => {
+  const kolkata = formatTaskDue("2026-09-16T23:30:00.000Z", undefined, "Asia/Kolkata") ?? ""
+  const losAngeles = formatTaskDue("2026-09-16T23:30:00.000Z", undefined, "America/Los_Angeles") ?? ""
+  assert.match(kolkata, /17/)
+  assert.match(losAngeles, /16/)
+  assert.notEqual(kolkata, losAngeles)
+  assert.equal(
+    formatTaskDue(undefined, "2026-09-16", "America/Los_Angeles"),
+    formatTaskDue(undefined, "2026-09-16", "Asia/Kolkata"),
+  )
+})
+
 test("groups completed tasks separately from execution buckets", () => {
   const groups = groupTasksForOverview([
     { ...baseTask, id: "done", completed: true, status: "done", bucket: "today" },
@@ -45,7 +57,20 @@ test("uses due dates for legacy tasks without an explicit bucket", () => {
     { ...baseTask, id: "future", dueDate: "2026-09-03" },
   ], "2026-09-02")
 
-  assert.deepEqual(groups.today.map((task) => task.id), ["overdue", "undated"])
+  assert.deepEqual(groups.overdue.map((task) => task.id), ["overdue"])
+  assert.deepEqual(groups.today.map((task) => task.id), ["undated"])
+  assert.deepEqual(groups.next.map((task) => task.id), ["future"])
+})
+
+test("keeps overdue work separate from tasks due today", () => {
+  const groups = groupTasksForOverview([
+    { ...baseTask, id: "overdue", dueDate: "2026-09-01" },
+    { ...baseTask, id: "today", dueDate: "2026-09-02" },
+    { ...baseTask, id: "future", dueDate: "2026-09-03" },
+  ], "2026-09-02")
+
+  assert.deepEqual(groups.overdue.map((task) => task.id), ["overdue"])
+  assert.deepEqual(groups.today.map((task) => task.id), ["today"])
   assert.deepEqual(groups.next.map((task) => task.id), ["future"])
 })
 

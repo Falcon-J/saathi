@@ -27,7 +27,7 @@ type WorkspaceOverviewProps = {
   realtimeSignal?: number
 }
 
-function TaskRow({ task, onToggleTask, onOpenTask }: { task: Task; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
+function TaskRow({ task, timeZone, onToggleTask, onOpenTask }: { task: Task; timeZone: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const done = task.completed || task.status === "done"
 
   return (
@@ -52,7 +52,7 @@ function TaskRow({ task, onToggleTask, onOpenTask }: { task: Task; onToggleTask:
         {(task.dueAt || task.dueDate || task.estimatedMinutes) && (
           <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {task.estimatedMinutes && <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{task.estimatedMinutes}m</span>}
-            {formatTaskDue(task.dueAt, task.dueDate) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" />{formatTaskDue(task.dueAt, task.dueDate)}</span>}
+            {formatTaskDue(task.dueAt, task.dueDate, timeZone) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" />{formatTaskDue(task.dueAt, task.dueDate, timeZone)}</span>}
           </div>
         )}
       </div>
@@ -60,7 +60,7 @@ function TaskRow({ task, onToggleTask, onOpenTask }: { task: Task; onToggleTask:
   )
 }
 
-function TaskSection({ title, tasks, empty, onToggleTask, onOpenTask }: { title: string; tasks: Task[]; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
+function TaskSection({ title, tasks, timeZone, empty, onToggleTask, onOpenTask }: { title: string; tasks: Task[]; timeZone: string; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const headingId = `overview-${title.toLowerCase()}`
   return (
     <section aria-labelledby={headingId}>
@@ -70,7 +70,7 @@ function TaskSection({ title, tasks, empty, onToggleTask, onOpenTask }: { title:
       </div>
       {tasks.length === 0
         ? <p className="py-6 text-sm text-muted-foreground">{empty}</p>
-        : tasks.map((task) => <TaskRow key={task.id} task={task} onToggleTask={onToggleTask} onOpenTask={onOpenTask} />)}
+        : tasks.map((task) => <TaskRow key={task.id} task={task} timeZone={timeZone} onToggleTask={onToggleTask} onOpenTask={onOpenTask} />)}
     </section>
   )
 }
@@ -121,7 +121,8 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onO
         </div>
       </header>
       <div className="space-y-8 px-5 py-6 sm:px-8 sm:py-8">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-[var(--saathi-warning)]/30 bg-[var(--saathi-warning)]/5 p-4"><p className="text-2xl font-semibold tracking-tight">{groups.overdue.length}</p><p className="mt-1 text-xs text-muted-foreground">Overdue</p></div>
           <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.today.length}</p><p className="mt-1 text-xs text-muted-foreground">Due today</p></div>
           <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.next.length}</p><p className="mt-1 text-xs text-muted-foreground">Coming next</p></div>
           <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.completed.length}</p><p className="mt-1 text-xs text-muted-foreground">Completed</p></div>
@@ -152,9 +153,10 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onO
           </div>
         ) : (
           <>
-            <TaskSection title="Today" tasks={groups.today} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
-            <TaskSection title="Next" tasks={groups.next} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
-            <TaskSection title="Completed" tasks={groups.completed} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            {groups.overdue.length > 0 && <TaskSection title="Overdue" tasks={groups.overdue} timeZone={workspace.timezone} empty="No overdue work." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />}
+            <TaskSection title="Today" tasks={groups.today} timeZone={workspace.timezone} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Next" tasks={groups.next} timeZone={workspace.timezone} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Completed" tasks={groups.completed} timeZone={workspace.timezone} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
           </>
         )}
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/35 p-4 sm:flex-row sm:items-center sm:justify-between">

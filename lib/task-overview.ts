@@ -9,6 +9,7 @@ type OverviewTask = {
 }
 
 export type TaskOverviewGroups<TTask extends OverviewTask> = {
+  overdue: TTask[]
   today: TTask[]
   next: TTask[]
   completed: TTask[]
@@ -20,6 +21,7 @@ export function groupTasksForOverview<TTask extends OverviewTask>(
   today = new Date().toISOString().slice(0, 10),
 ): TaskOverviewGroups<TTask> {
   const groups: TaskOverviewGroups<TTask> = {
+    overdue: [],
     today: [],
     next: [],
     completed: [],
@@ -35,7 +37,8 @@ export function groupTasksForOverview<TTask extends OverviewTask>(
     // An explicit deadline is authoritative; bucket is only a fallback for older undated tasks.
     const dueDate = calendarDateKey(task.dueDate || task.dueAt)
     if (dueDate) {
-      if (dueDate > today) groups.next.push(task)
+      if (dueDate < today) groups.overdue.push(task)
+      else if (dueDate > today) groups.next.push(task)
       else groups.today.push(task)
       continue
     }

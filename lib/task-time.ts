@@ -68,16 +68,30 @@ function parseDate(value: string): Date {
   return new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value)
 }
 
-export function formatTaskDue(dueAt?: string, dueDate?: string): string | null {
-  const value = dueAt || dueDate
-  if (!value) return null
-  const parsed = parseDate(value)
+export function formatTaskDue(dueAt?: string, dueDate?: string, timeZone?: string): string | null {
+  if (dueDate && !dueAt) {
+    const parsed = parseDate(`${dueDate}T00:00:00Z`)
+    if (Number.isNaN(parsed.getTime())) return null
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(parsed)
+  }
+
+  if (!dueAt) return null
+  const parsed = parseDate(dueAt)
   if (Number.isNaN(parsed.getTime())) return null
 
-  return new Intl.DateTimeFormat(undefined, dueAt
-    ? { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }
-    : { month: "short", day: "numeric", year: "numeric" },
-  ).format(parsed)
+  return new Intl.DateTimeFormat(undefined, {
+    ...(timeZone ? { timeZone } : {}),
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed)
 }
 
 export function formatTaskCreatedAt(value: string): string | null {
