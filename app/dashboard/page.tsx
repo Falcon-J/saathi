@@ -9,6 +9,7 @@ import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { AssistantWorkspace } from "@/components/assistant-workspace"
+import { ActivityHistory } from "@/components/activity-history"
 import { InvitationNotifications } from "@/components/invitation-notifications"
 import { MemberManager } from "@/components/member-manager"
 import { PageLoader } from "@/components/page-loader"
@@ -35,7 +36,7 @@ import { normalizeEmail } from "@/lib/identity"
 import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
 type SessionUser = { email: string; username: string }
-type WorkspaceView = "overview" | "board" | "team" | "settings"
+type WorkspaceView = "overview" | "board" | "team" | "activity" | "settings"
 type WorkspaceMode = "assistant" | "workspace"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
@@ -43,6 +44,7 @@ const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 function workspaceViewFromHash(hash: string): WorkspaceView {
   if (hash === "#workspace-header") return "overview"
   if (hash === "#team-panel") return "team"
+  if (hash === "#activity-history") return "activity"
   if (hash === "#settings-panel") return "settings"
   return "board"
 }
@@ -283,6 +285,24 @@ export default function Dashboard() {
     window.history.replaceState(null, "", "#settings-panel")
   }
 
+  const handleOpenOverview = () => {
+    setWorkspaceMode("workspace")
+    setWorkspaceView("overview")
+    window.history.replaceState(null, "", "#workspace-header")
+  }
+
+  const handleOpenTeam = () => {
+    setWorkspaceMode("workspace")
+    setWorkspaceView("team")
+    window.history.replaceState(null, "", "#team-panel")
+  }
+
+  const handleOpenActivity = () => {
+    setWorkspaceMode("workspace")
+    setWorkspaceView("activity")
+    window.history.replaceState(null, "", "#activity-history")
+  }
+
   const handleOpenBoard = useCallback(() => {
     setTaskToOpen(null)
     setWorkspaceMode("workspace")
@@ -420,11 +440,11 @@ export default function Dashboard() {
       </Dialog>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
+      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} onOpenActivity={handleOpenActivity} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         {sidebarOpen && <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
           <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
-          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={() => setWorkspaceView("overview")} onOpenTeam={() => setWorkspaceView("team")} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} onOpenActivity={handleOpenActivity} isOwner={Boolean(isCurrentWorkspaceOwner)} settingsActive={workspaceView === "settings"} onOpenSettings={handleOpenSettings} />
           {showWorkspace && (
             <div className="mt-auto rounded-xl border border-border bg-secondary/45 p-3">
               <p className="text-xs font-medium text-muted-foreground">Current workspace</p>
@@ -447,9 +467,9 @@ export default function Dashboard() {
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">A shared place to turn intention into steady progress.</p>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:max-w-[30rem] lg:justify-end">
-                  <Button onClick={() => { setWorkspaceView("overview"); setQuickAddRequest((request) => request + 1) }}><Plus className="size-4" />New task</Button>
+                  <Button onClick={() => { setWorkspaceMode("workspace"); setWorkspaceView("overview"); setQuickAddRequest((request) => request + 1) }}><Plus className="size-4" />New task</Button>
                   <Button variant="outline" onClick={() => setCreatingWorkspace(true)}><Plus className="size-4 text-primary" />New workspace</Button>
-                  <Button variant="outline" onClick={() => setWorkspaceView("team")}><UserPlus className="size-4 text-primary" />Invite people</Button>
+                  <Button variant="outline" onClick={handleOpenTeam}><UserPlus className="size-4 text-primary" />Invite people</Button>
                 </div>
               </section>
             )}
@@ -493,6 +513,8 @@ export default function Dashboard() {
 
                 {workspaceMode === "assistant" ? (
                   <AssistantWorkspace workspace={currentWorkspace} tasks={tasks} aiEnabled={aiWorkspaceEnabled} onAddTask={handleAddTask} onOpenTask={handleOpenTask} onOpenWorkspace={handleOpenBoard} />
+                ) : workspaceView === "activity" ? (
+                  <Card id="activity-history" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Workspace record</p><CardTitle className="text-2xl tracking-[-0.04em]">Activity and history</CardTitle><CardDescription>Review durable events recorded by successful workspace mutations.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></CardContent></Card>
                 ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (
                   <section id="settings-panel"><WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
                 ) : workspaceView === "team" ? (
@@ -514,7 +536,6 @@ export default function Dashboard() {
                       onOpenBoard={handleOpenBoard}
                       focusQuickAdd={quickAddRequest}
                       title={<span>{currentWorkspace.name}</span>}
-                      realtimeSignal={realtime.eventRevision}
                     />
                   )
                 ) : (

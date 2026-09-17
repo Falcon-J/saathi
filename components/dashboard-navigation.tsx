@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Home, LayoutGrid, Settings, Users } from "lucide-react"
+import { History, Home, LayoutGrid, Settings, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getDashboardNavigationTarget,
@@ -14,6 +14,7 @@ const dashboardNavigationItems = [
   { id: "workspace-header", label: "Overview", Icon: Home },
   { id: "project-board", label: "Board", Icon: LayoutGrid },
   { id: "team-panel", label: "Team", Icon: Users },
+  { id: "activity-history", label: "Activity", Icon: History },
 ] as const
 
 function NavigationItem({
@@ -59,25 +60,28 @@ export function DashboardNavigation({
   onOpenBoard,
   onOpenOverview,
   onOpenTeam,
+  onOpenActivity,
   isOwner,
   settingsActive,
   onOpenSettings,
 }: {
   mode: "rail" | "mobile"
   hasWorkspace: boolean
-  activeView?: "overview" | "board" | "team" | "settings"
+  activeView?: "overview" | "board" | "team" | "activity" | "settings"
   onOpenBoard?: () => void
   onOpenOverview?: () => void
   onOpenTeam?: () => void
+  onOpenActivity?: () => void
   isOwner?: boolean
   settingsActive?: boolean
   onOpenSettings?: () => void
 }) {
-  const [activeSection, setActiveSection] = useState<DashboardSectionId>(activeView === "board" ? "project-board" : activeView === "team" ? "team-panel" : "workspace-header")
+  const [activeSection, setActiveSection] = useState<DashboardSectionId>(activeView === "board" ? "project-board" : activeView === "team" ? "team-panel" : activeView === "activity" ? "activity-history" : "workspace-header")
 
   useEffect(() => {
     if (activeView === "board") setActiveSection("project-board")
     else if (activeView === "team") setActiveSection("team-panel")
+    else if (activeView === "activity") setActiveSection("activity-history")
     else if (activeView === "overview") setActiveSection("workspace-header")
   }, [activeView])
 
@@ -118,7 +122,7 @@ export function DashboardNavigation({
       window.history.replaceState(null, "", `#${target.sectionId}`)
     }
 
-    const openView = target.view === "team" ? onOpenTeam : target.view === "overview" ? onOpenOverview : onOpenBoard
+    const openView = target.view === "team" ? onOpenTeam : target.view === "activity" ? onOpenActivity : target.view === "overview" ? onOpenOverview : onOpenBoard
     if (openView) {
       openView()
       window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget))
@@ -130,7 +134,7 @@ export function DashboardNavigation({
 
   const compact = mode === "mobile"
   if (!hasWorkspace) return null
-  const visibleItems = dashboardNavigationItems.slice(0, 3)
+  const visibleItems = dashboardNavigationItems
 
   return (
     <nav
