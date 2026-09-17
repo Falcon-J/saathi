@@ -10,8 +10,6 @@ import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
 import { formatCalendarDate, formatTaskDue, todayCalendarDate } from "@/lib/task-time"
 import { ActivityHistory } from "@/components/activity-history"
-import { WorkspaceAdvisor } from "@/components/workspace-advisor"
-import { isAiWorkspaceEnabled } from "@/lib/feature-flags"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
@@ -127,7 +125,6 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onO
           <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.next.length}</p><p className="mt-1 text-xs text-muted-foreground">Coming next</p></div>
           <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.completed.length}</p><p className="mt-1 text-xs text-muted-foreground">Completed</p></div>
         </div>
-        {isAiWorkspaceEnabled() && <WorkspaceAdvisor workspaceId={workspace.id} onAddTask={onAddTask} />}
         <form onSubmit={handleQuickAdd} className="rounded-xl border border-primary/20 bg-[var(--saathi-surface-wash)] p-4">
           <p className="mb-3 text-sm font-semibold">What needs to move forward?</p>
           <div className="flex flex-col gap-2 sm:flex-row">

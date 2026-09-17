@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleHelp, Crown, Keyboard, LayoutGrid, LogOut, PanelLeft, Plus, RefreshCw, UserPlus } from "lucide-react"
+import { CircleHelp, Crown, Keyboard, LayoutGrid, LogOut, PanelLeft, Plus, RefreshCw, Sparkles, UserPlus } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@/app/actions/workspaces"
 import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
+import { AssistantWorkspace } from "@/components/assistant-workspace"
 import { InvitationNotifications } from "@/components/invitation-notifications"
 import { MemberManager } from "@/components/member-manager"
 import { PageLoader } from "@/components/page-loader"
@@ -35,6 +36,7 @@ import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
 type SessionUser = { email: string; username: string }
 type WorkspaceView = "overview" | "board" | "team" | "settings"
+type WorkspaceMode = "assistant" | "workspace"
 
 const aiWorkspaceEnabled = isAiWorkspaceEnabled()
 
@@ -45,9 +47,14 @@ function workspaceViewFromHash(hash: string): WorkspaceView {
   return "board"
 }
 
+function workspaceModeFromLocation(): WorkspaceMode {
+  return typeof window !== "undefined" && window.location.hash ? "workspace" : "assistant"
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => workspaceModeFromLocation())
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "board" : workspaceViewFromHash(window.location.hash))
   const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
   const [quickAddRequest, setQuickAddRequest] = useState(0)
@@ -97,7 +104,10 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    const handleHashChange = () => setWorkspaceView(workspaceViewFromHash(window.location.hash))
+    const handleHashChange = () => {
+      setWorkspaceView(workspaceViewFromHash(window.location.hash))
+      if (window.location.hash) setWorkspaceMode("workspace")
+    }
     window.addEventListener("hashchange", handleHashChange)
     return () => window.removeEventListener("hashchange", handleHashChange)
   }, [])
@@ -221,6 +231,7 @@ export default function Dashboard() {
   const finishWorkspaceCreation = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
+    setWorkspaceMode("workspace")
     setWorkspaceView("board")
   }
 
@@ -262,16 +273,19 @@ export default function Dashboard() {
   const handleSelectWorkspace = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
+    setWorkspaceMode("workspace")
     setWorkspaceView("board")
   }
 
   const handleOpenSettings = () => {
+    setWorkspaceMode("workspace")
     setWorkspaceView("settings")
     window.history.replaceState(null, "", "#settings-panel")
   }
 
   const handleOpenBoard = useCallback(() => {
     setTaskToOpen(null)
+    setWorkspaceMode("workspace")
     setWorkspaceView("board")
     window.history.replaceState(null, "", "#project-board")
   }, [])
@@ -293,6 +307,7 @@ export default function Dashboard() {
 
   const handleOpenTask = (taskId: string) => {
     setTaskToOpen(taskId)
+    setWorkspaceMode("workspace")
     setWorkspaceView("board")
     window.history.replaceState(null, "", "#project-board")
   }
@@ -336,6 +351,12 @@ export default function Dashboard() {
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            {showWorkspace && (
+              <div className="hidden items-center rounded-lg border border-border bg-secondary/45 p-1 sm:flex" aria-label="Workspace mode">
+                <Button type="button" size="sm" variant={workspaceMode === "assistant" ? "default" : "ghost"} onClick={() => { setWorkspaceMode("assistant"); window.history.replaceState(null, "", "/dashboard") }}><Sparkles className="size-4" />Assistant</Button>
+                <Button type="button" size="sm" variant={workspaceMode === "workspace" ? "default" : "ghost"} onClick={() => { setWorkspaceMode("workspace"); handleOpenBoard() }}><LayoutGrid className="size-4" />Workspace</Button>
+              </div>
+            )}
             <Button
               type="button"
               onClick={() => setSidebarOpen((open) => !open)}
@@ -470,7 +491,9 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {workspaceView === "settings" && isCurrentWorkspaceOwner ? (
+                {workspaceMode === "assistant" ? (
+                  <AssistantWorkspace workspace={currentWorkspace} tasks={tasks} aiEnabled={aiWorkspaceEnabled} onAddTask={handleAddTask} onOpenTask={handleOpenTask} onOpenWorkspace={handleOpenBoard} />
+                ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (
                   <section id="settings-panel"><WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
                 ) : workspaceView === "team" ? (
                   <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Work better together.</CardTitle><CardDescription>Invite your team, manage members, and keep everyone aligned.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /></CardContent></Card>
