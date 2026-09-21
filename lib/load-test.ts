@@ -1,5 +1,17 @@
 import { timingSafeEqual } from "node:crypto"
 
+export function isLoadTestPublisherEnabled({
+  nodeEnv = process.env.NODE_ENV,
+  vercelEnv = process.env.VERCEL_ENV,
+}: {
+  nodeEnv?: string
+  vercelEnv?: string
+} = {}): boolean {
+  return nodeEnv === "development"
+    || nodeEnv === "staging"
+    || (nodeEnv === "production" && vercelEnv === "preview")
+}
+
 export function isLoadTestSecretValid(
   providedSecret: string | null,
   configuredSecret: string | undefined,

@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   evaluateBenchmark,
   extractBenchmarkLatency,
+  isLoadTestPublisherEnabled,
   isLoadTestSecretValid,
   requireLoadTestWorkspaceId,
 } from "./load-test.ts"
@@ -15,6 +16,14 @@ test("rejects missing or incorrect load-test secrets", () => {
   assert.equal(isLoadTestSecretValid(null, "correct-secret"), false)
   assert.equal(isLoadTestSecretValid("wrong-secret", "correct-secret"), false)
   assert.equal(isLoadTestSecretValid("correct-secret", undefined), false)
+})
+
+test("enables the publisher only for non-production benchmark environments", () => {
+  assert.equal(isLoadTestPublisherEnabled({ nodeEnv: "development", vercelEnv: "production" }), true)
+  assert.equal(isLoadTestPublisherEnabled({ nodeEnv: "staging", vercelEnv: "production" }), true)
+  assert.equal(isLoadTestPublisherEnabled({ nodeEnv: "production", vercelEnv: "preview" }), true)
+  assert.equal(isLoadTestPublisherEnabled({ nodeEnv: "production", vercelEnv: "production" }), false)
+  assert.equal(isLoadTestPublisherEnabled({ nodeEnv: "production", vercelEnv: undefined }), false)
 })
 
 test("extracts latency only from tagged benchmark events", () => {

@@ -229,7 +229,7 @@ saathi/
 
 ## Load Testing
 
-The authenticated local load test opens concurrent SSE connections, publishes tagged events through a development-only endpoint, and reports p50/p95/p99 connection and event-delivery latency.
+The authenticated load test opens concurrent SSE connections, publishes tagged events through a development-only or explicitly configured Vercel Preview endpoint, and reports p50/p95/p99 connection and event-delivery latency. The publisher is never enabled for production deployments.
 
 Set a process-scoped publisher secret, log in to the local app, and pass both the resulting `auth-session` cookie and the ID of a disposable workspace that belongs to that session. Do not commit any of these values:
 

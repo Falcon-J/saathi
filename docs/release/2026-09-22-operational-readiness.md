@@ -24,6 +24,7 @@ PostgreSQL owns durable workspace, task, comment, activity, and outbox state. Re
 | Restore drill | BLOCKED | Requires a disposable restored database and integrity checks |
 | Runtime alerts | BLOCKED | Requires provider alert configuration and an observed alert drill |
 | Authenticated SSE benchmark | BLOCKED | Requires disposable authenticated session/workspace and controlled load execution |
+| Preview beta benchmark topology | BLOCKED | The publisher route now supports explicitly configured Vercel Preview deployments, but the current Preview deployment is protected and does not have the separate beta environment values required for safe execution |
 | Outbox failure/retry drill | BLOCKED | Requires controlled provider/Redis failure injection |
 | Email delivery/webhook | BLOCKED | Requires verified Resend domain, DNS, disposable inbox, and webhook event evidence |
 | Two-user authorization/UAT | BLOCKED | Requires two disposable accounts and manual browser evidence |

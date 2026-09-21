@@ -35,6 +35,7 @@ The database test command now fails closed when `DATABASE_TEST_URL` is missing o
 | Live liveness | PASS | `https://saathi-ten.vercel.app/api/health/live` returned HTTP 200 |
 | Live readiness | PASS | `https://saathi-ten.vercel.app/api/health/ready` returned HTTP 200 |
 | Public login route | PASS | `https://saathi-ten.vercel.app/login` returned HTTP 200 |
+| Hosted benchmark publisher policy | PASS (code) / OPEN (environment) | Publisher is enabled only in development, staging, or `VERCEL_ENV=preview` with a secret; production remains disabled. The current Preview deployment still needs a separate beta topology and controlled access. |
 
 ## Open external gates
 
@@ -46,6 +47,7 @@ These require provider access, disposable accounts, or a controlled manual drill
 4. Authenticated SSE benchmark, reconnect reconciliation, outbox failure/retry, and retention evidence.
 5. Backup/restore, retention, readiness-failure, alerting, and rollback drills. The current Supabase Free Plan does not provide scheduled project backups.
 6. Accessibility, keyboard navigation, 390px mobile, loading, offline, permission, conflict, and error-state review.
+7. A protected, separately configured Preview beta is required before running the authenticated SSE benchmark; do not point the benchmark at Production.
 
 ## Release classification
 
