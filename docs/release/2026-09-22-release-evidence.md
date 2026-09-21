@@ -35,6 +35,8 @@ The database test command now fails closed when `DATABASE_TEST_URL` is missing o
 | Live liveness | PASS | `https://saathi-ten.vercel.app/api/health/live` returned HTTP 200 |
 | Live readiness | PASS | `https://saathi-ten.vercel.app/api/health/ready` returned HTTP 200 |
 | Public login route | PASS | `https://saathi-ten.vercel.app/login` returned HTTP 200 |
+| Production worker auth boundary | PASS | Unauthenticated `POST /api/internal/outbox` returned HTTP 401 |
+| Production benchmark safety boundary | PASS | `POST /api/realtime/load-test` returned HTTP 404 in Production |
 | Hosted benchmark publisher policy | PASS (code) / OPEN (environment) | Publisher is enabled only in development, staging, or `VERCEL_ENV=preview` with a secret; production remains disabled. The current Preview deployment still needs a separate beta topology and controlled access. |
 
 ## Open external gates

@@ -45,3 +45,20 @@ Before calling the beta production-ready, record:
 ## Safe operating rule
 
 If Redis, email, or AI fails, durable PostgreSQL mutations must remain authoritative and recoverable. If readiness fails, traffic must not be described as healthy merely because the liveness endpoint responds.
+
+## Production handling drill — read-only
+
+The live deployment was exercised without changing data:
+
+| Check | Result |
+| --- | --- |
+| `GET /api/health/live` | `200` |
+| `GET /api/health/ready` | `200` |
+| `GET /login` | `200` |
+| unauthenticated `POST /api/internal/outbox` | `401` |
+| `POST /api/realtime/load-test` in Production | `404` — benchmark publisher remains disabled |
+| Vercel current Production deployment | Ready, source `main` at `6bab6a3` |
+| Vercel Instant Rollback control | Disabled on the current plan |
+| Supabase scheduled backups | Unavailable on the current Free plan |
+
+No live database reset, user deletion, migration rollback, credential reset, or production traffic promotion was performed. A real restore drill must target a disposable restored project or an approved backup target; a live reset would be data destruction, not a safe rollback exercise.
