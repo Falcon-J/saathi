@@ -11,7 +11,7 @@ type AuthResult = { success?: boolean; error?: string; confirmationRequired?: bo
 type OAuthResult = { url?: string; error?: string }
 const unavailable = { error: 'Account service is temporarily unavailable. Please try again.' }
 
-export async function signup(email: string, username: string, password: string): Promise<AuthResult> {
+export async function signup(email: string, username: string, password: string, next?: string | null): Promise<AuthResult> {
   if (typeof email !== 'string' || typeof username !== 'string' || typeof password !== 'string') return { error: 'Enter valid account details.' }
   const normalizedEmail = normalizeEmail(email)
   const invalid = validateCredentials(normalizedEmail, password, username)
@@ -21,7 +21,7 @@ export async function signup(email: string, username: string, password: string):
     const { data, error } = await client.auth.signUp({
       email: normalizedEmail,
       password,
-      options: { data: { username: username.trim() }, emailRedirectTo: getAuthCallbackUrl() },
+      options: { data: { username: username.trim() }, emailRedirectTo: getAuthCallbackUrl(safeAuthRedirect(next)) },
     })
     if (error) return { error: 'Could not create the account. Check your details or try signing in.' }
     // Launch requires verified email. Supabase must have email confirmation enabled.

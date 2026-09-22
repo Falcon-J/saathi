@@ -23,7 +23,6 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [keepSignedIn, setKeepSignedIn] = useState(true)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -52,7 +51,8 @@ export function AuthForm({ mode }: AuthFormProps) {
     setLoading(true)
 
     try {
-      const result = isSignup ? await signup(email, username, password) : await login(email, password)
+      const redirect = new URLSearchParams(window.location.search).get("redirect")
+      const result = isSignup ? await signup(email, username, password, redirect) : await login(email, password)
 
       if (result.error) {
         setFormError(result.error)
@@ -69,7 +69,6 @@ export function AuthForm({ mode }: AuthFormProps) {
           isSignup ? "Account created" : "Signed in",
           isSignup ? "Create your first workspace to get started." : "Welcome back to Saathi.",
         )
-        const redirect = new URLSearchParams(window.location.search).get("redirect")
         router.replace(safeAuthRedirect(redirect))
         router.refresh()
       }
@@ -167,11 +166,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </FieldShell>
 
                   {!isSignup && (
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-1 text-xs lg:gap-x-4 lg:gap-y-3 lg:text-sm">
-                      <label className="inline-flex cursor-pointer items-center gap-2.5 text-[#122039]">
-                        <input type="checkbox" checked={keepSignedIn} onChange={(event) => setKeepSignedIn(event.target.checked)} className="size-4 accent-[#0f766e] lg:size-5" />
-                        Keep me signed in
-                      </label>
+                    <div className="flex justify-end pt-1 text-xs lg:text-sm">
                       <Link className="font-semibold text-[#0f766e] hover:underline" href="/forgot-password">Forgot password?</Link>
                     </div>
                   )}
