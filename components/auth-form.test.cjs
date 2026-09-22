@@ -4,6 +4,7 @@ const assert = require("node:assert/strict")
 const path = require("node:path")
 
 const source = readFileSync(path.join(__dirname, "auth-form.tsx"), "utf8")
+const authActions = readFileSync(path.join(__dirname, "../lib/auth-simple.ts"), "utf8")
 
 test("signup page keeps account creation copy inside the form", () => {
   assert.match(source, /Create an account/)
@@ -19,6 +20,12 @@ test("authentication forms render recoverable errors inline", () => {
   assert.doesNotMatch(source, /Workspace gateway|SSE task updates/)
 })
 
+test("signup preserves a safe return destination through email confirmation", () => {
+  assert.match(source, /signup\(email, username, password, redirect\)/)
+  assert.match(authActions, /signup\(email: string, username: string, password: string, next\?: string \| null\)/)
+  assert.match(authActions, /emailRedirectTo: getAuthCallbackUrl\(safeAuthRedirect\(next\)\)/)
+})
+
 test("authentication suite follows the approved reference layout", () => {
   assert.match(source, /src="\/saathi-auth-background-v2\.png"/)
   assert.match(source, /fill/)
@@ -31,7 +38,7 @@ test("authentication suite follows the approved reference layout", () => {
   assert.match(source, /loginWithGoogle\(next\)/)
   assert.match(source, /Continue with Google/)
   assert.doesNotMatch(source, /GitHub|Github/)
-  assert.match(source, /Keep me signed in/)
+  assert.doesNotMatch(source, /keepSignedIn|Keep me signed in/)
   assert.match(source, /Show password/)
   assert.match(source, /Back/)
 })
