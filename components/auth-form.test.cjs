@@ -33,7 +33,7 @@ test("authentication suite follows the approved reference layout", () => {
   assert.match(source, /sm:items-start/)
   assert.match(source, /w-\[48%\]/)
   assert.match(source, /sm:w-\[clamp\(14rem,34vw,33\.75rem\)\]/)
-  assert.match(source, /sm:h-\[100svh\] sm:overflow-hidden/)
+  assert.doesNotMatch(source, /sm:h-\[100svh\] sm:overflow-hidden/)
   assert.match(source, /Forgot password\?/)
   assert.match(source, /loginWithGoogle\(next\)/)
   assert.match(source, /Continue with Google/)
