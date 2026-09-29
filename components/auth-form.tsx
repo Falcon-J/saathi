@@ -104,7 +104,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   return (
-    <main className="relative isolate min-h-[100svh] overflow-x-hidden bg-[#faf9f5] text-[#122039] sm:h-[100svh] sm:overflow-hidden">
+    <main className="relative isolate min-h-[100svh] overflow-x-hidden bg-[#faf9f5] text-[#122039]">
       <Image
         src="/saathi-auth-background-v2.png"
         alt=""
