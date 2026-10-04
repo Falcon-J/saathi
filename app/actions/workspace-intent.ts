@@ -3,7 +3,7 @@
 import { getSession } from "@/lib/auth-simple"
 import { createWorkspaceRecord } from "@/lib/data/workspaces"
 import type { Workspace } from "@/app/actions/workspaces"
-import { revalidatePath } from "next/cache"
+import { afterDomainCommit } from "@/lib/post-commit"
 import { isAiWorkspaceEnabled } from "@/lib/feature-flags"
 import { requestGroqStructuredResponse } from "@/lib/groq-chat"
 import { parseWorkspacePlan,workspacePlanJsonSchema,reviewedWorkspacePlanSchema,type WorkspacePlan } from "@/lib/workspace-intent"
@@ -25,13 +25,14 @@ export async function generateWorkspaceDraft(intent:string):Promise<{plan?:Works
 export async function createWorkspaceFromPlan(input:unknown):Promise<WorkspaceIntentResult>{
   try{
     const session=await getSession();if(!session)return {error:"Authentication required"}
+    if(!isAiWorkspaceEnabled())return {error:"AI planning is unavailable. You can create your workspace manually."}
     const parsed=reviewedWorkspacePlanSchema.safeParse(input)
     if(!parsed.success)return {error:"Review the workspace name, goal, dates, and selected tasks."}
     await consumeDistributedRateLimit(`workspace-create:${session.id}`,20,3600000)
     const plan=parsed.data
     const workspace=await createWorkspaceRecord(session.id,{name:plan.title,summary:plan.summary,targetDate:plan.targetDate,
       tasks:plan.tasks.map(t=>({title:t.title,bucket:t.bucket,dueDate:t.dueDate??undefined,estimatedMinutes:t.estimatedMinutes??undefined}))})
-    revalidatePath("/dashboard");return {workspace}
+    afterDomainCommit(workspace.id);return {workspace}
   }catch{return {error:"Workspace could not be saved. Please retry after checking your workspace list."}}
 }
 // Old mutation entry points fail closed; v1 AI only returns reviewed drafts.

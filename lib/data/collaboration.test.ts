@@ -52,6 +52,39 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
       await assert.rejects(respondToInvitation(outsider,expired.id,"accepted"),/expired/)
       assert.equal((await db`SELECT * FROM workspace_members WHERE workspace_id=${workspace.id} AND user_id=${outsider.id}`).length,0)
     })
+    await t.test("task errors distinguish validation, denial, missing records and stale edits",async()=>{
+      await assert.rejects(createTaskRecord(owner.id,workspace.id,{title:""}), {code:"validation"})
+      const task=await createTaskRecord(owner.id,workspace.id,{title:"Error contract",assigneeEmail:member.email})
+      await assert.rejects(changeTaskRecord(owner.id,task.id,"edit",{title:"Stale"},0), {code:"conflict"})
+      await assert.rejects(changeTaskRecord(owner.id,task.id,"edit",{title:"Missing version"}), {code:"conflict"})
+      await assert.rejects(changeTaskRecord(member.id,task.id,"delete",{},task.version), {code:"forbidden"})
+      await assert.rejects(listTaskRecords(outsider.id,workspace.id), {code:"forbidden"})
+      await assert.rejects(changeTaskRecord(owner.id,randomUUID(),"delete",{},1), {code:"not_found"})
+      const cleared=await changeTaskRecord(owner.id,task.id,"edit",{assigneeEmail:undefined,dueDate:undefined},task.version)
+      assert.equal(cleared.assigneeEmail,undefined)
+      assert.equal(cleared.dueDate,undefined)
+    })
+    await t.test("task list preserves projections with constant query count and deterministic ordering",async()=>{
+      const instant="2026-10-04T10:30:00.000Z"
+      const dated=await createTaskRecord(owner.id,workspace.id,{title:"Calendar",dueDate:"2026-10-04",assigneeEmail:member.email})
+      const timed=await createTaskRecord(owner.id,workspace.id,{title:"Instant",dueAt:instant})
+      await db`UPDATE tasks SET created_at='2026-10-04T00:00:00Z' WHERE workspace_id=${workspace.id}`
+      const originalBegin=db.begin
+      let queries=0
+      db.begin=((options: string, callback: (tx: unknown)=>unknown)=>originalBegin.call(db,options,async(tx: unknown)=>callback(new Proxy(tx as object,{
+        apply(target,thisArg,args){queries++;return Reflect.apply(target as (...args: unknown[])=>unknown,thisArg,args)},
+      })))) as typeof db.begin
+      let tasks
+      try { tasks=await listTaskRecords(owner.id,workspace.id) } finally {db.begin=originalBegin}
+      assert.equal(queries,2,"one authorization query and one task projection query")
+      assert.deepEqual(tasks.map(task=>task.id),tasks.map(task=>task.id).sort())
+      assert.equal(tasks.find(task=>task.id===dated.id)?.dueDate,"2026-10-04")
+      assert.equal(tasks.find(task=>task.id===dated.id)?.assigneeEmail,member.email)
+      assert.equal(tasks.find(task=>task.id===timed.id)?.dueAt,instant)
+      assert.equal(tasks.find(task=>task.id===timed.id)?.assigneeEmail,undefined)
+      const empty=await createWorkspaceRecord(owner.id,{name:"Empty list"})
+      assert.deepEqual(await listTaskRecords(owner.id,empty.id),[])
+    })
   }finally{
     // Only records belonging to UUIDs created by this test are removed.
     await db`DELETE FROM workspaces WHERE owner_user_id=${owner.id}`

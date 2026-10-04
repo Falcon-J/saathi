@@ -1,36 +1,40 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { ArrowRight, CalendarDays, Check, Circle, Clock3, Plus, Target } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, Circle, Clock3, Target } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { TaskQuickAdd } from "@/components/task-quick-add"
 import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
 import { formatCalendarDate, formatTaskDue, todayCalendarDate } from "@/lib/task-time"
+import { useTaskPermissions } from "@/hooks/usePermissions"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
+  currentUserEmail: string
   tasks: Task[]
   loading: boolean
   onToggleTask: (taskId: string) => Promise<unknown>
   onOpenTask: (taskId: string) => void
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
   onOpenBoard: () => void
+  onReviewBoard: () => Promise<void>
   focusQuickAdd?: number
   title?: React.ReactNode
   commandBar?: React.ReactNode
 }
 
-function TaskRow({ task, timeZone, onToggleTask, onOpenTask }: { task: Task; timeZone: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
+function TaskRow({ task, timeZone, workspace, currentUserEmail, onToggleTask, onOpenTask }: { task: Task; timeZone: string; workspace: Workspace; currentUserEmail: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const done = task.completed || task.status === "done"
+  const permissions = useTaskPermissions(currentUserEmail, workspace, task)
 
   return (
     <div className="relative flex min-h-14 items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
       <button
         type="button"
-        onClick={() => void onToggleTask(task.id)}
+        disabled={!permissions.canToggle}
+        onClick={() => { if (permissions.canToggle) void onToggleTask(task.id) }}
         aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
         className={`grid size-8 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${done ? "bg-[var(--saathi-success)]/12 text-[var(--saathi-success)]" : "text-muted-foreground hover:bg-secondary hover:text-primary"}`}
       >
@@ -56,7 +60,7 @@ function TaskRow({ task, timeZone, onToggleTask, onOpenTask }: { task: Task; tim
   )
 }
 
-function TaskSection({ title, tasks, timeZone, empty, onToggleTask, onOpenTask }: { title: string; tasks: Task[]; timeZone: string; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
+function TaskSection({ title, tasks, timeZone, workspace, currentUserEmail, empty, onToggleTask, onOpenTask }: { title: string; tasks: Task[]; timeZone: string; workspace: Workspace; currentUserEmail: string; empty: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const headingId = `overview-${title.toLowerCase()}`
   return (
     <section aria-labelledby={headingId}>
@@ -66,46 +70,21 @@ function TaskSection({ title, tasks, timeZone, empty, onToggleTask, onOpenTask }
       </div>
       {tasks.length === 0
         ? <p className="py-6 text-sm text-muted-foreground">{empty}</p>
-        : tasks.map((task) => <TaskRow key={task.id} task={task} timeZone={timeZone} onToggleTask={onToggleTask} onOpenTask={onOpenTask} />)}
+        : tasks.map((task) => <TaskRow key={task.id} task={task} timeZone={timeZone} workspace={workspace} currentUserEmail={currentUserEmail} onToggleTask={onToggleTask} onOpenTask={onOpenTask} />)}
     </section>
   )
 }
 
-export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
-  const [newTaskTitle, setNewTaskTitle] = useState("")
-  const [addingTask, setAddingTask] = useState(false)
-  const [addError, setAddError] = useState<string | null>(null)
-  const quickAddInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (focusQuickAdd) quickAddInputRef.current?.focus()
-  }, [focusQuickAdd])
-
-  const handleQuickAdd = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const titleValue = newTaskTitle.trim()
-    if (!titleValue || addingTask) return
-
-    setAddingTask(true)
-    setAddError(null)
-    const result = await onAddTask(titleValue)
-    if (result && typeof result === "object" && "error" in result && typeof result.error === "string") {
-      setAddError(result.error)
-    } else {
-      setNewTaskTitle("")
-    }
-    setAddingTask(false)
-  }
-
   return (
     <section id="project-board" className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
-      <header className="border-b border-border px-5 py-6 sm:px-8 sm:py-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+      <header className="border-b border-border px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-primary"><Target className="size-4" />Your progress</div>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <div className="text-2xl font-bold tracking-tight sm:text-3xl">{title ?? workspace.name}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {title}
               {workspace.targetAt && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatCalendarDate(workspace.targetAt, "UTC")}</span>}
             </div>
             {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
@@ -116,53 +95,30 @@ export function WorkspaceOverview({ workspace, tasks, loading, onToggleTask, onO
           </div>
         </div>
       </header>
-      <div className="space-y-8 px-5 py-6 sm:px-8 sm:py-8">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-[var(--saathi-warning)]/30 bg-[var(--saathi-warning)]/5 p-4"><p className="text-2xl font-semibold tracking-tight">{groups.overdue.length}</p><p className="mt-1 text-xs text-muted-foreground">Overdue</p></div>
-          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.today.length}</p><p className="mt-1 text-xs text-muted-foreground">Due today</p></div>
-          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.next.length}</p><p className="mt-1 text-xs text-muted-foreground">Coming next</p></div>
-          <div className="rounded-xl border border-border bg-background p-4"><p className="text-2xl font-semibold tracking-tight">{groups.completed.length}</p><p className="mt-1 text-xs text-muted-foreground">Completed</p></div>
+      <div className="space-y-5 px-4 py-4 sm:px-6">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{groups.overdue.length}</strong> overdue</span>
+          <span><strong className="text-foreground">{groups.today.length}</strong> due today</span>
+          <span><strong className="text-foreground">{groups.next.length}</strong> coming next</span>
+          <span><strong className="text-foreground">{groups.completed.length}</strong> completed</span>
         </div>
-        <form onSubmit={handleQuickAdd} className="rounded-xl border border-primary/20 bg-[var(--saathi-surface-wash)] p-4">
-          <p className="mb-3 text-sm font-semibold">What needs to move forward?</p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              value={newTaskTitle}
-              onChange={(event) => setNewTaskTitle(event.target.value)}
-              placeholder="Add something to do today"
-              aria-label="New task title"
-              ref={quickAddInputRef}
-              maxLength={200}
-              disabled={addingTask}
-              className="bg-card"
-            />
-            <Button type="submit" disabled={!newTaskTitle.trim() || addingTask}>
-              <Plus className="size-4" />{addingTask ? "Adding…" : "Add task"}
-            </Button>
-          </div>
-          {addError && <p role="alert" className="mt-2 text-sm text-destructive">{addError}</p>}
-        </form>
+        <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
         {loading ? (
           <div role="status" className="space-y-3">
             {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-secondary" />)}
           </div>
         ) : (
           <>
-            {groups.overdue.length > 0 && <TaskSection title="Overdue" tasks={groups.overdue} timeZone={workspace.timezone} empty="No overdue work." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />}
-            <TaskSection title="Today" tasks={groups.today} timeZone={workspace.timezone} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
-            <TaskSection title="Next" tasks={groups.next} timeZone={workspace.timezone} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
-            <TaskSection title="Completed" tasks={groups.completed} timeZone={workspace.timezone} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            {groups.overdue.length > 0 && <TaskSection title="Overdue" tasks={groups.overdue} timeZone={workspace.timezone} workspace={workspace} currentUserEmail={currentUserEmail} empty="No overdue work." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />}
+            <TaskSection title="Today" tasks={groups.today} timeZone={workspace.timezone} workspace={workspace} currentUserEmail={currentUserEmail} empty="Nothing needs your attention today." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <TaskSection title="Next" tasks={groups.next} timeZone={workspace.timezone} workspace={workspace} currentUserEmail={currentUserEmail} empty="Future work will appear here when it has a later date." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />
+            <details className="border-t border-border pt-3">
+              <summary className="cursor-pointer text-sm font-medium text-muted-foreground">Completed ({groups.completed.length})</summary>
+              <div className="mt-3"><TaskSection title="Completed" tasks={groups.completed} timeZone={workspace.timezone} workspace={workspace} currentUserEmail={currentUserEmail} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} /></div>
+            </details>
           </>
         )}
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/35 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium">Need task details?</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Use Board for status, priority, due dates, assignees, search, and CSV import.</p>
-          </div>
-          <Button type="button" variant="outline" onClick={onOpenBoard} className="shrink-0 bg-card">
-            Open Board <ArrowRight className="size-4" />
-          </Button>
-        </div>
+        <Button type="button" variant="link" onClick={onOpenBoard} className="h-auto p-0">View all tasks <ArrowRight className="size-4" /></Button>
         {commandBar}
       </div>
     </section>

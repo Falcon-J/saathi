@@ -6,6 +6,7 @@ import { consumeDistributedRateLimit, RateLimitExceeded } from "@/lib/rate-limit
 import { readWorkspace } from "@/lib/data/workspaces"
 import { listTaskRecords } from "@/lib/data/tasks"
 import { createTaskRecord } from "@/lib/data/tasks"
+import { afterDomainCommit } from "@/lib/post-commit"
 import { AiOperationError, recordAiOperation, type AiOperationMetadata } from "@/lib/data/ai-operations"
 import { advisorTaskDraftSchema, buildAdvisorProjection, type AdvisorResponse, type AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
 import { requestWorkspaceAdvisor } from "@/lib/ai/workspace-advisor-service"
@@ -168,7 +169,8 @@ export async function confirmWorkspaceAdvisorDraft(
     if (claim?.status === "processing") return { error: "This task proposal is already being confirmed. Please wait and refresh." }
 
     try {
-      const task = await createTaskRecord(session.id, workspaceId, normalized.updates)
+      const task = await createTaskRecord(session.id, workspaceId, normalized.updates, parsedKey.data)
+      afterDomainCommit(workspaceId)
       try {
         await redis.set(claimKey, { status: "complete", actorId: session.id, workspaceId, task } satisfies DraftConfirmationClaim, { ex: confirmationTtlSeconds })
       } catch {

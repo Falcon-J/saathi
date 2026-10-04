@@ -19,7 +19,7 @@ export async function listActivityEvents(actorId: string, workspaceId: string, l
   const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 100)
   return getDb().begin("isolation level repeatable read read only", async (tx: Transaction) => {
     const [member] = await tx`SELECT 1 FROM workspace_members m JOIN workspaces w ON w.id = m.workspace_id
-      WHERE m.workspace_id = ${workspaceId} AND m.user_id = ${actorId} AND w.archived_at IS NULL`
+      WHERE m.workspace_id = ${workspaceId} AND m.user_id = ${actorId}`
     if (!member) throw new Error("Workspace unavailable or access denied")
 
     const rows = await tx`SELECT a.id, a.event_type, a.entity_type, a.entity_id, a.metadata, a.created_at,

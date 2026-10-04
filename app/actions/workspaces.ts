@@ -1,7 +1,7 @@
 "use server"
 
 import { getSession } from "@/lib/auth-simple"
-import { revalidatePath } from "next/cache"
+import { afterDomainCommit } from "@/lib/post-commit"
 import { normalizeEmail } from "@/lib/identity"
 import { getPublicInvitationError } from "@/lib/invitation-domain"
 import {
@@ -23,10 +23,19 @@ export async function getUserWorkspaces(userEmail: string): Promise<Workspace[]>
   return listWorkspaces(session.id)
 }
 
+export async function getArchivedWorkspaces(): Promise<{ workspaces?: Workspace[]; error?: string }> {
+  try {
+    const session = await requireSession()
+    return { workspaces: await listWorkspaces(session.id, true) }
+  } catch {
+    return { error: "Unable to load archived workspaces. Please try again." }
+  }
+}
+
 export async function createWorkspace(name: string, details?: Omit<WorkspaceInput, "name">): Promise<Workspace> {
   const session = await requireSession()
   const workspace = await createWorkspaceRecord(session.id, { ...details, name })
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspace.id)
   return workspace
 }
 
@@ -38,7 +47,7 @@ export async function getWorkspace(workspaceId: string): Promise<Workspace | nul
 export async function updateWorkspace(workspaceId: string, input: WorkspaceInput, expectedVersion: number): Promise<Workspace> {
   const session = await requireSession()
   const workspace = await updateWorkspaceRecord(session.id, workspaceId, input, expectedVersion)
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspace.id)
   return workspace
 }
 
@@ -47,19 +56,19 @@ export async function updateWorkspaceName(workspaceId: string, newName: string, 
   const current = await readWorkspace(workspaceId, session.id)
   if (!current) throw new Error("Workspace not found")
   await updateWorkspaceRecord(session.id, workspaceId, { ...current, name: newName }, expectedVersion)
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspaceId)
 }
 
 export async function archiveWorkspace(workspaceId: string, expectedVersion: number): Promise<void> {
   const session = await requireSession()
   await archiveWorkspaceRecord(session.id, workspaceId, expectedVersion)
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspaceId)
 }
 
 export async function transferWorkspaceOwnership(workspaceId: string, newOwnerUserId: string, expectedVersion: number): Promise<void> {
   const session = await requireSession()
   await transferWorkspaceOwnershipRecord(session.id, workspaceId, newOwnerUserId, expectedVersion)
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspaceId)
 }
 
 export async function inviteMemberToWorkspace(workspaceId: string, memberEmail: string) {
@@ -77,11 +86,11 @@ export async function inviteMemberToWorkspace(workspaceId: string, memberEmail: 
 export async function removeMemberFromWorkspace(workspaceId: string, memberEmail: string): Promise<void> {
   const session = await requireSession()
   await removeWorkspaceMember(session.id, workspaceId, memberEmail)
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspaceId)
 }
 
 export async function deleteWorkspace(workspaceId: string): Promise<void> {
   const session = await requireSession()
   await deleteWorkspaceRecord(session.id, workspaceId)
-  revalidatePath("/dashboard")
+  afterDomainCommit(workspaceId)
 }
