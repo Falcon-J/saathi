@@ -31,7 +31,7 @@ function fixture(overrides = {}) {
   const js = ts.transpileModule(fs.readFileSync('hooks/use-workspaces.ts','utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   new Function('require','exports','console',js)(name => { assert.ok(name in dependencies,name); return dependencies[name] }, exports, { error() {} })
   return {
-    render(email = 'owner@example.test') { cursor = 0; result = exports.useWorkspaces(email); const pending = effects; effects = []; pending.forEach(effect => effect()); return result },
+    render(email = 'owner@example.test', options) { cursor = 0; result = exports.useWorkspaces(email, options); const pending = effects; effects = []; pending.forEach(effect => effect()); return result },
     realtime: () => realtimeOptions,
     workspaceReads: () => workspaceReads,
   }
@@ -107,4 +107,14 @@ test('explicit refresh reports failures and confirms successful reads', async ()
   failing = true
   assert.equal(await ui.render().refreshTasks(), false)
   assert.equal(ui.render().taskError, 'Offline')
+})
+
+test('Board mode does not fetch complete task collections, including realtime resync', async () => {
+  let reads = 0
+  const ui = fixture({getTasks: async () => {reads++; return {tasks: []}}})
+  ui.render('owner@example.test', {loadTasks:false}); await tick(); ui.render('owner@example.test', {loadTasks:false}); await tick()
+  ui.realtime().onTaskCreated({workspaceId:'workspace'}); await tick()
+  assert.equal(reads,0)
+  ui.render('owner@example.test', {loadTasks:true}); await tick()
+  assert.equal(reads,1)
 })

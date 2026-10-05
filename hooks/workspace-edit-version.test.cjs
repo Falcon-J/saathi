@@ -14,7 +14,7 @@ test('refresh for an old workspace cannot change loading or issue a read', async
   visit(ast)
   const js = ts.transpileModule(`const refresh = ${callback}`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText
   let loadingCalls = 0, reads = 0
-  const deps = { taskReadVersion: { current: 0 }, selectionRef: { current: { workspaceId: 'new-workspace', userEmail: 'member@example.test' } }, setTasksLoading: () => loadingCalls++, getTasks: async () => { reads++; return { tasks: [] } }, setTaskError() {}, updateTasks() {}, console: { error() {} } }
+  const deps = { loadTasksRef: { current: true }, taskReadVersion: { current: 0 }, selectionRef: { current: { workspaceId: 'new-workspace', userEmail: 'member@example.test' } }, setTasksLoading: () => loadingCalls++, getTasks: async () => { reads++; return { tasks: [] } }, setTaskError() {}, updateTasks() {}, console: { error() {} } }
   const refresh = new Function(...Object.keys(deps), `${js}; return refresh`)(...Object.values(deps))
   assert.equal(await refresh('old-workspace'), null)
   assert.equal(reads, 0)
@@ -32,7 +32,7 @@ test('an older task refresh cannot overwrite the latest completed refresh', asyn
   visit(ast)
   const js = ts.transpileModule(`const refresh = ${callback}`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText
   let finishOld, reads = 0, tasks = []
-  const deps = { taskReadVersion: { current: 0 }, selectionRef: { current: { workspaceId: 'workspace' } }, setTasksLoading() {},
+  const deps = { loadTasksRef: { current: true }, taskReadVersion: { current: 0 }, selectionRef: { current: { workspaceId: 'workspace' } }, setTasksLoading() {},
     getTasks: async () => ++reads === 1 ? new Promise(resolve => { finishOld = resolve }) : { tasks: [{ id: 'new' }] },
     setTaskError() {}, updateTasks: update => { tasks = update(tasks) }, console: { error() {} } }
   const refresh = new Function(...Object.keys(deps), `${js}; return refresh`)(...Object.values(deps))

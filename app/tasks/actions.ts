@@ -2,7 +2,8 @@
 
 import { getSession } from "@/lib/auth-simple"
 import { afterDomainCommit } from "@/lib/post-commit"
-import { createTaskRecord, changeTaskRecord, listTaskRecords, TaskError, type TaskErrorCode } from "@/lib/data/tasks"
+import { createTaskRecord, changeTaskRecord, listTaskRecords, listTaskRecordsPage, getTaskAggregates, getTaskRecord, TaskError, type TaskErrorCode } from "@/lib/data/tasks"
+import type { TaskPageInput, TaskPage, TaskAggregates } from "@/lib/task-page"
 import { consumeDistributedRateLimit, RateLimitExceeded } from "@/lib/rate-limit"
 import { getRateLimits } from "@/lib/env"
 import type { Task, TaskUpdate } from "@/lib/task-contract"
@@ -40,3 +41,14 @@ export async function getTasks(workspaceId:string):Promise<{success?:true;tasks?
   try {const session=await getSession();if(!session)return {error:"Authentication required"};return {success:true,tasks:await listTaskRecords(session.id,workspaceId)}} catch(error){return {error:error instanceof TaskError ? error.message : "Unable to load tasks. Please retry."}}
 }
 export async function assignTask(taskId:string,assigneeEmail:string,expectedUpdatedAt?:string|number) {return updateTask(taskId,{assigneeEmail:assigneeEmail || undefined},expectedUpdatedAt)}
+type TaskReadFailure = {success?:undefined;error:string;code:TaskErrorCode}
+function readError(error:unknown): TaskReadFailure {return {error:error instanceof TaskError ? error.message : "Unable to load tasks. Please retry.",code:error instanceof TaskError ? error.code : "unavailable"}}
+export async function getTasksPage(workspaceId:string,input:TaskPageInput={}):Promise<({success:true}&TaskPage)|TaskReadFailure> {
+  try {const session=await getSession();if(!session)throw new TaskError("Authentication required","unauthenticated");return {success:true,...await listTaskRecordsPage(session.id,workspaceId,input)}} catch(error){return readError(error)}
+}
+export async function getWorkspaceTaskAggregates(workspaceId:string):Promise<{success:true;aggregates:TaskAggregates}|TaskReadFailure> {
+  try {const session=await getSession();if(!session)throw new TaskError("Authentication required","unauthenticated");return {success:true,aggregates:await getTaskAggregates(session.id,workspaceId)}} catch(error){return readError(error)}
+}
+export async function getTaskById(workspaceId:string,taskId:string):Promise<{success:true;task:Task}|TaskReadFailure> {
+  try {const session=await getSession();if(!session)throw new TaskError("Authentication required","unauthenticated");return {success:true,task:await getTaskRecord(session.id,workspaceId,taskId)}} catch(error){return readError(error)}
+}

@@ -21,7 +21,18 @@ import { formatTaskCreatedAt, formatTaskDue } from "@/lib/task-time"
 import { TaskComments } from "@/components/task-comments"
 import type { RealtimeEvent } from "@/lib/realtime"
 
+export interface BoardPaging {
+  filters: import("@/lib/task-page").TaskPageInput
+  changeFilters: (filters: import("@/lib/task-page").TaskPageInput) => void
+  aggregates: import("@/lib/task-page").TaskAggregates | null
+  nextCursor: string | null
+  loadingMore: boolean
+  loadMore: () => Promise<void>
+}
+
 interface TaskListProps {
+  paging?: BoardPaging
+  detailTask?: Task | null
   tasks: Task[]
   loading: boolean
   members: Member[]
@@ -51,6 +62,8 @@ export const TaskList = memo(function TaskList({
   commentRefreshEvent,
   focusQuickAdd,
   onReviewBoard,
+  paging,
+  detailTask,
 }: TaskListProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const editorPermissions = useTaskPermissions(
@@ -62,10 +75,14 @@ export const TaskList = memo(function TaskList({
   const [editError, setEditError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [operatingTaskId, setOperatingTaskId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
-  const [selectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
-  const [selectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const [localSearchQuery, setSearchQuery] = useState("")
+  const [localSelectedAssignee, setSelectedAssignee] = useState<string | null>(null)
+  const [localSelectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
+  const [localSelectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const searchQuery = paging ? paging.filters.search ?? "" : localSearchQuery
+  const selectedAssignee = paging ? paging.filters.assigneeEmail ?? null : localSelectedAssignee
+  const selectedStatus = paging ? paging.filters.status ?? "all" : localSelectedStatus
+  const selectedPriority = paging ? paging.filters.priority ?? "all" : localSelectedPriority
   const openedTaskIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -74,15 +91,16 @@ export const TaskList = memo(function TaskList({
       return
     }
     if (openedTaskIdRef.current === openTaskId) return
-    const task = tasks.find((item) => item.id === openTaskId)
+    const task = tasks.find((item) => item.id === openTaskId) ?? (detailTask?.id === openTaskId ? detailTask : null)
     if (!task) return
     openedTaskIdRef.current = openTaskId
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, tasks])
+  }, [openTaskId, tasks, detailTask])
 
   const filteredTasks = useMemo(() => {
+    if (paging) return tasks
     return tasks.filter((task) => {
       // Search filter
       if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -110,7 +128,7 @@ export const TaskList = memo(function TaskList({
 
       return true
     })
-  }, [tasks, searchQuery, selectedStatus, selectedAssignee, selectedPriority])
+  }, [tasks, searchQuery, selectedStatus, selectedAssignee, selectedPriority, paging])
 
   const handleToggleTask = async (taskId: string) => {
     setOperatingTaskId(taskId)
@@ -251,23 +269,23 @@ export const TaskList = memo(function TaskList({
 
       <TaskFilter
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={value => paging ? paging.changeFilters({ search: value }) : setSearchQuery(value)}
         selectedAssignee={selectedAssignee}
-        onFilterByAssignee={setSelectedAssignee}
+        onFilterByAssignee={value => paging ? paging.changeFilters({ assigneeEmail: value ?? undefined }) : setSelectedAssignee(value)}
         selectedStatus={selectedStatus}
-        onFilterByStatus={setSelectedStatus}
+        onFilterByStatus={value => paging ? paging.changeFilters({ status: value }) : setSelectedStatus(value)}
         selectedPriority={selectedPriority}
-        onFilterByPriority={setSelectedPriority}
+        onFilterByPriority={value => paging ? paging.changeFilters({ priority: value === "all" ? undefined : value }) : setSelectedPriority(value)}
         members={members}
       />
 
       <div className="flex items-center justify-between rounded-[var(--saathi-radius-card)] border border-border px-4 py-3">
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{tasks.length - completedCount}</span> open
+          <span className="font-medium text-foreground">{paging ? paging.aggregates?.open ?? "…" : tasks.length - completedCount}</span> open
           <span className="mx-2 text-border">/</span>
-          <span className="font-medium text-primary">{completedCount}</span> done
+          <span className="font-medium text-primary">{paging ? paging.aggregates?.done ?? "…" : completedCount}</span> done
         </div>
-        {filteredTasks.length !== tasks.length && (
+        {paging ? <p className="text-xs text-muted-foreground">{loading ? "Loading tasks…" : `Showing ${tasks.length} tasks`}</p> : filteredTasks.length !== tasks.length && (
           <div className="text-sm font-medium text-muted-foreground">
             Showing {filteredTasks.length} of {tasks.length}
           </div>
@@ -288,7 +306,7 @@ export const TaskList = memo(function TaskList({
             <TaskColumn
               title="To do"
               count={todoTasks.length}
-              emptyMessage={tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match these filters."}
+              emptyMessage={(paging ? paging.aggregates?.total === 0 : tasks.length === 0) && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet. Add one above." : "No tasks match these filters."}
             >
               {todoTasks.map(renderTask)}
             </TaskColumn>
@@ -309,6 +327,8 @@ export const TaskList = memo(function TaskList({
           </>
         )}
       </div>
+
+      {paging?.nextCursor && <Button variant="outline" onClick={() => void paging.loadMore()} disabled={loading || paging.loadingMore}>{paging.loadingMore ? "Loading more…" : "Load more tasks"}</Button>}
 
       {/* Delete Confirmation */}
       <ConfirmDialog
@@ -507,7 +527,7 @@ export function TaskEditorDialog({
                 </div>
               </section>
 
-              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
+              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. If the task changed, copy your draft, close this editor, and reopen the task to review its latest details before saving.</p>}
               </fieldset>
               </form>
 

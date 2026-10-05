@@ -18,7 +18,7 @@ import { MemberManager } from "@/components/member-manager"
 import { PageLoader } from "@/components/page-loader"
 import { SaathiLogo } from "@/components/saathi-logo"
 import { TaskImport } from "@/components/task-import"
-import { TaskList } from "@/components/task-list"
+import { WorkspaceBoard } from "@/components/workspace-board"
 import { WorkspaceSettings } from "@/components/workspace-settings"
 import { getDashboardState } from "@/lib/dashboard-state"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "overview" : workspaceViewFromHash(window.location.hash))
   const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
   const [quickAddRequest, setQuickAddRequest] = useState(0)
+  const [boardRefreshRequest, setBoardRefreshRequest] = useState(0)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [isMac, setIsMac] = useState(false)
@@ -125,7 +126,7 @@ export default function Dashboard() {
     taskError,
     tasksLoading,
     realtime,
-  } = useWorkspaces(user?.email && !loading ? user.email : undefined)
+  } = useWorkspaces(user?.email && !loading ? user.email : undefined, { loadTasks: workspaceView === "overview" })
 
   const currentWorkspace = workspaces.find((workspace) => workspace.id === currentWorkspaceId)
   const isCurrentWorkspaceOwner = currentWorkspace && user
@@ -450,8 +451,8 @@ export default function Dashboard() {
                   </div>
                 </section>
 
-                {aiWorkspaceEnabled && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (!result.error) await refreshTasks(); return result }} /></DialogContent></Dialog>}
-                {capabilities.csvImport && <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent><DialogHeader><DialogTitle>Import tasks</DialogTitle><DialogDescription>Choose a CSV file with task titles and optional details.</DialogDescription></DialogHeader><TaskImport key={currentWorkspace.id} workspaceId={currentWorkspace.id} onImported={async () => { await refreshTasks() }} /></DialogContent></Dialog>}
+                {aiWorkspaceEnabled && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (!result.error) { setBoardRefreshRequest(value => value + 1); await refreshTasks() } return result }} /></DialogContent></Dialog>}
+                {capabilities.csvImport && <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent><DialogHeader><DialogTitle>Import tasks</DialogTitle><DialogDescription>Choose a CSV file with task titles and optional details.</DialogDescription></DialogHeader><TaskImport key={currentWorkspace.id} workspaceId={currentWorkspace.id} onImported={async () => { setBoardRefreshRequest(value => value + 1); await refreshTasks() }} /></DialogContent></Dialog>}
 
                 {realtime.error && (
                   <div role="status" className="mb-4 flex flex-col gap-3 rounded-lg border border-[var(--saathi-warning)]/40 bg-[var(--saathi-warning)]/10 px-4 py-3 text-sm text-[#8a4b00] sm:flex-row sm:items-center sm:justify-between">
@@ -493,14 +494,11 @@ export default function Dashboard() {
                     <Card id="project-board" className="overflow-hidden rounded-[var(--saathi-radius-container)]">
                         <CardHeader className="border-b border-border px-4 py-3">
                           <div className="flex items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-lg"><LayoutGrid className="size-4 text-primary" />Board</CardTitle>
-                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Board actions"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => void refreshTasks()}><RefreshCw className="size-4" />Refresh tasks</DropdownMenuItem>{capabilities.csvImport && <DropdownMenuItem onSelect={() => setImportOpen(true)}>Import CSV</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>
+                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Board actions"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setBoardRefreshRequest(value => value + 1)}><RefreshCw className="size-4" />Refresh tasks</DropdownMenuItem>{capabilities.csvImport && <DropdownMenuItem onSelect={() => setImportOpen(true)}>Import CSV</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>
                           </div>
                         </CardHeader>
                         <CardContent className="p-0">
-                          {taskError && (
-                            <div className="p-8 text-center" role="alert"><p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p><Button onClick={() => void refreshTasks()} variant="outline" className="mt-4">Try again</Button></div>
-                          )}
-                            <TaskList key={currentWorkspace.id} tasks={tasks} loading={tasksLoading} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} focusQuickAdd={quickAddRequest} onReviewBoard={async () => { const result = await refreshTasks(); if (!result) throw new Error("Tasks unavailable") }} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} />
+                          <WorkspaceBoard key={currentWorkspace.id} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} focusQuickAdd={quickAddRequest} />
                         </CardContent>
                     </Card>
                   </section>

@@ -48,7 +48,7 @@ test('task read errors do not replace and unmount quick add owners', () => {
   const source = ts.createSourceFile('page.tsx', fs.readFileSync('app/dashboard/page.tsx', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let owners = 0
   function walk(node, ancestors = []) {
-    if (ts.isJsxSelfClosingElement(node) && ['WorkspaceOverview', 'TaskList'].includes(node.tagName.getText(source))) {
+    if (ts.isJsxSelfClosingElement(node) && ['WorkspaceOverview', 'WorkspaceBoard'].includes(node.tagName.getText(source))) {
       owners++
       for (const parent of ancestors) {
         if (ts.isConditionalExpression(parent)) assert.doesNotMatch(parent.condition.getText(source), /taskError/)

@@ -17,7 +17,9 @@ import { normalizeEmail } from "@/lib/identity"
 import { createCoalescedRefresh } from "@/lib/read-coordinator"
 import { getMutationError } from "@/lib/mutation-result"
 
-export function useWorkspaces(userEmail?: string) {
+export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTasks?: boolean } = {}) {
+  const loadTasksRef = useRef(loadTasks)
+  useLayoutEffect(() => { loadTasksRef.current = loadTasks }, [loadTasks])
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -51,9 +53,9 @@ export function useWorkspaces(userEmail?: string) {
   const refreshTasksForWorkspace = useCallback(
     async (workspaceId: string): Promise<Task[] | null> => {
       const selection = selectionRef.current
-      if (selection.workspaceId !== workspaceId) return null
+      if (!loadTasksRef.current || selection.workspaceId !== workspaceId) return null
       const version = ++taskReadVersion.current
-      const isCurrent = () => selectionRef.current === selection && version === taskReadVersion.current
+      const isCurrent = () => loadTasksRef.current && selectionRef.current === selection && version === taskReadVersion.current
       setTasksLoading(true)
       try {
         const result = await getTasks(workspaceId)
@@ -169,7 +171,7 @@ export function useWorkspaces(userEmail?: string) {
 
   // Load tasks when workspace changes
   useEffect(() => {
-    if (!currentWorkspaceId || !userEmail) {
+    if (!loadTasks || !currentWorkspaceId || !userEmail) {
       setTaskError(null)
       setTasksLoading(false)
       updateTasks(() => [])
@@ -183,7 +185,7 @@ export function useWorkspaces(userEmail?: string) {
     updateTasks(() => [])
     setTasksLoading(true)
     const version = ++taskReadVersion.current
-    const loadTasks = async () => {
+    const loadSelectedTasks = async () => {
       try {
         const result = await getTasks(currentWorkspaceId)
         if (!cancelled && version === taskReadVersion.current && result.tasks) {
@@ -202,11 +204,11 @@ export function useWorkspaces(userEmail?: string) {
       if (!cancelled && version === taskReadVersion.current) setTasksLoading(false)
     }
 
-    loadTasks()
+    loadSelectedTasks()
     return () => {
       cancelled = true
     }
-  }, [currentWorkspaceId, updateTasks, userEmail])
+  }, [currentWorkspaceId, updateTasks, userEmail, loadTasks])
 
   // Polling disabled - using real-time updates instead for better performance
 

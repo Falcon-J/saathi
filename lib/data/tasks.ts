@@ -7,6 +7,7 @@ import { appendDomainEvent } from "./events.ts"
 import { normalizeTaskUpdates, type TaskUpdate, type Task } from "../task-contract.ts"
 import { canChangeTask, matchesTaskVersion } from "../task-permission.ts"
 import type { Row } from "postgres"
+import { normalizeTaskPage, encodeTaskCursor, decodeTaskCursor, type TaskPageInput, type TaskPage, type TaskAggregates } from "../task-page.ts"
 
 export type TaskErrorCode = "unauthenticated" | "forbidden" | "validation" | "not_found" | "conflict" | "unavailable"
 export class TaskError extends Error {
@@ -61,6 +62,60 @@ export async function listTaskRecords(actorId: string, workspaceId: string): Pro
       LEFT JOIN auth.users assignee ON assignee.id = t.assignee_user_id
       WHERE t.workspace_id=${workspaceId} ORDER BY t.created_at DESC, t.id ASC`
     return rows.map(mapTask)
+  })
+}
+async function authorizeTaskRead(tx: Transaction, actorId: string, workspaceId: string) {
+  const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id=${actorId}`
+  if (!member) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+}
+export async function listTaskRecordsPage(actorId: string, workspaceId: string, input: TaskPageInput = {}): Promise<TaskPage> {
+  let scope, boundary: string | null = null
+  try {
+    z.string().uuid().parse(workspaceId)
+    scope = normalizeTaskPage(input)
+    if(scope.cursor) boundary = decodeTaskCursor(scope.cursor,workspaceId,scope)
+  } catch { throw new TaskError("Invalid task page or cursor", "validation") }
+  return getDb().begin("isolation level repeatable read read only", async tx => {
+    await authorizeTaskRead(tx,actorId,workspaceId)
+    if(boundary) {
+      const [row] = await tx`SELECT id FROM tasks WHERE id=${boundary} AND workspace_id=${workspaceId}`
+      if(!row) throw new TaskError("Task cursor unavailable", "validation")
+    }
+    const rows = await tx`SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
+      FROM tasks t JOIN auth.users creator ON creator.id=t.created_by_user_id
+      LEFT JOIN auth.users assignee ON assignee.id=t.assignee_user_id
+      WHERE t.workspace_id=${workspaceId}
+        AND (${scope.status}='all' OR (${scope.status}='active' AND t.status<>'done') OR (${scope.status}='completed' AND t.status='done'))
+        AND (${scope.priority}::text IS NULL OR t.priority=${scope.priority})
+        AND (${scope.assigneeEmail}::text IS NULL OR lower(assignee.email)=${scope.assigneeEmail})
+        AND (${scope.search}='' OR position(${scope.search} in lower(t.title))>0 OR position(${scope.search} in lower(coalesce(t.description,'')))>0)
+        AND (${boundary}::uuid IS NULL OR t.created_at < (SELECT created_at FROM tasks WHERE id=${boundary}::uuid AND workspace_id=${workspaceId})
+          OR (t.created_at = (SELECT created_at FROM tasks WHERE id=${boundary}::uuid AND workspace_id=${workspaceId}) AND t.id>${boundary}::uuid))
+      ORDER BY t.created_at DESC,t.id ASC LIMIT ${scope.limit+1}`
+    const visible=rows.slice(0,scope.limit)
+    return {tasks:visible.map(mapTask),nextCursor:rows.length>scope.limit ? encodeTaskCursor(workspaceId,scope,visible[visible.length-1].id) : null}
+  })
+}
+export async function getTaskRecord(actorId: string, workspaceId: string, taskId: string): Promise<Task> {
+  if(!z.string().uuid().safeParse(workspaceId).success || !z.string().uuid().safeParse(taskId).success) throw new TaskError("Invalid task identifier","validation")
+  return getDb().begin("isolation level repeatable read read only",async tx => {
+    await authorizeTaskRead(tx,actorId,workspaceId)
+    const [row]=await tx`SELECT id FROM tasks WHERE workspace_id=${workspaceId} AND id=${taskId}`
+    if(!row) throw new TaskError("Task not found","not_found")
+    return projectTask(tx,taskId)
+  })
+}
+export async function getTaskAggregates(actorId: string, workspaceId: string): Promise<TaskAggregates> {
+  if(!z.string().uuid().safeParse(workspaceId).success) throw new TaskError("Invalid workspace identifier","validation")
+  return getDb().begin("isolation level repeatable read read only",async tx => {
+    await authorizeTaskRead(tx,actorId,workspaceId)
+    const [row]=await tx`SELECT count(*)::int AS total,
+      count(*) FILTER(WHERE status='todo')::int AS todo, count(*) FILTER(WHERE status='in_progress')::int AS progress,
+      count(*) FILTER(WHERE status='done')::int AS done, count(*) FILTER(WHERE priority='low')::int AS low,
+      count(*) FILTER(WHERE priority='medium')::int AS medium, count(*) FILTER(WHERE priority='high')::int AS high,
+      count(*) FILTER(WHERE status<>'done' AND (due_at < now() OR (due_at IS NULL AND due_date < (now() AT TIME ZONE (SELECT timezone FROM workspaces WHERE id=${workspaceId}))::date)))::int AS overdue
+      FROM tasks WHERE workspace_id=${workspaceId}`
+    return {total:row.total,open:row.total-row.done,done:row.done,overdue:row.overdue,byStatus:{todo:row.todo,"in-progress":row.progress,done:row.done},byPriority:{low:row.low,medium:row.medium,high:row.high}}
   })
 }
 export async function createTaskRecord(actorId: string, workspaceId: string, input: TaskUpdate, commandId?: string): Promise<Task> {
