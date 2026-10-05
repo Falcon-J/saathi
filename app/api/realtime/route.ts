@@ -6,13 +6,19 @@ import { schemas } from "@/lib/security"
 import { createSingleFlightPoll, getInitialStreamCursor, getReplayStatus } from "@/lib/realtime-sse"
 import { getRateLimits } from "@/lib/env"
 import { acquireSseConnectionLease, RateLimitExceeded, SseConnectionLimitExceeded } from "@/lib/sse-connection"
-import { createMembershipVerifier } from "@/lib/sse-authorization"
+import { createBatchedMembershipVerifier } from "@/lib/sse-authorization"
 
 export const dynamic = "force-dynamic"
 
-const verifyMembership = createMembershipVerifier(async (workspaceId, actorId) => {
-    const rows = await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id=${actorId}`
-    return rows.length > 0
+const recordTiming = (phase: string, started: number) => {
+    if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: phase, durationMs: performance.now() - started }))
+}
+
+const verifyMembership = createBatchedMembershipVerifier(async (workspaceId, actorIds) => {
+    const started = performance.now()
+    const rows = await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id = ANY(${actorIds}::uuid[])`
+    recordTiming("membership-read", started)
+    return rows.map(row => row.user_id as string)
 })
 
 // Vercel serverless invocations are limited to 300 seconds. Close before the
@@ -59,7 +65,9 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
     let releaseSseConnection: (() => Promise<void>) | undefined
     try {
+        const authStarted = performance.now()
         const session = await getSession()
+        recordTiming("auth-profile", authStarted)
         if (!session) return new Response('Unauthorized', { status: 401 })
 
         // Get workspace ID from query params
@@ -72,7 +80,12 @@ export async function GET(request: NextRequest) {
         }
         const workspaceId = workspaceIdResult.data
 
-        const authorized = () => verifyMembership(workspaceId, session.id)
+        const authorized = async () => {
+            const started = performance.now()
+            const result = await verifyMembership(workspaceId, session.id)
+            recordTiming("authorization", started)
+            return result
+        }
         if (!await authorized()) return new Response("Forbidden", { status: 403 })
         try {
             const { sse } = getRateLimits()
@@ -175,6 +188,7 @@ export async function GET(request: NextRequest) {
                     try {
                         // Idle revocation is detected within five seconds plus storage latency.
                         if (Date.now() - lastAuthorizationCheck >= 5000 && !await recheckMembership()) return
+                        const pollStarted = performance.now()
                         const newEvents = await realtimeService.readNewEvents(
                             workspaceId,
                             lastSeenId,
@@ -182,6 +196,7 @@ export async function GET(request: NextRequest) {
                         )
 
                         if (closed) return
+                        recordTiming("redis-poll", pollStarted)
                         streamErrorSent = false
 
                         if (newEvents.length > 0) {

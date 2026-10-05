@@ -69,12 +69,17 @@ export async function logout(): Promise<AuthResult> {
 export async function getSession() {
   try {
     const client = await createClient({ readOnly: true })
+    const authStarted = performance.now()
     const { data: { user }, error } = await client.auth.getUser()
+    if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: "auth-get-user", durationMs: performance.now() - authStarted }))
     if (error) {
       if (!error.status || error.status >= 500) throw new Error('Account service unavailable')
       return null
     }
-    return await resolveVerifiedSession(user, getProfile)
+    const profileStarted = performance.now()
+    const session = await resolveVerifiedSession(user, getProfile)
+    if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: "auth-resolve-profile", durationMs: performance.now() - profileStarted }))
+    return session
   } catch {
     throw new Error('Account service is temporarily unavailable. Please try again.')
   }

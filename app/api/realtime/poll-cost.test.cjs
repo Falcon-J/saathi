@@ -13,7 +13,7 @@ test('idle polling avoids per-tick SQL but rechecks membership before delivering
   const deps = {
     'next/server': {},
     '@/lib/auth-simple': { getSession: async () => ({ id: 'actor', email: 'actor@example.test' }) },
-    '@/lib/db/client': { getDb: () => async () => { membershipReads++; return member ? [{}] : [] } },
+    '@/lib/db/client': { getDb: () => async () => { membershipReads++; return member ? [{ user_id: "actor" }] : [] } },
     '@/lib/realtime': { realtimeService: {
       setUserPresence: async () => {}, getStreamBounds: async () => bounds,
       readNewEvents: async () => { redisReads++; return events },
@@ -22,7 +22,7 @@ test('idle polling avoids per-tick SQL but rechecks membership before delivering
     '@/lib/realtime-sse': { ...replay, createSingleFlightPoll: fn => fn },
     '@/lib/env': { getRateLimits: () => ({ sse: {} }) },
     '@/lib/sse-connection': { acquireSseConnectionLease: async () => async () => {}, RateLimitExceeded: class extends Error {}, SseConnectionLimitExceeded: class extends Error {} },
-    '@/lib/sse-authorization': { createMembershipVerifier: read => read },
+    '@/lib/sse-authorization': { createBatchedMembershipVerifier: read => async (workspace, actor) => (await read(workspace, [actor])).includes(actor) },
   }
   const js = ts.transpileModule(fs.readFileSync('app/api/realtime/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   const exports = {}

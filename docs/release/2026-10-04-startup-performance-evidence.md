@@ -48,3 +48,7 @@ Run distinct authenticated users with normal admission limits and provider quota
 ## Reproduction
 
 With the dedicated loopback Redis fixture running, `npm run verify:sse:leases:local` executes the actual application admission path against real Redis and checks capacity, expiry, retry and TTL behavior. The comparison probes and authenticated HTTP fixture remain in ignored `.local-test` for operator inspection; credentials and cookies are generated in process and not printed or checked in.
+
+## Distinct-user follow-up, 2026-10-05
+
+[Normal-limit distinct-user verification](2026-10-05-distinct-user-load-evidence.md) admitted 100 connections across 20 authenticated users, rejected all 20 sixth connections and delivered 500/500 events across release/reconnect and a brief Redis transport outage. Startup p95 was 5461ms and aggregate delivery p95 2739ms. Correctness passed for this sample; NF04 performance and full duration/volume acceptance remain open. No application limits were raised.
