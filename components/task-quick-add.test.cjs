@@ -45,6 +45,14 @@ test('known rejection retains the draft and reports its error', async () => {
   assert.equal(ui.render().find(node => node.props.role === 'alert').props.children, 'Title rejected')
   assert.equal(ui.render().find(node => node.props.type === 'submit').props.disabled, false)
 })
+
+test('successful quick add announces the saved task and clears stale success on editing', async () => {
+  const ui = harness(async () => ({}))
+  input(ui, 'Task title', 'Draft'); await submit(ui)
+  assert.equal(ui.render().find(node => node.props.role === 'status').props.children, 'Task added.')
+  input(ui, 'Task title', 'Next')
+  assert.equal(ui.render().some(node => node.props.role === 'status'), false)
+})
 module.exports = { harness }
 test('transport exceptions retain a detailed draft without leaking internal errors', async () => {
   const ui = harness(async () => { throw Error('secret transport stack') })

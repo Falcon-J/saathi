@@ -36,7 +36,7 @@ function TaskRow({ task, timeZone, workspace, currentUserEmail, onToggleTask, on
         disabled={!permissions.canToggle}
         onClick={() => { if (permissions.canToggle) void onToggleTask(task.id) }}
         aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
-        className={`grid size-8 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${done ? "bg-[var(--saathi-success)]/12 text-[var(--saathi-success)]" : "text-muted-foreground hover:bg-secondary hover:text-primary"}`}
+        className={`grid size-11 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${done ? "bg-[var(--saathi-success)]/12 text-[var(--saathi-success)]" : "text-muted-foreground hover:bg-secondary hover:text-primary"}`}
       >
         {done ? <Check className="size-4" /> : <Circle className="size-5" />}
       </button>
@@ -44,7 +44,7 @@ function TaskRow({ task, timeZone, workspace, currentUserEmail, onToggleTask, on
         <button
           type="button"
           onClick={() => onOpenTask(task.id)}
-          className={`text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+          className={`max-w-full break-words text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-[15px] ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
           aria-label={`Open ${task.title} task`}
         >
           {task.title}
@@ -78,7 +78,7 @@ function TaskSection({ title, tasks, timeZone, workspace, currentUserEmail, empt
 export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
   return (
-    <section id="project-board" className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
+    <section id="project-board" aria-busy={loading} className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
       <header className="border-b border-border px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -89,23 +89,24 @@ export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading,
             </div>
             {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
           </div>
-          <div className="w-full max-w-48">
+          {!loading && <div className="w-full max-w-48">
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>Progress</span><span>{groups.completion}%</span></div>
             <Progress value={groups.completion} className="h-2" />
-          </div>
+          </div>}
         </div>
       </header>
       <div className="space-y-5 px-4 py-4 sm:px-6">
-        <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        {!loading && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
           <span><strong className="text-foreground">{groups.overdue.length}</strong> overdue</span>
           <span><strong className="text-foreground">{groups.today.length}</strong> due today</span>
           <span><strong className="text-foreground">{groups.next.length}</strong> coming next</span>
           <span><strong className="text-foreground">{groups.completed.length}</strong> completed</span>
-        </div>
+        </div>}
         <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
         {loading ? (
           <div role="status" className="space-y-3">
-            {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-secondary" />)}
+            <span className="sr-only">Loading tasks…</span>
+            {[1, 2, 3].map((item) => <div key={item} aria-hidden="true" className="h-14 animate-pulse rounded-lg bg-secondary" />)}
           </div>
         ) : (
           <>

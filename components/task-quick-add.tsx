@@ -26,6 +26,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
   const [error, setError] = useState<string | null>(null)
   const [needsReconciliation, setNeedsReconciliation] = useState(false)
   const [reviewing, setReviewing] = useState(false)
+  const [added, setAdded] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingRef = useRef(false)
 
@@ -42,6 +43,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
     if (dueTime && !dueDate) { setError("Choose a due date before adding a due time."); return }
     pendingRef.current = true
     setSaving(true)
+    setAdded(false)
     setError(null)
     try {
       const result = await onAddTask(title.trim(), description || undefined, priority, dueTime ? undefined : dueDate || undefined, undefined, estimate, localDateTimeToIso(dueDate, dueTime))
@@ -52,6 +54,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
       } else if (mutationError) setError(mutationError)
       else {
         setTitle(""); setDescription(""); setPriority("medium"); setDueDate(""); setDueTime(""); setEstimatedMinutes(""); setDetailsOpen(false)
+        setAdded(true)
       }
     } catch {
       setNeedsReconciliation(true)
@@ -73,7 +76,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
   return (
     <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-secondary/25 p-3 sm:p-4" aria-label="Add a task">
       <div className="flex gap-2">
-        <Input ref={inputRef} aria-label="Task title" placeholder="What needs to get done?" value={title} onChange={event => setTitle(event.target.value)} maxLength={200} disabled={saving} className="min-w-0 flex-1 bg-card" />
+        <Input ref={inputRef} aria-label="Task title" placeholder="What needs to get done?" value={title} onChange={event => { setTitle(event.target.value); setAdded(false) }} maxLength={200} disabled={saving} className="min-w-0 flex-1 bg-card" />
         <Button type="submit" disabled={!title.trim() || saving || needsReconciliation}>{saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{saving ? "Adding…" : "Add"}</Button>
       </div>
       <Button type="button" variant="ghost" size="sm" className="mt-1 h-8 px-1 text-xs text-muted-foreground" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(!detailsOpen)} disabled={saving}>{detailsOpen ? "Hide details" : "Add details"}</Button>
@@ -87,6 +90,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
         </div>
       </div>}
       {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
+      {added && <p role="status" className="mt-2 text-sm text-muted-foreground">Task added.</p>}
       {needsReconciliation && onReviewBoard && <Button type="button" variant="outline" size="sm" className="mt-2" disabled={reviewing} onClick={reviewBoard}>Review Board before retrying</Button>}
     </form>
   )

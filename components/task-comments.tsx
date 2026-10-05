@@ -127,11 +127,11 @@ export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskI
         <div className="space-y-3">
           {comments.map((comment) => (
             <article key={comment.id} className="rounded-lg border border-border bg-secondary/35 px-3 py-3">
-              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{comment.authorEmail}</span>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="min-w-0 break-all font-medium text-foreground">{comment.authorEmail}</span>
                 <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time>
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{comment.body}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-6">{comment.body}</p>
             </article>
           ))}
         </div>

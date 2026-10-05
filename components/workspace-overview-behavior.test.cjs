@@ -53,6 +53,15 @@ test('Overview completion follows the same owner creator assignee permission as 
   assert.equal(toggle(ui.render({ tasks: [{ id: 'task', title: 'Task', createdBy: 'owner@example.test', workspaceId: 'workspace', assigneeEmail: 'member@example.test' }] })).props.disabled, false)
 })
 
+test('Overview announces loading without showing incomplete progress or counts', () => {
+  const ui = harness(async () => ({}))
+  const rows = ui.render({ loading: true })
+  assert.equal(rows.some(node => node.type === 'Progress'), false)
+  assert.doesNotMatch(JSON.stringify(rows), /due today|coming next|completed/)
+  assert.ok(rows.some(node => node.props?.children === 'Loading tasks…'))
+  assert.equal(rows.find(node => node.props?.id === 'project-board').props['aria-busy'], true)
+})
+
 test('quick add transport failure retains the draft and settles loading', async () => {
   const ui = harness(async () => { throw new Error('private transport details') })
   ui.render().find(node => node.type === 'Input').props.onChange({ target: { value: 'Keep draft' } })
