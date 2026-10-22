@@ -1,5 +1,7 @@
 # Saathi v1 project map
 
+**Reading guide:** the [engineering handbook](../handbook/README.md) explains the current mechanisms and links the latest dated evidence. This map retains its original snapshot date and status assessments; do not interpret its older pending rows as a fresh execution report.
+
 **Status:** Working beta baseline
 **Date:** 2026-09-15
 **Purpose:** One repository-grounded view of the product journey, architecture ownership, FR/NFR status, validation gates, and clean beta release shape.

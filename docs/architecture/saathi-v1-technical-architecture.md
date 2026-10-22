@@ -1,5 +1,7 @@
 # Saathi v1 technical architecture
 
+**Learning path and current implementation notes:** see the [engineering handbook](../handbook/README.md). This reference retains its original date; use the handbook's source links and latest release evidence for later receipts, paging, delivery and performance changes.
+
 **Status:** Repository-grounded beta baseline; manual release validation pending
 **Date:** 2026-09-16
 **Companion:** [Product requirements](../product/saathi-v1-product-requirements.md)

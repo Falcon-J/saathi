@@ -2,6 +2,8 @@
 
 > **Move from intention to action, together.**
 
+**Understand the system:** start with the [engineering handbook](docs/handbook/README.md) for architecture diagrams, transactional request traces, failure scenarios, API contracts, operational gates, and a mastery lab with worked answers.
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ecf8e?logo=postgresql)](https://supabase.com)
@@ -17,7 +19,7 @@
 - **Transactional backend** using Supabase Auth and PostgreSQL for all durable product state
 - **Per-event real-time latency instrumentation** via Server-Sent Events
 - **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
-- **Optimistic UI** with SSE-based deduplication — zero flicker on collaborative edits
+- **Optimistic UI** with stale-read guards, SSE notification deduplication, and authoritative reconciliation
 - **Durable usage counters** for task creation/completion, member growth, and unique contributors
 - **Stateless server layer** designed for serverless deployment with PostgreSQL-backed authority
 - **Explicit reliability contract** covering authenticated subscriptions, bounded replay, duplicate-safe delivery, resync after retention gaps, and transactional outbox publication
@@ -36,7 +38,7 @@ Next.js 16 (Stateless)
   Server Actions: tasks / workspaces / invitations
   Route Handler:  GET /api/realtime
     ├── Auth: Supabase session cookie → verified user/profile
-    ├── Poll: XRANGE every 100ms (cursor-based)
+    ├── Poll: Redis Streams every 500ms (cursor-based)
     └── Heartbeat: presence refresh every 30s
         │
         ├── Supabase PostgreSQL
@@ -77,7 +79,7 @@ User A creates task
   → User B's UI updates (latencyMs stamped on each event)
 ```
 
-The realtime contract and recovery guarantees are documented in [`docs/realtime.md`](docs/realtime.md). Architecture ownership is in [`docs/architecture.md`](docs/architecture.md), and reproducible failure exercises are in [`docs/failure-exercises/`](docs/failure-exercises/).
+The realtime contract and recovery guarantees are documented in [`docs/realtime.md`](docs/realtime.md). Architecture ownership is in the [Saathi project map](docs/architecture/saathi-v1-project-map.md) and [technical architecture](docs/architecture/saathi-v1-technical-architecture.md); reproducible failure exercises are in [`docs/failure-exercises/`](docs/failure-exercises/).
 
 ### Health checks
 
@@ -289,6 +291,19 @@ Use architecture claims now:
 > Built a collaborative task manager with Next.js, TypeScript, PostgreSQL, Redis Streams, and authenticated Server-Sent Events; centralized workspace authorization and added optimistic task workflows with reconnect handling.
 
 Add measured numbers only after the benchmark evidence is captured. A passing controlled local run can support “validated 200+ concurrent authenticated SSE connections in local testing” plus the measured p50/p95/p99 values. It cannot support a universal production-capacity or fixed-latency claim.
+
+---
+
+## Learning and Showcase Docs
+
+- [Three-day mastery and repository showcase guide](docs/interviews/saathi-three-day-mastery-and-showcase-guide.md)
+- [Architecture and capability map](docs/architecture/saathi-v1-project-map.md)
+- [Technical architecture](docs/architecture/saathi-v1-technical-architecture.md)
+- [Product requirements](docs/product/saathi-v1-product-requirements.md)
+- [Production readiness closeout plan](docs/superpowers/plans/2026-09-21-saathi-production-readiness-closeout.md)
+- [Release evidence](docs/release/2026-09-22-release-evidence.md)
+- [Operational readiness](docs/release/2026-09-22-operational-readiness.md)
+- [Interview brief](docs/interviews/saathi-v1-interview-brief.md)
 
 ---
 
