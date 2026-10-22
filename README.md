@@ -1,6 +1,8 @@
-# Saathi — Outcome-driven collaborative workspace
+# Saathi — Collaborative Workspace
 
-> **Move from intention to action, together.**
+Saathi is a collaborative task workspace built with Next.js, TypeScript, PostgreSQL, Supabase Auth, Redis Streams, and Server-Sent Events. It combines authenticated task, membership, and invitation workflows with server-side workspace authorization and recoverable real-time updates.
+
+PostgreSQL is the durable source of truth. Redis coordinates ephemeral collaboration state and event delivery; reconnecting clients reconcile against authoritative task records when retained history is unavailable.
 
 **Understand the system:** start with the [engineering handbook](docs/handbook/README.md) for architecture diagrams, transactional request traces, failure scenarios, API contracts, operational gates, and a mastery lab with worked answers.
 
@@ -16,10 +18,10 @@
 - **Execution-first Overview** that separates Today, Next, and Completed work
 - **Detailed Board** for status, priority, date/time due dates, estimates, assignment, filtering, and CSV import
 - **Optional Groq assistant** for bounded workspace planning and single safe task changes
-- **Transactional backend** using Supabase Auth and PostgreSQL for all durable product state
+- **Transactional persistence** in PostgreSQL with Supabase Auth for identity, server-side task permissions, and version-conflict checks
 - **Per-event real-time latency instrumentation** via Server-Sent Events
-- **Three serverless workflows** (Tasks, Workspaces, Invitations) using Next.js Server Actions
-- **Optimistic UI** with stale-read guards, SSE notification deduplication, and authoritative reconciliation
+- **Task, workspace, and invitation workflows** using Next.js Server Actions
+- **Optimistic task workflows** with stale-read guards, SSE event deduplication and authoritative reconciliation
 - **Durable usage counters** for task creation/completion, member growth, and unique contributors
 - **Stateless server layer** designed for serverless deployment with PostgreSQL-backed authority
 - **Explicit reliability contract** covering authenticated subscriptions, bounded replay, duplicate-safe delivery, resync after retention gaps, and transactional outbox publication
@@ -73,7 +75,9 @@ Realtime delivers events but never becomes the source of truth; workspace and ta
 
 ```
 User A creates task
-  → Server Action: XADD stream:{wsId} * type=task-created data={...}
+  → Server Action: authorize and validate
+  → PostgreSQL transaction: persist task + domain event/outbox
+  → Outbox publication: XADD stream:{wsId} * type=task-created data={...}
   → SSE poll (100ms): XRANGE stream:{wsId} (lastSeenId, +] COUNT 50
   → SSE event pushed to all subscribers
   → User B's UI updates (latencyMs stamped on each event)
@@ -288,7 +292,11 @@ The authenticated SSE benchmark was not reproducible in the current environment 
 
 Use architecture claims now:
 
-> Built a collaborative task manager with Next.js, TypeScript, PostgreSQL, Redis Streams, and authenticated Server-Sent Events; centralized workspace authorization and added optimistic task workflows with reconnect handling.
+> Built an authenticated collaborative workspace using Next.js, TypeScript, PostgreSQL, and Supabase Auth, with server-side workspace permissions and version-conflict checks.
+>
+> Implemented real-time updates using Redis Streams and Server-Sent Events with cursor-based reconnect, bounded replay, event deduplication, and reconciliation against authoritative task state.
+
+These statements describe the default-branch implementation. Durable task-creation retry identity should only be claimed when the corresponding implementation and verification are present in the referenced revision.
 
 Add measured numbers only after the benchmark evidence is captured. A passing controlled local run can support “validated 200+ concurrent authenticated SSE connections in local testing” plus the measured p50/p95/p99 values. It cannot support a universal production-capacity or fixed-latency claim.
 
