@@ -18,8 +18,10 @@ export function useTaskBoard(workspaceId: string, refreshSignal: number) {
   const morePending = useRef(false)
   const scope = useRef({ workspaceId, filters })
   useLayoutEffect(() => {
-    scope.current = { workspaceId, filters }
-    version.current++
+    if (scope.current.workspaceId !== workspaceId || scope.current.filters !== filters) {
+      scope.current = { workspaceId, filters }
+      version.current++
+    }
   }, [workspaceId, filters])
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 

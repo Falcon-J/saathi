@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { Archive, ChevronDown, CircleHelp, History, Keyboard, LayoutGrid, LogOut, MoreHorizontal, PanelLeft, Plus, RefreshCw, Settings, Sparkles } from "lucide-react"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@/app/actions/workspaces"
-import type { TaskUpdate } from "@/app/tasks/contract"
 import { DashboardNavigation } from "@/components/dashboard-navigation"
 import { WorkspaceAdvisor } from "@/components/workspace-advisor"
 import { confirmWorkspaceAdvisorDraft } from "@/app/actions/workspace-advisor"
@@ -116,8 +115,6 @@ export default function Dashboard() {
     createWorkspace,
     addTask,
     toggleTask,
-    deleteTask,
-    editTask,
     addMember,
     removeMember,
     refreshWorkspaces,
@@ -177,43 +174,6 @@ export default function Dashboard() {
       if (await handleAuthError(caughtError)) return { error: "Authentication required" }
       const message = getThrownErrorMessage(caughtError, "Unable to update task. Please try again.")
       error("Failed to update task", message)
-      return { error: message }
-    }
-  }
-
-  const handleEditTask = async (id: string, updates: TaskUpdate, expectedVersion?: number | string) => {
-    try {
-      const result = await editTask(id, updates, expectedVersion)
-      const mutationError = getMutationError(result)
-      if (mutationError) {
-        error("Failed to update task", mutationError)
-        return result
-      }
-      success("Task updated", "The task details are current.")
-      return result
-    } catch (caughtError) {
-      if (await handleAuthError(caughtError)) return { error: "Authentication required" }
-      const message = getThrownErrorMessage(caughtError, "Unable to update task. Please try again.")
-      error("Failed to update task", message)
-      return { error: message }
-    }
-  }
-
-  const handleDeleteTask = async (id: string) => {
-    try {
-      const task = tasks.find((item) => item.id === id)
-      const result = await deleteTask(id)
-      const mutationError = getMutationError(result)
-      if (mutationError) {
-        error("Failed to delete task", mutationError)
-        return result
-      }
-      success("Task deleted", task ? `“${task.title}” has been deleted.` : "Task has been deleted.")
-      return result
-    } catch (caughtError) {
-      if (await handleAuthError(caughtError)) return { error: "Authentication required" }
-      const message = getThrownErrorMessage(caughtError, "Unable to delete task. Please try again.")
-      error("Failed to delete task", message)
       return { error: message }
     }
   }
@@ -360,7 +320,7 @@ export default function Dashboard() {
   return (
     <main className="saathi-shell saathi-dashboard min-h-screen">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
-        <div className="flex min-h-16 flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
+        <div className="flex min-h-14 flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
           <SaathiLogo className="size-8 shrink-0" priority />
           <h1 className="sr-only">Saathi</h1>
           {showWorkspace && <div className="min-w-0 flex-1 sm:max-w-sm"><WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} showCreate={false} /></div>}
@@ -409,13 +369,13 @@ export default function Dashboard() {
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
       <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
-        {sidebarOpen && <aside className="hidden w-56 shrink-0 border-r border-border bg-card px-3 py-5 lg:flex lg:flex-col">
-          <div className="mb-5 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
+        {sidebarOpen && <aside className="hidden w-40 shrink-0 border-r border-border bg-card px-2 py-4 lg:flex lg:flex-col">
+          <div className="mb-3 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
           <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} />
         </aside>}
 
         <div className="min-w-0 flex-1">
-          <div className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1240px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
             <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
 
             {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError ? (
@@ -436,8 +396,8 @@ export default function Dashboard() {
               />
             ) : currentWorkspace ? (
               <>
-                <section id="workspace-header" className="mb-4 flex scroll-mt-24 flex-wrap items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3"><h2 className="truncate text-xl font-semibold">{currentWorkspace.name}</h2><Badge variant="outline"><span className={"mr-1.5 size-2 rounded-full " + (realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground")} />{realtime.isConnected ? "Live" : "Offline"}</Badge></div>
+                <section id="workspace-header" aria-label="Workspace status and actions" className="mb-4 flex scroll-mt-24 flex-wrap items-center justify-between gap-3">
+                  <Badge variant="outline"><span className={"mr-1.5 size-2 rounded-full " + (realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground")} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
                   <div className="flex items-center gap-2">
                     {aiWorkspaceEnabled && <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)}><Sparkles className="size-4" />Ask Saathi</Button>}
                     <DropdownMenu>
@@ -451,7 +411,7 @@ export default function Dashboard() {
                   </div>
                 </section>
 
-                {aiWorkspaceEnabled && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (!result.error) { setBoardRefreshRequest(value => value + 1); await refreshTasks() } return result }} /></DialogContent></Dialog>}
+                {aiWorkspaceEnabled && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (result.task) { setBoardRefreshRequest(value => value + 1); try { if (!await refreshTasks()) return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } catch { return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } } return result }} /></DialogContent></Dialog>}
                 {capabilities.csvImport && <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent><DialogHeader><DialogTitle>Import tasks</DialogTitle><DialogDescription>Choose a CSV file with task titles and optional details.</DialogDescription></DialogHeader><TaskImport key={currentWorkspace.id} workspaceId={currentWorkspace.id} onImported={async () => { setBoardRefreshRequest(value => value + 1); await refreshTasks() }} /></DialogContent></Dialog>}
 
                 {realtime.error && (
@@ -462,7 +422,7 @@ export default function Dashboard() {
                 )}
 
                 {workspaceView === "activity" ? (
-                  <Card id="activity-history" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Workspace record</p><CardTitle className="text-2xl tracking-[-0.04em]">Activity</CardTitle><CardDescription>See changes made in this workspace.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></CardContent></Card>
+                  <section aria-labelledby="activity-title" className="space-y-4"><header><h2 id="activity-title" className="text-xl font-semibold">Activity</h2><p className="text-sm text-muted-foreground">Changes made in this workspace.</p></header><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></section>
                 ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (
                   <section id="settings-panel"><WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
                 ) : workspaceView === "team" ? (

@@ -35,6 +35,15 @@ test('primary navigation changes immediately with the rendered view and never se
   assert.deepEqual(render('overview').map(button => button.props['aria-label']), ['Overview', 'Board', 'Team'])
 })
 
+test('mobile navigation keeps labelled keyboard-operable routes and the active view state', () => {
+  const tree = component.DashboardNavigation({ mode: 'mobile', hasWorkspace: true, activeView: 'board' })
+  const mobileButtons = buttons(tree)
+  assert.deepEqual(mobileButtons.map(button => button.props['aria-label']), ['Overview', 'Board', 'Team'])
+  assert.ok(mobileButtons.every(button => button.props.type === 'button' && button.props.className.includes('focus-visible:ring-2')))
+  assert.equal(mobileButtons.find(button => button.props['aria-current']).props['aria-label'], 'Board')
+  assert.equal(buttons(component.DashboardNavigation({ mode: 'mobile', hasWorkspace: false })).length, 0)
+})
+
 test('empty or unknown dashboard hashes land on Overview while deep links retain their destination', () => {
   assert.equal(navigation.workspaceViewFromHash(''), 'overview')
   assert.equal(navigation.workspaceViewFromHash('#unknown'), 'overview')

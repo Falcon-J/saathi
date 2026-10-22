@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, ListChecks, Sparkles } from "lucide-react"
-import { askWorkspaceAdvisor } from "@/app/actions/workspace-advisor"
+import { askWorkspaceAdvisor, type WorkspaceAdvisorConfirmationResult } from "@/app/actions/workspace-advisor"
 import type { AdvisorResponse, AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ type TaskDraft = NonNullable<AdvisorResponse["draft"]>
 type WorkspaceAdvisorProps = {
   workspaceId: string
   timeZone?: string
-  onConfirmDraft: (draft: AdvisorTaskDraft, idempotencyKey: string) => Promise<unknown>
+  onConfirmDraft: (draft: AdvisorTaskDraft, idempotencyKey: string) => Promise<WorkspaceAdvisorConfirmationResult>
 }
 
 type Capability = AdvisorResponse["capability"]
@@ -34,6 +34,8 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
   const [response, setResponse] = useState<AdvisorResponse | null>(null)
   const [pending, setPending] = useState<Capability | null>(null)
   const [creating, setCreating] = useState(false)
+  const confirming = useRef(false)
+  const draftCommand = useRef<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null)
 
@@ -48,6 +50,7 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
         setRetryAfterSeconds(result.code === "rate_limited" ? result.retryAfterSeconds ?? null : null)
         return
       }
+      draftCommand.current = null
       setResponse(result.response ?? null)
     } catch {
       setError("AI advice is temporarily unavailable. Please try again.")
@@ -57,18 +60,25 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
   }
 
   const createDraft = async (draft: TaskDraft) => {
+    if (confirming.current) return
+    confirming.current = true
     setCreating(true)
     setError(null)
     try {
-      const result = await onConfirmDraft(draft, crypto.randomUUID())
+      draftCommand.current ??= crypto.randomUUID()
+      const result = await onConfirmDraft(draft, draftCommand.current)
       if (hasError(result)) {
         setError(result.error)
         return
       }
+      if (!result.task) throw new Error("Confirmation outcome unavailable")
+      draftCommand.current = null
+      setError(result.warning ?? null)
       setResponse(current => current ? { ...current, draft: null } : current)
     } catch {
-      setError("The task could not be created. Please try again.")
+      setError("We could not confirm whether the task was created. Retry this proposal to safely recover the result.")
     } finally {
+      confirming.current = false
       setCreating(false)
     }
   }

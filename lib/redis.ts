@@ -525,8 +525,8 @@ class RedisService {
         await this.redis.ping()
         this.isConnected = true
         return true
-      } catch (error) {
-        console.error("[Saathi] Redis ping failed:", error)
+      } catch {
+        console.error("[Saathi] Redis ping failed")
         this.isConnected = false
         return false
       }

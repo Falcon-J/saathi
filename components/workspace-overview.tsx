@@ -76,7 +76,7 @@ function TaskSection({ title, tasks, timeZone, workspace, currentUserEmail, empt
 }
 
 export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
-  const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone))
+  const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone), workspace.timezone)
   return (
     <section id="project-board" aria-busy={loading} className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
       <header className="border-b border-border px-4 py-4 sm:px-6">

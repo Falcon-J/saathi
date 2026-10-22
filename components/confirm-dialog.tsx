@@ -17,6 +17,7 @@ interface ConfirmDialogProps {
   actionLabel: string
   onConfirm: () => void
   onCancel: () => void
+  onCloseAutoFocus?: (event: Event) => void
   isLoading?: boolean
 }
 
@@ -27,11 +28,12 @@ export function ConfirmDialog({
   actionLabel,
   onConfirm,
   onCancel,
+  onCloseAutoFocus,
   isLoading = false,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-      <AlertDialogContent className="bg-card border-border">
+      <AlertDialogContent className="bg-card border-border" onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogTitle className="text-foreground">{title}</AlertDialogTitle>
         <AlertDialogDescription className="text-muted-foreground">{description}</AlertDialogDescription>
         <div className="flex gap-2 justify-end">

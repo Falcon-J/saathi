@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Local prototypes and verification artifacts are not application styles. */
+@source not "../.local-test";
+@source not "../output";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

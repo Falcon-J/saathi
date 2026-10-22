@@ -15,6 +15,7 @@ const ToastViewport = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Viewport
     ref={ref}
+    data-slot="toast-viewport"
     className={cn(
       'fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col p-4 sm:max-w-[420px]',
       className,
@@ -55,6 +56,7 @@ const Toast = React.forwardRef<
   return (
     <ToastPrimitives.Root
       ref={ref}
+      role="listitem"
       className={cn(toastVariants({ variant }), className)}
       {...props}
     />
@@ -87,6 +89,7 @@ const ToastClose = React.forwardRef<
       'absolute right-2 top-2 rounded-[var(--saathi-radius-control,0.375rem)] p-1 text-current/60 opacity-0 transition-opacity hover:text-current focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#007aff] group-hover:opacity-100',
       className,
     )}
+    aria-label="Dismiss notification"
     toast-close=""
     {...props}
   >

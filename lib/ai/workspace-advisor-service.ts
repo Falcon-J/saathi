@@ -9,6 +9,8 @@ import {
   type AdvisorWorkspace,
 } from "./workspace-advisor.ts"
 
+export class AdvisorResponseError extends Error {}
+
 type AdvisorProviderRequest = (options: {
   name: string
   schema: object
@@ -91,11 +93,26 @@ export async function requestWorkspaceAdvisor({
     ? projection
     : buildAdvisorProjection(projection)
 
-  return request({
+  const response = await request({
     name: "saathi_workspace_advisor",
     schema: advisorResponseJsonSchema,
     instructions: instructionsFor(input.data.capability),
     input: JSON.stringify({ question: input.data.question, workspace: authorizedProjection }),
     parse: parseAdvisorResponse,
   })
+
+  if (response.capability !== input.data.capability) {
+    throw new AdvisorResponseError("AI advisor response capability is invalid")
+  }
+
+  const taskIds = new Set(authorizedProjection.tasks.map(task => task.id))
+  const referencedTaskIds = new Set<string>()
+  for (const item of response.attention) {
+    if (!taskIds.has(item.taskId) || referencedTaskIds.has(item.taskId)) {
+      throw new AdvisorResponseError("AI advisor response task reference is invalid")
+    }
+    referencedTaskIds.add(item.taskId)
+  }
+
+  return response
 }

@@ -17,7 +17,7 @@ import type { Member } from "@/app/actions/workspaces"
 import type { Task, TaskStatus, TaskUpdate } from "@/lib/task-contract"
 import { getMutationError } from "@/lib/mutation-result"
 import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
-import { formatTaskCreatedAt, formatTaskDue } from "@/lib/task-time"
+import { formatTaskDue } from "@/lib/task-time"
 import { TaskComments } from "@/components/task-comments"
 import type { RealtimeEvent } from "@/lib/realtime"
 
@@ -38,6 +38,7 @@ interface TaskListProps {
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
+  timeZone: string
   onAddTask: (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
   onToggleTask: (id: string) => Promise<unknown>
   onDeleteTask: (id: string) => Promise<unknown>
@@ -54,6 +55,7 @@ export const TaskList = memo(function TaskList({
   members,
   currentUserEmail,
   workspaceOwnerId,
+  timeZone,
   onAddTask,
   onToggleTask,
   onDeleteTask,
@@ -255,6 +257,7 @@ export const TaskList = memo(function TaskList({
       members={members}
       currentUserEmail={currentUserEmail}
       workspaceOwnerId={workspaceOwnerId}
+      timeZone={timeZone}
       operatingTaskId={operatingTaskId}
       onToggleTask={handleToggleTask}
       onEditTask={handleEditTask}
@@ -281,11 +284,12 @@ export const TaskList = memo(function TaskList({
 
       <div className="flex items-center justify-between rounded-[var(--saathi-radius-card)] border border-border px-4 py-3">
         <div className="text-sm text-muted-foreground">
+          {paging && <span className="mr-3 text-xs">Workspace totals</span>}
           <span className="font-medium text-foreground">{paging ? paging.aggregates?.open ?? "…" : tasks.length - completedCount}</span> open
           <span className="mx-2 text-border">/</span>
           <span className="font-medium text-primary">{paging ? paging.aggregates?.done ?? "…" : completedCount}</span> done
         </div>
-        {paging ? <p className="text-xs text-muted-foreground">{loading ? "Loading tasks…" : `Showing ${tasks.length} tasks`}</p> : filteredTasks.length !== tasks.length && (
+        {paging ? <p className="text-xs text-muted-foreground">{loading ? "Loading tasks…" : `Showing ${tasks.length} matching task${tasks.length === 1 ? "" : "s"}${paging.nextCursor ? " so far" : ""}`}</p> : filteredTasks.length !== tasks.length && (
           <div className="text-sm font-medium text-muted-foreground">
             Showing {filteredTasks.length} of {tasks.length}
           </div>
@@ -306,21 +310,21 @@ export const TaskList = memo(function TaskList({
             <TaskColumn
               title="To do"
               count={todoTasks.length}
-              emptyMessage={(paging ? paging.aggregates?.total === 0 : tasks.length === 0) && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet. Add one above." : "No tasks match these filters."}
+              emptyMessage={(paging ? paging.aggregates?.total === 0 : tasks.length === 0) && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet. Add one above." : paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : "No tasks match these filters."}
             >
               {todoTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
               title="In progress"
               count={inProgressTasks.length}
-              emptyMessage="Tasks you are actively working on will appear here."
+              emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : paging ? "No in-progress tasks match these filters." : "Tasks you are actively working on will appear here."}
             >
               {inProgressTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
               title="Done"
               count={completedTasks.length}
-              emptyMessage={tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
+              emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
             >
               {completedTasks.map(renderTask)}
             </TaskColumn>
@@ -411,8 +415,22 @@ export function TaskEditorDialog({
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
+  const [discardConfirm, setDiscardConfirm] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const requestClose = () => {
+    if (isSaving) return
+    if (canEdit && task && draft) {
+      const original = toTaskEditorDraft(task)
+      if ((Object.keys(original) as (keyof TaskEditorDraft)[]).some(key => original[key] !== draft[key])) {
+        setDiscardConfirm(true)
+        return
+      }
+    }
+    onClose()
+  }
+
   return (
-    <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && requestClose()}>
       <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
         <DialogHeader className="border-b border-border bg-secondary/35 px-5 py-5 pr-12 sm:px-6">
           <div className="flex items-start gap-3 text-left">
@@ -442,6 +460,7 @@ export function TaskEditorDialog({
                   <Label htmlFor="task-edit-title">Title</Label>
                   <Input
                     id="task-edit-title"
+                    ref={titleInputRef}
                     value={draft.title}
                     onChange={(event) => onDraftChange({ title: event.target.value })}
                     disabled={isSaving}
@@ -537,12 +556,31 @@ export function TaskEditorDialog({
             </div>
 
             <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
+              <Button type="button" variant="outline" onClick={requestClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
               {canEdit && <Button type="submit" form="task-editor-form" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
             </DialogFooter>
           </div>
         )}
       </DialogContent>
+      <ConfirmDialog
+        open={discardConfirm && Boolean(task && draft)}
+        title="Discard unsaved changes?"
+        description="Your changes to this task have not been saved. Discard them and close the editor?"
+        actionLabel="Discard changes"
+        onConfirm={() => {
+          if (isSaving) return
+          setDiscardConfirm(false)
+          onClose()
+        }}
+        onCancel={() => setDiscardConfirm(false)}
+        onCloseAutoFocus={event => {
+          if (task && draft && titleInputRef.current?.isConnected) {
+            event.preventDefault()
+            titleInputRef.current.focus()
+          }
+        }}
+        isLoading={isSaving}
+      />
     </Dialog>
   )
 }
@@ -552,6 +590,7 @@ interface TaskListItemProps {
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
+  timeZone: string
   operatingTaskId: string | null
   onToggleTask: (taskId: string) => Promise<void>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<void>
@@ -564,6 +603,7 @@ const TaskListItem = memo(function TaskListItem({
   members,
   currentUserEmail,
   workspaceOwnerId,
+  timeZone,
   operatingTaskId,
   onToggleTask,
   onEditTask,
@@ -634,12 +674,11 @@ const TaskListItem = memo(function TaskListItem({
         <div className="ml-9 space-y-2 border-t border-border pt-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
-              <span className="font-medium text-foreground/70">Status</span>
               <select
                 value={task.status ?? (task.completed ? "done" : "todo")}
               onChange={(event) => onEditTask(task.id, { status: event.target.value as TaskStatus })}
                 disabled={operatingTaskId === task.id || !taskPermissions.canEdit}
-                aria-label={`Move ${task.title}`}
+                aria-label={`Change status for ${task.title}`}
                 className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
               >
                 <option value="todo">To do</option>
@@ -654,10 +693,10 @@ const TaskListItem = memo(function TaskListItem({
               <span className="capitalize">{task.priority} priority</span>
             </div>
 
-            {formatTaskDue(task.dueAt, task.dueDate) && (
+            {formatTaskDue(task.dueAt, task.dueDate, timeZone) && (
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                <span>Due {formatTaskDue(task.dueAt, task.dueDate)}</span>
+                <span>Due {formatTaskDue(task.dueAt, task.dueDate, timeZone)}</span>
               </div>
             )}
 
@@ -668,10 +707,6 @@ const TaskListItem = memo(function TaskListItem({
               </div>
             )}
 
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              <span>Created {formatTaskCreatedAt(task.createdAt) ?? "unknown"}</span>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

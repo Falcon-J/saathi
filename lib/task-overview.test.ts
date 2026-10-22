@@ -62,6 +62,18 @@ test("uses due dates for legacy tasks without an explicit bucket", () => {
   assert.deepEqual(groups.next.map((task) => task.id), ["future"])
 })
 
+test("groups precise deadlines by workspace-local date and keeps date-only values literal", () => {
+  const precise = { ...baseTask, id: "precise", dueAt: "2026-09-16T23:30:00.000Z" }
+  const literal = { ...baseTask, id: "literal", dueDate: "2026-09-16" }
+
+  const kolkata = groupTasksForOverview([precise, literal], "2026-09-17", "Asia/Kolkata")
+  assert.deepEqual(kolkata.today.map(task => task.id), ["precise"])
+  assert.deepEqual(kolkata.overdue.map(task => task.id), ["literal"])
+
+  const losAngeles = groupTasksForOverview([precise, literal], "2026-09-16", "America/Los_Angeles")
+  assert.deepEqual(losAngeles.today.map(task => task.id), ["precise", "literal"])
+})
+
 test("keeps overdue work separate from tasks due today", () => {
   const groups = groupTasksForOverview([
     { ...baseTask, id: "overdue", dueDate: "2026-09-01" },

@@ -5,7 +5,7 @@ import { getDb } from "../db/client.ts"
 import { createWorkspaceRecord } from "./workspaces.ts"
 import { createTaskRecord } from "./tasks.ts"
 import { createTaskComment, listTaskComments, listTaskCommentsPage } from "./comments.ts"
-import { listActivityEvents } from "./activity.ts"
+import { listActivityEvents, listActivityEventsPage } from "./activity.ts"
 import { archiveWorkspaceRecord, removeWorkspaceMember } from "./workspaces.ts"
 
 test("task comments require membership and create one durable activity event", { skip: !process.env.DATABASE_TEST_URL }, async t => {
@@ -85,13 +85,54 @@ test("task comments require membership and create one durable activity event", {
       await assert.rejects(listTaskCommentsPage(member.id, task.id, ids[0]), /cursor unavailable/)
       await assert.rejects(listTaskCommentsPage(member.id, pagedTask.id, comment.id), /cursor unavailable/)
     })
+    await t.test("activity pages preserve microsecond order and reject foreign cursors", async () => {
+      const ids = Array.from({ length: 137 }, () => randomUUID())
+      await db`INSERT INTO activity_events ${db(ids.map(id => ({ id, workspace_id: workspace.id,
+        actor_user_id: owner.id, event_type: "history-fixture", entity_type: "workspace", entity_id: workspace.id })))}`
+      // Timestamp parameters use JavaScript Date precision; SQL literals retain microseconds.
+      await db`UPDATE activity_events SET created_at='2030-10-04T00:00:00.123456Z' WHERE id IN ${db(ids.slice(0, 80))}`
+      await db`UPDATE activity_events SET created_at='2030-10-04T00:00:00.123455Z' WHERE id IN ${db(ids.slice(80))}`
+      const storedTimes = await db`SELECT DISTINCT created_at::text AS precise_time FROM activity_events
+        WHERE workspace_id=${workspace.id} AND event_type='history-fixture' ORDER BY precise_time DESC`
+      assert.deepEqual(storedTimes.map(row => row.precise_time), ["2030-10-04 00:00:00.123456+00", "2030-10-04 00:00:00.123455+00"])
+      const seen: string[] = []
+      let cursor: string | undefined
+      do {
+        const page = await listActivityEventsPage(member.id, workspace.id, cursor)
+        assert.ok(page.events.length <= 50)
+        seen.push(...page.events.map(row => row.id))
+        cursor = page.nextCursor ?? undefined
+      } while (cursor)
+      assert.deepEqual(seen.slice(0, 137), [...ids.slice(0, 80).sort().reverse(), ...ids.slice(80).sort().reverse()])
+      assert.equal(new Set(seen).size, seen.length)
+      const otherWorkspace = await createWorkspaceRecord(owner.id, { name: "Foreign history" })
+      try {
+        await assert.rejects(listActivityEventsPage(owner.id, otherWorkspace.id, ids[0]), /cursor unavailable/i)
+      } finally { await db`DELETE FROM workspaces WHERE id=${otherWorkspace.id}` }
+      await assert.rejects(listActivityEventsPage(member.id, workspace.id, randomUUID()), /cursor unavailable/i)
+      await assert.rejects(listActivityEventsPage(member.id, workspace.id, "bad"), /Invalid activity cursor/)
+      await assert.rejects(listActivityEventsPage(member.id, workspace.id, undefined, 101), /page size/)
+      assert.equal((await listActivityEvents(member.id, workspace.id, 2)).length, 2)
+    })
     await t.test("archived discussion and activity remain readable but cannot be changed", async () => {
       await archiveWorkspaceRecord(owner.id, workspace.id, workspace.version)
       assert.equal((await listTaskComments(member.id, task.id)).length, 2)
-      assert.ok((await listActivityEvents(member.id, workspace.id)).some(event => event.entityId === comment.id))
+      assert.ok((await listActivityEvents(member.id, workspace.id, 100)).length > 0)
+      const first = await listActivityEventsPage(member.id, workspace.id)
+      assert.ok(first.nextCursor)
+      assert.ok((await listActivityEventsPage(member.id, workspace.id, first.nextCursor!)).events.length > 0)
+      let cursor: string | null = first.nextCursor
+      const archivedEvents = [...first.events]
+      while (cursor) {
+        const page = await listActivityEventsPage(member.id, workspace.id, cursor)
+        archivedEvents.push(...page.events)
+        cursor = page.nextCursor
+      }
+      assert.ok(archivedEvents.some(event => event.entityId === comment.id))
       await assert.rejects(createTaskComment(member.id, task.id, "Archived write"), /access denied/i)
       await assert.rejects(listTaskComments(outsider.id, task.id), /access denied/i)
       await assert.rejects(listActivityEvents(outsider.id, workspace.id), /access denied/i)
+      await assert.rejects(listActivityEventsPage(outsider.id, workspace.id, first.nextCursor!), /access denied/i)
       await assert.rejects(removeWorkspaceMember(owner.id, workspace.id, member.email), /Archived workspaces/)
     })
     await t.test("removed members lose comment reads and writes", async () => {
@@ -102,10 +143,13 @@ test("task comments require membership and create one durable activity event", {
         const retained = await createTaskComment(member.id, activeTask.id, "Retained context")
         await createTaskComment(owner.id, activeTask.id, "Latest context")
         const first = await listTaskCommentsPage(member.id, activeTask.id, undefined, 1)
+        const activityFirst = await listActivityEventsPage(member.id, active.id, undefined, 1)
+        assert.ok(activityFirst.nextCursor)
         assert.ok(first.nextCursor)
         await removeWorkspaceMember(owner.id, active.id, member.email)
         await assert.rejects(listTaskComments(member.id, activeTask.id), /access denied/i)
         await assert.rejects(listTaskCommentsPage(member.id, activeTask.id, first.nextCursor!), /access denied/i)
+        await assert.rejects(listActivityEventsPage(member.id, active.id, activityFirst.nextCursor!), /access denied/i)
         assert.equal((await listTaskCommentsPage(owner.id, activeTask.id, first.nextCursor!, 1)).comments[0].id, retained.id)
         await assert.rejects(createTaskComment(member.id, activeTask.id, "Removed write"), /access denied/i)
         assert.equal((await listTaskComments(owner.id, activeTask.id)).length, 2)
