@@ -88,6 +88,26 @@ Run `6ef81a76-b3bb-4551-bded-1b6c315c1852` used 100 authenticated identities, fo
 - Live AI is required before release, confirmed by the user. Local app/provider acceptance above passed; hosted environment configuration remains unverified. The supplied key is read from their exact external local env location and passed only to child processes; it is not printed or copied into this checkout.
 - Sustained 100-user performance, revocation/reconnect targets, deployed readiness, email delivery, worker schedules/alerts, restore and rollback evidence.
 
+## October 23 follow-up
+
+- Latest ordinary suite: **325 tests, 323 passed, two optional skips, zero failures**. Production webpack build, nonincremental type check and scoped changed-code lint passed. Earlier remote CI passed for `5b3e0f6`; the changes below require a new CI run.
+- Native stream open/resync and browser online events now invalidate the existing Board read revision. Actual production-browser reconciliation passed: authoritative read 356 ms, visible task 836 ms (five-second target). Idle permission revocation passed in 4,046 ms with reconnect denied by HTTP 403 (30-second target). These are separate local probes, not claims from the sustained runner.
+- Post-commit outbox coalescing now retains a commit arriving during a short active flush, while retaining the four-batch cap. Deferred regressions passed. The database pool defaults to one; validated `DATABASE_POOL_MAX` permits 1 through 10. Five was used only for isolated local direct-Postgres diagnosis; hosted sizing still requires a connection budget.
+- Proxy refreshes API and Server Action session cookies through SDK `getClaims()`. Handlers retain live `getUser()` and domain authorization; protected page GET retains live verification, confirmation redirect and outage behavior. Thirty-seven focused checks cover refresh cookies, forged GET headers, malformed/expired sessions and downstream denial of a revoked user.
+- The verifier now schedules writes independently by identity, records failed-run elapsed time, intended/achieved rates, schedule lag, bounded sanitized timing samples and source/build fingerprints. Reads remain response-dependent with 15-second think time. `--diagnostic` is 100 users and 100 writes over 60 seconds; it does not establish acceptance. Default acceptance remains 1,000 writes over 900 seconds.
+- Latest diagnostic `266b0123-71b6-471d-8c96-c44e263aa445`: 100 writes, 2,500 of 2,500 deliveries, zero request errors or duplicate notifications, elapsed 60,004 ms. Read p95 **1,181 ms** still fails 750 ms; write p95 1,948 ms; delivery upper-bound p95 **1,400 ms** passes 2,000 ms. Prior diagnostic before duplicate Auth removal measured read p95 8,801 ms and delivery p95 3,674 ms. Diagnostic pool maximum was five in both. No full acceptance rerun while the short read gate fails.
+- Replay: `npm run report:nfr:local -- .local-test/nfr-266b0123-71b6-471d-8c96-c44e263aa445` generates a self-contained `report.html` with recorded timeline controls and no network requests. Failed performance gates display FAIL even when diagnostic functional execution succeeds. Five runner/report regressions pass; browser playback was verified separately. Raw fixture logs stay ignored.
+- Review corrected throughput accounting to exclude warmup: 740 measured reads over 60,004 ms (12.33 requests/second). The original ignored result is preserved; the [sanitized diagnostic](benchmarks/2026-10-23-local-nfr-diagnostic.json) records the correction explicitly. Latency samples and verdict are unchanged.
+- Owned fixtures and the separate Auth-capacity probe identity were removed. No shared infrastructure was deleted.
+- Vercel Saathi preview at `5b3e0f6` is READY. The redundant `implementation` target has no environment variables and failed its build. Current production is a different main commit: liveness HTTP 200, readiness HTTP 503, login HTTP 200. Preview bypass access was explicitly authorized, but connector access still failed; hosted login/readiness and runtime logs remain unverified. No merge, production deployment or production configuration change occurred.
+
+### Remaining release gates
+
+1. Diagnose remaining read latency with the recorded phase evidence; pass the short gate, then run the unchanged sustained acceptance envelope.
+2. Obtain working hosted runtime access, resolve readiness 503, and verify hosted AI, email, workers/alerts and operational recovery.
+3. Finish the unverified invitation/lifecycle/negative browser matrix listed above. Local core journeys, live AI and recovery probes already passed; preserve that evidence.
+4. Review and publish this bounded delta to draft PR #9, pass remote CI, then obtain explicit merge and production deployment authorization.
+
 ## Caveman use
 
 User requested Caveman. Its compression tool accepted a nonsensitive test summary. Automatic approval review rejected sending repository source/configuration to that destination as untrusted. Source inspection stays local; no bypass was attempted.

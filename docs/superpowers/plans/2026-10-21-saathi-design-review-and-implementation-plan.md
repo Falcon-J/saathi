@@ -143,3 +143,7 @@ Enterprise workflow builders, hierarchy/subtasks, attachments, reporting suite, 
 - [ ] Performance/realtime targets pass or unmet items have external blockers.
 - [ ] Hosted readiness, deployment identity and operational recovery evidence are current.
 - [ ] FR/NFR ledger references current evidence; no stale report is presented as current.
+
+## October 23 execution update
+
+Current results and remaining gates are recorded in `docs/release/2026-10-21-completion-execution.md`. Core local browser and live AI acceptance passed; timed revocation (4,046 ms) and authoritative reconnect/render (356/836 ms) also passed. Latest 100-user diagnostic delivered all 2,500 notifications with zero errors/duplicates; delivery p95 1,400 ms passed, read p95 1,181 ms still failed 750 ms. Keep full sustained acceptance pending until the short read target passes. Replay tooling and sanitized results are available; diagnostic execution is not release acceptance. Hosted readiness remains HTTP 503 and preview/runtime access remains blocked despite authorized temporary access. Existing draft PR #9 is the publication target; merge and production deployment require explicit authorization.
