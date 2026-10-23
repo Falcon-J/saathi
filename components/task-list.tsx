@@ -282,7 +282,7 @@ export const TaskList = memo(function TaskList({
         members={members}
       />
 
-      <div className="flex items-center justify-between rounded-[var(--saathi-radius-card)] border border-border px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="text-sm text-muted-foreground">
           {paging && <span className="mr-3 text-xs">Workspace totals</span>}
           <span className="font-medium text-foreground">{paging ? paging.aggregates?.open ?? "…" : tasks.length - completedCount}</span> open
@@ -372,7 +372,7 @@ function TaskColumn({
   children: ReactNode
 }) {
   return (
-    <section className="min-h-72 rounded-[var(--saathi-radius-container)] border border-border bg-secondary/40 p-4" aria-label={`${title} tasks`}>
+    <section className="min-h-72 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
       <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
         <Badge variant="outline" className="border-border bg-card text-muted-foreground">
@@ -381,7 +381,7 @@ function TaskColumn({
       </div>
       <div className="space-y-3">
         {count > 0 ? children : (
-          <div className="rounded-[var(--saathi-radius-card)] border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+          <div className="px-3 py-8 text-center text-sm text-muted-foreground">
             {emptyMessage}
           </div>
         )}
@@ -617,7 +617,7 @@ const TaskListItem = memo(function TaskListItem({
   )
 
   return (
-    <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-5 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
+    <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <button
@@ -711,7 +711,6 @@ const TaskListItem = memo(function TaskListItem({
 
           <div className="flex flex-wrap items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground font-medium">Assigned to:</span>
             <select
               value={task.assigneeEmail || ""}
               onChange={(e) => onEditTask(task.id, { assigneeEmail: e.target.value || "" })}

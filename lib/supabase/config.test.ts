@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { getAuthCallbackUrl, getSupabaseConfig } from './config.ts'
+import { getAuthCallbackUrl, getCanonicalAuthEntryUrl, getSupabaseConfig } from './config.ts'
 
 test('missing auth configuration is rejected at use, not module import', () => {
   const saved = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, key: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }
@@ -14,6 +14,26 @@ test('missing auth configuration is rejected at use, not module import', () => {
       if (value === undefined) delete process.env[name!]
       else process.env[name!] = value
     }
+  }
+})
+
+test('auth entry uses the configured origin before creating PKCE state, never moves callbacks', () => {
+  const saved = process.env.NEXT_PUBLIC_APP_URL
+  try {
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.example'
+    const redirect = getCanonicalAuthEntryUrl('https://build.example/login?redirect=%2Finvite%2Fowned&reset=success')
+    assert.equal(redirect?.origin, 'https://preview.example')
+    assert.equal(redirect?.pathname, '/login')
+    assert.equal(redirect?.searchParams.get('redirect'), '/invite/owned')
+    assert.equal(redirect?.searchParams.get('reset'), 'success')
+    assert.equal(getCanonicalAuthEntryUrl('https://preview.example/register'), null)
+    for (const path of ['/auth/callback?code=private', '/api/users', '/dashboard', '/reset-password']) {
+      assert.equal(getCanonicalAuthEntryUrl('https://build.example' + path), null)
+    }
+    assert.equal(getCanonicalAuthEntryUrl('https://build.example/login?code=private&access_token=private')?.search, '')
+  } finally {
+    if (saved === undefined) delete process.env.NEXT_PUBLIC_APP_URL
+    else process.env.NEXT_PUBLIC_APP_URL = saved
   }
 })
 

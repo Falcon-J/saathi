@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, CalendarDays, Check, Circle, Clock3, Target } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, Circle, Clock3 } from "lucide-react"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
 import { Button } from "@/components/ui/button"
@@ -65,8 +65,8 @@ function TaskSection({ title, tasks, timeZone, workspace, currentUserEmail, empt
   return (
     <section aria-labelledby={headingId}>
       <div className="flex items-center justify-between border-b border-border pb-2">
-        <h3 id={headingId} className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">{title}</h3>
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{tasks.length}</span>
+        <h3 id={headingId} className="text-sm font-semibold text-foreground">{title}</h3>
+        <span className="text-xs tabular-nums text-muted-foreground">{tasks.length}</span>
       </div>
       {tasks.length === 0
         ? <p className="py-6 text-sm text-muted-foreground">{empty}</p>
@@ -81,27 +81,20 @@ export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading,
     <section id="project-board" aria-busy={loading} className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
       <header className="border-b border-border px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-medium text-primary"><Target className="size-4" />Your progress</div>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              {title}
-              {workspace.targetAt && <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Target {formatCalendarDate(workspace.targetAt, "UTC")}</span>}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              {title ?? <h2 className="max-w-2xl break-words text-xl font-semibold leading-snug tracking-tight">{workspace.summary || "Overview"}</h2>}
+              {workspace.targetAt && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="size-3" />Target {formatCalendarDate(workspace.targetAt, "UTC")}</span>}
             </div>
-            {workspace.summary && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{workspace.summary}</p>}
+            {title && workspace.summary && <p className="mt-2 max-w-2xl text-base leading-6 text-foreground">{workspace.summary}</p>}
           </div>
           {!loading && <div className="w-full max-w-48">
-            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>Progress</span><span>{groups.completion}%</span></div>
-            <Progress value={groups.completion} className="h-2" />
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{groups.completed.length} of {tasks.length} complete</span><span className="tabular-nums">{groups.completion}%</span></div>
+            <Progress value={groups.completion} aria-label="Task completion" className="h-2" />
           </div>}
         </div>
       </header>
       <div className="space-y-5 px-4 py-4 sm:px-6">
-        {!loading && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-          <span><strong className="text-foreground">{groups.overdue.length}</strong> overdue</span>
-          <span><strong className="text-foreground">{groups.today.length}</strong> due today</span>
-          <span><strong className="text-foreground">{groups.next.length}</strong> coming next</span>
-          <span><strong className="text-foreground">{groups.completed.length}</strong> completed</span>
-        </div>}
         <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
         {loading ? (
           <div role="status" className="space-y-3">

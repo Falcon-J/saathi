@@ -269,6 +269,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handleKeyboardShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return
+      if (!(event.metaKey || event.ctrlKey) || !["k", "b"].includes(event.key.toLowerCase())) return
+      if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"], [role="alertdialog"]')) return
+      if (document.querySelector('[role="dialog"]:not([data-state="closed"]), [role="alertdialog"]:not([data-state="closed"]), dialog[open]')) return
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault()
         handleOpenBoard()
@@ -401,7 +405,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     {aiWorkspaceEnabled && <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)}><Sparkles className="size-4" />Ask Saathi</Button>}
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Workspace menu" className={workspaceView === "activity" || workspaceView === "settings" ? "border-primary text-primary" : ""}>Workspace<ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Workspace menu" className={workspaceView === "activity" || workspaceView === "settings" ? "border-primary text-primary" : ""}>{workspaceView === "activity" ? "Activity" : workspaceView === "settings" ? "Settings" : "Workspace"}<ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => setCreatingWorkspace(true)}><Plus className="size-4" />New workspace</DropdownMenuItem>
                         <DropdownMenuItem onSelect={handleOpenActivity} aria-current={workspaceView === "activity" ? "page" : undefined}><History className="size-4" />Activity</DropdownMenuItem>

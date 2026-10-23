@@ -62,6 +62,16 @@ test('Overview announces loading without showing incomplete progress or counts',
   assert.equal(rows.find(node => node.props?.id === 'project-board').props['aria-busy'], true)
 })
 
+test('Overview leads with the saved goal and does not call undated work due today', () => {
+  const ui = harness(async () => ({}))
+  const rows = ui.render({ workspace: { id: 'workspace', timezone: 'UTC', ownerId: 'owner@example.test', summary: 'Launch the customer pilot' } })
+  assert.equal(rows.find(node => node.type === 'h2').props.children, 'Launch the customer pilot')
+  assert.ok(rows.some(node => node.type === 'h3' && node.props.children === 'Today'))
+  assert.doesNotMatch(JSON.stringify(rows), /due today|Your progress|coming next/)
+  assert.equal(rows.find(node => node.type === 'Progress').props['aria-label'], 'Task completion')
+  assert.equal(ui.render().find(node => node.type === 'h2').props.children, 'Overview')
+})
+
 test('quick add transport failure retains the draft and settles loading', async () => {
   const ui = harness(async () => { throw new Error('private transport details') })
   ui.render().find(node => node.type === 'Input').props.onChange({ target: { value: 'Keep draft' } })

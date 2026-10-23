@@ -16,3 +16,17 @@ export function getAuthCallbackUrl(next = '/dashboard') {
   callback.searchParams.set('next', next)
   return callback.toString()
 }
+
+export function getCanonicalAuthEntryUrl(requestUrl: string): URL | null {
+  const request = new URL(requestUrl)
+  if (!['/login', '/register', '/forgot-password'].includes(request.pathname)) return null
+  const origin = new URL(getAuthCallbackUrl()).origin
+  if (request.origin === origin) return null
+  const target = new URL(request.pathname, origin)
+  // Only entry-page state crosses origins; callback codes and sessions never do.
+  for (const key of ['redirect', 'reset']) {
+    const value = request.searchParams.get(key)
+    if (value) target.searchParams.set(key, value)
+  }
+  return target
+}

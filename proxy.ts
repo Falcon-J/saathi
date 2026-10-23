@@ -1,8 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getSupabaseConfig } from './lib/supabase/config'
+import { getCanonicalAuthEntryUrl, getSupabaseConfig } from './lib/supabase/config'
 
 export async function proxy(request: NextRequest) {
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    try {
+      const entry = getCanonicalAuthEntryUrl(request.url)
+      if (entry) {
+        const redirect = NextResponse.redirect(entry)
+        redirect.headers.set('Cache-Control', 'private, no-store')
+        return redirect
+      }
+    } catch {
+      return new NextResponse('Account service temporarily unavailable. Please reload shortly.', { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    }
+  }
   let response = NextResponse.next({ request })
   const protectedPage = request.nextUrl.pathname === '/dashboard' || request.nextUrl.pathname.startsWith('/dashboard/')
   const refreshOnly = request.nextUrl.pathname.startsWith('/api/') || (request.method === 'POST' && Boolean(request.headers.get('next-action')?.trim()))
