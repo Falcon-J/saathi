@@ -327,7 +327,7 @@ export default function Dashboard() {
         <div className="flex min-h-14 flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
           <SaathiLogo className="size-8 shrink-0" priority />
           <h1 className="sr-only">Saathi</h1>
-          {showWorkspace && <div className="min-w-0 flex-1 sm:max-w-sm"><WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} showCreate={false} /></div>}
+          {showWorkspace && <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1 sm:max-w-sm"><WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} showCreate={false} /></div>}
           <div className="ml-auto flex items-center gap-2">
             {showWorkspace && <Button onClick={handleNewTask}><Plus className="size-4" /><span>New task</span></Button>}
             <DropdownMenu>

@@ -8,7 +8,7 @@ import type { AdvisorProjection, AdvisorResponse } from "../lib/ai/workspace-adv
 loadEnvConfig(process.cwd(), true, { info: () => {}, error: () => {} })
 
 const projection: AdvisorProjection = {
-  workspace: { name: "Release Practice", summary: "Prepare a synthetic practice release" },
+  workspace: { name: "Release Practice", summary: "Prepare a synthetic practice release", timezone: "UTC" },
   tasks: [
     {
       id: "task-review",

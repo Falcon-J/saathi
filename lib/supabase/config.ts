@@ -17,11 +17,16 @@ export function getAuthCallbackUrl(next = '/dashboard') {
   return callback.toString()
 }
 
-export function getCanonicalAuthEntryUrl(requestUrl: string): URL | null {
+export function getCanonicalAuthEntryUrl(requestUrl: string, requestHost?: string | null): URL | null {
   const request = new URL(requestUrl)
   if (!['/login', '/register', '/forgot-password'].includes(request.pathname)) return null
-  const origin = new URL(getAuthCallbackUrl()).origin
-  if (request.origin === origin) return null
+  const canonical = new URL(getAuthCallbackUrl())
+  const origin = canonical.origin
+  // Next normalizes loopback URL hostnames; Host preserves the browser's cookie origin.
+  const sameOrigin = requestHost
+    ? requestHost.toLowerCase() === canonical.host && request.protocol === canonical.protocol
+    : request.origin === origin
+  if (sameOrigin) return null
   const target = new URL(request.pathname, origin)
   // Only entry-page state crosses origins; callback codes and sessions never do.
   for (const key of ['redirect', 'reset']) {

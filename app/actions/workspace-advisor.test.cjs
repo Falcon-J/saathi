@@ -121,6 +121,7 @@ for (const scenario of [
     const model = load('lib/ai/workspace-advisor.ts', { zod: require('zod') })
     const service = load('lib/ai/workspace-advisor-service.ts', {
       zod: require('zod'), './workspace-advisor.ts': model,
+      '../task-time.ts': load('lib/task-time.ts', {}),
       '../groq-chat.ts': { requestGroqStructuredResponse: async ({ parse }) => {
         if (!scenario.response) throw new Error('Provider transport unavailable')
         return parse({ ...scenario.response, answer: 'Review supplied tasks', draft: null })

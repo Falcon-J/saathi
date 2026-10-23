@@ -4,19 +4,20 @@ import type { AdvisorProjection, AdvisorResponse } from "./workspace-advisor.ts"
 import { AdvisorResponseError, requestWorkspaceAdvisor } from "./workspace-advisor-service.ts"
 
 const projection: AdvisorProjection = {
-  workspace: { name: "Launch", summary: "Ship the first release" },
+  workspace: { name: "Launch", summary: "Ship the first release", timezone: "Asia/Kolkata" },
   tasks: [{
     id: "task-1",
     title: "Ship",
     description: "Release the build",
     status: "todo",
     priority: "high",
-    dueDate: null,
+    dueDate: "2026-09-07",
     dueAt: null,
   }],
 }
 
-test("requests grounded advice with only the authorized projection", async () => {
+test("requests grounded advice with the authorized projection and server time in the workspace timezone", async context => {
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-22T23:30:00.000Z") })
   let received: { name: string; input: string; instructions: string } | undefined
   const expected: AdvisorResponse = {
     capability: "summarize_workspace",
@@ -38,8 +39,12 @@ test("requests grounded advice with only the authorized projection", async () =>
   assert.deepEqual(result, expected)
   assert.equal(received?.name, "saathi_workspace_advisor")
   assert.match(received?.instructions ?? "", /do not make changes/i)
+  assert.match(received?.instructions ?? "", /past deadline is overdue, never upcoming or imminent/i)
+  assert.match(received?.instructions ?? "", /Completed tasks are not overdue.*Undated tasks have no deadline/)
   assert.deepEqual(JSON.parse(received?.input ?? ""), {
     question: "What should we focus on?",
+    currentTime: "2026-10-22T23:30:00.000Z",
+    currentDate: "2026-10-23",
     workspace: projection,
   })
 })

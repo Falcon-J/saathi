@@ -15,7 +15,7 @@ function load(filename, dependencies) {
   new Function('require', 'exports', js)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports)
   return exports
 }
-function fixture({ path = '/dashboard', method = 'GET', action, canonicalEntry = null, user = { id: 'actor', email: 'actor@example.test', email_confirmed_at: 'confirmed' }, error = null, claimsError = null, refresh = false, claimsThrows = false } = {}) {
+function fixture({ path = '/dashboard', method = 'GET', action, canonicalEntry = null, onCanonicalEntry = () => {}, user = { id: 'actor', email: 'actor@example.test', email_confirmed_at: 'confirmed' }, error = null, claimsError = null, refresh = false, claimsThrows = false } = {}) {
   const cookies = new Map(), calls = { user: 0, claims: 0 }
   const jar = { getAll: () => Array.from(cookies, ([name, value]) => ({ name, value })), set: (name, value) => cookies.set(name, value) }
   class NextResponse {
@@ -32,7 +32,7 @@ function fixture({ path = '/dashboard', method = 'GET', action, canonicalEntry =
     getUser: async () => { calls.user++; refreshCookies(options); return { data: { user }, error } },
     getClaims: async () => { calls.claims++; refreshCookies(options); if (claimsThrows) throw new Error('Malformed token'); return { data: claimsError ? null : { claims: { sub: 'untrusted-for-authorization' } }, error: claimsError } },
   } })
-  const proxy = load('proxy.ts', { '@supabase/ssr': { createServerClient: (_url, _key, options) => client(options) }, 'next/server': { NextResponse }, './lib/supabase/config': { getCanonicalAuthEntryUrl: () => canonicalEntry, getSupabaseConfig: () => ({ url: 'https://auth.example.test', key: 'public-placeholder' }) } }).proxy
+  const proxy = load('proxy.ts', { '@supabase/ssr': { createServerClient: (_url, _key, options) => client(options) }, 'next/server': { NextResponse }, './lib/supabase/config': { getCanonicalAuthEntryUrl: (...args) => { onCanonicalEntry(...args); return canonicalEntry }, getSupabaseConfig: () => ({ url: 'https://auth.example.test', key: 'public-placeholder' }) } }).proxy
   return { proxy: () => proxy(request), request, calls, client, NextResponse }
 }
 
@@ -44,6 +44,16 @@ test('auth entry redirects before issuing PKCE cookies or calling Auth', async (
   assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
   assert.deepEqual(ui.calls, { user: 0, claims: 0 })
   assert.equal(response.cookies.getAll().length, 0)
+})
+
+test('auth entry compares browser Host rather than a forwarded host or normalized URL', async () => {
+  let compared
+  const ui = fixture({ path: '/login', onCanonicalEntry: (...args) => { compared = args } })
+  ui.request.url = 'http://localhost:3100/login'
+  ui.request.headers.set('host', '127.0.0.1:3100')
+  ui.request.headers.set('x-forwarded-host', 'untrusted.example')
+  await ui.proxy()
+  assert.deepEqual(compared, ['http://localhost:3100/login', '127.0.0.1:3100'])
 })
 
 for (const input of [{ method: 'POST', action: 'actual-action' }, { path: '/api/users' }, { path: '/api/realtime?workspaceId=fixture' }]) {

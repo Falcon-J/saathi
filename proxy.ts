@@ -5,7 +5,7 @@ import { getCanonicalAuthEntryUrl, getSupabaseConfig } from './lib/supabase/conf
 export async function proxy(request: NextRequest) {
   if (request.method === 'GET' || request.method === 'HEAD') {
     try {
-      const entry = getCanonicalAuthEntryUrl(request.url)
+      const entry = getCanonicalAuthEntryUrl(request.url, request.headers.get('host'))
       if (entry) {
         const redirect = NextResponse.redirect(entry)
         redirect.headers.set('Cache-Control', 'private, no-store')

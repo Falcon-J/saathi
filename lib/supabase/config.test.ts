@@ -56,3 +56,20 @@ test('email callback uses configured origin and requires secure production trans
     else process.env.NEXT_PUBLIC_APP_URL = saved
   }
 })
+
+test('auth entry compares the browser host when Next normalizes loopback URLs', () => {
+  const saved = process.env.NEXT_PUBLIC_APP_URL
+  try {
+    process.env.NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:3111'
+    assert.equal(getCanonicalAuthEntryUrl('http://localhost:3111/login', '127.0.0.1:3111'), null)
+    assert.equal(getCanonicalAuthEntryUrl('http://localhost:3111/login', 'localhost:3111')?.origin, 'http://127.0.0.1:3111')
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.example'
+    assert.equal(getCanonicalAuthEntryUrl('https://internal.example/login', 'preview.example'), null)
+    assert.equal(getCanonicalAuthEntryUrl('https://preview.example/login', 'build.example')?.origin, 'https://preview.example')
+    assert.equal(getCanonicalAuthEntryUrl('http://preview.example/login', 'preview.example')?.protocol, 'https:')
+    assert.equal(getCanonicalAuthEntryUrl('https://internal.example/login', 'evil.example')?.origin, 'https://preview.example')
+  } finally {
+    if (saved === undefined) delete process.env.NEXT_PUBLIC_APP_URL
+    else process.env.NEXT_PUBLIC_APP_URL = saved
+  }
+})

@@ -58,6 +58,7 @@ export async function askWorkspaceAdvisor(
     const projection = buildAdvisorProjection({
       name: workspace.name,
       summary: workspace.summary,
+      timezone: workspace.timezone,
       tasks: tasks.map(task => ({
         ...task,
         status: task.status ?? "todo",
