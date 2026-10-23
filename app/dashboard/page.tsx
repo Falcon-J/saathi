@@ -455,8 +455,8 @@ export default function Dashboard() {
                   </>
                 ) : (
                   <section className="min-w-0">
-                    <Card id="project-board" className="overflow-hidden rounded-[var(--saathi-radius-container)]">
-                        <CardHeader className="border-b border-border px-4 py-3">
+                    <Card id="project-board" className="gap-0 overflow-hidden rounded-[var(--saathi-radius-container)] py-0">
+                        <CardHeader className="border-b border-border px-4 py-3 [.border-b]:pb-3">
                           <div className="flex items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-lg"><LayoutGrid className="size-4 text-primary" />Board</CardTitle>
                             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Board actions"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setBoardRefreshRequest(value => value + 1)}><RefreshCw className="size-4" />Refresh tasks</DropdownMenuItem>{capabilities.csvImport && <DropdownMenuItem onSelect={() => setImportOpen(true)}>Import CSV</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>
                           </div>

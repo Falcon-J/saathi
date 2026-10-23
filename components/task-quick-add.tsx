@@ -74,7 +74,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-secondary/25 p-3 sm:p-4" aria-label="Add a task">
+    <form onSubmit={handleSubmit} className="min-w-0" aria-label="Add a task">
       <div className="flex gap-2">
         <Input ref={inputRef} aria-label="Task title" placeholder="What needs to get done?" value={title} onChange={event => { setTitle(event.target.value); setAdded(false) }} maxLength={200} disabled={saving} className="min-w-0 flex-1 bg-card" />
         <Button type="submit" disabled={!title.trim() || saving || needsReconciliation}>{saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{saving ? "Adding…" : "Add"}</Button>
