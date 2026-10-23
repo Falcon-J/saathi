@@ -8,6 +8,8 @@ Plan: `docs/superpowers/plans/2026-10-21-saathi-design-review-and-implementation
 
 Status: in progress. This ledger records current execution; blocked requirements remain open and do not count as completed acceptance.
 
+Latest hosted update: [October 23 recovery](2026-10-23-hosted-recovery.md). Both inactive Supabase projects were resumed; production readiness recovered to HTTP 200. The user-approved receipt-table migration was applied and catalog/privilege checks passed. Earlier 503 observations below remain historical. Performance and the other hosted release gates remain open.
+
 ## Decisions
 
 - Reuse the existing feature checkout and preserve its pending changes. No commit, push or deployment authorization is inferred.
