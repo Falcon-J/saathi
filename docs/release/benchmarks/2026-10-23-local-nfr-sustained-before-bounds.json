@@ -1,0 +1,107 @@
+{
+  "passed": false,
+  "mode": "acceptance",
+  "scope": "Local NFR verification",
+  "runId": "933eafba-70de-4176-a866-534c3083ffad",
+  "phase": "database-cross-check",
+  "failure": "Writes did not complete within the measured workload envelope",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 1000,
+    "seconds": 900,
+    "seed": 750
+  },
+  "attempts": 12106,
+  "readAttempts": 10706,
+  "streamAttempts": 400,
+  "successfulMutations": 1000,
+  "deliveries": {
+    "expected": 25000,
+    "observed": 25000,
+    "missing": 0,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": true,
+  "errors": [],
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 86,
+      "p95Ms": 202,
+      "p99Ms": 261
+    },
+    "read": {
+      "count": 10506,
+      "p50Ms": 507,
+      "p95Ms": 4493,
+      "p99Ms": 6623
+    },
+    "write": {
+      "count": 1000,
+      "p50Ms": 782,
+      "p95Ms": 7855,
+      "p99Ms": 11376
+    },
+    "admission": {
+      "count": 400,
+      "p50Ms": 873,
+      "p95Ms": 2538,
+      "p99Ms": 2756
+    },
+    "deliveryUpperBound": {
+      "count": 25000,
+      "p50Ms": 751,
+      "p95Ms": 8163,
+      "p99Ms": 22441
+    },
+    "scheduleLag": {
+      "count": 1000,
+      "p50Ms": 2,
+      "p95Ms": 48,
+      "p99Ms": 187
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 35307,
+    "meanMs": 25.680122975274028,
+    "maxMs": 764.411903,
+    "p95Ms": 33.079295,
+    "p99Ms": 83.820543
+  },
+  "workload": {
+    "elapsedMs": 904360,
+    "intendedWriteRatePerSecond": 1.1111111111111112,
+    "attemptedWrites": 1000,
+    "achievedWriteRatePerSecond": 1.1057549498696273,
+    "attemptedWriteRatePerSecond": 1.1057549498696273,
+    "scheduleLag": {
+      "count": 1000,
+      "p50Ms": 2,
+      "p95Ms": 48,
+      "p99Ms": 187
+    }
+  },
+  "elapsedMs": 904360,
+  "fingerprint": {
+    "revision": "9f2746122eb0a4d1c4a56a1035b0f23ecd616502",
+    "workingDiffSha256": "0dbcdc84f63455cac14ed393afc60c0b6804c9c43b1432388e64068ed64d0143",
+    "verifierSha256": "fc1b691febd7ed5074c590652fa5ca431730e50b0c7d23b05f2a352fe313e497",
+    "builtActionManifestSha256": "3781cae94fb80667d6d8f94605eb06f8f4f7e79eac031afdfa8efd2b4eed0c6b",
+    "recordedAt": "2026-10-23T08:09:10.674Z"
+  },
+  "databasePoolMax": "5",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 10506,
+    "achievedRequestsPerSecond": 11.61705515502676
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 38106,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

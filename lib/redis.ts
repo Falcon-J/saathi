@@ -2,6 +2,13 @@ import { Redis } from "@upstash/redis"
 import { env, getRedisConfig, isDevelopment } from "./env.ts"
 import { shouldUseMockRedis } from "./redis-policy.ts"
 
+const streamBoundsScript = `
+local oldest = redis.call('XRANGE', KEYS[1], '-', '+', 'COUNT', 1)
+if #oldest == 0 then return {} end
+local latest = redis.call('XREVRANGE', KEYS[1], '+', '-', 'COUNT', 1)
+return {oldest[1][1], latest[1][1]}
+`
+
 const claimSseLeaseScript = `
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
@@ -426,10 +433,44 @@ class RedisService {
     end: string = "+",
     count?: number
   ): Promise<Array<{ id: string; fields: Record<string, string> }>> {
+    return this.readStreamRange(streamKey, start, end, count)
+  }
+
+  async getLatestStreamEntry(streamKey: string): Promise<{ id: string; fields: Record<string, string> } | null> {
+    return (await this.readStreamRange(streamKey, "-", "+", 1, true))[0] ?? null
+  }
+
+  async getStreamBounds(streamKey: string): Promise<{ oldestId: string; latestId: string } | null> {
     if (this.redis) {
       try {
         return await this.withRetry(async () => {
-          const result = await this.redis!.xrange(streamKey, start, end, count) as any
+          const ids = await this.redis!.eval<string[]>(streamBoundsScript, [streamKey], [])
+          if (Array.isArray(ids) && ids.length === 0) return null
+          if (!Array.isArray(ids) || ids.length !== 2 || ids.some(id => typeof id !== "string")) throw new Error("Invalid stream bounds")
+          return { oldestId: ids[0], latestId: ids[1] }
+        })
+      } catch (error) {
+        console.error(`[Saathi] Redis stream bounds failed for stream ${streamKey}:`, error)
+      }
+    }
+    this.assertMockStorageEnabled()
+    const stream = this.mockStreams.get(streamKey) || []
+    return stream.length ? { oldestId: stream[0].id, latestId: stream[stream.length - 1].id } : null
+  }
+
+  private async readStreamRange(
+    streamKey: string,
+    start: string,
+    end: string,
+    count?: number,
+    reverse = false
+  ): Promise<Array<{ id: string; fields: Record<string, string> }>> {
+    if (this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          const result = (reverse
+            ? await this.redis!.xrevrange(streamKey, end, start, count)
+            : await this.redis!.xrange(streamKey, start, end, count)) as any
           if (!result || (Array.isArray(result) && result.length === 0)) return []
 
           const rawEntries = Array.isArray(result)
@@ -459,7 +500,7 @@ class RedisService {
           })
         })
       } catch (error) {
-        console.error(`[Saathi] Redis XRANGE failed for stream ${streamKey}:`, error)
+        console.error(`[Saathi] Redis ${reverse ? "XREVRANGE" : "XRANGE"} failed for stream ${streamKey}:`, error)
       }
     }
 
@@ -471,6 +512,7 @@ class RedisService {
       if (end !== "+" && compareStreamIds(e.id, end) > 0) return false
       return true
     })
+    if (reverse) filtered.reverse()
     return count ? filtered.slice(0, count) : filtered
   }
 

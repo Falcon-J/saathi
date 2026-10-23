@@ -108,6 +108,43 @@ Run `6ef81a76-b3bb-4551-bded-1b6c315c1852` used 100 authenticated identities, fo
 3. Finish the unverified invitation/lifecycle/negative browser matrix listed above. Local core journeys, live AI and recovery probes already passed; preserve that evidence.
 4. Review and publish this bounded delta to draft PR #9, pass remote CI, then obtain explicit merge and production deployment authorization.
 
+## October 23 remaining-gate execution
+
+### Implemented and checked
+
+- Task reads now use a shared live verified actor without fetching an unused username. Supabase `getUser`, confirmed email and domain membership checks remain mandatory. Mutation/other `getSession` callers retain matching profile validation. Eight lookup assertions failed before the correction; 58 focused auth/action checks passed afterward. Architecture review found no material issue.
+- Redis stream bounds previously fetched and parsed the entire retained history for every delivering recipient batch. The new atomic Lua read uses native `XRANGE COUNT 1` and `XREVRANGE COUNT 1`, returning only oldest/latest IDs. Latest-entry reads also use native `XREVRANGE COUNT 1`; existing parsing, retry, production failure and mock behavior are preserved. Poll intervals, retention, permission checks and replay decisions are unchanged.
+- Real local Redis/REST probe with the actual changed adapter passed at 1, 250 and 1,000 retained entries. Full-history response size grew from 221 to 221,894 JSON bytes; bounds responses remained 13 to 16 bytes. See [wire-cost evidence](benchmarks/2026-10-23-stream-bounds-cost.json). The observed sustained CPU/latency trend motivated this fix; no passing sustained-capacity claim follows from the probe alone.
+- Latest registered suite: **360 tests, 358 passed, zero failures, two optional skips**. Focused Redis/replay/membership checks: 34 passed. TypeScript, scoped ESLint, diff checks and matching local production webpack build passed.
+- **Ten local production-browser invitation/lifecycle checks passed:** member control restrictions, duplicate invitation idempotency, wrong-account denial, revoke, decline, expiry, accept/revisit, ownership transfer, archive retained/read-only inspection and active deletion. [Sanitized evidence](benchmarks/2026-10-23-local-lifecycle.json) retains the failed setup attempt and successful isolated delete follow-up. Fixtures, identities, exact Redis keys and owned servers were cleaned. These checks do not prove real email delivery/webhooks.
+
+### Performance results retained without changing targets
+
+| Run | Pool | Scope | Read p95 | Delivery upper-bound p95 | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `8881a31f` | 5 | Initial actor-only diagnostic | 20,234 ms | 42,220 ms | Failed with timeouts; cleanup passed |
+| `cfbed98d` | 5 | Unchanged actor-only diagnostic repeat | 566 ms | 985 ms | Short targets passed; not acceptance |
+| `933eafba` | 5 | Actor-only full 900-second acceptance | 4,493 ms | 8,163 ms | Failed envelope and latency; all 1,000 writes/25,000 deliveries, no request errors/duplicates |
+| `63088c5a` | 5 | After bounded stream fix, diagnostic | 1,077 ms | 1,140 ms | Read target failed; all 100 writes/2,500 deliveries, no errors/duplicates |
+| `5762b991` | 10 | Bounded fix, one-variable local pool experiment | 1,668 ms | 1,596 ms | Read target failed; all 100 writes/2,500 deliveries, no errors/duplicates |
+
+The full run finished in 904,360 ms and failed the write-envelope assertion after database cross-checks. Its late-minute response times grew with retained stream history; server event-loop p95 reached 557 ms and CPU approached one core. After the bounded fix, the pool-five short diagnostic's maximum sampled server event-loop p95 was 47 ms. Different durations preclude a sustained-capacity conclusion.
+
+Increasing the isolated local pool did not resolve the remaining short target. Measured live Auth p95 increased from 449 to 1,065 ms while profile lookup stayed near 65 ms; these are aggregate phase samples, not additive task-request percentiles. Do not attribute every remaining millisecond to SQL or replace live Auth verification based on this evidence. Default pool remains one; hosted settings were not changed. No new full acceptance run was started after the latest short read gate failed.
+
+Each sanitized result is in `docs/release/benchmarks/2026-10-23-local-nfr-*.json`. Recorded playback remains available through `npm run report:nfr:local -- .local-test/nfr-<full-run-id>`. Both successful execution and failed performance gates remain visible. Raw logs and timing JSONL stay ignored.
+
+### Hosted blockers refreshed
+
+- Public production liveness is HTTP 200 and readiness HTTP 503. Protected preview fetch and runtime error queries still return provider 403 for the owning team. The requested readiness dependency log line is pending; the failing dependency has not been identified.
+- Environment **names/targets only** were inspected: production has database, Redis, cron, email and Groq variables; preview has no Groq key. Presence does not prove working values. No secret was decrypted or copied.
+- Current head `9f27461` passed GitHub CI and its Saathi preview was READY. Publication of this follow-up needs its own CI and preview verification. The user reported disconnecting the redundant implementation target; that dashboard change was not independently verified.
+- Hosted readiness repair, live hosted AI/auth/email acceptance, worker schedule/alert drills, managed backup/restore and rollback remain open. Local SQL restore evidence above is retained. No production configuration, data, deployment or merge was changed.
+
+### Next evidence boundary
+
+Local functional gaps above are closed. Performance acceptance is **not passed**. Further capacity work should use a stable instrumented environment and working hosted access, retaining the unchanged thresholds, rather than repeated blind full runs or weaker authorization. Obtain the readiness dependency error and appropriate deployment/log access, repair that dependency, then run hosted journeys and the comparable sustained workload before release approval.
+
 ## Caveman use
 
 User requested Caveman. Its compression tool accepted a nonsensitive test summary. Automatic approval review rejected sending repository source/configuration to that destination as untrusted. Source inspection stays local; no bypass was attempted.

@@ -44,3 +44,63 @@ test('comment stays successful when cache invalidation fails after commit', asyn
   })
   assert.equal((await actions.addTaskComment('task', 'Hello')).success, true)
 })
+
+function readFixture({ user = { id: 'actor', email: ' Actor@Example.test ', email_confirmed_at: 'confirmed' }, error = null, profile = { id: 'actor', username: 'Actor' }, forbidden = false } = {}) {
+  const calls = { live: 0, profile: 0, data: 0 }
+  const auth = loadAction('lib/auth-simple.ts', {
+    'next/headers': {}, './supabase/config': {}, './identity': {},
+    './supabase/server': { createClient: async () => ({ auth: { getUser: async () => { calls.live++; return { data: { user }, error } } } }) },
+    './supabase/auth-boundary': loadAction('lib/supabase/auth-boundary.ts', {}),
+    './data/profiles': { getProfile: async () => { calls.profile++; return profile } },
+  })
+  const read = async actorId => {
+    assert.equal(actorId, 'actor')
+    calls.data++
+    if (forbidden) throw new TaskError('Workspace unavailable or access denied', 'forbidden')
+    return { tasks: [], nextCursor: null }
+  }
+  const actions = loadAction('app/tasks/actions.ts', { ...dependencies, '@/lib/auth-simple': auth,
+    '@/lib/data/tasks': { TaskError, listTaskRecords: read, listTaskRecordsPage: read, getTaskAggregates: read, getTaskRecord: read, createTaskRecord: read, changeTaskRecord: read },
+  })
+  return { auth, actions, calls }
+}
+
+const taskReads = ['getTasks', 'getTasksPage', 'getWorkspaceTaskAggregates', 'getTaskById']
+for (const name of taskReads) {
+  test(`${name} verifies the live actor without fetching an unused profile`, async () => {
+    const ui = readFixture({ profile: null })
+    assert.equal((await ui.actions[name]('workspace', 'task')).success, true)
+    assert.deepEqual(ui.calls, { live: 1, profile: 0, data: 1 })
+  })
+  test(`${name} keeps membership authorization failures`, async () => {
+    const ui = readFixture({ forbidden: true })
+    assert.equal((await ui.actions[name]('workspace', 'task')).error, 'Workspace unavailable or access denied')
+    assert.deepEqual(ui.calls, { live: 1, profile: 0, data: 1 })
+  })
+  for (const failure of [{ user: null }, { user: { id: 'actor', email: 'actor@example.test' } }, { error: { status: 401 } }, { error: { status: 503 } }]) {
+    test(`${name} denies invalid, unconfirmed, revoked or unavailable live identity ${JSON.stringify(failure)}`, async () => {
+      const ui = readFixture(failure)
+      assert.ok((await ui.actions[name]('workspace', 'task')).error)
+      assert.deepEqual(ui.calls, { live: 1, profile: 0, data: 0 })
+    })
+  }
+}
+
+test('getSession still resolves and validates the authoritative profile', async () => {
+  const ui = readFixture()
+  assert.deepEqual(await ui.auth.getSession(), { id: 'actor', email: 'actor@example.test', username: 'Actor' })
+  assert.deepEqual(ui.calls, { live: 1, profile: 1, data: 0 })
+  for (const profile of [null, { id: 'other', username: 'Other' }]) {
+    assert.equal(await readFixture({ profile }).auth.getSession(), null)
+  }
+})
+
+for (const name of ['addTask', 'updateTask', 'toggleTask', 'deleteTask']) {
+  test(`${name} still requires the matching profile before mutation`, async () => {
+    for (const profile of [null, { id: 'other', username: 'Other' }]) {
+      const ui = readFixture({ profile })
+      assert.equal((await ui.actions[name]('workspace', 'task')).code, 'unauthenticated')
+      assert.deepEqual(ui.calls, { live: 1, profile: 1, data: 0 })
+    }
+  })
+}

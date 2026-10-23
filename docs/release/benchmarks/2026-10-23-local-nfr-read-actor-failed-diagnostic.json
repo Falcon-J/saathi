@@ -1,0 +1,216 @@
+{
+  "passed": false,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "runId": "8881a31f-517e-4623-b3b9-2d5a02f422de",
+  "phase": "bounded-delivery-drain",
+  "failure": "Local fixture or transport failed; inspect phase and scoped server log",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "attempts": 1084,
+  "readAttempts": 884,
+  "streamAttempts": 100,
+  "successfulMutations": 73,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 1875,
+    "missing": 625,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [
+    {
+      "phase": "write",
+      "index": 73
+    },
+    {
+      "phase": "write",
+      "index": 74
+    },
+    {
+      "phase": "write",
+      "index": 75
+    },
+    {
+      "phase": "write",
+      "index": 76
+    },
+    {
+      "phase": "write",
+      "index": 77
+    },
+    {
+      "phase": "write",
+      "index": 78
+    },
+    {
+      "phase": "write",
+      "index": 79
+    },
+    {
+      "phase": "write",
+      "index": 80
+    },
+    {
+      "phase": "write",
+      "index": 81
+    },
+    {
+      "phase": "write",
+      "index": 82
+    },
+    {
+      "phase": "write",
+      "index": 83
+    },
+    {
+      "phase": "write",
+      "index": 84
+    },
+    {
+      "phase": "write",
+      "index": 85
+    },
+    {
+      "phase": "write",
+      "index": 86
+    },
+    {
+      "phase": "write",
+      "index": 87
+    },
+    {
+      "phase": "write",
+      "index": 88
+    },
+    {
+      "phase": "write",
+      "index": 89
+    },
+    {
+      "phase": "write",
+      "index": 90
+    },
+    {
+      "phase": "write",
+      "index": 91
+    },
+    {
+      "phase": "write",
+      "index": 92
+    },
+    {
+      "phase": "write",
+      "index": 93
+    },
+    {
+      "phase": "write",
+      "index": 94
+    },
+    {
+      "phase": "write",
+      "index": 95
+    },
+    {
+      "phase": "write",
+      "index": 96
+    },
+    {
+      "phase": "write",
+      "index": 97
+    },
+    {
+      "phase": "write",
+      "index": 98
+    },
+    {
+      "phase": "write",
+      "index": 99
+    }
+  ],
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 109,
+      "p95Ms": 280,
+      "p99Ms": 410
+    },
+    "read": {
+      "count": 684,
+      "p50Ms": 518,
+      "p95Ms": 20234,
+      "p99Ms": 21294
+    },
+    "write": {
+      "count": 100,
+      "p50Ms": 1932,
+      "p95Ms": 30043,
+      "p99Ms": 30074
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 133,
+      "p95Ms": 306,
+      "p99Ms": 442
+    },
+    "deliveryUpperBound": {
+      "count": 1875,
+      "p50Ms": 673,
+      "p95Ms": 42220,
+      "p99Ms": 54540
+    },
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 12,
+      "p99Ms": 35
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 5033,
+    "meanMs": 24.0723497810451,
+    "maxMs": 334.757887,
+    "p95Ms": 32.210943,
+    "p99Ms": 65.961983
+  },
+  "workload": {
+    "elapsedMs": 91118,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 100,
+    "achievedWriteRatePerSecond": 0.8011629813535353,
+    "attemptedWriteRatePerSecond": 1.0974835361007333,
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 12,
+      "p99Ms": 35
+    }
+  },
+  "elapsedMs": 91118,
+  "fingerprint": {
+    "revision": "9f2746122eb0a4d1c4a56a1035b0f23ecd616502",
+    "workingDiffSha256": "0dbcdc84f63455cac14ed393afc60c0b6804c9c43b1432388e64068ed64d0143",
+    "verifierSha256": "fc1b691febd7ed5074c590652fa5ca431730e50b0c7d23b05f2a352fe313e497",
+    "builtActionManifestSha256": "3781cae94fb80667d6d8f94605eb06f8f4f7e79eac031afdfa8efd2b4eed0c6b",
+    "recordedAt": "2026-10-23T08:00:28.594Z"
+  },
+  "databasePoolMax": "5",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 684,
+    "achievedRequestsPerSecond": 7.506749489672732
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 3059,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

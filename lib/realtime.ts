@@ -201,9 +201,7 @@ export class RealtimeService {
 
     async getStreamBounds(workspaceId: string): Promise<{ oldestId: string; latestId: string } | null> {
         const streamKey = `${this.eventStreamPrefix}${workspaceId}`
-        const entries = await streamService.xrange(streamKey, "-", "+")
-        if (entries.length === 0) return null
-        return { oldestId: entries[0].id, latestId: entries[entries.length - 1].id }
+        return streamService.getStreamBounds(streamKey)
     }
 
     /**
