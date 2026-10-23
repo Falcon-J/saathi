@@ -1,0 +1,128 @@
+{
+  "runId": "ef216ba2-d467-4958-a62c-1d041f91f821",
+  "passed": false,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "phase": "database-cross-check",
+  "failure": "Writes did not complete within the measured workload envelope",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "elapsedMs": 67769,
+  "attempts": 1164,
+  "readAttempts": 964,
+  "streamAttempts": 100,
+  "successfulMutations": 100,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 2500,
+    "missing": 0,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": true,
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 360,
+      "p95Ms": 1226,
+      "p99Ms": 1485
+    },
+    "read": {
+      "count": 764,
+      "p50Ms": 560,
+      "p95Ms": 5348,
+      "p99Ms": 5811
+    },
+    "write": {
+      "count": 100,
+      "p50Ms": 1113,
+      "p95Ms": 9792,
+      "p99Ms": 10171
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 131,
+      "p95Ms": 191,
+      "p99Ms": 266
+    },
+    "deliveryUpperBound": {
+      "count": 2500,
+      "p50Ms": 751,
+      "p95Ms": 8169,
+      "p99Ms": 9951
+    },
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 8,
+      "p99Ms": 13
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 2996,
+    "meanMs": 23.11071888918558,
+    "maxMs": 172.228607,
+    "p95Ms": 31.342591,
+    "p99Ms": 35.094527
+  },
+  "workload": {
+    "elapsedMs": 67769,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 100,
+    "achievedWriteRatePerSecond": 1.4756053956296313,
+    "attemptedWriteRatePerSecond": 1.4756053956296313,
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 8,
+      "p99Ms": 13
+    }
+  },
+  "fingerprint": {
+    "revision": "09ce3185e76901ce65a73e73b9e0306acdc9d338",
+    "workingDiffSha256": "43ea4549ebbf0e9a3f3014b5297bb5c5bbde55724e178d0502d0fd409ee31efa",
+    "verifierSha256": "fc1b691febd7ed5074c590652fa5ca431730e50b0c7d23b05f2a352fe313e497",
+    "builtActionManifestSha256": "417c847d82cf235e866e42954887b71133b94d58dbd5aaae4a054158fe233718",
+    "recordedAt": "2026-10-23T18:16:16.036Z"
+  },
+  "databasePoolMax": "5",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 764,
+    "achievedRequestsPerSecond": 11.273591170003984
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 3764,
+    "dropped": 0,
+    "limit": 60000
+  },
+  "unexpectedRequestErrors": 0,
+  "performanceThresholds": {
+    "taskReadP95Ms": 750,
+    "deliveryUpperBoundP95Ms": 2000,
+    "unexpectedFailureRateExclusive": 0.01,
+    "workloadDurationMs": 60000,
+    "workloadToleranceMs": 1000
+  },
+  "performanceTargets": {
+    "taskReadP95Within750ms": false,
+    "deliveryUpperBoundP95Within2s": false,
+    "unexpectedFailureRateBelow1Percent": true,
+    "elapsedWorkloadWithin61s": false
+  },
+  "performanceAssertionsApplied": false,
+  "performanceAcceptancePassed": false,
+  "evidenceNotes": [
+    "Diagnostic execution status is preserved in passed; this is not sustained NFR acceptance.",
+    "Both latency targets remain failed; no threshold, authorization or default pool was changed.",
+    "Database pool five was a temporary local diagnostic override; production settings were not changed.",
+    "Raw logs and individual timings remain ignored; the stored fingerprint identifies source and build."
+  ]
+}

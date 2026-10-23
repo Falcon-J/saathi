@@ -176,6 +176,22 @@ class RedisService {
     return this.deserializeValue(value || null)
   }
 
+  async mget(...keys: string[]): Promise<any[]> {
+    if (keys.length === 0) return []
+    if (this.redis) {
+      try {
+        return await this.withRetry(async () => {
+          const values = await this.redis!.mget(...keys)
+          return values.map(value => this.deserializeValue(value as string | null))
+        })
+      } catch {
+        console.error("[Saathi] Redis MGET failed")
+      }
+    }
+    this.assertMockStorageEnabled()
+    return keys.map(key => this.deserializeValue(this.mockStore.get(key) || null))
+  }
+
   async set(key: string, value: any, options?: { ex?: number }): Promise<string> {
     const serializedValue = this.serializeValue(value)
 

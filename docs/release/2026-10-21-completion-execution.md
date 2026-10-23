@@ -138,6 +138,8 @@ Each sanitized result is in `docs/release/benchmarks/2026-10-23-local-nfr-*.json
 
 ### Hosted blockers refreshed
 
+Historical October 23 snapshot below. Superseded by the October 24 hosted update in this document and the demo rehearsal; do not use these access/configuration findings as current status.
+
 - Public production liveness is HTTP 200 and readiness HTTP 503. Protected preview fetch and runtime error queries still return provider 403 for the owning team. The requested readiness dependency log line is pending; the failing dependency has not been identified.
 - Environment **names/targets only** were inspected: production has database, Redis, cron, email and Groq variables; preview has no Groq key. Presence does not prove working values. No secret was decrypted or copied.
 - Current head `9f27461` passed GitHub CI and its Saathi preview was READY. Publication of this follow-up needs its own CI and preview verification. The user reported disconnecting the redundant implementation target; that dashboard change was not independently verified.
@@ -146,6 +148,25 @@ Each sanitized result is in `docs/release/benchmarks/2026-10-23-local-nfr-*.json
 ### Next evidence boundary
 
 Local functional gaps above are closed. Performance acceptance is **not passed**. Further capacity work should use a stable instrumented environment and working hosted access, retaining the unchanged thresholds, rather than repeated blind full runs or weaker authorization. Obtain the readiness dependency error and appropriate deployment/log access, repair that dependency, then run hosted journeys and the comparable sustained workload before release approval.
+
+## October 24 performance evidence update
+
+This update supersedes the earlier performance status only; hosted recovery and product/browser evidence remain recorded in their separate follow-ups.
+
+- Presence heartbeat reads now use native `MGET`: the real adapter/installed SDK/local Redis probe verified two commands instead of 26 for 25 members. Expiry, cleanup, retry, mock policy and membership authorization remain unchanged.
+- Gated profile diagnostics split connection reservation from client query elapsed time and release on success or failure. The normal path does not reserve; no identifiers or SQL parameters are logged.
+- Two additional 60-second local diagnostics still failed latency targets: `ef216ba2` read/delivery p95 **5,348/8,169 ms** and elapsed **67,769 ms**; `29f240a8` **2,269/2,396 ms** and **60,219 ms**. Each retained all 100 writes/2,500 deliveries, zero request errors or duplicates, and exact fixture/server cleanup. No full sustained rerun followed.
+- In the targeted run, profile reservation p95 was under one millisecond and client query p95 73 ms; aggregate live Auth p95 was 2,028 ms. Serial dependency checks were fast before and after. Resource and PostgreSQL snapshots do not establish a complete causal explanation or justify weaker Auth checks. Multiple module-owned pools remain a budget concern requiring separate review.
+- Combined ordinary suite: **376 tests, 374 passed, zero failures, two optional skips**. Nonincremental TypeScript, scoped ESLint, four profile checks, 36 Redis/realtime/membership checks, and matching local production webpack build passed.
+- [Detailed evidence, limits and replay commands](2026-10-24-performance-follow-up.md) and its two sanitized benchmark artifacts retain the failed gates. Default database pool and all thresholds remain unchanged. Performance acceptance is **not passed**.
+
+## October 24 hosted update
+
+- Vercel CLI authorization is restored. Preview head `09ce3185e76901ce65a73e73b9e0306acdc9d338` is READY with readiness HTTP 200 and green CI. Production remains separate and was not deployed by this work.
+- Normal Google sign-in/reload, independent owner/member task completion, owner realtime observation/reload, grounded live AI summary and draft-to-one-confirmed-task persistence were rehearsed successfully. See [recorded demo rehearsal](2026-10-23-demo-rehearsal.md).
+- Normal email signup confirmed the owned account, but its delayed automatic callback failed. Normal password sign-in and a fresh password recovery callback subsequently succeeded with the exact owned identity. Prompt new-signup acceptance remains open; no repeated signup loop or speculative Auth patch is justified.
+- Resend's test sender rejects arbitrary invitation recipients. Copy-link invitation acceptance works. A verified sender domain is required for general invitation delivery.
+- Performance acceptance remains failed. Hosted worker/alert, recovery and rollback status must be read from their specific evidence, not inferred from a successful demo. Merge and production app deployment remain unperformed.
 
 ## Caveman use
 

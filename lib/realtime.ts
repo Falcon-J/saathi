@@ -246,13 +246,15 @@ export class RealtimeService {
         try {
             const presenceKey = `presence:${workspaceId}`
             const activeUsers = await redis.smembers(`${presenceKey}:active`)
+            if (activeUsers.length === 0) return []
 
             // Filter out expired users
             const now = Date.now()
             const validUsers: string[] = []
+            const lastSeenValues = await redis.mget(...activeUsers.map(userId => `${presenceKey}:${userId}`))
 
-            for (const userId of activeUsers) {
-                const lastSeen = await redis.get(`${presenceKey}:${userId}`)
+            for (const [index, userId] of activeUsers.entries()) {
+                const lastSeen = lastSeenValues[index]
                 if (lastSeen && (now - parseInt(lastSeen as string)) < 300000) { // 5 minutes
                     validUsers.push(userId)
                 } else {
