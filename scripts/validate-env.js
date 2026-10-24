@@ -56,13 +56,6 @@ function validateEnvironment() {
     }
     if (!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) errors.push("Supabase publishable key is required");
     if (env.CRON_SECRET && env.CRON_SECRET.length < 32) errors.push("CRON_SECRET must be at least 32 characters");
-    const invitationEmailVars = ["RESEND_API_KEY", "EMAIL_FROM", "RESEND_WEBHOOK_SECRET"];
-    const configuredInvitationEmailVars = invitationEmailVars.filter((name) => Boolean(env[name]));
-    if (configuredInvitationEmailVars.length > 0 && configuredInvitationEmailVars.length < invitationEmailVars.length) {
-      const missingVars = invitationEmailVars.filter((name) => !env[name]);
-      errors.push(`Invitation email delivery config is incomplete. Missing: ${missingVars.join(", ")}`);
-    }
-
     // Security checks
     if (env.DEBUG === "true") {
       warnings.push("DEBUG mode is enabled in production");
@@ -90,14 +83,6 @@ function validateEnvironment() {
     }
   });
 
-  // Email validations
-  const emailVars = ["SMTP_FROM"];
-  emailVars.forEach((varName) => {
-    if (env[varName] && !isValidEmail(env[varName])) {
-      errors.push(`${varName} must be a valid email address`);
-    }
-  });
-
   // Numeric validations
   const numericVars = [
     "SESSION_MAX_AGE",
@@ -105,7 +90,6 @@ function validateEnvironment() {
     "RATE_LIMIT_LOGIN_MAX",
     "RATE_LIMIT_SIGNUP_MAX",
     "RATE_LIMIT_TASKS_MAX",
-    "SMTP_PORT",
   ];
 
   numericVars.forEach((varName) => {
@@ -200,11 +184,6 @@ function isValidUrl(string) {
   } catch (_) {
     return false;
   }
-}
-
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
 }
 
 // Run validation

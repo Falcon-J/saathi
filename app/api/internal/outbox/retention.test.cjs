@@ -12,4 +12,15 @@ test("the authenticated internal worker enforces AI metadata retention", () => {
 test("the internal worker exposes degraded delivery to its caller", () => {
   assert.match(source, /status: degraded \? "deferred" : "ok"/)
   assert.match(source, /status: degraded \? 503 : 200/)
+  assert.match(source, /retentionDeferred \|\| outbox\.unavailable \|\| outbox\.failed > 0/)
+  assert.doesNotMatch(source, /flushInvitationEmails|invitation-emails|outbox, invitations/)
+})
+
+ test("outbox cleanup is bounded and preserves pending obligations", () => {
+  const retention = fs.readFileSync("lib/data/retention.ts", "utf8")
+  assert.match(retention, /published_at < /)
+  assert.match(retention, /LIMIT 500/)
+  assert.doesNotMatch(retention, /DELETE FROM (command_receipts|activity_events|task_comments|tasks)/)
+  assert.match(source, /await deleteExpiredPublishedOutbox\(\)/)
+  assert.match(source, /retentionDeferred/)
 })

@@ -87,3 +87,12 @@ export const outboxEvents = pgTable("outbox_events", {
   claimedAt: timestamp("claimed_at", { withTimezone: true }), claimToken: uuid("claim_token"),
   attemptCount: integer("attempt_count").notNull().default(0), lastErrorCategory: text("last_error_category"),
 }, t => [index("outbox_pending_idx").on(t.createdAt).where(sql`${t.publishedAt} IS NULL`)])
+
+export const commandReceipts = pgTable("command_receipts", {
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  actorUserId: uuid("actor_user_id").notNull().references(() => profiles.id),
+  commandId: uuid("command_id").notNull(), commandType: text("command_type").notNull(),
+  requestHash: text("request_hash").notNull(), result: jsonb("result").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.workspaceId, t.actorUserId, t.commandId] }),
+  check("command_receipts_command_type_check", sql`${t.commandType} IN ('task-create','comment-create')`)])

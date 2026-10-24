@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "scope": "Local production browser invitation and workspace lifecycle checks",
+  "checks": [
+    "member-owner-controls-absent",
+    "owner-invite-duplicate-idempotency",
+    "wrong-account-invite-link",
+    "owner-revoke-link-unavailable",
+    "recipient-decline-link",
+    "expired-link-unavailable",
+    "recipient-accept-and-revisit",
+    "ownership-transfer-control-removal",
+    "archive-retained-readonly",
+    "active-workspace-delete"
+  ],
+  "evidenceRuns": [
+    {
+      "runId": "34d10505-3979-4a71-aa3a-538ceb0cf70b",
+      "overallRunPassed": false,
+      "verifiedChecks": [
+        "member-owner-controls-absent",
+        "owner-invite-duplicate-idempotency",
+        "wrong-account-invite-link",
+        "owner-revoke-link-unavailable",
+        "recipient-decline-link",
+        "expired-link-unavailable",
+        "recipient-accept-and-revisit",
+        "ownership-transfer-control-removal",
+        "archive-retained-readonly"
+      ],
+      "remainingFailure": "Active-delete fixture inserted owner/membership in separate transactions; corrected in isolated followup run"
+    },
+    {
+      "runId": "7ea128d1-3a5c-4c64-9444-752fa7a29a35",
+      "overallRunPassed": true,
+      "verifiedChecks": [
+        "active-workspace-delete"
+      ]
+    }
+  ],
+  "cleanup": [
+    "Owned fixtures, identities and exact fixture Redis keys removed; owned server stopped",
+    "Owned fixtures, identities and exact fixture Redis keys removed; owned server stopped"
+  ],
+  "limitations": [
+    "Real email delivery, email provider webhooks and hosted runtime not exercised",
+    "Expired/revoked/accepted links are intentionally unavailable; no restore feature introduced",
+    "Browser cookies originate from real local Supabase password sign-in; login-form flow was previously covered"
+  ]
+}

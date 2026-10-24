@@ -9,9 +9,10 @@ type WorkspaceSwitcherProps = {
   currentWorkspaceId: string | null
   onSelectWorkspace: (id: string) => void
   onStartNew: () => void
+  showCreate?: boolean
 }
 
-export function WorkspaceSwitcher({ workspaces, currentWorkspaceId, onSelectWorkspace, onStartNew }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({ workspaces, currentWorkspaceId, onSelectWorkspace, onStartNew, showCreate = true }: WorkspaceSwitcherProps) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <label className="sr-only" htmlFor="workspace-select">Current workspace</label>
@@ -23,10 +24,10 @@ export function WorkspaceSwitcher({ workspaces, currentWorkspaceId, onSelectWork
       >
         {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
       </select>
-      <Button type="button" variant="outline" onClick={onStartNew} className="justify-center">
+      {showCreate && <Button type="button" variant="outline" onClick={onStartNew} className="justify-center">
         <Plus className="size-4" />
-        Start something new
-      </Button>
+        New workspace
+      </Button>}
     </div>
   )
 }

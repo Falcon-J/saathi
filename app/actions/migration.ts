@@ -1,9 +1,11 @@
 "use server"
 
+import { createHash } from "node:crypto"
 import { getSession } from "@/lib/auth-simple"
 import { parseCsv } from "@/lib/csv"
 import { addTask } from "@/app/tasks/actions"
 import { getUserWorkspaces } from "./workspaces"
+import { resolveFeatureFlags } from "@/lib/feature-flags"
 
 const MAX_CSV_BYTES = 512 * 1024
 const MAX_ROWS = 100
@@ -19,6 +21,9 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
   const session = await getSession()
   if (!session) {
     return { error: "Authentication required" }
+  }
+  if (!resolveFeatureFlags(process.env).csvImport) {
+    return { error: "CSV import is unavailable. You can create tasks manually." }
   }
 
   if (typeof csvText !== "string" || new TextEncoder().encode(csvText).byteLength > MAX_CSV_BYTES) {
@@ -50,6 +55,9 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
     return { error: `CSV can contain at most ${MAX_ROWS} tasks` }
   }
 
+  // Stable per-file and row IDs permit retrying partial imports without duplicating
+  // committed rows. Row index keeps identical rows within one file distinct.
+  const fileHash = createHash("sha256").update(csvText).digest("hex")
   const result: CsvImportResult = { imported: 0, failed: 0, errors: [] }
 
   for (const [index, row] of rows.entries()) {
@@ -77,6 +85,8 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
       }
     }
 
+    const digest = createHash("sha256").update(JSON.stringify([session.id, workspaceId, fileHash, index])).digest("hex")
+    const commandId = `${digest.slice(0,8)}-${digest.slice(8,12)}-4${digest.slice(13,16)}-8${digest.slice(17,20)}-${digest.slice(20,32)}`
     try {
       const taskResult = await addTask(
         workspaceId,
@@ -88,6 +98,7 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
         undefined,
         estimatedMinutes,
         row.dueat || undefined,
+        commandId,
       )
 
       if (taskResult.error) {
@@ -96,11 +107,11 @@ export async function importTasksFromCsv(workspaceId: string, csvText: string): 
       } else {
         result.imported += 1
       }
-    } catch (error) {
+    } catch {
       result.failed += 1
       result.errors.push({
         row: rowNumber,
-        message: error instanceof Error ? error.message : "Task could not be imported",
+        message: "Task could not be imported. Refresh the Board before retrying this row.",
       })
     }
   }

@@ -40,5 +40,17 @@ test("an invitation link lets a new recipient create an account before accepting
   assert.doesNotMatch(invitationPage, /if \(!session\) redirect/)
   assert.match(invitationPage, /Create an account/)
   assert.match(invitationPage, /Sign in/)
-  assert.match(invitationPage, /Use the email address that received this invitation/)
+  assert.match(invitationPage, /Use the invited email address to sign in or create an account/)
+})
+
+test("invitation creation and the worker have no mail configuration dependency", () => {
+  const data = readFileSync(path.join(__dirname, "..", "..", "lib", "data", "invitations.ts"), "utf8")
+  const actions = readFileSync(path.join(__dirname, "invitations.ts"), "utf8")
+  const worker = readFileSync(path.join(__dirname, "..", "api", "internal", "outbox", "route.ts"), "utf8")
+  const validation = readFileSync(path.join(__dirname, "..", "..", "scripts", "validate-env.js"), "utf8")
+  for (const source of [data, actions, worker, validation]) {
+    assert.doesNotMatch(source, /RESEND|EMAIL_FROM|flushInvitationEmails|invitation_emails|email_suppressions|email-templates|invitation-emails/)
+  }
+  assert.doesNotMatch(data, /deliveryStatus|queueEmail|invitation_resent/)
+  assert.doesNotMatch(actions, /resendInvitation/)
 })

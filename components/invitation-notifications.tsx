@@ -1,10 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Check, X, Users, Clock } from "lucide-react"
+import { Bell, Check, X, Users, Clock, RefreshCw } from "lucide-react"
 import { useNotifications } from "@/hooks/use-notifications"
 import {
     getUserInvitations,
@@ -23,23 +23,35 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const loadSequence = useRef(0)
     const { success, error } = useNotifications()
 
     const loadInvitations = useCallback(async () => {
+        const sequence = ++loadSequence.current
+        setLoading(true)
         try {
             const userInvitations = await getUserInvitations(userEmail)
+            if (sequence !== loadSequence.current) return
             setInvitations(userInvitations.filter(inv => inv.status === "pending"))
             setInlineError(null)
         } catch (error) {
+            if (sequence !== loadSequence.current) return
             setInlineError(error instanceof Error ? error.message : "Unable to load invitations.")
         } finally {
-            setLoading(false)
+            if (sequence === loadSequence.current) setLoading(false)
         }
     }, [userEmail])
 
     useEffect(() => {
-        if (userEmail) {
-            loadInvitations()
+        if (!userEmail) return
+        setInvitations([])
+        void loadInvitations()
+        const sequenceRef = loadSequence
+        const refresh = () => { void loadInvitations() }
+        window.addEventListener("focus", refresh)
+        return () => {
+            sequenceRef.current++
+            window.removeEventListener("focus", refresh)
         }
     }, [userEmail, loadInvitations])
 
@@ -48,6 +60,8 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         try {
             const result = await acceptInvitation(invitation.id)
             if (result.error) throw new Error(result.error)
+            loadSequence.current++
+            setLoading(false)
             setInlineError(null)
             success("Invitation accepted", `You've joined ${invitation.workspaceName}`)
 
@@ -69,6 +83,8 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         try {
             const result = await declineInvitation(invitation.id)
             if (result.error) throw new Error(result.error)
+            loadSequence.current++
+            setLoading(false)
             setInlineError(null)
             success("Invitation declined", `You declined to join ${invitation.workspaceName}`)
 
@@ -82,22 +98,18 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         }
     }
 
-    // Don't render anything while loading — prevents layout shift
-    if (loading) return null
-
-    if (invitations.length === 0 && !inlineError) {
-        return null
-    }
-
     return (
-        <div className="mb-4 space-y-4">
-            {inlineError && <div role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm"><p>{inlineError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Refresh invitations</Button></div>}
-            <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-primary" />
-                <h3 className="font-medium text-foreground">
-                    Workspace Invitations ({invitations.length})
-                </h3>
+        <section aria-label="Workspace invitations" aria-busy={loading} className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" />
+                    <h2 className="text-sm font-medium text-foreground">Invitations{invitations.length > 0 ? ` (${invitations.length})` : ""}</h2>
+                </div>
+                <Button variant="ghost" size="sm" disabled={loading || Boolean(processingId)} onClick={() => void loadInvitations()}><RefreshCw className="size-3.5" />Refresh invitations</Button>
             </div>
+            {inlineError && <div role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm">{inlineError}</div>}
+            {loading && <p role="status" className={invitations.length ? "sr-only" : "text-xs text-muted-foreground"}>Loading invitations...</p>}
+            {!loading && !inlineError && invitations.length === 0 && <p className="text-xs text-muted-foreground">No pending invitations.</p>}
 
             <div className="space-y-3">
                 {invitations.map((invitation) => (
@@ -131,7 +143,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                                     size="sm"
                                     onClick={() => handleAcceptInvitation(invitation)}
                                     disabled={Boolean(processingId)}
-                                    className="bg-[var(--saathi-success)] text-white hover:bg-[color-mix(in_srgb,var(--saathi-success)_90%,black)]"
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                                 >
                                     <Check className="w-4 h-4 mr-1" />
                                     Accept
@@ -141,7 +153,6 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                                     variant="outline"
                                     onClick={() => handleDeclineInvitation(invitation)}
                                     disabled={Boolean(processingId)}
-                                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
                                 >
                                     <X className="w-4 h-4 mr-1" />
                                     Decline
@@ -151,6 +162,6 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
                     </Card>
                 ))}
             </div>
-        </div>
+        </section>
     )
 }

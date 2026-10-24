@@ -7,6 +7,16 @@ const dashboardSectionIds = [
 
 export type DashboardSectionId = (typeof dashboardSectionIds)[number]
 
+export type WorkspaceView = "overview" | "board" | "team" | "activity" | "settings"
+
+export function workspaceViewFromHash(hash: string): WorkspaceView {
+  if (hash === "#project-board") return "board"
+  if (hash === "#team-panel") return "team"
+  if (hash === "#activity-history") return "activity"
+  if (hash === "#settings-panel") return "settings"
+  return "overview"
+}
+
 export type DashboardSectionVisibility = {
   id: string
   isIntersecting: boolean

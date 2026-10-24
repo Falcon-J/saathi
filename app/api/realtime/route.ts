@@ -6,8 +6,20 @@ import { schemas } from "@/lib/security"
 import { createSingleFlightPoll, getInitialStreamCursor, getReplayStatus } from "@/lib/realtime-sse"
 import { getRateLimits } from "@/lib/env"
 import { acquireSseConnectionLease, RateLimitExceeded, SseConnectionLimitExceeded } from "@/lib/sse-connection"
+import { createBatchedMembershipVerifier } from "@/lib/sse-authorization"
 
 export const dynamic = "force-dynamic"
+
+const recordTiming = (phase: string, started: number) => {
+    if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: phase, durationMs: performance.now() - started }))
+}
+
+const verifyMembership = createBatchedMembershipVerifier(async (workspaceId, actorIds) => {
+    const started = performance.now()
+    const rows = await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id = ANY(${actorIds}::uuid[])`
+    recordTiming("membership-read", started)
+    return rows.map(row => row.user_id as string)
+})
 
 // Vercel serverless invocations are limited to 300 seconds. Close before the
 // platform limit so EventSource can reconnect with its Last-Event-ID cursor.
@@ -45,7 +57,7 @@ export async function OPTIONS() {
  *
  * Architecture:
  *  - Uses native Redis Streams (XREAD) via RealtimeService
- *  - Polls every 100ms for cursor-based event delivery
+ *  - Polls every 500ms for cursor-based event delivery
  *  - Each client maintains its own cursor (lastSeenId) into the stream
  *  - Heartbeat every 30s to refresh user presence and report active users
  *  - Auto-cleanup before the Vercel invocation limit so reconnect is graceful
@@ -53,7 +65,9 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
     let releaseSseConnection: (() => Promise<void>) | undefined
     try {
+        const authStarted = performance.now()
         const session = await getSession()
+        recordTiming("auth-profile", authStarted)
         if (!session) return new Response('Unauthorized', { status: 401 })
 
         // Get workspace ID from query params
@@ -67,8 +81,10 @@ export async function GET(request: NextRequest) {
         const workspaceId = workspaceIdResult.data
 
         const authorized = async () => {
-            const rows = await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id=${session.id}`
-            return rows.length > 0
+            const started = performance.now()
+            const result = await verifyMembership(workspaceId, session.id)
+            recordTiming("authorization", started)
+            return result
         }
         if (!await authorized()) return new Response("Forbidden", { status: 403 })
         try {
@@ -125,6 +141,13 @@ export async function GET(request: NextRequest) {
                     : getInitialStreamCursor(lastEventId, latestStreamId)
                 let closed = false
                 let streamErrorSent = false
+                let lastAuthorizationCheck = Date.now()
+                const recheckMembership = async () => {
+                    const permitted = await authorized()
+                    lastAuthorizationCheck = Date.now()
+                    if (!permitted) cleanupStream?.()
+                    return permitted
+                }
 
                 if (replayStatus === "resync-required") {
                     controller.enqueue(encoder.encode(formatSSE({
@@ -141,6 +164,7 @@ export async function GET(request: NextRequest) {
                 const sendHeartbeat = async () => {
                     if (closed) return
                     try {
+                        if (!await recheckMembership()) return
                         await realtimeService.setUserPresence(workspaceId, session.email)
                         const activeUsers = await realtimeService.getActiveUsers(workspaceId)
                         const metrics = realtimeService.getMetrics()
@@ -156,13 +180,15 @@ export async function GET(request: NextRequest) {
                     }
                 }
 
-                // ── Event polling (100ms) ───────────────────────────────
+                // ── Event polling (500ms) ───────────────────────────────
                 // End-to-end delivery latency is measured on each event and
                 // depends on polling, storage, network, and runtime latency.
                 const pollForEvents = createSingleFlightPoll(async () => {
                     if (closed) return
                     try {
-                        if (!await authorized()) { cleanupStream?.(); return }
+                        // Idle revocation is detected within five seconds plus storage latency.
+                        if (Date.now() - lastAuthorizationCheck >= 5000 && !await recheckMembership()) return
+                        const pollStarted = performance.now()
                         const newEvents = await realtimeService.readNewEvents(
                             workspaceId,
                             lastSeenId,
@@ -170,12 +196,17 @@ export async function GET(request: NextRequest) {
                         )
 
                         if (closed) return
+                        recordTiming("redis-poll", pollStarted)
                         streamErrorSent = false
 
                         if (newEvents.length > 0) {
+                            // Never deliver a batch using a cached membership decision.
+                            if (!await recheckMembership() || closed) return
                             const currentBounds = await realtimeService.getStreamBounds(workspaceId)
                             const currentReplayStatus = getReplayStatus(
-                                lastSeenId,
+                                // A newly subscribed empty stream has no consumed event
+                                // to fall out of retention. Deliver its first batch.
+                                lastSeenId === "0-0" && !lastEventId && !latestStreamId ? null : lastSeenId,
                                 currentBounds?.oldestId ?? null,
                                 currentBounds?.latestId ?? null,
                             )
@@ -226,7 +257,7 @@ export async function GET(request: NextRequest) {
                     }
                 })
 
-                const pollInterval = setInterval(() => { void pollForEvents() }, 100)
+                const pollInterval = setInterval(() => { void pollForEvents() }, 500)
                 const heartbeatInterval = setInterval(sendHeartbeat, 30000)
                 let cleanupTimer: ReturnType<typeof setTimeout> | undefined
 

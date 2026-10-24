@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, ListChecks, Sparkles } from "lucide-react"
-import { askWorkspaceAdvisor } from "@/app/actions/workspace-advisor"
+import { askWorkspaceAdvisor, type WorkspaceAdvisorConfirmationResult } from "@/app/actions/workspace-advisor"
 import type { AdvisorResponse, AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 
 type TaskDraft = NonNullable<AdvisorResponse["draft"]>
@@ -14,7 +14,7 @@ type TaskDraft = NonNullable<AdvisorResponse["draft"]>
 type WorkspaceAdvisorProps = {
   workspaceId: string
   timeZone?: string
-  onConfirmDraft: (draft: AdvisorTaskDraft, idempotencyKey: string) => Promise<unknown>
+  onConfirmDraft: (draft: AdvisorTaskDraft, idempotencyKey: string) => Promise<WorkspaceAdvisorConfirmationResult>
 }
 
 type Capability = AdvisorResponse["capability"]
@@ -34,11 +34,20 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
   const [response, setResponse] = useState<AdvisorResponse | null>(null)
   const [pending, setPending] = useState<Capability | null>(null)
   const [creating, setCreating] = useState(false)
+  const [confirmationUncertain, setConfirmationUncertain] = useState(false)
+  const confirming = useRef(false)
+  const unresolvedConfirmation = useRef(false)
+  const requesting = useRef(false)
+  const draftCommand = useRef<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null)
 
   const ask = async (capability: Capability) => {
+    if (requesting.current || confirming.current || unresolvedConfirmation.current) return
+    requesting.current = true
     setPending(capability)
+    setResponse(null)
+    draftCommand.current = null
     setError(null)
     setRetryAfterSeconds(null)
     try {
@@ -52,47 +61,52 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
     } catch {
       setError("AI advice is temporarily unavailable. Please try again.")
     } finally {
+      requesting.current = false
       setPending(null)
     }
   }
 
   const createDraft = async (draft: TaskDraft) => {
+    if (confirming.current || requesting.current) return
+    confirming.current = true
     setCreating(true)
     setError(null)
     try {
-      const result = await onConfirmDraft(draft, crypto.randomUUID())
+      draftCommand.current ??= crypto.randomUUID()
+      const result = await onConfirmDraft(draft, draftCommand.current)
       if (hasError(result)) {
-        setError(result.error)
+        setError(unresolvedConfirmation.current ? `${result.error} Retry this proposal to safely recover the original result.` : result.error)
         return
       }
+      if (!result.task) throw new Error("Confirmation outcome unavailable")
+      unresolvedConfirmation.current = false
+      setConfirmationUncertain(false)
+      draftCommand.current = null
+      setError(result.warning ?? null)
       setResponse(current => current ? { ...current, draft: null } : current)
     } catch {
-      setError("The task could not be created. Please try again.")
+      unresolvedConfirmation.current = true
+      setConfirmationUncertain(true)
+      setError("We could not confirm whether the task was created. Retry this proposal to safely recover the result.")
     } finally {
+      confirming.current = false
       setCreating(false)
     }
   }
 
   return (
-    <Card aria-busy={pending !== null || creating} className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
-      <CardHeader className="gap-3 border-b border-border/70">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-lg"><Sparkles className="size-4 text-primary" />Workspace advisor</CardTitle>
-            <CardDescription className="mt-1">Get a grounded suggestion from the work already in this workspace.</CardDescription>
-          </div>
-          <Badge variant="outline" className="shrink-0 bg-card text-xs">Review first</Badge>
-        </div>
-        <Textarea value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} disabled={pending !== null || creating} aria-label="Advisor question" placeholder="Ask about this workspace" className="min-h-20 bg-card" />
+    <Card aria-busy={pending !== null || creating} className="gap-0 border-0 bg-transparent shadow-none">
+      <CardHeader className="gap-3 px-0 pt-0 pb-4">
+        <Textarea value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} disabled={pending !== null || creating || confirmationUncertain} aria-label="Advisor question" placeholder="Ask about this workspace" className="min-h-20 bg-card" />
         <div className="flex flex-wrap gap-2">
           {capabilities.map(({ value, label, icon: Icon }) => (
-            <Button key={value} type="button" variant="outline" size="sm" onClick={() => void ask(value)} disabled={pending !== null || creating} className="bg-card">
+            <Button key={value} type="button" variant="outline" size="sm" onClick={() => void ask(value)} disabled={pending !== null || creating || confirmationUncertain} className="bg-card">
               <Icon className="size-3.5" />{pending === value ? "Thinking…" : label}
             </Button>
           ))}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-5">
+      <CardContent className="space-y-4 px-0 pb-0">
         {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}{retryAfterSeconds ? ` Try again in ${Math.ceil(retryAfterSeconds / 60)} minutes.` : ""}</p>}
         {response && (
           <div className="space-y-4" aria-live="polite">
@@ -125,7 +139,7 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button type="button" size="sm" onClick={() => void createDraft(response.draft!)} disabled={creating}>{creating ? "Creating…" : "Create task"}</Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setResponse(current => current ? { ...current, draft: null } : current)} disabled={creating}>Dismiss</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { if (!confirming.current && !unresolvedConfirmation.current) setResponse(current => current ? { ...current, draft: null } : current) }} disabled={creating || confirmationUncertain}>Dismiss</Button>
                 </div>
               </div>
             )}

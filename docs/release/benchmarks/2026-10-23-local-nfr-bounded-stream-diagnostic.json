@@ -1,0 +1,124 @@
+{
+  "passed": true,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "runId": "63088c5a-8b69-4098-9b6a-3d1e752f9000",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "elapsedMs": 60054,
+  "attempts": 1180,
+  "readAttempts": 980,
+  "streamAttempts": 100,
+  "errors": 0,
+  "errorRate": 0,
+  "mutations": 100,
+  "durableEvents": 100,
+  "receipts": 100,
+  "uniqueRecipientDeliveries": 2500,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 2500,
+    "missing": 0,
+    "duplicateNotifications": 0
+  },
+  "normalAdmissionLimits": true,
+  "allRolesActuallyActive": true,
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 83,
+      "p95Ms": 182,
+      "p99Ms": 208
+    },
+    "read": {
+      "count": 780,
+      "p50Ms": 158,
+      "p95Ms": 1077,
+      "p99Ms": 1362
+    },
+    "write": {
+      "count": 100,
+      "p50Ms": 345,
+      "p95Ms": 2108,
+      "p99Ms": 3038
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 129,
+      "p95Ms": 347,
+      "p99Ms": 491
+    },
+    "deliveryUpperBound": {
+      "count": 2500,
+      "p50Ms": 488,
+      "p95Ms": 1140,
+      "p99Ms": 2546
+    },
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 10,
+      "p99Ms": 12
+    }
+  },
+  "deliveryTiming": "Transaction-assigned event timestamp to observer receipt, conservative upper bound on commit-to-observer; not exact commit timestamp",
+  "performanceThresholds": {
+    "taskReadP95Ms": 750,
+    "deliveryUpperBoundP95Ms": 2000,
+    "unexpectedFailureRateExclusive": 0.01
+  },
+  "performanceTargets": {
+    "taskReadP95Within750ms": false,
+    "deliveryUpperBoundP95Within2s": true,
+    "unexpectedFailureRateBelow1Percent": true
+  },
+  "performanceAssertionsApplied": false,
+  "revocationWithin30s": "not measured",
+  "reconciliationWithin5s": "not measured",
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 2702,
+    "meanMs": 22.263203150259066,
+    "maxMs": 37.486591,
+    "p95Ms": 31.096831,
+    "p99Ms": 33.456127
+  },
+  "workload": {
+    "elapsedMs": 60054,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 100,
+    "achievedWriteRatePerSecond": 1.6651614689342453,
+    "attemptedWriteRatePerSecond": 1.6651614689342453,
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 10,
+      "p99Ms": 12
+    }
+  },
+  "fingerprint": {
+    "revision": "9f2746122eb0a4d1c4a56a1035b0f23ecd616502",
+    "workingDiffSha256": "2572c995c1ce5044744ab809111d57aebd80638001f3efe7e8bbbc2965c0abc9",
+    "verifierSha256": "fc1b691febd7ed5074c590652fa5ca431730e50b0c7d23b05f2a352fe313e497",
+    "builtActionManifestSha256": "7b6bdf3000201fa1821d47d25aca5c36298af3860b2a26e89aba73e2b9993fad",
+    "recordedAt": "2026-10-23T08:37:09.738Z"
+  },
+  "databasePoolMax": "5",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 780,
+    "achievedRequestsPerSecond": 12.988310520531522
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 3780,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

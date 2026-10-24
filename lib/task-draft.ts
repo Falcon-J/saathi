@@ -1,4 +1,4 @@
-import type { TaskUpdate } from "@/app/tasks/contract"
+import type { TaskUpdate } from "@/lib/task-contract"
 import { localDateTimeToIso, toLocalDate, toLocalTime } from "./task-time.ts"
 
 type EditableTask = {
@@ -45,7 +45,7 @@ export function buildTaskUpdate(task: EditableTask, draft: TaskEditorDraft): Tas
   if (draft.description !== currentDraft.description) updates.description = draft.description
   if (draft.priority !== currentDraft.priority) updates.priority = draft.priority
   if (draft.dueDate !== currentDraft.dueDate || draft.dueTime !== currentDraft.dueTime) {
-    updates.dueDate = draft.dueDate
+    updates.dueDate = draft.dueTime ? undefined : draft.dueDate
     updates.dueAt = draft.dueTime ? localDateTimeToIso(draft.dueDate, draft.dueTime) : undefined
   }
   if (draft.estimatedMinutes !== currentDraft.estimatedMinutes) {

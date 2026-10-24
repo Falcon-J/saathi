@@ -1,17 +1,14 @@
 const assert = require("node:assert/strict")
 const fs = require("node:fs")
 const test = require("node:test")
-
 const overview = fs.readFileSync("components/workspace-overview.tsx", "utf8")
-const assistant = fs.readFileSync("components/assistant-workspace.tsx", "utf8")
 const dashboard = fs.readFileSync("app/dashboard/page.tsx", "utf8")
-
-test("assistant mode owns the optional, reviewable AI advisor", () => {
-  assert.match(assistant, /WorkspaceAdvisor/)
-  assert.match(assistant, /workspaceId=\{workspace\.id\}/)
-  assert.match(assistant, /onConfirmDraft=\{confirmDraft\}/)
-  assert.match(assistant, /Assistant unavailable/)
+test("optional AI advisor opens inside the workspace behind its feature flag", () => {
   assert.doesNotMatch(overview, /WorkspaceAdvisor/)
-  assert.match(dashboard, /<AssistantWorkspace[\s\S]*aiEnabled=\{aiWorkspaceEnabled\}/)
+  assert.doesNotMatch(dashboard, /AssistantWorkspace|workspaceMode|Assistant unavailable/)
+  assert.match(dashboard, /aiWorkspaceEnabled && <Dialog/)
+  assert.match(dashboard, /<DialogTitle>Ask Saathi/)
+  assert.match(dashboard, /workspaceId=\{currentWorkspace.id\}/)
+  assert.match(dashboard, /confirmWorkspaceAdvisorDraft/)
   assert.match(dashboard, /<WorkspaceCreateForm[\s\S]*aiEnabled=\{aiWorkspaceEnabled\}/)
 })

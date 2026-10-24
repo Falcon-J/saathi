@@ -1,0 +1,15 @@
+# Reconciling an empty migration journal
+
+Use `scripts/reconcile-migration-journal.mjs` only after an operator has established that the database is a disposable test environment whose migrations were applied outside Drizzle. It refuses populated or partially populated journals. It does not execute application migrations on the target or modify domain data.
+
+Set `DATABASE_RECONCILE_URL` to the explicitly authorized target connection and `DATABASE_REFERENCE_ADMIN_URL` to a local PostgreSQL admin connection. Keep both values in the execution environment, never logs or command history. A pooled target connection is supported with prepared statements disabled. This exception does not change the normal migration connection configuration.
+
+Run `node scripts/reconcile-migration-journal.mjs` for verification. Add `--apply` only when journal maintenance is authorized. Each run creates and retains a uniquely named local reference database, applies every exact SQL migration from the current journal, and compares the target catalog with that reference. Local reference names are printed for operator inspection and subsequent cleanup.
+
+Checks cover all application columns and defaults, constraints, indexes and validity, RLS flags and policies, effective anonymous/authenticated table and column privileges, application triggers and the auth user creation trigger, the user creation function definition and execution privileges. The optional `rls_auto_enable()` execution revocation in migration 0006 is checked separately when the function exists. Supabase Auth internals and unrelated tables are outside this migration baseline.
+
+Any catalog difference aborts without journal inserts. PostgreSQL catalog differences across major versions may therefore need review even when SQL is semantically equivalent; the script intentionally fails closed. Verification and insertion occur in one transaction with journal and application table locks. Operators must prevent concurrent independent schema maintenance, especially function or auth trigger edits, during reconciliation. The advisory lock coordinates this script only.
+
+After a complete match, apply mode inserts SHA-256 hashes of the exact migration files and timestamps from `drizzle/meta/_journal.json`. Then run the normal Drizzle migrator with a scoped target connection override and verify the eight journal rows; a successful no-op confirms Drizzle recognizes the baseline. This establishes migration metadata and schema postconditions, not hosted authentication, recovery or application acceptance.
+
+Focused checks: `node --test --experimental-test-isolation=none scripts/reconcile-migration-journal.test.cjs`. Set `DATABASE_REFERENCE_ADMIN_URL` to enable the local integration test. It verifies that RLS and PUBLIC function execution drift both leave the journal empty, that the exact catalog can be baselined, and that an already populated journal is rejected. All local test databases are retained; cleanup is a separate operator action.

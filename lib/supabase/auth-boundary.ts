@@ -23,9 +23,15 @@ type VerifiedUser = { id: string; email?: string; email_confirmed_at?: string }
 type Profile = { id: string; username: string }
 
 // This accepts only an identity already verified by Supabase getUser(), never cookie contents.
-export async function resolveVerifiedSession(user: VerifiedUser | null, lookup: (id: string) => Promise<Profile | null>) {
+export function resolveVerifiedActor(user: VerifiedUser | null) {
   if (!user?.id || !user.email || !user.email_confirmed_at) return null
-  const profile = await lookup(user.id)
-  if (!profile || profile.id !== user.id) return null
-  return { id: user.id, email: user.email.trim().toLowerCase(), username: profile.username }
+  return { id: user.id, email: user.email.trim().toLowerCase() }
+}
+
+export async function resolveVerifiedSession(user: VerifiedUser | null, lookup: (id: string) => Promise<Profile | null>) {
+  const actor = resolveVerifiedActor(user)
+  if (!actor) return null
+  const profile = await lookup(actor.id)
+  if (!profile || profile.id !== actor.id) return null
+  return { ...actor, username: profile.username }
 }

@@ -8,6 +8,22 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: saathi_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d saathi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      SAATHI_CI_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/saathi_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,4 +34,20 @@ jobs:
       - run: npm run type-check -- --incremental false
       - run: npm run lint
       - run: npm test
-      - run: npm run build
+      - name: Prepare disposable SQL test database
+        run: node scripts/bootstrap-test-database.mjs
+        env:
+          DATABASE_TEST_URL: ${{ env.SAATHI_CI_DATABASE_URL }}
+      - run: npm run db:migrate
+        env:
+          DATABASE_MIGRATION_URL: ${{ env.SAATHI_CI_DATABASE_URL }}
+      - run: npm run test:database
+        env:
+          DATABASE_TEST_URL: ${{ env.SAATHI_CI_DATABASE_URL }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_public_placeholder
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
+      - run: npm run build -- --webpack

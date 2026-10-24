@@ -1,5 +1,7 @@
 # Saathi v1 project map
 
+**Reading guide:** the [engineering handbook](../handbook/README.md) explains the current mechanisms and links the latest dated evidence. This map retains its original snapshot date and status assessments; do not interpret its older pending rows as a fresh execution report.
+
 **Status:** Working beta baseline
 **Date:** 2026-09-15
 **Purpose:** One repository-grounded view of the product journey, architecture ownership, FR/NFR status, validation gates, and clean beta release shape.
@@ -115,7 +117,7 @@ flowchart LR
 | Capability | Route/module | Status |
 | --- | --- | --- |
 | Member list | `components/member-manager.tsx`, workspace projection | Implemented in code |
-| Invite member | `app/actions/invitations.ts`, invitation data modules | Implemented in code; a recipient need not already have an account; email delivery pending verification |
+| Invite member | `app/actions/invitations.ts`, invitation data modules | Recipient-bound copied link and in-app inbox; a recipient can register before accepting; no invitation email service |
 | Accept/decline/revoke/expire invitation | `lib/data/invitations.ts`, invitation route | Implemented in code; invitation link supports account creation or sign-in; two-user/manual verification pending |
 | Remove member and unassign open tasks | `lib/data/workspaces.ts` | Implemented in code; manual verification pending |
 | Ownership controls | Workspace owner checks, `app/actions/workspaces.ts` | Implemented in code; two-user/manual verification pending |
@@ -194,7 +196,6 @@ Git branch under verification
   -> one Vercel beta project/deployment
   -> one Supabase Auth/PostgreSQL environment
   -> one Redis environment
-  -> one Resend/email configuration
 ```
 
 Rules:
@@ -257,7 +258,7 @@ The map becomes the work queue. The recommended implementation order is:
 1. Complete the manual FR/NFR validation gates against real dependencies.
 2. Resolve any correctness blockers found in two-user, realtime, invitation, and AI validation.
 3. Verify migrations, outbox delivery, email status, readiness, backups, and measured SSE performance.
-4. Consolidate the beta Vercel/Supabase/Redis/Resend configuration.
+4. Consolidate the beta Vercel/Supabase/Redis configuration.
 5. Apply UI/UX refinement after FR/NFR correctness is accepted.
 6. Add focused component and integration tests around validated behavior.
 

@@ -1,4 +1,4 @@
-import { calendarDateKey } from "./task-time.ts"
+import { calendarDateAt, calendarDateKey, todayCalendarDate } from "./task-time.ts"
 
 type OverviewTask = {
   completed: boolean
@@ -18,8 +18,10 @@ export type TaskOverviewGroups<TTask extends OverviewTask> = {
 
 export function groupTasksForOverview<TTask extends OverviewTask>(
   tasks: TTask[],
-  today = new Date().toISOString().slice(0, 10),
+  today?: string,
+  timeZone = "UTC",
 ): TaskOverviewGroups<TTask> {
+  const todayDate = today ?? todayCalendarDate(timeZone)
   const groups: TaskOverviewGroups<TTask> = {
     overdue: [],
     today: [],
@@ -35,10 +37,12 @@ export function groupTasksForOverview<TTask extends OverviewTask>(
     }
 
     // An explicit deadline is authoritative; bucket is only a fallback for older undated tasks.
-    const dueDate = calendarDateKey(task.dueDate || task.dueAt)
+    const dueDate = task.dueAt
+      ? calendarDateAt(task.dueAt, timeZone)
+      : calendarDateKey(task.dueDate)
     if (dueDate) {
-      if (dueDate < today) groups.overdue.push(task)
-      else if (dueDate > today) groups.next.push(task)
+      if (dueDate < todayDate) groups.overdue.push(task)
+      else if (dueDate > todayDate) groups.next.push(task)
       else groups.today.push(task)
       continue
     }

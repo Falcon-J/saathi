@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { X, Plus, Users, Loader2, Crown } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Member } from "@/app/actions/workspaces"
-import { getWorkspaceInvitations, resendInvitation, revokeInvitation, type Invitation } from "@/app/actions/invitations"
+import { getWorkspaceInvitations, revokeInvitation, type Invitation } from "@/app/actions/invitations"
 import { getMutationError } from "@/lib/mutation-result"
 import { normalizeEmail } from "@/lib/identity"
 
@@ -23,6 +23,7 @@ interface MemberManagerProps {
 export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember, onTransferOwnership }: MemberManagerProps) {
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [invitationOperation, setInvitationOperation] = useState<string | null>(null)
+  const [invitationsLoading, setInvitationsLoading] = useState(true)
   const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null)
   const [newMemberInput, setNewMemberInput] = useState("")
   const [isAdding, setIsAdding] = useState(false)
@@ -38,20 +39,23 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
   const isOwner = normalizedCurrentUserEmail === normalizeEmail(workspaceOwnerId)
   const loadInvitations = useCallback(async () => {
     if (!isOwner) return
+    setInvitationsLoading(true)
     try {
       setInvitations(await getWorkspaceInvitations(workspaceId))
       setInvitationLoadError(null)
     } catch (caughtError) {
       setInvitationLoadError(caughtError instanceof Error ? caughtError.message : "Unable to load invitations.")
+    } finally {
+      setInvitationsLoading(false)
     }
   }, [isOwner, workspaceId])
   useEffect(() => { void loadInvitations() }, [loadInvitations])
 
-  const changeInvitation = async (id: string, action: "resend" | "revoke") => {
+  const revokePendingInvitation = async (id: string) => {
     setInvitationOperation(id)
     setLastError(null)
     try {
-      const result = await (action === "resend" ? resendInvitation(id) : revokeInvitation(id))
+      const result = await revokeInvitation(id)
       if (result.error) throw new Error(result.error)
       await loadInvitations()
     } catch (caughtError) {
@@ -208,23 +212,23 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                The recipient can accept after they sign up or sign in with that email. Email status is shown below.
+                Share the invite link. The recipient can accept after they sign up or sign in with that email.
               </p>
             </div>
           )}
 
           {lastError && <p role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{lastError}</p>}
-          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · {invitation.deliveryStatus === "delivered" ? "Email delivered" : invitation.deliveryStatus === "sent" ? "Email accepted by provider" : invitation.deliveryStatus === "failed" || invitation.deliveryStatus === "bounced" || invitation.deliveryStatus === "complained" ? "Email could not be delivered; copy the invite link" : invitation.deliveryStatus === "unconfigured" ? "Email is not configured; copy the invite link" : invitation.deliveryStatus === "cancelled" ? "Email cancelled" : "Email queued"}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "resend")}>Resend</Button><Button size="sm" variant="outline" onClick={() => void copyInvitationLink(invitation.id)}>{copiedInvitationId === invitation.id ? "Copied" : "Copy invite link"}</Button><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void changeInvitation(invitation.id, "revoke")}>Revoke</Button></div>}</div>)}</section>}
+          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationsLoading ? <p role="status" className="text-xs text-muted-foreground">Loading invitations...</p> : invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · Expires {new Date(invitation.expiresAt).toLocaleDateString()}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => void copyInvitationLink(invitation.id)}>{copiedInvitationId === invitation.id ? "Copied" : "Copy invite link"}</Button><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button></div>}</div>)}</section>}
           {/* Members List */}
           <div className="space-y-2">
             {members.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-2">No members yet</p>
             ) : (
               members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-2 bg-secondary rounded text-sm">
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-foreground font-medium">{member.username}</span>
+                <div key={member.id} className="flex items-center justify-between gap-2 p-2 bg-secondary rounded text-sm">
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 break-all text-foreground font-medium">{member.username}</span>
                       {member.role === "owner" && (
                         <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Owner</span>
                       )}
@@ -232,12 +236,12 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
                         <span className="rounded-[var(--saathi-radius-label)] bg-primary/10 px-1.5 py-0.5 text-xs text-primary">You</span>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">{member.email}</span>
+                    <span className="break-all text-xs text-muted-foreground">{member.email}</span>
                   </div>
                   {/* Only show remove button if user has permission */}
-                  <div className="flex items-center gap-2">
-                    {isOwner && onTransferOwnership && member.role !== "owner" && <button type="button" onClick={() => setTransferConfirm(member)} className="text-muted-foreground hover:text-primary transition-colors" title={`Make ${member.username} the owner`}><Crown className="w-4 h-4" /></button>}
-                    {canRemoveMember(member) && <button type="button" onClick={() => setRemoveConfirm(member.email)} className="text-muted-foreground hover:text-destructive transition-colors" title={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : "Remove member"}><X className="w-4 h-4" /></button>}
+                  <div className="flex shrink-0 items-center">
+                    {isOwner && onTransferOwnership && member.role !== "owner" && <button type="button" onClick={() => setTransferConfirm(member)} className="grid size-11 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Make ${member.username} the owner`} title={`Make ${member.username} the owner`}><Crown className="w-4 h-4" /></button>}
+                    {canRemoveMember(member) && <button type="button" onClick={() => setRemoveConfirm(member.email)} className="grid size-11 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : `Remove ${member.username} from workspace`} title={normalizeEmail(member.email) === normalizedCurrentUserEmail ? "Leave workspace" : "Remove member"}><X className="w-4 h-4" /></button>}
                   </div>
                 </div>
               ))

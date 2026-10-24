@@ -50,14 +50,14 @@ test("records operational AI metadata only for workspace members", { skip: !proc
       capability: row.capability,
       outcome: row.outcome,
       latencyMs: row.latency_ms,
-      estimatedCostMicros: row.estimated_cost_micros,
+      estimatedCostMicros: BigInt(row.estimated_cost_micros),
     })), [{
       workspaceId: workspace.id,
       requestingUserId: owner,
       capability: "draft_task",
       outcome: "success",
       latencyMs: 120,
-      estimatedCostMicros: 400,
+      estimatedCostMicros: BigInt(400),
     }])
     await assert.rejects(recordAiOperation(outsider, workspace.id, {
       capability: "summarize_workspace",
