@@ -104,8 +104,9 @@ test("disabled capabilities reject direct actions before provider calls or write
 
 for (const scenario of [
   { name: 'mismatched capability', capability: 'summarize_workspace', response: { capability: 'identify_attention', attention: [] }, outcome: 'invalid_response' },
-  { name: 'unauthorized attention reference', capability: 'identify_attention', response: { capability: 'identify_attention', attention: [{ taskId: 'other-workspace-task', reason: 'Review' }] }, outcome: 'invalid_response' },
-  { name: 'duplicate attention reference', capability: 'identify_attention', response: { capability: 'identify_attention', attention: [{ taskId: 'task-1', reason: 'Review' }, { taskId: ' task-1 ', reason: 'Review again' }] }, outcome: 'invalid_response' },
+  { name: 'unauthorized attention reference', capability: 'identify_attention', response: { capability: 'identify_attention', attention: [{ taskId: 'other-workspace-task', reasonCode: 'no_deadline' }] }, outcome: 'invalid_response' },
+  { name: 'duplicate attention reference', capability: 'identify_attention', response: { capability: 'identify_attention', attention: [{ taskId: 'task-1', reasonCode: 'no_deadline' }, { taskId: ' task-1 ', reasonCode: 'no_deadline' }] }, outcome: 'invalid_response' },
+  { name: 'unsupported overdue reason for an undated task', capability: 'identify_attention', response: { capability: 'identify_attention', attention: [{ taskId: 'task-1', reasonCode: 'overdue' }] }, outcome: 'invalid_response' },
   { name: 'provider transport failure', capability: 'identify_attention', outcome: 'provider_unavailable' },
 ]) {
   test(`askWorkspaceAdvisor records ${scenario.name} as ${scenario.outcome}`, async () => {
@@ -122,6 +123,7 @@ for (const scenario of [
     const service = load('lib/ai/workspace-advisor-service.ts', {
       zod: require('zod'), './workspace-advisor.ts': model,
       '../task-time.ts': load('lib/task-time.ts', {}),
+      '../task-deadline.ts': load('lib/task-deadline.ts', {}),
       '../groq-chat.ts': { requestGroqStructuredResponse: async ({ parse }) => {
         if (!scenario.response) throw new Error('Provider transport unavailable')
         return parse({ ...scenario.response, answer: 'Review supplied tasks', draft: null })
