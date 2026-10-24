@@ -1,0 +1,59 @@
+{
+  "passed": false,
+  "scope": "Local NFR verification",
+  "runId": "6ef81a76-b3bb-4551-bded-1b6c315c1852",
+  "phase": "database-cross-check",
+  "failure": "Writes did not complete within the measured workload envelope",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 1000,
+    "seconds": 900,
+    "seed": 750
+  },
+  "attempts": 9186,
+  "readAttempts": 7686,
+  "streamAttempts": 500,
+  "successfulMutations": 1000,
+  "deliveries": {
+    "expected": 25000,
+    "observed": 25000,
+    "missing": 0,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": true,
+  "errors": [],
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 6116,
+      "p95Ms": 6831,
+      "p99Ms": 7179
+    },
+    "read": {
+      "count": 7486,
+      "p50Ms": 3896,
+      "p95Ms": 11275,
+      "p99Ms": 15502
+    },
+    "write": {
+      "count": 1000,
+      "p50Ms": 622,
+      "p95Ms": 4045,
+      "p99Ms": 9734
+    },
+    "admission": {
+      "count": 500,
+      "p50Ms": 5076,
+      "p95Ms": 8415,
+      "p99Ms": 8755
+    },
+    "deliveryUpperBound": {
+      "count": 25000,
+      "p50Ms": 710,
+      "p95Ms": 2280,
+      "p99Ms": 4849
+    }
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped"
+}

@@ -201,9 +201,7 @@ export class RealtimeService {
 
     async getStreamBounds(workspaceId: string): Promise<{ oldestId: string; latestId: string } | null> {
         const streamKey = `${this.eventStreamPrefix}${workspaceId}`
-        const entries = await streamService.xrange(streamKey, "-", "+")
-        if (entries.length === 0) return null
-        return { oldestId: entries[0].id, latestId: entries[entries.length - 1].id }
+        return streamService.getStreamBounds(streamKey)
     }
 
     /**
@@ -248,13 +246,15 @@ export class RealtimeService {
         try {
             const presenceKey = `presence:${workspaceId}`
             const activeUsers = await redis.smembers(`${presenceKey}:active`)
+            if (activeUsers.length === 0) return []
 
             // Filter out expired users
             const now = Date.now()
             const validUsers: string[] = []
+            const lastSeenValues = await redis.mget(...activeUsers.map(userId => `${presenceKey}:${userId}`))
 
-            for (const userId of activeUsers) {
-                const lastSeen = await redis.get(`${presenceKey}:${userId}`)
+            for (const [index, userId] of activeUsers.entries()) {
+                const lastSeen = lastSeenValues[index]
                 if (lastSeen && (now - parseInt(lastSeen as string)) < 300000) { // 5 minutes
                     validUsers.push(userId)
                 } else {

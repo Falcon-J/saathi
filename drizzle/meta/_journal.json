@@ -50,6 +50,13 @@
       "when": 1789555180000,
       "idx": 6,
       "tag": "0006_restrict_security_definer_functions"
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791072000000,
+      "tag": "0007_command_receipts",
+      "breakpoints": true
     }
   ]
 }

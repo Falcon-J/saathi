@@ -4,6 +4,8 @@ Saathi is a collaborative task workspace built with Next.js, TypeScript, Postgre
 
 PostgreSQL is the durable source of truth. Redis coordinates ephemeral collaboration state and event delivery; reconnecting clients reconcile against authoritative task records when retained history is unavailable.
 
+**Understand the system:** start with the [engineering handbook](docs/handbook/README.md) for architecture diagrams, transactional request traces, failure scenarios, API contracts, operational gates, and a mastery lab with worked answers.
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ecf8e?logo=postgresql)](https://supabase.com)
@@ -19,7 +21,7 @@ PostgreSQL is the durable source of truth. Redis coordinates ephemeral collabora
 - **Transactional persistence** in PostgreSQL with Supabase Auth for identity, server-side task permissions, and version-conflict checks
 - **Per-event real-time latency instrumentation** via Server-Sent Events
 - **Task, workspace, and invitation workflows** using Next.js Server Actions
-- **Optimistic task workflows** with SSE event deduplication and authoritative reconciliation
+- **Optimistic task workflows** with stale-read guards, SSE event deduplication and authoritative reconciliation
 - **Durable usage counters** for task creation/completion, member growth, and unique contributors
 - **Stateless server layer** designed for serverless deployment with PostgreSQL-backed authority
 - **Explicit reliability contract** covering authenticated subscriptions, bounded replay, duplicate-safe delivery, resync after retention gaps, and transactional outbox publication
@@ -38,7 +40,7 @@ Next.js 16 (Stateless)
   Server Actions: tasks / workspaces / invitations
   Route Handler:  GET /api/realtime
     ├── Auth: Supabase session cookie → verified user/profile
-    ├── Poll: XRANGE every 100ms (cursor-based)
+    ├── Poll: Redis Streams every 500ms (cursor-based)
     └── Heartbeat: presence refresh every 30s
         │
         ├── Supabase PostgreSQL
@@ -62,7 +64,7 @@ Saathi is intentionally a modular monolith: one Next.js deployment with explicit
 | Work | `app/tasks/actions.ts`, `hooks/use-workspaces.ts` | Task records, permissions, optimistic board state |
 | Realtime | `lib/realtime.ts`, `app/api/realtime/route.ts` | Redis Streams, SSE delivery, presence |
 | Activity | `lib/data/events.ts` | Durable activity facts and outbox publication |
-| Invitations | `lib/data/invitations.ts`, `lib/email-delivery.ts` | Invitation lifecycle and bounded email delivery |
+| Invitations | `lib/data/invitations.ts` | Recipient-bound join links and an in-app invitation inbox |
 | Migration | `drizzle/`, `scripts/migrate-database.mjs`, `lib/csv.ts` | Schema migrations and bounded CSV task import |
 
 CSV task imports accept `title`, `description`, `priority`, `dueDate`, `dueAt`, `estimatedMinutes`, and `assigneeEmail`. `dueDate` remains supported for date-only tasks; `dueAt` is an ISO timestamp for a specific time.
@@ -81,7 +83,7 @@ User A creates task
   → User B's UI updates (latencyMs stamped on each event)
 ```
 
-The realtime contract and recovery guarantees are documented in [`docs/realtime.md`](docs/realtime.md). Architecture ownership is in [`docs/architecture.md`](docs/architecture.md), and reproducible failure exercises are in [`docs/failure-exercises/`](docs/failure-exercises/).
+The realtime contract and recovery guarantees are documented in [`docs/realtime.md`](docs/realtime.md). Architecture ownership is in the [Saathi project map](docs/architecture/saathi-v1-project-map.md) and [technical architecture](docs/architecture/saathi-v1-technical-architecture.md); reproducible failure exercises are in [`docs/failure-exercises/`](docs/failure-exercises/).
 
 ### Health checks
 
@@ -175,10 +177,8 @@ CRON_SECRET=long-random-scheduler-secret
 # Local-only migration identity (keep separate from DATABASE_URL)
 DATABASE_MIGRATION_URL=postgresql://migration-role:password@host:5432/postgres
 
-# Public callback origin and invitation email delivery
+# Public callback and invitation-link origin
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-RESEND_API_KEY=your-resend-key
-EMAIL_FROM=Saathi <noreply@your-domain.com>
 
 # Optional AI workspace assistant — keep disabled until configured and verified
 NEXT_PUBLIC_ENABLE_AI_WORKSPACE=false
@@ -186,7 +186,7 @@ GROQ_API_KEY=your-server-only-groq-key
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Use the values in `.env.example`; keep database, auth, Resend, and scheduler credentials server-side.
+Use the values in `.env.example`; keep database, auth, and scheduler credentials server-side. Invitations appear in the recipient's Saathi inbox; owners can also copy a join link. Links require the invited account, expire after seven days and can be revoked. No invitation-mail provider or sending domain is required. Supabase Auth still handles account verification and recovery.
 
 ---
 
@@ -197,7 +197,7 @@ Use the values in `.env.example`; keep database, auth, Resend, and scheduler cre
 git push origin main
 
 # 2. Import at vercel.com/new
-# 3. Add Supabase, PostgreSQL, Redis, email, and scheduler environment variables
+# 3. Add Supabase, PostgreSQL, Redis, and scheduler environment variables
 # 4. Optionally add the Groq variables and enable the AI feature flag
 # 5. Deploy
 ```
@@ -233,7 +233,7 @@ saathi/
 
 ## Load Testing
 
-The authenticated local load test opens concurrent SSE connections, publishes tagged events through a development-only endpoint, and reports p50/p95/p99 connection and event-delivery latency.
+The authenticated load test opens concurrent SSE connections, publishes tagged events through a development-only or explicitly configured Vercel Preview endpoint, and reports p50/p95/p99 connection and event-delivery latency. The publisher is never enabled for production deployments.
 
 Set a process-scoped publisher secret, log in to the local app, and pass both the resulting `auth-session` cookie and the ID of a disposable workspace that belongs to that session. Do not commit any of these values:
 
@@ -297,6 +297,19 @@ Use architecture claims now:
 These statements describe the default-branch implementation. Durable task-creation retry identity should only be claimed when the corresponding implementation and verification are present in the referenced revision.
 
 Add measured numbers only after the benchmark evidence is captured. A passing controlled local run can support “validated 200+ concurrent authenticated SSE connections in local testing” plus the measured p50/p95/p99 values. It cannot support a universal production-capacity or fixed-latency claim.
+
+---
+
+## Learning and Showcase Docs
+
+- [Three-day mastery and repository showcase guide](docs/interviews/saathi-three-day-mastery-and-showcase-guide.md)
+- [Architecture and capability map](docs/architecture/saathi-v1-project-map.md)
+- [Technical architecture](docs/architecture/saathi-v1-technical-architecture.md)
+- [Product requirements](docs/product/saathi-v1-product-requirements.md)
+- [Production readiness closeout plan](docs/superpowers/plans/2026-09-21-saathi-production-readiness-closeout.md)
+- [Release evidence](docs/release/2026-09-22-release-evidence.md)
+- [Operational readiness](docs/release/2026-09-22-operational-readiness.md)
+- [Interview brief](docs/interviews/saathi-v1-interview-brief.md)
 
 ---
 

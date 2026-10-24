@@ -1,7 +1,8 @@
+import type { Row } from "postgres"
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { getDb, type Transaction } from "../db/client.ts"
-import { appendDomainEvent, flushOutbox } from "./events.ts"
+import { appendDomainEvent } from "./events.ts"
 
 export interface Member {
   id: string; userId: string; email: string; username: string; role: "owner" | "member"; joinedAt: string
@@ -9,6 +10,7 @@ export interface Member {
 export interface Workspace {
   id: string; name: string; summary?: string; targetDate?: string | null; targetAt: string | null;
   timezone: string; version: number; members: Member[]; createdAt: string; ownerId: string; ownerUserId: string
+  archivedAt?: string
 }
 export interface WorkspaceInput {
   name: string; summary?: string; targetAt?: string | null; targetDate?: string | null; timezone?: string;
@@ -41,24 +43,36 @@ export async function readWorkspace(workspaceId: string, userId: string, tx: Ret
   const members = await tx`SELECT m.user_id, m.joined_at, p.username, u.email FROM workspace_members m
     JOIN profiles p ON p.id = m.user_id JOIN auth.users u ON u.id = m.user_id
     WHERE m.workspace_id = ${workspaceId} ORDER BY m.joined_at, m.user_id`
+  return mapWorkspace(row, members)
+}
+
+function mapWorkspace(row: Row, members: Row[]): Workspace {
   const targetAt = row.target_at ? timestamp(row.target_at) : null
   return { id: row.id, name: row.name, summary: row.summary ?? undefined, targetAt, targetDate: targetAt,
     timezone: row.timezone, version: row.version, createdAt: timestamp(row.created_at), ownerId: row.owner_email,
+    archivedAt: row.archived_at ? timestamp(row.archived_at) : undefined,
     ownerUserId: row.owner_user_id,
     members: members.map(m => ({ id: m.email, userId: m.user_id, email: m.email, username: m.username,
       role: m.user_id === row.owner_user_id ? "owner" : "member", joinedAt: timestamp(m.joined_at) })) }
 }
 
-export async function listWorkspaces(userId: string): Promise<Workspace[]> {
+export async function listWorkspaces(userId: string, archived = false): Promise<Workspace[]> {
   return getDb().begin("isolation level repeatable read read only", async tx => {
-    const rows = await tx`SELECT w.id FROM workspaces w JOIN workspace_members m ON m.workspace_id = w.id
-      WHERE m.user_id = ${userId} AND w.archived_at IS NULL ORDER BY w.created_at DESC`
-    const result: Workspace[] = []
-    for (const row of rows) {
-      const workspace = await readWorkspace(row.id, userId, tx)
-      if (workspace) result.push(workspace)
+    const rows = await tx`SELECT w.*, u.email AS owner_email FROM workspaces w
+      JOIN auth.users u ON u.id=w.owner_user_id
+      WHERE EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id=w.id AND m.user_id=${userId})
+      AND (w.archived_at IS NOT NULL) = ${archived} ORDER BY w.created_at DESC, w.id ASC`
+    if (!rows.length) return []
+    const members = await tx`SELECT m.workspace_id, m.user_id, m.joined_at, p.username, u.email FROM workspace_members m
+      JOIN profiles p ON p.id=m.user_id JOIN auth.users u ON u.id=m.user_id
+      WHERE m.workspace_id IN ${tx(rows.map(row => row.id))} ORDER BY m.joined_at, m.user_id`
+    const byWorkspace = new Map<string, Row[]>()
+    for (const member of members) {
+      const group = byWorkspace.get(member.workspace_id) ?? []
+      group.push(member)
+      byWorkspace.set(member.workspace_id, group)
     }
-    return result
+    return rows.map(row => mapWorkspace(row, byWorkspace.get(row.id) ?? []))
   })
 }
 
@@ -83,7 +97,6 @@ export async function createWorkspaceRecord(userId: string, input: WorkspaceInpu
     await appendDomainEvent(tx, { workspaceId: id, actorUserId: userId, type: "workspace-created", entityType: "workspace", entityId: id })
     return (await readWorkspace(id, userId, tx))!
   })
-  await flushOutbox(id)
   return workspace
 }
 
@@ -106,7 +119,6 @@ export async function updateWorkspaceRecord(userId: string, workspaceId: string,
       metadata: { action: "workspace_updated" } })
     return (await readWorkspace(workspaceId, userId, tx))!
   })
-  await flushOutbox(workspaceId)
   return workspace
 }
 
@@ -121,7 +133,6 @@ export async function archiveWorkspaceRecord(userId: string, workspaceId: string
     await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
       metadata: { action: "workspace_archived" } })
   })
-  await flushOutbox(workspaceId)
 }
 
 export async function transferWorkspaceOwnershipRecord(userId: string, workspaceId: string, newOwnerUserId: string, expectedVersion: number): Promise<void> {
@@ -138,7 +149,6 @@ export async function transferWorkspaceOwnershipRecord(userId: string, workspace
     await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "workspace-updated", entityType: "workspace", entityId: workspaceId,
       metadata: { action: "ownership_transferred" } })
   })
-  await flushOutbox(workspaceId)
 }
 
 export async function removeWorkspaceMember(userId: string, workspaceId: string, memberEmail: string): Promise<void> {
@@ -146,6 +156,7 @@ export async function removeWorkspaceMember(userId: string, workspaceId: string,
     const rows = await tx`SELECT * FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`
     const row = rows[0]
     if (!row) throw new Error("Workspace not found")
+    if (row.archived_at) throw new Error("Archived workspaces cannot change membership")
     const members = await tx`SELECT m.user_id FROM workspace_members m JOIN auth.users u ON u.id = m.user_id
       WHERE m.workspace_id = ${workspaceId} AND lower(u.email) = ${memberEmail.trim().toLowerCase()}`
     const member = members[0]
@@ -158,15 +169,14 @@ export async function removeWorkspaceMember(userId: string, workspaceId: string,
     await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "member-removed", entityType: "profile", entityId: member.user_id,
       payload: { memberEmail: memberEmail.trim().toLowerCase() } })
   })
-  await flushOutbox(workspaceId)
 }
 
 export async function deleteWorkspaceRecord(userId: string, workspaceId: string): Promise<void> {
   await getDb().begin(async tx => {
-    await requireWorkspaceOwner(tx, workspaceId, userId)
+    const row = await requireWorkspaceOwner(tx, workspaceId, userId)
+    if (row.archived_at) throw new Error("Archived workspaces cannot be deleted")
     await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "member-removed", entityType: "workspace", entityId: workspaceId,
       metadata: { action: "workspace_deleted" }, payload: { deleted: true } })
     await tx`DELETE FROM workspaces WHERE id = ${workspaceId}`
   })
-  await flushOutbox(workspaceId)
 }

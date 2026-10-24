@@ -19,3 +19,12 @@ test("workspace target dates use their stored UTC calendar value", () => {
   assert.match(overview, /formatCalendarDate\(workspace\.targetAt, "UTC"\)/)
   assert.match(settings, /calendarDateAt\(workspace\.targetAt \?\? undefined, "UTC"\)/)
 })
+
+test("member task details stay readable while editing remains permission gated", () => {
+  assert.doesNotMatch(taskList, /disabled=\{!taskPermissions\.canEdit\}/)
+  assert.match(taskList, /canEdit=\{editorPermissions\.canEdit\}/)
+  assert.match(taskList, /<fieldset disabled=\{!canEdit \|\| isSaving\}/)
+  assert.match(taskList, /\{canEdit && <Button type="submit"/)
+  assert.match(taskList, /!editorPermissions\.canEdit/)
+  assert.match(taskList, /<TaskComments taskId=\{task\.id\}/)
+})

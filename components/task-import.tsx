@@ -30,7 +30,11 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
       }
 
       if (result.imported > 0) {
-        await onImported()
+        try { await onImported() }
+        catch {
+          warning(`${result.imported} tasks imported; refresh needed`, "The tasks were saved, but the Board could not refresh. Refresh the Board to see them.")
+          return
+        }
       }
 
       const failedMessage = result.failed > 0
@@ -42,8 +46,8 @@ export function TaskImport({ workspaceId, onImported }: TaskImportProps) {
       } else {
         success(`${result.imported} task${result.imported === 1 ? "" : "s"} imported`, description || "The board is up to date.")
       }
-    } catch (caughtError) {
-      error("Import failed", "The CSV could not be imported.")
+    } catch {
+      error("Unable to confirm import", "Some rows may already be saved. Refresh the Board, then retry the same file; saved rows will not be duplicated.")
     } finally {
       setIsImporting(false)
     }

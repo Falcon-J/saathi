@@ -44,6 +44,7 @@ export type AdvisorTaskDraft = z.infer<typeof advisorTaskDraftSchema>
 export type AdvisorWorkspace = {
   name: string
   summary?: string | null
+  timezone?: string
   tasks: Array<{
     id: string
     title: string
@@ -59,7 +60,7 @@ export type AdvisorWorkspace = {
 }
 
 export type AdvisorProjection = {
-  workspace: { name: string; summary?: string }
+  workspace: { name: string; summary?: string; timezone: string }
   tasks: Array<{
     id: string
     title: string
@@ -81,6 +82,7 @@ export function buildAdvisorProjection(workspace: AdvisorWorkspace): AdvisorProj
   return {
     workspace: {
       name: workspace.name,
+      timezone: workspace.timezone ?? "UTC",
       ...(workspace.summary ? { summary: workspace.summary } : {}),
     },
     tasks: workspace.tasks.map(task => ({

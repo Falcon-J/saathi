@@ -6,51 +6,47 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Circle, Trash2, Plus, Loader2, Users, Edit2, X, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
+import { TaskQuickAdd } from "@/components/task-quick-add"
+import { CheckCircle2, Circle, Trash2, Loader2, Users, Edit2, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useTaskPermissions } from "@/hooks/usePermissions"
 import type { Member } from "@/app/actions/workspaces"
-import type { TaskStatus } from "@/app/tasks/actions"
-import type { TaskUpdate } from "@/app/tasks/contract"
+import type { Task, TaskStatus, TaskUpdate } from "@/lib/task-contract"
 import { getMutationError } from "@/lib/mutation-result"
 import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
-import { formatTaskCreatedAt, formatTaskDue, localDateTimeToIso } from "@/lib/task-time"
+import { formatTaskDue } from "@/lib/task-time"
 import { TaskComments } from "@/components/task-comments"
 import type { RealtimeEvent } from "@/lib/realtime"
 
-interface Task {
-  id: string
-  title: string
-  description?: string
-  completed: boolean
-  status?: TaskStatus
-  assigneeEmail?: string
-  priority: 'low' | 'medium' | 'high'
-  dueDate?: string
-  dueAt?: string
-  estimatedMinutes?: number
-  createdAt: string
-  updatedAt: string
-  workspaceId: string
-  createdBy: string
+export interface BoardPaging {
+  filters: import("@/lib/task-page").TaskPageInput
+  changeFilters: (filters: import("@/lib/task-page").TaskPageInput) => void
+  aggregates: import("@/lib/task-page").TaskAggregates | null
+  nextCursor: string | null
+  loadingMore: boolean
+  loadMore: () => Promise<void>
 }
 
 interface TaskListProps {
+  paging?: BoardPaging
+  detailTask?: Task | null
   tasks: Task[]
   loading: boolean
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
-  onAddTask: (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<any>
-  onToggleTask: (id: string) => Promise<any>
-  onDeleteTask: (id: string) => Promise<any>
-  onEditTask: (taskId: string, updates: TaskUpdate) => Promise<unknown>
+  timeZone: string
+  onAddTask: (title: string, description?: string, priority?: 'low' | 'medium' | 'high', dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
+  onToggleTask: (id: string) => Promise<unknown>
+  onDeleteTask: (id: string) => Promise<unknown>
+  onEditTask: (taskId: string, updates: TaskUpdate, expectedVersion?: number | string) => Promise<unknown>
   openTaskId?: string | null
   commentRefreshEvent?: RealtimeEvent | null
+  focusQuickAdd?: number
+  onReviewBoard?: () => Promise<void>
 }
 
 export const TaskList = memo(function TaskList({
@@ -59,31 +55,36 @@ export const TaskList = memo(function TaskList({
   members,
   currentUserEmail,
   workspaceOwnerId,
+  timeZone,
   onAddTask,
   onToggleTask,
   onDeleteTask,
   onEditTask,
   openTaskId,
   commentRefreshEvent,
+  focusQuickAdd,
+  onReviewBoard,
+  paging,
+  detailTask,
 }: TaskListProps) {
-  const [input, setInput] = useState("")
-  const [description, setDescription] = useState("")
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
-  const [dueDate, setDueDate] = useState("")
-  const [dueTime, setDueTime] = useState("")
-  const [estimatedMinutes, setEstimatedMinutes] = useState("")
-  const [addError, setAddError] = useState<string | null>(null)
-  const [isAdding, setIsAdding] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const editorPermissions = useTaskPermissions(
+    currentUserEmail,
+    { id: editingTask?.workspaceId ?? "", ownerId: workspaceOwnerId },
+    editingTask ?? undefined,
+  )
   const [editingDraft, setEditingDraft] = useState<TaskEditorDraft | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [operatingTaskId, setOperatingTaskId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null)
-  const [selectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
-  const [selectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const [localSearchQuery, setSearchQuery] = useState("")
+  const [localSelectedAssignee, setSelectedAssignee] = useState<string | null>(null)
+  const [localSelectedStatus, setSelectedStatus] = useState<"all" | "active" | "completed">("all")
+  const [localSelectedPriority, setSelectedPriority] = useState<"all" | "low" | "medium" | "high">("all")
+  const searchQuery = paging ? paging.filters.search ?? "" : localSearchQuery
+  const selectedAssignee = paging ? paging.filters.assigneeEmail ?? null : localSelectedAssignee
+  const selectedStatus = paging ? paging.filters.status ?? "all" : localSelectedStatus
+  const selectedPriority = paging ? paging.filters.priority ?? "all" : localSelectedPriority
   const openedTaskIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -92,15 +93,16 @@ export const TaskList = memo(function TaskList({
       return
     }
     if (openedTaskIdRef.current === openTaskId) return
-    const task = tasks.find((item) => item.id === openTaskId)
+    const task = tasks.find((item) => item.id === openTaskId) ?? (detailTask?.id === openTaskId ? detailTask : null)
     if (!task) return
     openedTaskIdRef.current = openTaskId
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, tasks])
+  }, [openTaskId, tasks, detailTask])
 
   const filteredTasks = useMemo(() => {
+    if (paging) return tasks
     return tasks.filter((task) => {
       // Search filter
       if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -128,36 +130,7 @@ export const TaskList = memo(function TaskList({
 
       return true
     })
-  }, [tasks, searchQuery, selectedStatus, selectedAssignee, selectedPriority])
-
-  const handleAddTask = async () => {
-    if (!input.trim()) {
-      return
-    }
-
-    const estimate = estimatedMinutes ? Number(estimatedMinutes) : undefined
-    if (estimate !== undefined && (!Number.isInteger(estimate) || estimate < 1 || estimate > 1440)) {
-      setAddError("Estimate must be a whole number between 1 and 1440 minutes.")
-      return
-    }
-    setAddError(null)
-
-    setIsAdding(true)
-    try {
-      const result = await onAddTask(input, description, priority, dueDate || undefined, undefined, estimate, localDateTimeToIso(dueDate, dueTime))
-      if (!getMutationError(result)) {
-        setInput("")
-        setDescription("")
-        setPriority('medium')
-        setDueDate("")
-        setDueTime("")
-        setEstimatedMinutes("")
-        setShowAddForm(false)
-      }
-    } finally {
-      setIsAdding(false)
-    }
-  }
+  }, [tasks, searchQuery, selectedStatus, selectedAssignee, selectedPriority, paging])
 
   const handleToggleTask = async (taskId: string) => {
     setOperatingTaskId(taskId)
@@ -206,7 +179,7 @@ export const TaskList = memo(function TaskList({
 
   const saveEditor = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!editingTask || !editingDraft) return
+    if (!editingTask || !editingDraft || !editorPermissions.canEdit) return
 
     const title = editingDraft.title.trim()
     if (!title) {
@@ -235,7 +208,7 @@ export const TaskList = memo(function TaskList({
     setEditError(null)
     setOperatingTaskId(editingTask.id)
     try {
-      const result = await onEditTask(editingTask.id, updates)
+      const result = await onEditTask(editingTask.id, updates, editingTask.version ?? editingTask.updatedAt)
       const mutationError = getMutationError(result)
       if (mutationError) {
         setEditError(mutationError)
@@ -284,6 +257,7 @@ export const TaskList = memo(function TaskList({
       members={members}
       currentUserEmail={currentUserEmail}
       workspaceOwnerId={workspaceOwnerId}
+      timeZone={timeZone}
       operatingTaskId={operatingTaskId}
       onToggleTask={handleToggleTask}
       onEditTask={handleEditTask}
@@ -293,148 +267,29 @@ export const TaskList = memo(function TaskList({
   )
 
   return (
-    <div className="space-y-6 p-6">
-      <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-5 shadow-none">
-        {!showAddForm ? (
-          <Button
-            onClick={() => { setAddError(null); setShowAddForm(true) }}
-            className="w-full border border-primary bg-primary py-8 text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add New Task
-          </Button>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Input
-                placeholder="Task title..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isAdding}
-                className="flex-1 border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
-              />
-              <Button
-                onClick={() => {
-                  setShowAddForm(false)
-                  setInput("")
-                  setDescription("")
-                  setPriority('medium')
-                  setDueDate("")
-                  setDueTime("")
-                  setEstimatedMinutes("")
-                  setAddError(null)
-                }}
-                variant="outline"
-                size="sm"
-                disabled={isAdding}
-                aria-label="Cancel adding task"
-                title="Cancel adding task"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <Textarea
-              placeholder="Task description (optional)..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isAdding}
-              className="resize-none border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
-              rows={2}
-            />
-
-            {addError && <p className="text-sm text-destructive" role="alert">{addError}</p>}
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Select value={priority} onValueChange={(value: 'low' | 'medium' | 'high') => setPriority(value)}>
-                <SelectTrigger className="w-full sm:w-32" aria-label="Task priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">
-                    <div className="flex items-center gap-2">
-                      <Circle className="w-3 h-3 text-[var(--saathi-success)]" />
-                      Low
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="medium">
-                    <div className="flex items-center gap-2">
-                      <Flag className="w-3 h-3 text-yellow-600" />
-                      Medium
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="high">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-3 h-3 text-destructive" />
-                      High
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Input
-                type="date"
-                value={dueDate}
-                onChange={(e) => { setDueDate(e.target.value); if (!e.target.value) setDueTime("") }}
-                disabled={isAdding}
-                aria-label="Task due date"
-                className="w-full border-border bg-card focus:border-primary sm:w-40"
-              />
-
-              <Input
-                type="time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
-                disabled={isAdding || !dueDate}
-                aria-label="Task due time"
-                className="w-full border-border bg-card focus:border-primary sm:w-32"
-              />
-
-              <Input
-                type="number"
-                min={1}
-                max={1440}
-                step={1}
-                value={estimatedMinutes}
-                onChange={(e) => setEstimatedMinutes(e.target.value)}
-                disabled={isAdding}
-                aria-label="Task estimate in minutes"
-                placeholder="Estimate (min)"
-                className="w-full border-border bg-card focus:border-primary sm:w-36"
-              />
-
-              <Button
-                onClick={handleAddTask}
-                disabled={isAdding || !input.trim()}
-                className="w-full px-6 disabled:opacity-50 sm:w-auto"
-              >
-                {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                <span className="ml-2">Add Task</span>
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
+    <div className="space-y-4 p-4 sm:p-5">
+      <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
 
       <TaskFilter
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={value => paging ? paging.changeFilters({ search: value }) : setSearchQuery(value)}
         selectedAssignee={selectedAssignee}
-        onFilterByAssignee={setSelectedAssignee}
+        onFilterByAssignee={value => paging ? paging.changeFilters({ assigneeEmail: value ?? undefined }) : setSelectedAssignee(value)}
         selectedStatus={selectedStatus}
-        onFilterByStatus={setSelectedStatus}
+        onFilterByStatus={value => paging ? paging.changeFilters({ status: value }) : setSelectedStatus(value)}
         selectedPriority={selectedPriority}
-        onFilterByPriority={setSelectedPriority}
+        onFilterByPriority={value => paging ? paging.changeFilters({ priority: value === "all" ? undefined : value }) : setSelectedPriority(value)}
         members={members}
       />
 
-      <div className="flex items-center justify-between rounded-[var(--saathi-radius-card)] border border-border px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{tasks.length - completedCount}</span> open
+          {paging && <span className="mr-3 text-xs">Workspace totals</span>}
+          <span className="font-medium text-foreground">{paging ? paging.aggregates?.open ?? "…" : tasks.length - completedCount}</span> open
           <span className="mx-2 text-border">/</span>
-          <span className="font-medium text-primary">{completedCount}</span> done
+          <span className="font-medium text-primary">{paging ? paging.aggregates?.done ?? "…" : completedCount}</span> done
         </div>
-        {filteredTasks.length !== tasks.length && (
+        {paging ? <p className="text-xs text-muted-foreground">{loading ? "Loading tasks…" : `Showing ${tasks.length} matching task${tasks.length === 1 ? "" : "s"}${paging.nextCursor ? " so far" : ""}`}</p> : filteredTasks.length !== tasks.length && (
           <div className="text-sm font-medium text-muted-foreground">
             Showing {filteredTasks.length} of {tasks.length}
           </div>
@@ -455,27 +310,29 @@ export const TaskList = memo(function TaskList({
             <TaskColumn
               title="To do"
               count={todoTasks.length}
-              emptyMessage={tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match these filters."}
+              emptyMessage={(paging ? paging.aggregates?.total === 0 : tasks.length === 0) && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet. Add one above." : paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : "No tasks match these filters."}
             >
               {todoTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
               title="In progress"
               count={inProgressTasks.length}
-              emptyMessage="Tasks you are actively working on will appear here."
+              emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : paging ? "No in-progress tasks match these filters." : "Tasks you are actively working on will appear here."}
             >
               {inProgressTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
               title="Done"
               count={completedTasks.length}
-              emptyMessage={tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
+              emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
             >
               {completedTasks.map(renderTask)}
             </TaskColumn>
           </>
         )}
       </div>
+
+      {paging?.nextCursor && <Button variant="outline" onClick={() => void paging.loadMore()} disabled={loading || paging.loadingMore}>{paging.loadingMore ? "Loading more…" : "Load more tasks"}</Button>}
 
       {/* Delete Confirmation */}
       <ConfirmDialog
@@ -490,6 +347,7 @@ export const TaskList = memo(function TaskList({
       <TaskEditorDialog
         task={editingTask}
         draft={editingDraft}
+        canEdit={editorPermissions.canEdit}
         error={editError}
         isSaving={Boolean(editingTask && operatingTaskId === editingTask.id)}
         members={members}
@@ -514,7 +372,7 @@ function TaskColumn({
   children: ReactNode
 }) {
   return (
-    <section className="min-h-72 rounded-[var(--saathi-radius-container)] border border-border bg-secondary/40 p-4" aria-label={`${title} tasks`}>
+    <section className="min-h-72 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
       <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
         <Badge variant="outline" className="border-border bg-card text-muted-foreground">
@@ -523,7 +381,7 @@ function TaskColumn({
       </div>
       <div className="space-y-3">
         {count > 0 ? children : (
-          <div className="rounded-[var(--saathi-radius-card)] border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+          <div className="px-3 py-8 text-center text-sm text-muted-foreground">
             {emptyMessage}
           </div>
         )}
@@ -532,9 +390,11 @@ function TaskColumn({
   )
 }
 
-function TaskEditorDialog({
+export function TaskEditorDialog({
   task,
   draft,
+  canEdit,
+  canComment = true,
   error,
   isSaving,
   members,
@@ -545,6 +405,8 @@ function TaskEditorDialog({
 }: {
   task: Task | null
   draft: TaskEditorDraft | null
+  canEdit: boolean
+  canComment?: boolean
   error: string | null
   isSaving: boolean
   members: Member[]
@@ -553,8 +415,22 @@ function TaskEditorDialog({
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
+  const [discardConfirm, setDiscardConfirm] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const requestClose = () => {
+    if (isSaving) return
+    if (canEdit && task && draft) {
+      const original = toTaskEditorDraft(task)
+      if ((Object.keys(original) as (keyof TaskEditorDraft)[]).some(key => original[key] !== draft[key])) {
+        setDiscardConfirm(true)
+        return
+      }
+    }
+    onClose()
+  }
+
   return (
-    <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && requestClose()}>
       <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
         <DialogHeader className="border-b border-border bg-secondary/35 px-5 py-5 pr-12 sm:px-6">
           <div className="flex items-start gap-3 text-left">
@@ -562,9 +438,9 @@ function TaskEditorDialog({
               <SquarePen className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl">Edit task</DialogTitle>
+              <DialogTitle className="text-xl">{canEdit ? "Edit task" : "Task details"}</DialogTitle>
               <DialogDescription className="mt-1 leading-5">
-                Update the details that help your team understand and move this work.
+                {canEdit ? "Update the details that help your team understand and move this work." : canComment ? "Review the task and discuss the work with your team below." : "Review the retained task details and discussion."}
               </DialogDescription>
             </div>
           </div>
@@ -574,6 +450,7 @@ function TaskEditorDialog({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto">
               <form id="task-editor-form" className="space-y-6 px-5 py-5 sm:px-6" onSubmit={onSubmit}>
+              <fieldset disabled={!canEdit || isSaving} className="space-y-6">
               <section aria-labelledby="task-details-heading" className="space-y-4">
                 <div>
                   <h3 id="task-details-heading" className="text-sm font-semibold">Task details</h3>
@@ -583,6 +460,7 @@ function TaskEditorDialog({
                   <Label htmlFor="task-edit-title">Title</Label>
                   <Input
                     id="task-edit-title"
+                    ref={titleInputRef}
                     value={draft.title}
                     onChange={(event) => onDraftChange({ title: event.target.value })}
                     disabled={isSaving}
@@ -668,21 +546,41 @@ function TaskEditorDialog({
                 </div>
               </section>
 
-              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. Review the latest task details and try again.</p>}
+              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. If the task changed, copy your draft, close this editor, and reopen the task to review its latest details before saving.</p>}
+              </fieldset>
               </form>
 
               <div className="px-5 pb-5 sm:px-6">
-                <TaskComments taskId={task.id} refreshEvent={commentRefreshEvent} />
+                <TaskComments taskId={task.id} key={task.id} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
               </div>
             </div>
 
             <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-              <Button type="submit" form="task-editor-form" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>
+              <Button type="button" variant="outline" onClick={requestClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
+              {canEdit && <Button type="submit" form="task-editor-form" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
             </DialogFooter>
           </div>
         )}
       </DialogContent>
+      <ConfirmDialog
+        open={discardConfirm && Boolean(task && draft)}
+        title="Discard unsaved changes?"
+        description="Your changes to this task have not been saved. Discard them and close the editor?"
+        actionLabel="Discard changes"
+        onConfirm={() => {
+          if (isSaving) return
+          setDiscardConfirm(false)
+          onClose()
+        }}
+        onCancel={() => setDiscardConfirm(false)}
+        onCloseAutoFocus={event => {
+          if (task && draft && titleInputRef.current?.isConnected) {
+            event.preventDefault()
+            titleInputRef.current.focus()
+          }
+        }}
+        isLoading={isSaving}
+      />
     </Dialog>
   )
 }
@@ -692,6 +590,7 @@ interface TaskListItemProps {
   members: Member[]
   currentUserEmail: string
   workspaceOwnerId: string
+  timeZone: string
   operatingTaskId: string | null
   onToggleTask: (taskId: string) => Promise<void>
   onEditTask: (taskId: string, updates: TaskUpdate) => Promise<void>
@@ -704,6 +603,7 @@ const TaskListItem = memo(function TaskListItem({
   members,
   currentUserEmail,
   workspaceOwnerId,
+  timeZone,
   operatingTaskId,
   onToggleTask,
   onEditTask,
@@ -717,7 +617,7 @@ const TaskListItem = memo(function TaskListItem({
   )
 
   return (
-    <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-5 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
+    <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <button
@@ -736,9 +636,8 @@ const TaskListItem = memo(function TaskListItem({
 
           <button
             type="button"
-            disabled={!taskPermissions.canEdit}
             onClick={() => onStartEdit(task)}
-            className={`flex-1 text-left text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-default ${taskPermissions.canEdit ? "cursor-pointer hover:text-primary" : "cursor-default"} ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"}`}
+            className={`flex-1 cursor-pointer text-left text-base font-medium transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"}`}
           >
             {task.title}
           </button>
@@ -775,12 +674,11 @@ const TaskListItem = memo(function TaskListItem({
         <div className="ml-9 space-y-2 border-t border-border pt-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
-              <span className="font-medium text-foreground/70">Status</span>
               <select
                 value={task.status ?? (task.completed ? "done" : "todo")}
               onChange={(event) => onEditTask(task.id, { status: event.target.value as TaskStatus })}
                 disabled={operatingTaskId === task.id || !taskPermissions.canEdit}
-                aria-label={`Move ${task.title}`}
+                aria-label={`Change status for ${task.title}`}
                 className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
               >
                 <option value="todo">To do</option>
@@ -795,10 +693,10 @@ const TaskListItem = memo(function TaskListItem({
               <span className="capitalize">{task.priority} priority</span>
             </div>
 
-            {formatTaskDue(task.dueAt, task.dueDate) && (
+            {formatTaskDue(task.dueAt, task.dueDate, timeZone) && (
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                <span>Due {formatTaskDue(task.dueAt, task.dueDate)}</span>
+                <span>Due {formatTaskDue(task.dueAt, task.dueDate, timeZone)}</span>
               </div>
             )}
 
@@ -809,15 +707,10 @@ const TaskListItem = memo(function TaskListItem({
               </div>
             )}
 
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              <span>Created {formatTaskCreatedAt(task.createdAt) ?? "unknown"}</span>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground font-medium">Assigned to:</span>
             <select
               value={task.assigneeEmail || ""}
               onChange={(e) => onEditTask(task.id, { assigneeEmail: e.target.value || "" })}

@@ -28,9 +28,13 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [passwordResetComplete, setPasswordResetComplete] = useState(false)
+  const [returnTo, setReturnTo] = useState("/dashboard")
   const isSignup = mode === "signup"
+  const signInHref = `/login?redirect=${encodeURIComponent(returnTo)}`
+  const registerHref = `/register?redirect=${encodeURIComponent(returnTo)}`
 
   useEffect(() => {
+    setReturnTo(safeAuthRedirect(new URLSearchParams(window.location.search).get("redirect")))
     if (!isSignup) setPasswordResetComplete(new URLSearchParams(window.location.search).get("reset") === "success")
   }, [isSignup])
 
@@ -133,7 +137,6 @@ export function AuthForm({ mode }: AuthFormProps) {
 
               <div className="mt-7 sm:mt-[clamp(0.5rem,2.5vh,1.25rem)] lg:mt-[clamp(1rem,2.5vh,1.5rem)]">
                 <h1 className="text-[2rem] font-semibold leading-none tracking-[-0.055em] text-[#122039] sm:text-[clamp(1.1rem,4.5vh,2.5rem)] lg:text-[clamp(1.75rem,4vh,2.25rem)]">{isSignup ? "Create an account" : "Sign in"}</h1>
-                {!isSignup && <p className="mt-1 text-sm leading-5 text-[#66758d] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] sm:leading-tight lg:text-sm lg:leading-5">Enter your details to continue.</p>}
               </div>
 
               {passwordResetComplete && !confirmation && <div role="status" className="mt-5 rounded-xl border border-[#b9ddd3] bg-[#f1faf7] p-4 text-sm leading-5 text-[#245b51]"><p className="font-semibold text-[#122039]">Password updated</p><p className="mt-1">Sign in with your new password.</p></div>}
@@ -142,7 +145,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 <div role="status" className="mt-8 space-y-4 rounded-xl border border-[#dfe8e5] bg-[#f5faf8] p-5">
                   <h3 className="font-semibold text-[#122039]">Check your email</h3>
                   <p className="text-sm leading-6 text-[#66758d]">{confirmation}</p>
-                  <Link href="/login" className="text-sm font-semibold text-[#0f766e] underline-offset-4 hover:underline">Return to sign in</Link>
+                  <Link href={signInHref} className="text-sm font-semibold text-[#0f766e] underline-offset-4 hover:underline">Return to sign in</Link>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
@@ -173,14 +176,14 @@ export function AuthForm({ mode }: AuthFormProps) {
 
                   {formError && <p role="alert" className="rounded-xl border border-[#f1b8b1] bg-[#fff4f1] px-4 py-3 text-sm leading-5 text-[#b42318]">{formError}</p>}
 
-                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#2c9887] text-sm shadow-none hover:bg-[#237f72] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={loading}>
+                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={loading}>
                     {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
                   </Button>
                 </form>
               )}
 
               {!confirmation && <>
-                <div className="my-7 flex items-center gap-3 text-xs text-[#718096] sm:my-[clamp(0.25rem,1.2vh,0.75rem)] lg:my-[clamp(0.5rem,1.5vh,1rem)] lg:gap-4 lg:text-xs">
+                <div className="my-7 flex items-center gap-3 text-xs text-[#5f6c80] sm:my-[clamp(0.25rem,1.2vh,0.75rem)] lg:my-[clamp(0.5rem,1.5vh,1rem)] lg:gap-4 lg:text-xs">
                   <span className="h-px flex-1 bg-[#dbe2e8]" aria-hidden="true" />
                   <span>or continue with</span>
                   <span className="h-px flex-1 bg-[#dbe2e8]" aria-hidden="true" />
@@ -191,9 +194,9 @@ export function AuthForm({ mode }: AuthFormProps) {
                 </div>
               </>}
 
-              <p className="mt-8 text-center text-sm text-[#718096] sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:mt-[clamp(0.75rem,1.5vh,1rem)] lg:text-sm">
+              <p className="mt-8 text-center text-sm text-[#5f6c80] sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:mt-[clamp(0.75rem,1.5vh,1rem)] lg:text-sm">
                 {isSignup ? "Already have an account?" : "New to Saathi?"}{" "}
-                <Link href={isSignup ? "/login" : "/register"} className="font-semibold text-[#0f766e] hover:underline">{isSignup ? "Sign in" : "Create an account"}</Link>
+                <Link href={isSignup ? signInHref : registerHref} className="font-semibold text-[#0f766e] hover:underline">{isSignup ? "Sign in" : "Create an account"}</Link>
               </p>
             </div>
           </section>

@@ -28,11 +28,12 @@ export function TaskFilter({
   selectedPriority,
 }: TaskFilterProps) {
   return (
-    <div className="space-y-3 rounded-[var(--saathi-radius-card)] border border-border bg-card p-4">
+    <div className="space-y-3">
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
+          aria-label="Search tasks"
           placeholder="Search tasks..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -57,6 +58,7 @@ export function TaskFilter({
           {(["all", "active", "completed"] as const).map((status) => (
             <Button
               key={status}
+              aria-pressed={selectedStatus === status}
               size="sm"
               variant={selectedStatus === status ? "default" : "outline"}
               onClick={() => onFilterByStatus(status)}
@@ -72,6 +74,7 @@ export function TaskFilter({
 
         {/* Priority Filter */}
         <select
+          aria-label="Task priority filter"
           value={selectedPriority}
           onChange={(e) => onFilterByPriority(e.target.value as "all" | "low" | "medium" | "high")}
           className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs text-foreground hover:border-primary/40"
@@ -84,6 +87,7 @@ export function TaskFilter({
 
         {/* Assignee Filter */}
         <select
+          aria-label="Task assignee filter"
           value={selectedAssignee || ""}
           onChange={(e) => onFilterByAssignee(e.target.value || null)}
           className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs text-foreground hover:border-primary/40"

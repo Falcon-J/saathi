@@ -55,10 +55,11 @@ export class StreamService {
    * Get the latest entry in a stream (most recent event).
    */
   async getLatestEntry(streamKey: string): Promise<StreamEntry | null> {
-    // XRANGE with COUNT 1 in reverse order isn't available via Upstash REST,
-    // so we use XRANGE to get the last few entries and return the last one.
-    const entries = await redis.xrange(streamKey, "-", "+")
-    return entries.length > 0 ? entries[entries.length - 1] : null
+    return redis.getLatestStreamEntry(streamKey)
+  }
+
+  async getStreamBounds(streamKey: string): Promise<{ oldestId: string; latestId: string } | null> {
+    return redis.getStreamBounds(streamKey)
   }
 
   /**

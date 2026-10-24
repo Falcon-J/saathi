@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { requestGroqStructuredResponse } from "../groq-chat.ts"
+import { todayCalendarDate } from "../task-time.ts"
 import {
   advisorCapabilitySchema,
   buildAdvisorProjection,
@@ -8,6 +9,8 @@ import {
   type AdvisorResponse,
   type AdvisorWorkspace,
 } from "./workspace-advisor.ts"
+
+export class AdvisorResponseError extends Error {}
 
 type AdvisorProviderRequest = (options: {
   name: string
@@ -69,6 +72,8 @@ export const advisorResponseJsonSchema = {
 const instructionsFor = (capability: AdvisorResponse["capability"]) => [
   "Return only JSON matching the provided schema.",
   "Give advice grounded only in the supplied workspace projection.",
+  "Use the server-supplied currentTime and currentDate in the workspace timezone when describing deadlines or interpreting relative dates.",
+  "Compare date-only deadlines with currentDate and precise dueAt deadlines with currentTime. An unfinished task with a past deadline is overdue, never upcoming or imminent. Completed tasks are not overdue. Undated tasks have no deadline.",
   "Do not make changes, invoke tools, or claim that anything was saved.",
   `Use the ${capability} capability.`,
 ].join(" ")
@@ -91,11 +96,32 @@ export async function requestWorkspaceAdvisor({
     ? projection
     : buildAdvisorProjection(projection)
 
-  return request({
+  const now = new Date()
+  const response = await request({
     name: "saathi_workspace_advisor",
     schema: advisorResponseJsonSchema,
     instructions: instructionsFor(input.data.capability),
-    input: JSON.stringify({ question: input.data.question, workspace: authorizedProjection }),
+    input: JSON.stringify({
+      question: input.data.question,
+      currentTime: now.toISOString(),
+      currentDate: todayCalendarDate(authorizedProjection.workspace.timezone, now),
+      workspace: authorizedProjection,
+    }),
     parse: parseAdvisorResponse,
   })
+
+  if (response.capability !== input.data.capability) {
+    throw new AdvisorResponseError("AI advisor response capability is invalid")
+  }
+
+  const taskIds = new Set(authorizedProjection.tasks.map(task => task.id))
+  const referencedTaskIds = new Set<string>()
+  for (const item of response.attention) {
+    if (!taskIds.has(item.taskId) || referencedTaskIds.has(item.taskId)) {
+      throw new AdvisorResponseError("AI advisor response task reference is invalid")
+    }
+    referencedTaskIds.add(item.taskId)
+  }
+
+  return response
 }

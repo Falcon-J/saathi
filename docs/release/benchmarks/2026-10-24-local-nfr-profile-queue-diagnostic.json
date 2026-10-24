@@ -1,0 +1,203 @@
+{
+  "runId": "29f240a8-c85f-4b1f-9f39-63eb5afcc8fe",
+  "passed": true,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "elapsedMs": 60219,
+  "attempts": 1130,
+  "readAttempts": 930,
+  "streamAttempts": 100,
+  "mutations": 100,
+  "durableEvents": 100,
+  "receipts": 100,
+  "uniqueRecipientDeliveries": 2500,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 2500,
+    "missing": 0,
+    "duplicateNotifications": 0
+  },
+  "normalAdmissionLimits": true,
+  "allRolesActuallyActive": true,
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 115,
+      "p95Ms": 512,
+      "p99Ms": 594
+    },
+    "read": {
+      "count": 730,
+      "p50Ms": 487,
+      "p95Ms": 2269,
+      "p99Ms": 2575
+    },
+    "write": {
+      "count": 100,
+      "p50Ms": 1097,
+      "p95Ms": 4708,
+      "p99Ms": 5173
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 134,
+      "p95Ms": 254,
+      "p99Ms": 351
+    },
+    "deliveryUpperBound": {
+      "count": 2500,
+      "p50Ms": 790,
+      "p95Ms": 2396,
+      "p99Ms": 3031
+    },
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 8,
+      "p99Ms": 14
+    }
+  },
+  "deliveryTiming": "Transaction-assigned event timestamp to observer receipt, conservative upper bound on commit-to-observer; not exact commit timestamp",
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 2687,
+    "meanMs": 22.450505265351694,
+    "maxMs": 48.496639,
+    "p95Ms": 30.834687,
+    "p99Ms": 33.685503
+  },
+  "workload": {
+    "elapsedMs": 60219,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 100,
+    "achievedWriteRatePerSecond": 1.6605979367797976,
+    "attemptedWriteRatePerSecond": 1.6605979367797976,
+    "scheduleLag": {
+      "count": 100,
+      "p50Ms": 0,
+      "p95Ms": 8,
+      "p99Ms": 14
+    }
+  },
+  "fingerprint": {
+    "revision": "09ce3185e76901ce65a73e73b9e0306acdc9d338",
+    "workingDiffSha256": "39e9a175dd99aa16865459d4be4a99feee3e5e2cd3e57568d6ce92cd7580a129",
+    "verifierSha256": "fc1b691febd7ed5074c590652fa5ca431730e50b0c7d23b05f2a352fe313e497",
+    "builtActionManifestSha256": "417c847d82cf235e866e42954887b71133b94d58dbd5aaae4a054158fe233718",
+    "recordedAt": "2026-10-23T18:32:32.380Z"
+  },
+  "databasePoolMax": "5",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 730,
+    "achievedRequestsPerSecond": 12.122419834271575
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 3730,
+    "dropped": 0,
+    "limit": 60000
+  },
+  "unexpectedRequestErrors": 0,
+  "performanceThresholds": {
+    "taskReadP95Ms": 750,
+    "deliveryUpperBoundP95Ms": 2000,
+    "unexpectedFailureRateExclusive": 0.01,
+    "workloadDurationMs": 60000,
+    "workloadToleranceMs": 1000
+  },
+  "performanceTargets": {
+    "taskReadP95Within750ms": false,
+    "deliveryUpperBoundP95Within2s": false,
+    "unexpectedFailureRateBelow1Percent": true,
+    "elapsedWorkloadWithin61s": true
+  },
+  "performanceAssertionsApplied": false,
+  "performanceAcceptancePassed": false,
+  "evidenceNotes": [
+    "Diagnostic execution status is preserved in passed; this is not sustained NFR acceptance.",
+    "Both latency targets remain failed; no threshold, authorization or default pool was changed.",
+    "Database pool five was a temporary local diagnostic override; production settings were not changed.",
+    "Raw logs and individual timings remain ignored; the stored fingerprint identifies source and build.",
+    "Profile reservation p95 under one millisecond does not support blaming profile pool queueing for this run.",
+    "Ten tagged application connections were observed; live Node PID ownership was not recorded.",
+    "Aggregate phase percentiles cannot be added or subtracted to attribute an individual request."
+  ],
+  "profileDatabaseSplit": {
+    "count": 300,
+    "reservation": {
+      "p50Ms": 0,
+      "p95Ms": 0,
+      "maxMs": 114
+    },
+    "clientQueryElapsed": {
+      "p50Ms": 11,
+      "p95Ms": 73,
+      "maxMs": 207
+    },
+    "scope": "Reservation includes any connection establishment; client query time includes network and scheduling, not engine-only execution."
+  },
+  "aggregatePhaseP95Ms": {
+    "liveAuth": 2028,
+    "profileTotal": 77,
+    "membershipRead": 83,
+    "authorization": 131,
+    "redisPoll": 46
+  },
+  "serialDependencies": {
+    "scope": "One identity, ten serial dependency pairs; not application SLO evidence",
+    "pre": {
+      "liveAuthP95Ms": 174,
+      "selectOneP95Ms": 7,
+      "profileP95Ms": 11
+    },
+    "post": {
+      "liveAuthP95Ms": 69,
+      "selectOneP95Ms": 2,
+      "profileP95Ms": 3
+    },
+    "cleanup": "Both owned profile/Auth identities removed and verified absent"
+  },
+  "workloadResourceSamples": {
+    "scope": "Separate read-only sampler during the 60-second workload; observation counts are not elapsed wait time",
+    "postgresSamples": 212,
+    "maxTaggedApplicationConnections": 10,
+    "connectionStateObservations": {
+      "idleClientRead": 1408,
+      "idleInTransactionClientRead": 167,
+      "activeClientRead": 226,
+      "activeWalSync": 9,
+      "activeTransactionIdLock": 7,
+      "activeTupleLock": 1,
+      "other": 43
+    },
+    "dockerSamplesPerContainer": 11,
+    "cpuPercentOfOneCore": {
+      "auth": {
+        "p50": 106,
+        "max": 173
+      },
+      "postgres": {
+        "p50": 294,
+        "max": 530
+      },
+      "gateway": {
+        "p50": 14,
+        "max": 66
+      },
+      "redis": {
+        "p50": 6,
+        "max": 8
+      }
+    },
+    "samplerErrors": 0
+  }
+}

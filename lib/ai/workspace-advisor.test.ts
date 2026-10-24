@@ -63,7 +63,7 @@ test("builds a minimum task projection without server-owned fields", () => {
   })
 
   assert.deepEqual(projection, {
-    workspace: { name: "Launch", summary: "Ship the first release" },
+    workspace: { name: "Launch", summary: "Ship the first release", timezone: "UTC" },
     tasks: [{
       id: "task-1",
       title: "Ship",
@@ -77,4 +77,8 @@ test("builds a minimum task projection without server-owned fields", () => {
   assert.equal("version" in projection.tasks[0], false)
   assert.equal("createdBy" in projection.tasks[0], false)
   assert.equal("assigneeEmail" in projection.tasks[0], false)
+})
+
+test("preserves the authorized workspace timezone for interpreting deadlines", () => {
+  assert.equal(buildAdvisorProjection({ name: "Pilot", timezone: "Asia/Kolkata", tasks: [] }).workspace.timezone, "Asia/Kolkata")
 })

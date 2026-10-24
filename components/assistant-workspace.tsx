@@ -25,7 +25,13 @@ export function AssistantWorkspace({ workspace, tasks, aiEnabled, onRefreshTasks
 
   const confirmDraft = async (draft: Parameters<typeof confirmWorkspaceAdvisorDraft>[1], idempotencyKey: string) => {
     const result = await confirmWorkspaceAdvisorDraft(workspace.id, draft, idempotencyKey)
-    if (!result.error) await onRefreshTasks()
+    if (result.task) {
+      try {
+        if (!await onRefreshTasks()) return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." }
+      } catch {
+        return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." }
+      }
+    }
     return result
   }
 

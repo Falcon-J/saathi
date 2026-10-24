@@ -1,10 +1,10 @@
 import { realtimeService } from "@/lib/realtime"
-import { isLoadTestSecretValid } from "@/lib/load-test"
+import { isLoadTestPublisherEnabled, isLoadTestSecretValid } from "@/lib/load-test"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV !== "development") {
+  if (!isLoadTestPublisherEnabled()) {
     return new Response("Not found", { status: 404 })
   }
 

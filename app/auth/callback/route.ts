@@ -16,5 +16,9 @@ export async function GET(request: NextRequest) {
       }
     }
   } catch { /* The visible error page offers a new sign-in or recovery attempt. */ }
-  return NextResponse.redirect(new URL('/auth/error', request.url))
+  const errorUrl = new URL('/auth/error', request.url)
+  errorUrl.searchParams.set('next', next)
+  const response = NextResponse.redirect(errorUrl)
+  response.headers.set('Cache-Control', 'private, no-store')
+  return response
 }

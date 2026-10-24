@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers'
 import { createClient } from './supabase/server'
 import { getAuthCallbackUrl } from './supabase/config'
-import { validateCredentials, resolveVerifiedSession, safeAuthRedirect } from './supabase/auth-boundary'
+import { validateCredentials, resolveVerifiedActor, resolveVerifiedSession, safeAuthRedirect } from './supabase/auth-boundary'
 import { getProfile } from './data/profiles'
 import { normalizeEmail } from './identity'
 
@@ -66,15 +66,36 @@ export async function logout(): Promise<AuthResult> {
   } catch { return unavailable }
 }
 
-export async function getSession() {
+async function getVerifiedUser() {
   try {
     const client = await createClient({ readOnly: true })
+    const authStarted = performance.now()
     const { data: { user }, error } = await client.auth.getUser()
+    if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: "auth-get-user", durationMs: performance.now() - authStarted }))
     if (error) {
       if (!error.status || error.status >= 500) throw new Error('Account service unavailable')
       return null
     }
-    return await resolveVerifiedSession(user, getProfile)
+    return user
+  } catch {
+    throw new Error('Account service is temporarily unavailable. Please try again.')
+  }
+}
+
+// Domain read operations still authorize workspace membership using this live identity.
+export async function getVerifiedActor() {
+  const user = await getVerifiedUser()
+  return user ? resolveVerifiedActor(user) : null
+}
+
+export async function getSession() {
+  try {
+    const user = await getVerifiedUser()
+    if (!user) return null
+    const profileStarted = performance.now()
+    const session = await resolveVerifiedSession(user, getProfile)
+    if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: "auth-resolve-profile", durationMs: performance.now() - profileStarted }))
+    return session
   } catch {
     throw new Error('Account service is temporarily unavailable. Please try again.')
   }

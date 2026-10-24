@@ -27,6 +27,8 @@ export const metadata: Metadata = {
   description: "Learn how to plan work, collaborate, and use the optional Saathi assistant.",
 }
 
+export const dynamic = "force-dynamic"
+
 const assistantActions: Record<string, { title: string; description: string }> = {
   plan_workspace: { title: "Plan a workspace", description: "Turn one outcome into a focused workspace with useful first steps." },
   summarize_workspace: { title: "Summarize the workspace", description: "Turn workspace context into a concise progress summary." },

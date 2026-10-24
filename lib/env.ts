@@ -49,13 +49,6 @@ const envSchema = z.object({
     DISABLE_HTTPS: z.string().transform(val => val === 'true').default('false'),
     USE_MOCK_REDIS: z.string().default('auto'),
 
-    // Optional: Email
-    SMTP_HOST: z.string().optional(),
-    SMTP_PORT: z.string().transform(Number).optional(),
-    SMTP_USER: z.string().optional(),
-    SMTP_PASS: z.string().optional(),
-    SMTP_FROM: z.string().email().optional(),
-
     // Optional: Analytics
     VERCEL_ANALYTICS_ID: z.string().optional(),
     GOOGLE_ANALYTICS_ID: z.string().optional(),
@@ -141,24 +134,6 @@ export const getRateLimits = () => ({
         leaseSeconds: env.SSE_CONNECTION_LEASE_SECONDS,
     }
 })
-
-// SMTP configuration helper
-export const getSmtpConfig = () => {
-    if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_USER || !env.SMTP_PASS) {
-        return null
-    }
-
-    return {
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_PORT === 465,
-        auth: {
-            user: env.SMTP_USER,
-            pass: env.SMTP_PASS
-        },
-        from: env.SMTP_FROM || env.SMTP_USER
-    }
-}
 
 // Deployment validation is explicit in validate-env. Redis itself fails closed
 // at runtime when configuration is absent; importing a module must not exit a build.

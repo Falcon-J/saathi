@@ -41,7 +41,7 @@ A workspace captures the shared goal. A task captures a deliverable action. Larg
 - An invitation is pending for seven days and can be accepted, declined, revoked, or expired.
 - There can be at most one pending invitation for an email in a workspace.
 - An invitee may create an account from the invitation link, but can accept only after signing in with the invited email address.
-- Email delivery is best-effort; the durable invitation record is authoritative and the owner can copy the invitation link when delivery is unavailable.
+- The durable invitation record is authoritative. Pending invitations appear in the recipient's in-app inbox; the owner can copy a recipient-bound join link. Invitation email delivery is not part of v1.
 - Acceptance verifies the authenticated invitee, creates membership once, records activity once, and is safe to retry.
 - Removing a member unassigns their open tasks. The owner cannot remove themself without first transferring ownership.
 

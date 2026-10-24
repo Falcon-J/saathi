@@ -86,6 +86,7 @@ export function useRealtime(options: UseRealtimeOptions) {
             eventSourceRef.current = eventSource
 
             eventSource.onopen = () => {
+                setEventRevision(value => value + 1)
                 optionsRef.current.onResyncRequired?.()
                 setIsConnected(true)
                 setError(null)
@@ -113,6 +114,7 @@ export function useRealtime(options: UseRealtimeOptions) {
                             setActiveUsers(data.data.activeUsers)
                         }
                     } else if (data.type === 'resync-required') {
+                        setEventRevision(value => value + 1)
                         setIsConnected(true)
                         setError('Refreshing after a missed realtime update')
                         optionsRef.current.onResyncRequired?.()
@@ -148,12 +150,15 @@ export function useRealtime(options: UseRealtimeOptions) {
     }, [])
 
     useEffect(() => {
+        const handleOnline = () => connect()
         if (options.workspaceId) {
             seenEventIdsRef.current.clear()
             connect()
+            window.addEventListener('online', handleOnline)
         }
 
         return () => {
+            window.removeEventListener('online', handleOnline)
             disconnect()
         }
     }, [options.workspaceId, connect, disconnect])
