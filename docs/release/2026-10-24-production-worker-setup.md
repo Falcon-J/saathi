@@ -1,6 +1,20 @@
-# Production worker setup: synchronous HTTP proposal
+# Production worker setup
 
-## Current purpose
+## Applied October 25
+
+The user explicitly approved production `pg_cron`/`http` installation, restricted HTTP access, a Vault secret, and activation after deployment verification. Production now runs `pg_cron` 1.6.4 and `http` 1.6. Job `1`, `saathi-outbox-every-minute`, is owned by `postgres`, active, and scheduled every minute. An authorized public worker call and three consecutive scheduled runs passed; the scheduled runs took 2.22–2.37 seconds. Public production serves the release merged through PR #9, commit `94ebc9b5344948cb8264147e3c8643c697000c69`.
+
+**The original function-revoke proposal below did not work on hosted Supabase.** Its `supabase_admin` owner grants PUBLIC execution, which `postgres` cannot revoke. Effective access is instead restricted through the dedicated `saathi_worker_http` schema. All 19 HTTP functions were recreated there using Supabase's documented drop/recreate procedure, inside one transaction and without `CASCADE`. No business tables or shared `extensions` privileges changed. The connector's mutation requests expired twice; the guarded transaction was applied through the production SQL editor, query `b91f5a92-827e-487d-9dc7-c6bd813acae7`.
+
+Verified `anon`, `authenticated`, and `service_role` have no schema USAGE and their native HTTP function calls fail. `postgres` calls and TLS/timeout options succeed. Installed HTTP PUBLIC function grants remain; they do not grant schema access. Administrative database roles remain trusted. See [Supabase's supported schema isolation procedure](https://supabase.com/kb/troubleshooting/revoking-privileges-on-storage-pg_cron-vault-and-extension-objects-has-no-effect).
+
+The live job uses the SQL below with every `extensions.http*` reference changed to `saathi_worker_http.http*`, and checks that application roles still lack schema USAGE before reading the exact named Vault record. It contains no literal bearer value. The new secret was transferred internally to Vercel production `CRON_SECRET`; it was not printed or written to a file. The Windows helper's non-echoing terminal input was verified with dummy data before use. Its JSON input terminates on CR or LF.
+
+Release ordering was preserved: create the job inactive, rebuild with the new credential, verify public health/authentication boundaries and an authorized 2xx worker call, then activate. The released merge tree exactly matches tested source `27c7a32`. Rollback to deployment `dpl_83kLQguKvd8H9ywyt1jZToSv4YHV` requires disabling job 1 first because that older environment contains the previous secret. No billing plan was changed.
+
+The remainder is the historical proposal and its original approval boundaries. Use the applied private-schema qualifications above, not its ineffective function-revoke instructions.
+
+## Original proposal purpose
 
 Invitation delivery has moved to Saathi's inbox and copyable recipient-bound links. It does not need this scheduler, Resend, or a mail domain. The proposed worker below remains relevant only to realtime outbox retries and bounded retention; the user has not approved the `http` replacement and no production scheduler changes have occurred.
 
