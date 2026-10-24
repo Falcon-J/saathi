@@ -20,6 +20,7 @@ yarn-error.log*
 # env files (keep .env.example for reference)
 .env
 .env.local
+.env*.local
 .env.production
 .env.staging
 .env.development

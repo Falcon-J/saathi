@@ -412,20 +412,12 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
         const invitationError = getMutationError(result)
         if (invitationError) throw new Error(invitationError)
 
-        const deliveryStatus = result.invitation?.deliveryStatus
-        const detail = deliveryStatus === "sent"
-          ? `Email to ${email} was accepted by the provider.`
-          : deliveryStatus === "failed"
-            ? "Invitation created, but email could not be delivered. Copy the invite link from Team."
-            : deliveryStatus === "unconfigured"
-              ? "Invitation created. Email is unavailable, so copy the invite link from Team."
-              : "Invitation created. Email delivery is queued."
-        success("Invitation created", detail)
+        success("Invitation created", "Share the invite link from Team. The recipient can also accept in their Invitations inbox.")
         // Note: Member won't be added until they accept the invitation
         // No need to refresh workspaces here
         return result
       } catch (error) {
-        console.error("[Saathi] Failed to send invitation:", error)
+        console.error("[Saathi] Failed to create invitation:", error)
         throw error
       }
     },

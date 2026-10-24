@@ -226,7 +226,7 @@ try {
   bridge = await startLocalRedisRest({ token })
   const env = { ...process.env, NODE_ENV: 'production', DATABASE_URL: database, NEXT_PUBLIC_SUPABASE_URL: api, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey, NEXT_PUBLIC_SUPABASE_ANON_KEY: publicKey,
     NEXT_PUBLIC_APP_URL: base, APP_URL: base, UPSTASH_REDIS_REST_URL: bridge.url, UPSTASH_REDIS_REST_TOKEN: token, KV_REST_API_URL: bridge.url, KV_URL: bridge.url, KV_REST_API_TOKEN: token,
-    CRON_SECRET: randomUUID(), GROQ_API_KEY: '', RESEND_API_KEY: '', EMAIL_FROM: '', RESEND_WEBHOOK_SECRET: '', ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false', ENABLE_RATE_LIMITING: 'true', ENABLE_REAL_TIME: 'true', USE_MOCK_REDIS: 'false' }
+    CRON_SECRET: randomUUID(), GROQ_API_KEY: '', ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false', ENABLE_RATE_LIMITING: 'true', ENABLE_REAL_TIME: 'true', USE_MOCK_REDIS: 'false' }
   for (const key of Object.keys(env)) if (key.startsWith('RATE_LIMIT_') || key.startsWith('SSE_') || key === 'LOAD_TEST_SECRET') delete env[key]
   if (diagnostic) env.SSE_PERFORMANCE_DIAGNOSTICS = '1'
   log = createWriteStream(`${directory}/server.log`)

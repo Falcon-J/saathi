@@ -14,7 +14,7 @@ The existing [FRS](../product/saathi-v1-product-requirements.md) owns FR-1 throu
 | --- | --- | --- | --- |
 | FR-1 Identity/access | Can Cara read W or invoke a write by guessing an ID? | Auth boundaries; membership checks; [collaboration tests](../../lib/data/collaboration.test.ts) | DB/browser evidence in [baseline](../release/2026-10-04-engineering-baseline-evidence.md); hosted auth flows need environment acceptance |
 | FR-2 Workspace lifecycle | Are owner/member invariants atomic? Do archive writes fail? | Deferred FK; version checks; [workspace tests](../../lib/data/workspaces.test.ts) | Recorded DB checks; current archived delete behavior is narrower than a general delete-any-workspace expectation |
-| FR-3 Invitations | Does repeated acceptance create one membership/event? | State machine, email matching, unique constraints | Recorded DB checks; real inbox delivery and provider configuration are separate |
+| FR-3 Invitations | Does repeated acceptance create one membership/event? | State machine, verified recipient matching, unique constraints | Inbox and copied-link acceptance require no invitation-mail provider |
 | FR-4 Task lifecycle | Does version-7 editing fail after version 8? Does retry C create once? | Permissions, locks, receipts; [retry tests](../../lib/data/create-retry.test.ts) | Recorded DB and browser conflict evidence; cross-reload client retry identity remains limited |
 | FR-5 Discussion/history | Can all 137 comments be traversed without omissions? | Keyset paging; [comment tests](../../lib/data/comments.test.ts) | [Closeout](../release/2026-10-04-core-closeout-evidence.md) records traversal; full activity continuation remains planned |
 | FR-6 Daily experience | Are loading, empty, denied, conflict, offline distinct? | State helpers; components; [UX evidence](../release/2026-10-04-workspace-ux-evidence.md) | Dated UI checks; large Board pagination remains planned |
@@ -79,7 +79,7 @@ flowchart TD
 | Idle subscription survives removal briefly | Last membership check and check duration | Measure configured interval plus runtime latency; verify event-batch checks |
 | Many connections start slowly | Auth/profile SQL count, pool wait, lease Redis operations | Separate admission/startup from event-delivery latency |
 | Migration tries recreating tables | Actual schema and migration journal | Stop replay; use approved reconciliation procedure or a fresh DB |
-| “Sent” invite not received | Provider ID/delivery webhook/suppression | Separate accepted, delivered, bounced; offer existing invite link |
+| Invitation not visible | Invited account, pending status, expiry and workspace archive state | Refresh the in-app inbox or open the copied invitation link with the invited account |
 
 ## Deployment and recovery boundaries
 

@@ -10,7 +10,7 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 - **Workspace**: a goal-oriented container with editable metadata, members, tasks, and activity.
 - **Owner**: the single workspace member allowed to edit workspace settings, manage membership, transfer ownership, archive, or delete the workspace.
 - **Member**: a user who can read the workspace and participate in its tasks.
-- **Invitation**: a time-limited request for one normalized email address to join one workspace.
+- **Invitation**: a time-limited request for one normalized email address to join one workspace, available in the recipient's in-app inbox and through a copyable link. Accepting requires the verified invited account; invitation mail is not sent.
 - **Task**: one independently actionable outcome, normally owned by one member and belonging to exactly one workspace.
 - **Task comment**: an immutable member-authored note that adds execution context to one task.
 - **Activity event**: a durable audit fact created by a successful domain mutation.

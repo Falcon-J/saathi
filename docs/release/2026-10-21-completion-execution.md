@@ -168,6 +168,27 @@ This update supersedes the earlier performance status only; hosted recovery and 
 - Resend's test sender rejects arbitrary invitation recipients. Copy-link invitation acceptance works. A verified sender domain is required for general invitation delivery.
 - Performance acceptance remains failed. Hosted worker/alert, recovery and rollback status must be read from their specific evidence, not inferred from a successful demo. Merge and production app deployment remain unperformed.
 
+## October 24 production release preparation
+
+- User requested production release. No public traffic has moved in this preparation.
+- Candidate source `3061e15d755332fe549c676025c82c0280441e84` passed [CI](https://github.com/Falcon-J/saathi/actions/runs/40006989683). A Git-linked production-target build is READY: `dpl_C4w9nMG2mYyVZnRc448qXL489nkf`, `https://saathi-7t1qj14q1-omkarjawalikar04-gmailcoms-projects.vercel.app`. Domain auto-assignment was explicitly false. Read-only candidate checks: liveness/readiness 200, unauthenticated users/worker 401, login 307 to the configured production origin.
+- An earlier local-source staging attempt was blocked by Vercel's author check. Reusing the existing Git integration with the pinned SHA succeeded without changing author identity or project access.
+- Public production still points to `dpl_83kLQguKvd8H9ywyt1jZToSv4YHV`, source `3cccee8ea3435d7967388aef1a0c7ff041a2d7e4`. Health, readiness and login returned 200. Production AI is configured and enabled, but configured credentials do not establish a successful runtime call.
+- Production Google sign-in reproduced `redirect_uri_mismatch`: its Google client permitted only preview's Supabase callback. Under the user's instruction to add the final entry, added `https://uccncldirwhlyrhxwbwt.supabase.co/auth/v1/callback`; reopened the client and verified persistence. Preview's separate callback remains necessary. Google then reached account selection. The old public application still did not retain the resulting session; the new callback application code is staged, not publicly released.
+- Fresh preview signup confirmation and persistent authenticated identity passed. Earlier callback failure was provider `flow_state_expired`, separate from the subsequent email-send rate limit.
+- User approved the production worker setup. No scheduler, extension or secret changes have been applied. The proposed `pg_net` method is held because its request queue exposes bearer headers to additional database roles. See [worker setup](2026-10-24-production-worker-setup.md) for the reviewed alternative and current approval boundary. No production database credentials need to be stored locally.
+- Full release acceptance still lacks a passed capacity gate and complete hosted operational evidence. Invitation email delivery was subsequently removed from release scope by the user; a sender domain is no longer required for workspace invitations. Initial beta scope is a separate pending decision; it must not silently replace the original capacity acceptance criteria.
+
+## October 24 invitation simplification
+
+- User replaced invitation email delivery with recipient-bound copied links and an in-app inbox. Removed the provider adapter, webhook, mail worker, resend action, delivery-status UI, unused SMTP configuration and `svix` dependency. Historical database tables and migrations remain intact; no production data migration is needed.
+- Reused existing invitation IDs, verified-recipient authorization, seven-day expiry, owner revocation and transactional/idempotent acceptance. Pending inbox queries exclude archived workspaces. Empty-workspace accounts can refresh their inbox; returning to the window also refreshes it, and stale responses cannot restore an accepted invitation.
+- Ordinary suite: **377 tests, 375 passed, zero failures, two optional skips**. Database suite: **44 passed**. Existing desktop/mobile browser suite: **14 passed**. TypeScript, full lint and diff checks passed; a focused post-contrast check passed all 14 invitation/worker/UI tests and scoped lint.
+- Extended isolated local Supabase browser acceptance passed: an already-open account with no workspace discovers its invitation, the owner copies the actual link, a wrong account is denied, acceptance persists after reload, replay creates exactly one membership/event, focus refresh discovers a later invitation, and revocation makes its link unavailable. Desktop/mobile accessibility, task collaboration, keyboard/discard and activity paging checks also passed. Disposable identities/workspace and the owned server were cleaned. Screenshots remain ignored in `.local-test/invitation-browser-913c75bf-cc86-4672-80bc-9746c7fe0b2b/`.
+- Browser checks found and corrected low-contrast Accept/Decline button styles using the existing primary and outline variants. No new visual system was introduced.
+- Matching local production webpack build passed against the isolated loopback configuration. That build is validation only; hosted deployments must build with their own environment.
+- Account confirmation/recovery still use Supabase Auth email. This scope change removes the invitation sender-domain gate; it does not change capacity thresholds or establish hosted acceptance of this new source.
+
 ## Caveman use
 
 User requested Caveman. Its compression tool accepted a nonsensitive test summary. Automatic approval review rejected sending repository source/configuration to that destination as untrusted. Source inspection stays local; no bypass was attempted.

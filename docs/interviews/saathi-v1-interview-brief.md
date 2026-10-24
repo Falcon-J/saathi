@@ -6,7 +6,7 @@ Saathi is a small-team workspace that turns a shared outcome into assigned, visi
 
 ## Architecture in one minute
 
-Saathi is a Next.js modular monolith. Supabase Auth provides identity and sessions. Server Actions and route handlers verify the session and current workspace membership before calling domain/data modules. PostgreSQL stores workspaces, memberships, tasks, comments, activity, and outbox obligations transactionally. Upstash Redis and SSE are delivery-only infrastructure for rate limits and realtime notifications; clients reconcile durable state from PostgreSQL after reconnects or missed events. Resend handles invitation delivery. Groq is an optional server-only adapter for bounded advice and reviewed drafts.
+Saathi is a Next.js modular monolith. Supabase Auth provides identity and sessions. Server Actions and route handlers verify the session and current workspace membership before calling domain/data modules. PostgreSQL stores workspaces, memberships, tasks, comments, activity, and outbox obligations transactionally. Upstash Redis and SSE are delivery-only infrastructure for rate limits and realtime notifications; clients reconcile durable state from PostgreSQL after reconnects or missed events. Invitations use an in-app inbox and copied recipient-bound links. Groq is an optional server-only adapter for bounded advice and reviewed drafts.
 
 ```text
 Browser

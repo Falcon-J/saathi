@@ -6,10 +6,12 @@ import postgres from 'postgres'
 import { chromium, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { createClient } from '@supabase/supabase-js'
+import { mkdirSync } from 'node:fs'
 
 // This runner only touches the isolated CLI stack, never the project's hosted env files.
 const base = 'http://127.0.0.1:3101'
 const workspace = randomUUID(), users = [], contexts = []
+const evidenceDir = `.local-test/invitation-browser-${workspace}`
 let phase = 'local-stack-status', db, admin, browser, server, failed = false, serverOutput = '', startupStatus = null
 function log(result) { console.log(JSON.stringify({ scope: 'local signed-in acceptance', phase, result })) }
 function capture(command, args, env = process.env) {
@@ -44,14 +46,14 @@ async function board(page) {
   await page.getByRole('button', { name: 'Board', exact: true }).filter({ visible: true }).click()
   await expect(page.getByLabel('Task title', { exact: true })).toBeVisible()
 }
-async function layout(page) {
+async function layout(page, focusTarget = page.getByLabel('Task title', { exact: true })) {
   const dimensions = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth])
   assert.ok(dimensions[0] <= dimensions[1])
   const proxySelector = '[role="region"]:has(> [data-slot="toast-viewport"]) > span[aria-hidden="true"][tabindex="0"]'
   const proxies = page.locator(proxySelector)
   const proxyCount = await proxies.count()
   for (let i = 0; i < proxyCount; i++) {
-    await page.getByLabel('Task title', { exact: true }).focus()
+    await focusTarget.focus()
     // Playwright focus() fires twice; native entry must fire once before real Tab navigation.
     await proxies.nth(i).evaluate(element => element.focus())
     const hiddenFocus = () => page.evaluate(selector => document.activeElement.matches(selector), proxySelector)
@@ -61,7 +63,7 @@ async function layout(page) {
     await page.keyboard.press('Shift+Tab')
     assert.equal(await hiddenFocus(), false)
   }
-  await page.getByLabel('Task title', { exact: true }).focus()
+  await focusTarget.focus()
   // Exclude only Radix's sentinels after proving that they redirect keyboard focus.
   const scan = new AxeBuilder({ page })
   if (proxyCount) scan.exclude(proxySelector)
@@ -87,7 +89,7 @@ try {
   db = postgres(database, { max: 1, prepare: false })
   admin = createClient(api, adminKey, { auth: { persistSession: false, autoRefreshToken: false } })
   phase = 'disposable-admin-auth-fixtures'
-  for (const role of ['owner', 'member', 'outsider']) {
+  for (const role of ['owner', 'member', 'outsider', 'invitee']) {
     const user = { role, email: `qa-${randomUUID()}@example.test`, password: `${randomUUID()}Aa9!` }
     const result = await admin.auth.admin.createUser({ email: user.email, password: user.password, email_confirm: true, user_metadata: { username: `QA ${role}` } })
     assert.equal(result.error, null)
@@ -103,10 +105,10 @@ try {
     NEXT_PUBLIC_SUPABASE_URL: api, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey, NEXT_PUBLIC_SUPABASE_ANON_KEY: publicKey,
     NEXT_PUBLIC_APP_URL: base, APP_URL: base, ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false',
     UPSTASH_REDIS_REST_URL: 'http://127.0.0.1:1', UPSTASH_REDIS_REST_TOKEN: '',
-    KV_REST_API_URL: 'http://127.0.0.1:1', KV_URL: 'http://127.0.0.1:1', KV_REST_API_TOKEN: '', GROQ_API_KEY: '' }
+    KV_REST_API_URL: 'http://127.0.0.1:1', KV_URL: 'http://127.0.0.1:1', KV_REST_API_TOKEN: '', GROQ_API_KEY: '', RESEND_API_KEY: '', EMAIL_FROM: '' }
   server = process.platform === 'win32'
-    ? spawn('cmd.exe', ['/d', '/s', '/c', 'npm.cmd run dev -- --hostname 127.0.0.1 --port 3101'], { cwd: process.cwd(), env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    : spawn('npm', ['run', 'dev', '--', '--hostname', '127.0.0.1', '--port', '3101'], { cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'] })
+    ? spawn('cmd.exe', ['/d', '/s', '/c', 'npm.cmd run dev -- --webpack --hostname 127.0.0.1 --port 3101'], { cwd: process.cwd(), env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    : spawn('npm', ['run', 'dev', '--', '--webpack', '--hostname', '127.0.0.1', '--port', '3101'], { cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'] })
   const remember = chunk => { serverOutput = (serverOutput + chunk).slice(-128000) }
   server.stdout.on('data', remember); server.stderr.on('data', remember)
   server.on('error', () => { failed = true })
@@ -141,6 +143,74 @@ try {
   await expect(outsider.getByLabel('Current workspace')).toHaveCount(0)
   assert.equal((await outsider.request.get(`${base}/api/usage?workspaceId=${workspace}`)).status(), 403)
   log('passed')
+  phase = 'platform-invitation-zero-workspace-inbox'
+  const invitee = await login(users[3])
+  await expect(invitee.getByLabel('Current workspace')).toHaveCount(0)
+  const inbox = invitee.getByRole('region', { name: 'Workspace invitations', exact: true })
+  await expect(inbox.getByText('No pending invitations.', { exact: true })).toBeVisible({ timeout: 30000 })
+  await owner.getByRole('button', { name: 'Team', exact: true }).filter({ visible: true }).click()
+  const invite = async email => {
+    await owner.getByLabel('Invite by email').fill(email)
+    await owner.getByRole('button', { name: 'Send invitation', exact: true }).click()
+    await expect(owner.getByLabel('Invite by email')).toHaveValue('', { timeout: 30000 })
+  }
+  const invitationRow = email => owner.locator('section[aria-label="Workspace invitations"] > div').filter({ has: owner.getByText(email, { exact: true }) })
+  await invite(users[3].email)
+  const [pending] = await db`SELECT id FROM workspace_invitations WHERE workspace_id=${workspace} AND invitee_email=${users[3].email} AND status='pending'`
+  assert.ok(pending)
+  await inbox.getByRole('button', { name: 'Refresh invitations', exact: true }).click()
+  await expect(inbox.getByText('Disposable local acceptance', { exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(inbox.getByText('QA owner', { exact: true })).toBeVisible()
+  await expect(invitationRow(users[3].email).getByRole('button', { name: 'Resend', exact: true })).toHaveCount(0)
+  mkdirSync(evidenceDir, { recursive: true })
+  await owner.screenshot({ path: `${evidenceDir}/owner-invitation-desktop.png`, fullPage: true })
+  await invitee.setViewportSize({ width: 360, height: 800 })
+  assert.equal(await invitee.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+  await layout(invitee, inbox.getByRole('button', { name: 'Refresh invitations', exact: true }))
+  await invitee.screenshot({ path: `${evidenceDir}/recipient-invitation-mobile.png`, fullPage: true })
+  log('passed')
+  phase = 'platform-invitation-copy-link-wrong-account'
+  await owner.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await invitationRow(users[3].email).getByRole('button', { name: 'Copy invite link', exact: true }).click()
+  const copiedLink = await owner.evaluate(() => navigator.clipboard.readText())
+  assert.equal(copiedLink, `${base}/invitations/${pending.id}`)
+  await outsider.goto(copiedLink)
+  await expect(outsider.getByRole('heading', { name: 'Use the invited account', exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(outsider.getByRole('button', { name: 'Accept invitation', exact: true })).toHaveCount(0)
+  log('passed')
+  phase = 'platform-invitation-accept-reload-duplicate'
+  const acceptRequestPromise = invitee.waitForRequest(request => request.method() === 'POST' && Boolean(request.headers()['next-action']) && Boolean(request.postData()?.includes(pending.id)))
+  await inbox.getByRole('button', { name: 'Accept', exact: true }).click()
+  const acceptRequest = await acceptRequestPromise
+  await expect(invitee.getByLabel('Current workspace')).toBeVisible({ timeout: 30000 })
+  await expect.poll(async () => (await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[3].id}`).length).toBe(1)
+  await invitee.reload()
+  await expect(invitee.getByLabel('Current workspace')).toBeVisible({ timeout: 30000 })
+  await expect(invitee.getByLabel('Current workspace')).toHaveValue(workspace)
+  const repeated = await invitee.request.post(acceptRequest.url(), { headers: { 'Next-Action': acceptRequest.headers()['next-action'], 'Content-Type': acceptRequest.headers()['content-type'], Origin: base, Accept: 'text/x-component' }, data: acceptRequest.postData() })
+  assert.equal(repeated.status(), 200)
+  assert.match(await repeated.text(), /"success":true/)
+  assert.equal((await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[3].id}`).length, 1)
+  assert.equal((await db`SELECT id FROM activity_events WHERE workspace_id=${workspace} AND entity_id=${pending.id} AND event_type='member-added'`).length, 1)
+  log('passed')
+  phase = 'platform-invitation-focus-refresh-revoke'
+  await outsider.goto(`${base}/dashboard`)
+  const outsiderInbox = outsider.getByRole('region', { name: 'Workspace invitations', exact: true })
+  await expect(outsiderInbox.getByText('No pending invitations.', { exact: true })).toBeVisible({ timeout: 30000 })
+  await invite(users[2].email)
+  const [revoked] = await db`SELECT id FROM workspace_invitations WHERE workspace_id=${workspace} AND invitee_email=${users[2].email} AND status='pending'`
+  assert.ok(revoked)
+  await outsider.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(outsiderInbox.getByRole('button', { name: 'Accept', exact: true })).toBeVisible({ timeout: 30000 })
+  await invitationRow(users[2].email).getByRole('button', { name: 'Revoke', exact: true }).click()
+  await expect.poll(async () => (await db`SELECT status FROM workspace_invitations WHERE id=${revoked.id}`)[0]?.status).toBe('revoked')
+  await outsider.goto(`${base}/invitations/${revoked.id}`)
+  await expect(outsider.getByRole('heading', { name: 'Invitation unavailable', exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(outsider.getByRole('button', { name: 'Accept invitation', exact: true })).toHaveCount(0)
+  assert.equal((await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[2].id}`).length, 0)
+  assert.equal((await outsider.request.get(`${base}/api/usage?workspaceId=${workspace}`)).status(), 403)
+  log({ accepted: true, duplicateAcceptIdempotent: true, copiedLinkRecipientBound: true, revokedLinkBlocked: true, screenshots: evidenceDir })
+  await board(owner)
   phase = 'signed-desktop-accessibility-layout'
   await layout(owner); log('passed')
   phase = 'signed-mobile-accessibility-layout-keyboard'
@@ -183,7 +253,10 @@ try {
   for (let i = 0; i < fixtures.length; i++) await expect(history.getByText(new RegExp(`acceptance event ${i}$`, 'i'))).toBeVisible()
   await expect(history.getByRole('button', { name: 'Load older activity', exact: true })).toHaveCount(0)
   log('passed')
-} catch {
+} catch (error) {
+  let reason = error instanceof Error ? error.message : 'Unknown acceptance failure'
+  for (const user of users) reason = reason.replaceAll(user.password, '[fixture password]').replaceAll(user.email, '[fixture email]')
+  console.log(JSON.stringify({ phase, errorType: error?.name, reason: reason.slice(0, 1600) }))
   if (phase === 'isolated-next-server') console.log(JSON.stringify({ phase, startupStatus, childExit: server?.exitCode,
     addressInUse: serverOutput.includes('EADDRINUSE'), lockConflict: serverOutput.includes('Unable to acquire lock'),
     environmentError: serverOutput.includes('Environment configuration error'), buildError: serverOutput.includes('Build Error'),

@@ -1,6 +1,6 @@
 # Demo rehearsal — 2026-10-23
 
-Status updated October 24: hosted collaboration and live AI rehearsal passed on `09ce3185e76901ce65a73e73b9e0306acdc9d338`. Email signup callback acceptance and performance acceptance remain separate gates.
+Status updated October 24: hosted collaboration and live AI rehearsal passed on `09ce3185e76901ce65a73e73b9e0306acdc9d338`; prompt email signup confirmation subsequently passed on the current preview. Performance acceptance remains failed.
 
 ## Demo environment
 
@@ -18,7 +18,8 @@ Status updated October 24: hosted collaboration and live AI rehearsal passed on 
 - The retained owned fixture is presentation data, not customer data. Local screenshots and sanitized session evidence remain in ignored `.local-test/completion-20261021/`; no credentials or verification links belong in tracked evidence.
 - Fresh account email verification reached the stable preview callback, but the delayed signup callback failed. The confirmed account subsequently signed in normally; a fresh recovery callback using its original PKCE cookiejar reached `/reset-password` with the correct authenticated identity. A password change was not performed.
 - One prompt fresh signup attempt then hit Supabase HTTP 429 `over_email_send_rate_limit`, confirmed through scoped safe Auth log fields. No confirmation email arrived and no retries were made. Automatic signup acceptance remains open; successful recovery does not prove that separate journey.
-- Invitation acceptance works through the copied invite link. Resend rejects delivery to arbitrary recipients while `EMAIL_FROM` uses `onboarding@resend.dev`: a verified sender domain is still required.
+- Follow-up after cooldown: one fresh normal signup, targeted confirmation email, original PKCE cookiejar, callback, dashboard HTTP 200 and persistent authenticated identity all passed. Scoped provider logs identified the earlier callback failure as `flow_state_expired`. This closes the normal HTTP signup journey; it does not claim a fresh-account browser visual rehearsal or remove provider email-send limits.
+- Invitation acceptance works through the copied invite link. The October 24 scope change removes invitation email delivery: owners share recipient-bound links, and registered recipients use their in-app inbox. A sender domain is no longer an invitation requirement. Supabase account verification and password recovery remain separate.
 - CI for the rehearsed head passed type checking, lint, unit/database/browser checks and production build: https://github.com/Falcon-J/saathi/actions/runs/39997969370.
 
 ## Five-minute story

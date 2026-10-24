@@ -64,7 +64,7 @@ Saathi is intentionally a modular monolith: one Next.js deployment with explicit
 | Work | `app/tasks/actions.ts`, `hooks/use-workspaces.ts` | Task records, permissions, optimistic board state |
 | Realtime | `lib/realtime.ts`, `app/api/realtime/route.ts` | Redis Streams, SSE delivery, presence |
 | Activity | `lib/data/events.ts` | Durable activity facts and outbox publication |
-| Invitations | `lib/data/invitations.ts`, `lib/email-delivery.ts` | Invitation lifecycle and bounded email delivery |
+| Invitations | `lib/data/invitations.ts` | Recipient-bound join links and an in-app invitation inbox |
 | Migration | `drizzle/`, `scripts/migrate-database.mjs`, `lib/csv.ts` | Schema migrations and bounded CSV task import |
 
 CSV task imports accept `title`, `description`, `priority`, `dueDate`, `dueAt`, `estimatedMinutes`, and `assigneeEmail`. `dueDate` remains supported for date-only tasks; `dueAt` is an ISO timestamp for a specific time.
@@ -177,10 +177,8 @@ CRON_SECRET=long-random-scheduler-secret
 # Local-only migration identity (keep separate from DATABASE_URL)
 DATABASE_MIGRATION_URL=postgresql://migration-role:password@host:5432/postgres
 
-# Public callback origin and invitation email delivery
+# Public callback and invitation-link origin
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-RESEND_API_KEY=your-resend-key
-EMAIL_FROM=Saathi <noreply@your-domain.com>
 
 # Optional AI workspace assistant — keep disabled until configured and verified
 NEXT_PUBLIC_ENABLE_AI_WORKSPACE=false
@@ -188,7 +186,7 @@ GROQ_API_KEY=your-server-only-groq-key
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Use the values in `.env.example`; keep database, auth, Resend, and scheduler credentials server-side.
+Use the values in `.env.example`; keep database, auth, and scheduler credentials server-side. Invitations appear in the recipient's Saathi inbox; owners can also copy a join link. Links require the invited account, expire after seven days and can be revoked. No invitation-mail provider or sending domain is required. Supabase Auth still handles account verification and recovery.
 
 ---
 
@@ -199,7 +197,7 @@ Use the values in `.env.example`; keep database, auth, Resend, and scheduler cre
 git push origin main
 
 # 2. Import at vercel.com/new
-# 3. Add Supabase, PostgreSQL, Redis, email, and scheduler environment variables
+# 3. Add Supabase, PostgreSQL, Redis, and scheduler environment variables
 # 4. Optionally add the Groq variables and enable the AI feature flag
 # 5. Deploy
 ```

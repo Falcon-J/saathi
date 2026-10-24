@@ -21,7 +21,6 @@ Signatures below are condensed for learning, not a generated OpenAPI description
 | `GET /api/realtime` | Workspace query + session + optional Last-Event-ID → SSE | Auth/member; connection and attempt admission | [Realtime route](../../app/api/realtime/route.ts) |
 | `GET /api/usage` | Workspace query → cumulative usage JSON | Auth/member; private, no-store | [Usage route](../../app/api/usage/route.ts) |
 | `POST /api/internal/outbox` | Bearer worker secret → delivery/cleanup outcome | Operator-only; missing configuration or degraded work fails explicitly | [Worker](../../app/api/internal/outbox/route.ts) |
-| `POST /api/webhooks/email` | Provider payload/signature → processing result | Verify provider signature, not workspace user session | [Webhook](../../app/api/webhooks/email/route.ts) |
 
 Auth callback, login, reset, registration and logout live in [auth-simple](../../lib/auth-simple.ts), [callback](../../app/auth/callback/route.ts), and [proxy](../../proxy.ts). The proxy guards dashboard routing; each resource entry still enforces its own identity and permission.
 

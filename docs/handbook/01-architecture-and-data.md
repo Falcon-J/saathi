@@ -20,7 +20,7 @@ flowchart TD
   B -->|"User confirms through normal command"| A
 ```
 
-This is a modular monolith: one Next.js application with separated responsibilities. External Auth, PostgreSQL, Redis, and email services are dependencies, not evidence that we built microservices. Splitting deployments would add distributed authorization, deployment coordination, and network failure boundaries; we have no measured requirement for that change.
+This is a modular monolith: one Next.js application with separated responsibilities. External Auth, PostgreSQL and Redis are dependencies, not evidence that we built microservices. Invitations use the application's inbox and copyable links; Supabase Auth owns account verification and recovery. Splitting deployments would add distributed authorization, deployment coordination, and network failure boundaries; we have no measured requirement for that change.
 
 ## Who owns a fact?
 

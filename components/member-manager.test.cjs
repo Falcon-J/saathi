@@ -15,6 +15,11 @@ test("owners can recover a pending invitation without relying on email delivery"
   assert.match(source, /Copy invite link/)
   assert.match(source, /navigator\.clipboard\.writeText/)
   assert.match(source, /after they sign up or sign in with that email/)
+  assert.match(source, /invitation\.status.*Expires/)
+  assert.doesNotMatch(source, /deliveryStatus|resendInvitation|Email status|>Resend</)
+  const hook = readFileSync(path.join(__dirname, "../hooks/use-workspaces.ts"), "utf8")
+  assert.match(hook, /success\("Invitation created", "Share the invite link from Team/)
+  assert.doesNotMatch(hook, /deliveryStatus|Email delivery is queued|accepted by the provider/)
 })
 
 
