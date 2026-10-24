@@ -116,7 +116,7 @@ test("accepts unique attention references from the authorized projection", async
   const expected: AdvisorResponse = {
     capability: "identify_attention",
     answer: "Ship the release task next.",
-    attention: [{ taskId: "task-1", reason: "High priority" }],
+    attention: [{ taskId: "task-1", reason: "Ship: High priority" }],
     draft: null,
   }
   const result = await requestWorkspaceAdvisor({
@@ -223,9 +223,9 @@ test("valid attention codes map to public reasons without exposing provider fiel
     }),
   })
   assert.deepEqual(result.attention, [
-    { taskId: "overdue", reason: "Past its deadline" }, { taskId: "undated", reason: "No deadline" },
-    { taskId: "today", reason: "Due today" }, { taskId: "future", reason: "Upcoming deadline" },
-    { taskId: "progress", reason: "Work in progress" },
+    { taskId: "overdue", reason: "Ship: Past its deadline" }, { taskId: "undated", reason: "Ship: No deadline" },
+    { taskId: "today", reason: "Ship: Due today" }, { taskId: "future", reason: "Ship: Upcoming deadline" },
+    { taskId: "progress", reason: "Ship: Work in progress" },
   ])
 })
 

@@ -177,7 +177,7 @@ export async function requestWorkspaceAdvisor({
       overdue: "Past its deadline", no_deadline: "No deadline", high_priority: "High priority",
       in_progress: "Work in progress", due_today: "Due today", upcoming: "Upcoming deadline",
     }
-    return { taskId: item.taskId, reason: reasons[item.reasonCode] }
+    return { taskId: item.taskId, reason: `${task.title}: ${reasons[item.reasonCode]}` }
   })
 
   return parseAdvisorResponse({
