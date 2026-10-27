@@ -26,21 +26,21 @@ const calendarDate = (value: Date | string | null | undefined) => {
 }
 type Db = ReturnType<typeof getDb> | Transaction
 
-async function projectTask(db: Db, id: string): Promise<Task> {
+export async function projectTask(db: Db, id: string): Promise<Task> {
   const [row] = await db`SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
     FROM tasks t JOIN auth.users creator ON creator.id = t.created_by_user_id
     LEFT JOIN auth.users assignee ON assignee.id = t.assignee_user_id WHERE t.id = ${id}`
   if (!row) throw new TaskError("Task not found", "not_found")
   return mapTask(row)
 }
-function mapTask(row: Row): Task {
+export function mapTask(row: Row): Task {
   return { id: row.id, workspaceId: row.workspace_id, title: row.title, description: row.description ?? undefined,
     status: row.status === "in_progress" ? "in-progress" : row.status, completed: row.status === "done",
     dueDate: calendarDate(row.due_date), priority: row.priority, bucket: row.bucket ?? undefined, dueAt: row.due_at ? iso(row.due_at) : undefined,
     estimatedMinutes: row.estimated_minutes ?? undefined, assigneeEmail: row.assignee_email ?? undefined,
     createdBy: row.creator_email, createdAt: iso(row.created_at), updatedAt: iso(row.updated_at), version: row.version }
 }
-async function lockWorkspace(tx: Transaction, workspaceId: string, actorId: string) {
+export async function lockWorkspace(tx: Transaction, workspaceId: string, actorId: string) {
   const [workspace] = await tx`SELECT * FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`
   const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id = ${workspaceId} AND user_id = ${actorId}`
   if (!workspace || !member || workspace.archived_at) throw new TaskError("Workspace unavailable or access denied", "forbidden")
@@ -158,6 +158,8 @@ export async function changeTaskRecord(actorId: string, id: string, action: "edi
     if (!matchesTaskVersion(row.version, iso(row.updated_at), expected)) throw new TaskError("Task changed by another teammate. Refresh before saving.", "conflict")
     const old = await projectTask(tx,id)
     if (action === "delete") {
+      const [dependency] = await tx`SELECT dependent_task_id FROM task_dependencies WHERE workspace_id=${row.workspace_id} AND prerequisite_task_id=${id} LIMIT 1`
+      if (dependency) throw new TaskError("Other tasks depend on this task. Remove their prerequisite links before deleting it.", "conflict")
       await tx`DELETE FROM tasks WHERE id=${id} AND version=${row.version}`
       await appendDomainEvent(tx,{workspaceId:row.workspace_id,actorUserId:actorId,type:"task-deleted",entityType:"task",entityId:id,payload:{taskId:id}})
       return old

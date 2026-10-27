@@ -44,6 +44,21 @@ export const tasks = pgTable("tasks", {
   check("tasks_estimated_minutes_check", sql`${t.estimatedMinutes} BETWEEN 1 AND 1440`), check("tasks_version_check", sql`${t.version} > 0`),
   check("task_deadline_exclusive", sql`${t.dueDate} IS NULL OR ${t.dueAt} IS NULL`),
   index("tasks_workspace_idx").on(t.workspaceId, t.createdAt),
+  uniqueIndex("tasks_workspace_id_unique").on(t.workspaceId, t.id),
+])
+
+export const taskDependencies = pgTable("task_dependencies", {
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  dependentTaskId: uuid("dependent_task_id").notNull(),
+  prerequisiteTaskId: uuid("prerequisite_task_id").notNull(),
+  createdByUserId: uuid("created_by_user_id").notNull().references(() => profiles.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  primaryKey({ columns: [t.workspaceId, t.dependentTaskId, t.prerequisiteTaskId] }),
+  foreignKey({ columns: [t.workspaceId, t.dependentTaskId], foreignColumns: [tasks.workspaceId, tasks.id] }).onDelete("cascade"),
+  foreignKey({ columns: [t.workspaceId, t.prerequisiteTaskId], foreignColumns: [tasks.workspaceId, tasks.id] }).onDelete("cascade"),
+  check("task_dependencies_not_self", sql`${t.dependentTaskId} <> ${t.prerequisiteTaskId}`),
+  index("task_dependencies_prerequisite_idx").on(t.workspaceId, t.prerequisiteTaskId),
 ])
 
 export const taskComments = pgTable("task_comments", {
@@ -95,4 +110,4 @@ export const commandReceipts = pgTable("command_receipts", {
   requestHash: text("request_hash").notNull(), result: jsonb("result").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.workspaceId, t.actorUserId, t.commandId] }),
-  check("command_receipts_command_type_check", sql`${t.commandType} IN ('task-create','comment-create')`)])
+  check("command_receipts_command_type_check", sql`${t.commandType} IN ('task-create','comment-create','dependency-add','dependency-remove')`)])

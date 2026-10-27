@@ -40,10 +40,38 @@ function harness(onConfirmDraft, askWorkspaceAdvisor = async () => ({ response: 
   return {
     render() { cursor = 0; tree = exports.WorkspaceAdvisor({ workspaceId: 'workspace', onConfirmDraft }) },
     button(label) { return nodes(tree).find(node => node.type === 'Button' && JSON.stringify(node.props.children).includes(label)) },
+    textarea() { return nodes(tree).find(node => node.type === 'Textarea') },
     text() { return JSON.stringify(tree) },
   }
 }
 const tick = () => new Promise(resolve => setImmediate(resolve))
+
+test('Send submits the typed question once and preserves input after failure', async () => {
+  const calls = []; let finish
+  const ui = harness(async () => ({}), (...args) => { calls.push(args); return new Promise(resolve => { finish = resolve }) })
+  ui.render()
+  assert.ok(ui.button('Send'))
+  ui.textarea().props.onChange({ target: { value: '  ' } }); ui.render()
+  assert.equal(ui.button('Send').props.disabled, true)
+  ui.button('Send').props.onClick()
+  assert.equal(calls.length, 0)
+  ui.textarea().props.onChange({ target: { value: 'What is overdue?' } }); ui.render()
+  const send = ui.button('Send').props.onClick; send(); send(); ui.render()
+  assert.deepEqual(calls, [['workspace', 'identify_attention', 'What is overdue?']])
+  assert.equal(ui.button('Send').props.disabled, true)
+  finish({ error: 'Unavailable' }); await tick(); ui.render()
+  assert.equal(ui.textarea().props.value, 'What is overdue?')
+  assert.equal(ui.button('Send').props.disabled, false)
+})
+
+test('Send retains the last selected capability', async () => {
+  const calls = []
+  const ui = harness(async () => ({}), async (...args) => { calls.push(args); return { error: 'Unavailable' } })
+  ui.render(); ui.button('Draft a task').props.onClick(); await tick(); ui.render()
+  assert.match(JSON.stringify(ui.button('Send').props.children), /Draft a task/)
+  ui.button('Send').props.onClick(); await tick()
+  assert.deepEqual(calls.map(call => call[1]), ['draft_task', 'draft_task'])
+})
 
 test('replacement advice removes old proposals immediately and keeps them gone after failure', async () => {
   for (const throws of [false, true]) {
