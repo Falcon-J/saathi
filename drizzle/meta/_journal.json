@@ -57,6 +57,13 @@
       "when": 1791072000000,
       "tag": "0007_command_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793059200000,
+      "tag": "0008_task_dependencies",
+      "breakpoints": true
     }
   ]
 }

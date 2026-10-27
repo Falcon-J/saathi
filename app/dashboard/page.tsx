@@ -23,6 +23,7 @@ import { getDashboardState } from "@/lib/dashboard-state"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
 import { WorkspaceCreateForm } from "@/components/workspace-create-form"
 import { WorkspaceOverview } from "@/components/workspace-overview"
+import { NextWorkView } from "@/components/next-work-view"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -433,6 +434,7 @@ export default function Dashboard() {
                   <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Team members</CardTitle><CardDescription>Invite people and manage access to this workspace.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /></CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (
                   <>
+                  <NextWorkView key={`next-work-${currentWorkspace.id}`} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} taskRevision={tasks.map(task => `${task.id}:${task.version ?? task.updatedAt}`).join("|")} connected={realtime.isConnected} onOpenTask={handleOpenTask} onChanged={refreshTasks} />
                   {taskError && (
                     <section className="rounded-xl border border-border bg-card p-8 text-center" role="alert">
                       <p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p>
