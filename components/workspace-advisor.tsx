@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { AlertTriangle, CheckCircle2, ListChecks, Sparkles } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ListChecks, Send, Sparkles } from "lucide-react"
 import { askWorkspaceAdvisor, type WorkspaceAdvisorConfirmationResult } from "@/app/actions/workspace-advisor"
 import type { AdvisorResponse, AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +33,7 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
   const [question, setQuestion] = useState("What should we focus on next?")
   const [response, setResponse] = useState<AdvisorResponse | null>(null)
   const [pending, setPending] = useState<Capability | null>(null)
+  const [capability, setCapability] = useState<Capability>("identify_attention")
   const [creating, setCreating] = useState(false)
   const [confirmationUncertain, setConfirmationUncertain] = useState(false)
   const confirming = useRef(false)
@@ -43,7 +44,8 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null)
 
   const ask = async (capability: Capability) => {
-    if (requesting.current || confirming.current || unresolvedConfirmation.current) return
+    if (!question.trim() || requesting.current || confirming.current || unresolvedConfirmation.current) return
+    setCapability(capability)
     requesting.current = true
     setPending(capability)
     setResponse(null)
@@ -99,8 +101,11 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
       <CardHeader className="gap-3 px-0 pt-0 pb-4">
         <Textarea value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} disabled={pending !== null || creating || confirmationUncertain} aria-label="Advisor question" placeholder="Ask about this workspace" className="min-h-20 bg-card" />
         <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" onClick={() => void ask(capability)} disabled={!question.trim() || pending !== null || creating || confirmationUncertain}>
+            <Send className="size-3.5" />{pending !== null ? "Sending…" : `Send: ${capabilities.find(item => item.value === capability)?.label}`}
+          </Button>
           {capabilities.map(({ value, label, icon: Icon }) => (
-            <Button key={value} type="button" variant="outline" size="sm" onClick={() => void ask(value)} disabled={pending !== null || creating || confirmationUncertain} className="bg-card">
+            <Button key={value} type="button" variant="outline" size="sm" onClick={() => void ask(value)} disabled={!question.trim() || pending !== null || creating || confirmationUncertain} className="bg-card">
               <Icon className="size-3.5" />{pending === value ? "Thinking…" : label}
             </Button>
           ))}
