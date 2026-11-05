@@ -28,10 +28,12 @@ const dependencies = {
   "@/components/ui/label": { Label: "Label" },
   "@/hooks/usePermissions": { useTaskPermissions: () => ({ canEdit: true, canDelete: true, canToggle: true, canAssign: true }) },
   "@/lib/mutation-result": { getMutationError: result => result?.error },
-  "@/lib/task-draft": { buildTaskUpdate: (task, draft) => draft.title === task.draft.title ? {} : { title: draft.title }, toTaskEditorDraft: task => task.draft },
-  "@/lib/task-time": { formatTaskCreatedAt: () => "", formatTaskDue: () => "" },
+  "@/lib/task-draft": { buildTaskUpdate: (task, draft) => draft.title === task.draft.title ? {} : { title: draft.title }, toTaskEditorDraft: task => ({ ...task.draft }) },
+  '@/lib/draft-storage': { readDraft: () => null, writeDraft() {}, removeDraft() {}, isDraftRecord: value => Boolean(value && typeof value === 'object') }, "@/lib/task-time": { formatTaskCreatedAt: () => "", formatTaskDue: () => "" },
+  "@/app/tasks/actions": { getTaskById: async () => ({ task: latestTask }) },
   "@/components/task-comments": { TaskComments: "TaskComments" },
 }
+let latestTask = null
 const moduleExports = {}
 const source = ts.transpileModule(fs.readFileSync("components/task-list.tsx", "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -48,7 +50,7 @@ const render = (canEdit, error, overrides = {}) => {
   stateIndex = 0
   return moduleExports.TaskEditorDialog({
     task: { id: "task", draft: { ...draft, title: "Original title" } }, draft, canEdit, canComment: false, error, isSaving: false, members: [],
-    onDraftChange() {}, onClose() {}, onSubmit() {}, ...overrides,
+    onDraftChange() {}, onClose() {}, onSubmit() {}, async onReviewLatest() {}, ...overrides,
   })
 }
 
@@ -57,7 +59,8 @@ test("task editor announces a conflict and preserves draft fields for recovery",
   const parts = nodes(tree)
   const alert = parts.find(node => node.props?.role === "alert")
   assert.ok(alert)
-  assert.match(text(alert), /copy your draft.*reopen the task.*latest details/i)
+  assert.doesNotMatch(text(alert), /copy your draft/i)
+  assert.ok(parts.some(node => node.type === "Button" && text(node) === "Review latest task"))
   assert.equal(parts.find(node => node.type === "Input" && node.props.id === "task-edit-title").props.value, draft.title)
   assert.equal(parts.find(node => node.type === "Textarea").props.value, draft.description)
   assert.ok(parts.some(node => node.type === "Button" && text(node) === "Save changes"))
@@ -157,3 +160,46 @@ for (const outcome of ["success", "conflict"]) {
     assert.equal(editor.props.isSaving, false)
   })
 }
+
+
+test("task conflict review retains draft until explicit rebase and merges untouched fields", async () => {
+  const original = { id: "task", workspaceId: "workspace", draft: { ...draft, title: "Original title" }, version: 4 }
+  latestTask = { ...original, draft: { ...original.draft, description: "Remote description" }, version: 5 }
+  state = [original, draft, "Task changed", null, null, "", null, "all", "all"]
+  const saves=[]
+  const draw=()=>{stateIndex=0;return nodes(moduleExports.TaskList({tasks:[],loading:false,members:[],currentUserEmail:"owner",workspaceOwnerId:"owner",timeZone:"UTC",onEditTask:async(...args)=>{saves.push(args);return {success:true}}})).find(n=>n.type===moduleExports.TaskEditorDialog)}
+  assert.equal(typeof draw().props.onReviewLatest,"function")
+  await draw().props.onReviewLatest()
+  assert.equal(draw().props.draft.title,draft.title)
+  assert.equal(draw().props.task.version,4)
+  assert.equal(draw().props.latestTask.version,5)
+  draw().props.onKeepDraft()
+  assert.equal(draw().props.draft.description,"Remote description")
+  assert.equal(draw().props.draft.title,draft.title)
+  await draw().props.onSubmit({preventDefault(){}})
+  assert.ok(saves.length, JSON.stringify(draw().props))
+  assert.equal(saves[0][2],5)
+})
+
+
+
+test('Board reports combined editor and quick-add dirty state without false resets', () => {
+  const original = { id: 'task', draft: { ...draft, title: 'Original title' }, version: 4 }
+  state = [original, draft, null, null, null, '', null, 'all', 'all']
+  const dirty=[]
+  const oldEffect=dependencies.react.useEffect
+  dependencies.react.useEffect=fn=>fn()
+  try {
+    const draw=()=>{stateIndex=0;return nodes(moduleExports.TaskList({tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',onDirtyChange:value=>dirty.push(value)}))}
+    let rows=draw()
+    assert.equal(dirty.at(-1),true)
+    rows.find(n=>n.type==='TaskQuickAdd').props.onDirtyChange(true)
+    rows=draw()
+    rows.find(n=>n.type==='TaskQuickAdd').props.onDirtyChange(false)
+    draw()
+    assert.equal(dirty.at(-1),true,'clearing quick add cannot clear a dirty editor')
+    state[1]={...original.draft}
+    draw()
+    assert.equal(dirty.at(-1),false)
+  } finally { dependencies.react.useEffect=oldEffect }
+})

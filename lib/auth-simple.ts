@@ -37,6 +37,7 @@ export async function login(email: string, password: string): Promise<AuthResult
   try {
     const client = await createClient()
     const { data, error } = await client.auth.signInWithPassword({ email: normalizedEmail, password })
+    if (error && (!error.status || error.status === 429 || error.status >= 500)) return unavailable
     if (error || !data.user?.email_confirmed_at) return { error: 'Unable to sign in. Check your email and password, and verify your email before signing in.' }
     return { success: true }
   } catch { return unavailable }

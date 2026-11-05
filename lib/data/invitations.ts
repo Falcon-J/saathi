@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { getDb, type Transaction } from "../db/client.ts"
-import { appendDomainEvent, flushOutbox } from "./events.ts"
+import { appendDomainEvent } from "./events.ts"
 import type { InvitationStatus } from "../invitation-domain.ts"
 
 export class InvitationError extends Error {}
@@ -23,7 +23,8 @@ async function projection(tx:Transaction,id:string):Promise<Invitation> {
     inviteeEmail:r.invitee_email,status:r.status === "pending" && new Date(r.expires_at).getTime()<=Date.now()?"expired":r.status,
     createdAt:iso(r.created_at),expiresAt:iso(r.expires_at)}
 }
-export async function createInvitationRecord(actor:Actor,workspaceId:string,email:string):Promise<Invitation> {
+export async function createInvitationRecord(actor:Actor,workspaceId:string,email:string,beforeCreate?:(recipient:string)=>Promise<void>):Promise<Invitation> {
+  if(!z.string().uuid().safeParse(workspaceId).success)throw new InvitationError("Invalid workspace identifier")
   const parsed=z.string().trim().email().max(255).safeParse(email)
   if(!parsed.success)throw new InvitationError("Enter a valid email address")
   const recipient=parsed.data.toLowerCase()
@@ -36,6 +37,9 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
     await tx`UPDATE workspace_invitations SET status='expired',updated_at=now() WHERE workspace_id=${workspaceId} AND invitee_email=${recipient} AND status='pending' AND expires_at<=now()`
     const [existing]=await tx`SELECT id FROM workspace_invitations WHERE workspace_id=${workspaceId} AND invitee_email=${recipient} AND status='pending'`
     if(existing)return projection(tx,existing.id)
+    // Charge shared admission only for a validated, authorized new invitation.
+    // The workspace lock remains held, so ownership cannot change before insertion.
+    await beforeCreate?.(recipient)
     const id=randomUUID()
     await tx`INSERT INTO workspace_invitations(id,workspace_id,inviter_user_id,invitee_email,expires_at) VALUES(${id},${workspaceId},${actor.id},${recipient},now()+interval '7 days')`
     await appendDomainEvent(tx,{workspaceId,actorUserId:actor.id,type:"invitation-updated",entityType:"invitation",entityId:id,metadata:{action:"invitation_created"}})
@@ -65,8 +69,8 @@ export async function readInvitationPreview(id:string):Promise<InvitationPreview
     WHERE i.id=${id} AND i.status='pending' AND i.expires_at>now() AND w.archived_at IS NULL`
   return row?{id:row.id,workspaceName:row.workspace_name,inviterUsername:row.inviter_username,status:"pending",expiresAt:iso(row.expires_at)}:null
 }
-export async function respondToInvitation(actor:Actor,id:string,action:"accepted"|"declined"|"revoked"):Promise<void> {
-  const workspaceId=await getDb().begin(async tx=>{
+export async function respondToInvitation(actor:Actor,id:string,action:"accepted"|"declined"|"revoked"):Promise<string> {
+  return getDb().begin(async tx=>{
     const [location]=await tx`SELECT workspace_id FROM workspace_invitations WHERE id=${id}`
     if(!location)throw new InvitationError("Invitation unavailable")
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${location.workspace_id} FOR UPDATE`
@@ -87,5 +91,4 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
     }
     return w.id as string
   })
-  await flushOutbox(workspaceId)
 }

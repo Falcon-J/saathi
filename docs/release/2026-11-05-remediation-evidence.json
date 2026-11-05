@@ -1,0 +1,175 @@
+{
+  "recordedAt": "2026-11-05T16:42:04.466Z",
+  "scope": "Local working-tree remediation; not a deployment or unrestricted-release approval",
+  "branch": "codex/review-remediation",
+  "baseRevision": "41ef5c34b83fef7c6da2a04bf385a0b39f01dd3a",
+  "applicationFingerprint": {
+    "algorithm": "SHA-256 of sorted path, NUL, file bytes, NUL",
+    "sha256": "acaf5d5c965c27a4165fd71fde7efe7ec43732da891a6529aedafc6e6809ebf2",
+    "files": 375,
+    "included": "app/components/hooks/lib/scripts/drizzle/migrations/styles/public plus package manifests, Next config and tsconfig; tracked and untracked nonignored files; excludes reports"
+  },
+  "verification": {
+    "cleanInstall": {
+      "passed": true,
+      "packages": 698,
+      "hostOsOverride": "win32"
+    },
+    "unit": {
+      "passed": true,
+      "total": 482,
+      "passedTests": 480,
+      "skipped": 2,
+      "failed": 0
+    },
+    "lint": {
+      "passed": true
+    },
+    "typecheck": {
+      "passed": true
+    },
+    "productionBuild": {
+      "passed": true,
+      "staticPages": 12,
+      "workers": 1
+    },
+    "sql": {
+      "passed": true,
+      "passedTests": 55,
+      "skipped": 0,
+      "failed": 0
+    },
+    "dependencyAudit": {
+      "allVulnerabilities": 0,
+      "productionVulnerabilities": 0
+    },
+    "corePersonas": {
+      "passed": true,
+      "cleanup": "passed",
+      "runtime": "production",
+      "services": "real isolated local Auth/PostgreSQL/Redis"
+    },
+    "publicBrowser": {
+      "passed": true,
+      "passedTests": 14,
+      "failed": 0,
+      "viewports": [
+        "desktop",
+        "360px mobile"
+      ]
+    },
+    "settingsConflict": {
+      "passed": true,
+      "rejectedStaleVersion": 1,
+      "remoteVersion": 2,
+      "recoveredVersion": 3,
+      "untouchedRemoteFieldPreserved": true
+    },
+    "redis": {
+      "passed": true,
+      "atomicCounterAndExpiry": true,
+      "outageRecovery": true,
+      "adapterDeliveries": 600,
+      "expectedAdapterDeliveries": 600,
+      "adapterP95Ms": 2485,
+      "scope": "adapter fanout; not authenticated HTTP SSE capacity"
+    },
+    "sseLeases": {
+      "passed": true,
+      "attempts": 200,
+      "admitted": 5,
+      "rejected": 195,
+      "admissionP95Ms": 295
+    },
+    "memberRevocation": {
+      "scope": "local production membership revocation",
+      "runId": "292ac8f4-a650-4740-93b9-ee7d288a6247",
+      "passed": true,
+      "phases": [
+        {
+          "phase": "real-auth-fixtures",
+          "result": "passed"
+        },
+        {
+          "phase": "production-server",
+          "result": "passed"
+        },
+        {
+          "phase": "authorized-member-stream",
+          "result": "passed"
+        },
+        {
+          "phase": "owner-removal-action",
+          "result": "passed"
+        },
+        {
+          "phase": "existing-stream-revocation",
+          "result": "passed",
+          "elapsedMs": 2312,
+          "controlErrors": 0
+        },
+        {
+          "phase": "subsequent-authorization",
+          "result": "passed"
+        }
+      ],
+      "manifestSha256": "1c89961740001568e009a74d507808aea6e1ce8acca2f00b07393e93152ee985",
+      "cleanup": "passed"
+    },
+    "extendedNavigation": {
+      "status": "passed",
+      "settingsConflictAndRecovery": true,
+      "quickAddDraftReloadAndDiscard": true,
+      "browserHistory": true,
+      "workspaceSelectionAndScope": true,
+      "mobileNestedBounds": true,
+      "accessibilityAndFocus": true,
+      "focusedComponentTestsPassed": 13
+    },
+    "separateDatabaseIntegrations": {
+      "status": "passed",
+      "suites": 2,
+      "passedTests": 6,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Includes both integration cases skipped by the ordinary unit command; other tests in these files overlap the unit suite"
+    },
+    "sustainedCapacity": {
+      "passed": false,
+      "status": "not qualified",
+      "smoke": "benchmarks/2026-11-05-local-nfr-smoke.json",
+      "diagnostic": "benchmarks/2026-11-05-local-nfr-diagnostic.json",
+      "smokeRetry": "benchmarks/2026-11-05-local-nfr-smoke-retry.json",
+      "smokeRetryWrites": 8,
+      "smokeRetryDeliveries": 16,
+      "smokeRetryReadP95Ms": 4700,
+      "smokeRetryDeliveryUpperBoundP95Ms": 4845,
+      "phaseProfile": "benchmarks/2026-11-05-local-nfr-phase-profile.json",
+      "phaseObservations": "benchmarks/2026-11-05-server-phase-observations.json",
+      "phaseProfileWrites": 8,
+      "phaseProfileDeliveries": 16,
+      "phaseProfileReadP95Ms": 1214,
+      "phaseProfileDeliveryUpperBoundP95Ms": 1255,
+      "taskReadTargetP95Ms": 750,
+      "deliveryTargetP95Ms": 2000,
+      "thresholdsUnchanged": true
+    }
+  },
+  "cleanup": {
+    "fixturesRemoved": true,
+    "testServicesStopped": true,
+    "supabaseVolumePreserved": true,
+    "portsWithoutListeners": [
+      3101,
+      56321,
+      56322,
+      56379,
+      55439
+    ]
+  },
+  "limitations": [
+    "No production deployment or hosted-data mutation",
+    "External OAuth/email/AI provider acceptance not performed",
+    "Hosted recovery, alerts and sustained capacity need environment-specific evidence"
+  ]
+}

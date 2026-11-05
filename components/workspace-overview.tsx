@@ -15,6 +15,9 @@ type WorkspaceOverviewProps = {
   currentUserEmail: string
   tasks: Task[]
   loading: boolean
+  error?: string | null
+  onDirtyChange?: (dirty: boolean) => void
+  draftScope?: string
   onToggleTask: (taskId: string) => Promise<unknown>
   onOpenTask: (taskId: string) => void
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
@@ -75,7 +78,7 @@ function TaskSection({ title, tasks, timeZone, workspace, currentUserEmail, empt
   )
 }
 
-export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, error, onDirtyChange, draftScope, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone), workspace.timezone)
   return (
     <section id="project-board" aria-busy={loading} className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
@@ -88,19 +91,21 @@ export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading,
             </div>
             {title && workspace.summary && <p className="mt-2 max-w-2xl text-base leading-6 text-foreground">{workspace.summary}</p>}
           </div>
-          {!loading && <div className="w-full max-w-48">
+          {!loading && !error && <div className="w-full max-w-48">
             <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{groups.completed.length} of {tasks.length} complete</span><span className="tabular-nums">{groups.completion}%</span></div>
             <Progress value={groups.completion} aria-label="Task completion" className="h-2" />
           </div>}
         </div>
       </header>
       <div className="space-y-5 px-4 py-4 sm:px-6">
-        <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
+        <TaskQuickAdd draftScope={draftScope} onDirtyChange={onDirtyChange} onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
         {loading ? (
           <div role="status" className="space-y-3">
             <span className="sr-only">Loading tasks…</span>
             {[1, 2, 3].map((item) => <div key={item} aria-hidden="true" className="h-14 animate-pulse rounded-lg bg-secondary" />)}
           </div>
+        ) : error ? (
+          <p role="status" className="text-sm text-muted-foreground">Task progress is unavailable until tasks are loaded successfully.</p>
         ) : (
           <>
             {groups.overdue.length > 0 && <TaskSection title="Overdue" tasks={groups.overdue} timeZone={workspace.timezone} workspace={workspace} currentUserEmail={currentUserEmail} empty="No overdue work." onToggleTask={onToggleTask} onOpenTask={onOpenTask} />}

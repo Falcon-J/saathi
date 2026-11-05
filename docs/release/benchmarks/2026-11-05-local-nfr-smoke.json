@@ -1,0 +1,180 @@
+{
+  "passed": false,
+  "mode": "smoke",
+  "scope": "SMOKE ONLY",
+  "runId": "29af4d3f-e58e-44cf-bb41-5b71792d5ee6",
+  "phase": "bounded-delivery-drain",
+  "failure": "Local fixture or transport failed; inspect phase and scoped server log",
+  "envelope": {
+    "users": 8,
+    "members": 2,
+    "writes": 8,
+    "seconds": 8,
+    "seed": 2
+  },
+  "attempts": 48,
+  "readAttempts": 32,
+  "streamAttempts": 8,
+  "successfulMutations": 0,
+  "deliveries": {
+    "expected": 16,
+    "observed": 0,
+    "missing": 16,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [
+    {
+      "phase": "read",
+      "actorSlot": 0,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 0
+    },
+    {
+      "phase": "read",
+      "actorSlot": 2,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 1
+    },
+    {
+      "phase": "read",
+      "actorSlot": 3,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 4,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 6,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 7,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 5,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 1,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 3
+    },
+    {
+      "phase": "write",
+      "index": 2
+    },
+    {
+      "phase": "write",
+      "index": 4
+    },
+    {
+      "phase": "write",
+      "index": 6
+    },
+    {
+      "phase": "write",
+      "index": 5
+    },
+    {
+      "phase": "write",
+      "index": 7
+    }
+  ],
+  "timings": {
+    "warmRead": {
+      "count": 16,
+      "p50Ms": 8943,
+      "p95Ms": 10921,
+      "p99Ms": 10921
+    },
+    "read": {
+      "count": 16,
+      "p50Ms": 12011,
+      "p95Ms": 14995,
+      "p99Ms": 14995
+    },
+    "write": {
+      "count": 8,
+      "p50Ms": 11854,
+      "p95Ms": 14228,
+      "p99Ms": 14228
+    },
+    "admission": {
+      "count": 8,
+      "p50Ms": 15916,
+      "p95Ms": 16087,
+      "p99Ms": 16087
+    },
+    "deliveryUpperBound": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "scheduleLag": {
+      "count": 8,
+      "p50Ms": 9,
+      "p95Ms": 25,
+      "p99Ms": 25
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 1817,
+    "meanMs": 30.670852508530547,
+    "maxMs": 103.546879,
+    "p95Ms": 47.546367,
+    "p99Ms": 67.239935
+  },
+  "workload": {
+    "elapsedMs": 25642,
+    "intendedWriteRatePerSecond": 1,
+    "attemptedWrites": 8,
+    "achievedWriteRatePerSecond": 0,
+    "attemptedWriteRatePerSecond": 0.3119914940822993,
+    "scheduleLag": {
+      "count": 8,
+      "p50Ms": 9,
+      "p95Ms": 25,
+      "p99Ms": 25
+    }
+  },
+  "elapsedMs": 25642,
+  "fingerprint": {
+    "revision": "41ef5c34b83fef7c6da2a04bf385a0b39f01dd3a",
+    "workingDiffSha256": "4a20ce531ee950c45d7142eed1c039137472cf1ccc33360dbd90a2d0d8143217",
+    "verifierSha256": "915247b52f613aa4a75a2437c64cb5fdc7ce7f5d16deb7bc4196ee6ec772b38e",
+    "builtActionManifestSha256": "1c89961740001568e009a74d507808aea6e1ce8acca2f00b07393e93152ee985",
+    "recordedAt": "2026-11-05T16:10:03.238Z"
+  },
+  "databasePoolMax": "1",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 16,
+    "achievedRequestsPerSecond": 0.6239762889010217
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 56,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

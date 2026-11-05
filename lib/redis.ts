@@ -9,6 +9,12 @@ local latest = redis.call('XREVRANGE', KEYS[1], '+', '-', 'COUNT', 1)
 return {oldest[1][1], latest[1][1]}
 `
 
+const incrementWithExpiryScript = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+return count
+`
+
 const claimSseLeaseScript = `
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
@@ -339,6 +345,26 @@ class RedisService {
     const nextValue = Number(this.mockStore.get(key) || "0") + 1
     this.mockStore.set(key, String(nextValue))
     return nextValue
+  }
+
+  /** Increment and attach first-use expiry in one atomic Redis operation. */
+  async incrementWithExpiry(key: string, expirySeconds: number): Promise<number> {
+    if (!key || !Number.isSafeInteger(expirySeconds) || expirySeconds < 1) {
+      throw new Error("Rate-limit configuration is invalid")
+    }
+    if (this.redis) {
+      const count = Number(await this.withRetry(async () => this.redis!.eval(incrementWithExpiryScript, [key], [expirySeconds])))
+      if (!Number.isSafeInteger(count) || count < 1) throw new Error("Redis counter unavailable")
+      return count
+    }
+    this.assertMockStorageEnabled()
+    const count = Number(this.mockStore.get(key) ?? "0") + 1
+    this.mockStore.set(key, String(count))
+    if (count === 1) {
+      const expiryTimer = setTimeout(() => this.mockStore.delete(key), expirySeconds * 1000)
+      expiryTimer.unref?.()
+    }
+    return count
   }
 
   /** Atomic admission, with Redis's clock and one declared key. Retries reuse the lease ID. */

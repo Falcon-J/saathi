@@ -37,7 +37,8 @@ test('reconnection without replay and resync-required invalidate the paged Board
     new Function('require', 'exports', 'EventSource', 'console', 'window', js)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, EventSource, { log() {}, error() {} }, window)
     return exports
   }
-  const { useRealtime } = load('hooks/useRealtime.ts', { react, '@/lib/realtime-sse': { shouldProcessEvent: () => true } })
+  const contract = load('lib/realtime-event.ts', { zod: require('zod') })
+  const { useRealtime } = load('hooks/useRealtime.ts', { react, '@/lib/realtime-sse': { shouldProcessEvent: () => true }, '@/lib/realtime-event': contract })
   const { useTaskBoard } = load('hooks/use-task-board.ts', { react, '@/app/tasks/actions': {
     getTasksPage: async () => { actions.push('page'); return { tasks: missedTask ? [{ id: 'missed-task' }] : [], nextCursor: null } },
     getWorkspaceTaskAggregates: async () => { actions.push('aggregates'); return { aggregates: { total: missedTask ? 1 : 0 } } },
@@ -88,3 +89,5 @@ test('reconnection without replay and resync-required invalidate the paged Board
   assert.equal(onlineListeners.size, 0, 'unmount must remove the online listener')
   assert.equal(mountedSource.closed, true)
 })
+
+test('native inherited IDs do not deduplicate controls after domain events', () => { require('../scripts/qa-sse-repro.cjs') })

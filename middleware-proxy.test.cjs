@@ -15,6 +15,31 @@ function load(filename, dependencies) {
   new Function('require', 'exports', js)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports)
   return exports
 }
+
+test('login distinguishes authentication service failures from invalid credentials', async () => {
+  let failure
+  const auth = load('lib/auth-simple.ts', {
+    'next/headers': {}, './supabase/server': { createClient: async () => ({ auth: { signInWithPassword: async () => ({ data: { user: null }, error: failure }) } }) },
+    './supabase/config': {}, './supabase/auth-boundary': {}, './data/profiles': {}, './identity': { normalizeEmail: value => value.trim().toLowerCase() },
+  })
+  for (const error of [{ status: 504, code: 'request_timeout' }, { status: 503 }, { status: 429 }, {}]) {
+    failure = error
+    assert.deepEqual(await auth.login('user@example.test', 'password'), { error: 'Account service is temporarily unavailable. Please try again.' })
+  }
+  failure = { status: 400, code: 'invalid_credentials' }
+  assert.deepEqual(await auth.login('user@example.test', 'password'), { error: 'Unable to sign in. Check your email and password, and verify your email before signing in.' })
+})
+
+test('settings action returns safe conflict and failure results without exposing internal errors', async () => {
+  let failure = new Error('Workspace changed. Refresh and try again.')
+  const actions = load('app/actions/workspaces.ts', {
+    '@/lib/auth-simple': { getSession: async () => ({ id: 'owner' }) }, '@/lib/post-commit': { afterDomainCommit() {} },
+    '@/lib/identity': {}, '@/lib/invitation-domain': {}, '@/lib/data/workspaces': { updateWorkspaceRecord: async () => { throw failure } },
+  })
+  assert.deepEqual(await actions.updateWorkspaceSettings('workspace', {}, 1), { error: 'Workspace changed. Refresh and try again.' })
+  failure = new Error('private database details')
+  assert.deepEqual(await actions.updateWorkspaceSettings('workspace', {}, 1), { error: 'Unable to save workspace settings. Please try again.' })
+})
 function fixture({ path = '/dashboard', method = 'GET', action, canonicalEntry = null, onCanonicalEntry = () => {}, user = { id: 'actor', email: 'actor@example.test', email_confirmed_at: 'confirmed' }, error = null, claimsError = null, refresh = false, claimsThrows = false } = {}) {
   const cookies = new Map(), calls = { user: 0, claims: 0 }
   const jar = { getAll: () => Array.from(cookies, ([name, value]) => ({ name, value })), set: (name, value) => cookies.set(name, value) }

@@ -45,8 +45,10 @@ export function buildTaskUpdate(task: EditableTask, draft: TaskEditorDraft): Tas
   if (draft.description !== currentDraft.description) updates.description = draft.description
   if (draft.priority !== currentDraft.priority) updates.priority = draft.priority
   if (draft.dueDate !== currentDraft.dueDate || draft.dueTime !== currentDraft.dueTime) {
+    const instant = draft.dueTime ? localDateTimeToIso(draft.dueDate, draft.dueTime) : undefined
+    if (draft.dueTime && !instant) throw new Error("This local time is invalid or occurs twice because of a clock change. Choose another time.")
     updates.dueDate = draft.dueTime ? undefined : draft.dueDate
-    updates.dueAt = draft.dueTime ? localDateTimeToIso(draft.dueDate, draft.dueTime) : undefined
+    updates.dueAt = instant
   }
   if (draft.estimatedMinutes !== currentDraft.estimatedMinutes) {
     updates.estimatedMinutes = draft.estimatedMinutes ? Number(draft.estimatedMinutes) : undefined

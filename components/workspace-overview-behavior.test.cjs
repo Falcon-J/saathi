@@ -25,14 +25,14 @@ function harness(onAddTask) {
   const quickAdd = load('components/task-quick-add.tsx', {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Plus: 'Plus', Loader2: 'Loader2' },
     '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' }, '@/components/ui/textarea': { Textarea: 'Textarea' },
-    '@/lib/mutation-result': { getMutationError: result => result?.error }, '@/lib/task-time': { localDateTimeToIso: () => undefined },
+    '@/lib/mutation-result': { getMutationError: result => result?.error }, '@/lib/draft-storage': { readDraft: () => null, writeDraft() {}, removeDraft() {}, isDraftRecord: value => Boolean(value && typeof value === 'object') }, '@/lib/task-time': { localDateTimeToIso: () => undefined },
   })
   const overview = load('components/workspace-overview.tsx', {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     'lucide-react': Object.fromEntries(['ArrowRight','CalendarDays','Check','Circle','Clock3','Plus','Target'].map(name => [name,name])),
     '@/components/ui/button': { Button: 'Button' }, '@/components/task-quick-add': quickAdd, '@/components/ui/progress': { Progress: 'Progress' },
     '@/lib/task-overview': { groupTasksForOverview: tasks => ({ overdue: [], today: tasks, next: [], completed: [], completion: 0 }) },
-    '@/lib/task-time': { todayCalendarDate: () => '2026-10-04', formatTaskDue: () => '', formatCalendarDate: () => '' },
+    '@/lib/draft-storage': { readDraft: () => null, writeDraft() {}, removeDraft() {}, isDraftRecord: value => Boolean(value && typeof value === 'object') }, '@/lib/task-time': { todayCalendarDate: () => '2026-10-04', formatTaskDue: () => '', formatCalendarDate: () => '' },
     '@/hooks/usePermissions': permissions,
   })
   const task = { id: 'task', title: 'Task', createdBy: 'owner@example.test', workspaceId: 'workspace', completed: false }
@@ -92,4 +92,15 @@ test('Dashboard uncertain result requires reconciliation before quick add retry'
   const dashboard = fs.readFileSync('app/dashboard/page.tsx', 'utf8')
   const handler = dashboard.slice(dashboard.indexOf('const handleAddTask ='), dashboard.indexOf('const handleToggleTask ='))
   assert.match(handler, /unknownOutcome: true/)
+})
+
+
+test('failed task reads preserve quick add but never announce empty work or completion', () => {
+  const ui = harness(async () => ({}))
+  const rows = ui.render({ tasks: [], loading: false, error: 'Read failed' })
+  assert.equal(rows.some(node => node.type === 'Progress'), false)
+  assert.equal(rows.some(node => node.type === 'h3'), false)
+  assert.ok(rows.some(node => node.type === 'form'), 'draft owner stays mounted')
+  assert.ok(rows.some(node => node.props?.role === 'status'))
+  assert.doesNotMatch(JSON.stringify(rows), /Nothing needs your attention|0 of 0/)
 })

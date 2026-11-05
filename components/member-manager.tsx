@@ -157,16 +157,16 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
   }
 
   const getConfirmationDescription = () => {
-    if (!removeConfirm) return "Are you sure you want to remove this member from the workspace?"
+    if (!removeConfirm) return "Remove this member? They will lose access to workspace tasks and history; their existing contributions remain."
 
     const member = members.find(m => normalizeEmail(m.email) === normalizeEmail(removeConfirm))
     const isCurrentUser = member && normalizeEmail(member.email) === normalizedCurrentUserEmail
 
     if (isCurrentUser) {
-      return "Are you sure you want to leave this workspace?"
+      return "Leave this workspace? You will lose access to its tasks and history until an owner invites you again."
     }
 
-    return "Are you sure you want to remove this member from the workspace?"
+    return "Remove this member? They will lose access to workspace tasks and history; their existing contributions remain."
   }
 
   const getConfirmationActionLabel = () => {
@@ -202,7 +202,7 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
                   className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm disabled:opacity-50"
                 />
                 <Button
-                  aria-label="Send invitation"
+                  aria-label="Create invitation"
                   onClick={handleAddMember}
                   disabled={isAdding || !newMemberInput.trim()}
                   size="sm"

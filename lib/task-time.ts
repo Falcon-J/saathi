@@ -46,7 +46,16 @@ export function formatCalendarDate(value?: string, timeZone = "UTC"): string | n
 export function localDateTimeToIso(date: string, time: string): string | undefined {
   if (!date || !time) return undefined
   const parsed = new Date(`${date}T${time}`)
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
+  if (Number.isNaN(parsed.getTime()) || toLocalDate(parsed.toISOString()) !== date || toLocalTime(parsed.toISOString()) !== time) return undefined
+  // A repeated wall time has two instants. Do not silently choose one on edit.
+  for (const hours of [-24, 24]) {
+    const nearby = new Date(parsed.getTime() + hours * 60 * 60 * 1000)
+    const difference = nearby.getTimezoneOffset() - parsed.getTimezoneOffset()
+    if (!difference) continue
+    const alternative = new Date(parsed.getTime() + difference * 60 * 1000).toISOString()
+    if (toLocalDate(alternative) === date && toLocalTime(alternative) === time) return undefined
+  }
+  return parsed.toISOString()
 }
 
 export function toLocalTime(value?: string): string {
@@ -91,7 +100,7 @@ export function formatTaskDue(dueAt?: string, dueDate?: string, timeZone?: strin
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(parsed)
+  }).format(parsed) + ` (${timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone})`
 }
 
 export function formatTaskCreatedAt(value: string): string | null {

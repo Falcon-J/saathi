@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -18,11 +18,15 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [hydrated, setHydrated] = useState(false)
+  const pendingRequest = useRef(false)
+  useEffect(() => { setHydrated(true) }, [])
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (pending) return
+    if (!hydrated || pendingRequest.current) return
     setError('')
     if (mode === 'update' && password !== confirm) { setError('Passwords do not match.'); return }
+    pendingRequest.current = true
     setPending(true)
     try {
       const result = mode === 'request' ? await requestPasswordReset(email) : await updatePassword(password)
@@ -36,7 +40,7 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
         }
       }
     } catch { setError('Account service is temporarily unavailable. Please try again.') }
-    finally { setPending(false) }
+    finally { pendingRequest.current = false; setPending(false) }
   }
   const requesting = mode === 'request'
   return <main className="saathi-shell min-h-screen">
@@ -47,14 +51,14 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
         <h1 className="mt-3 text-4xl font-semibold leading-[1.05] tracking-[-0.04em]">{requesting ? 'Forgot your password?' : 'Set a new password'}</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">{requesting ? "Enter your email and we'll send you a secure reset link." : 'Choose a strong password to secure your account and return to your work.'}</p>
         <div className="mt-7 rounded-[var(--saathi-radius-container)] border border-border bg-card p-6 shadow-[0_16px_48px_rgb(44_50_89/0.08)] sm:p-8">
-          {message ? <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="font-semibold">Check your inbox</p><p className="mt-2 text-sm text-muted-foreground">{message}</p></div> : <form onSubmit={submit} className="space-y-4">
-            {requesting ? <label className="block space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><Mail className="size-4" />Email</span><Input type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={event => setEmail(event.target.value)} disabled={pending} /></label> : <>
-              <label className="block space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><KeyRound className="size-4" />New password</span><Input type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={event => setPassword(event.target.value)} disabled={pending} /></label>
+          {message ? <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="font-semibold">Check your inbox</p><p className="mt-2 text-sm text-muted-foreground">{message}</p></div> : <form onSubmit={submit} aria-busy={!hydrated || pending} className="space-y-4">
+            {requesting ? <label className="block space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><Mail className="size-4" />Email</span><Input type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={event => setEmail(event.target.value)} disabled={!hydrated || pending} /></label> : <>
+              <label className="block space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><KeyRound className="size-4" />New password</span><Input type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={event => setPassword(event.target.value)} disabled={!hydrated || pending} /></label>
               <p className="flex items-center gap-2 text-xs text-muted-foreground"><CheckCircle2 className="size-3.5 text-[var(--saathi-success)]" />Use at least 8 characters.</p>
-              <label className="block space-y-2"><span className="text-sm font-medium">Confirm new password</span><Input type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={confirm} onChange={event => setConfirm(event.target.value)} disabled={pending} /></label>
+              <label className="block space-y-2"><span className="text-sm font-medium">Confirm new password</span><Input type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={confirm} onChange={event => setConfirm(event.target.value)} disabled={!hydrated || pending} /></label>
             </>}
             {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-            <Button className="h-11 w-full" disabled={pending}>{pending ? 'Please wait…' : requesting ? 'Send reset link' : 'Reset password'}</Button>
+            <Button className="h-11 w-full" disabled={!hydrated || pending}>{pending ? 'Please wait…' : requesting ? 'Send reset link' : 'Reset password'}</Button>
           </form>}
         </div>
       </section>

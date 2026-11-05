@@ -6,6 +6,8 @@ This is a guided explanation of the implemented system, not a declaration that e
 
 ## The reading path
 
+For the current review, pair these chapters with the [5 November persona QA report](../release/2026-11-05-persona-qa-review.md) and [QA-to-system-design study guide](../interviews/saathi-qa-system-design-study-guide.md). They distinguish reproduced defects, browser observations, historical evidence and blocked acceptance checks.
+
 | Chapter | Question you should be able to answer afterward |
 | --- | --- |
 | [1. Architecture and data](01-architecture-and-data.md) | Who owns each fact, and which invariants survive application bugs? |

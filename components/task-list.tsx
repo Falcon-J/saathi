@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { TaskQuickAdd } from "@/components/task-quick-add"
-import { CheckCircle2, Circle, Trash2, Loader2, Users, Edit2, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
+import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -17,7 +17,9 @@ import type { Member } from "@/app/actions/workspaces"
 import type { Task, TaskStatus, TaskUpdate } from "@/lib/task-contract"
 import { getMutationError } from "@/lib/mutation-result"
 import { buildTaskUpdate, toTaskEditorDraft, type TaskEditorDraft } from "@/lib/task-draft"
+import { readDraft, writeDraft, removeDraft, isDraftRecord } from "@/lib/draft-storage"
 import { formatTaskDue } from "@/lib/task-time"
+import { getTaskById } from "@/app/tasks/actions"
 import { TaskComments } from "@/components/task-comments"
 import type { RealtimeEvent } from "@/lib/realtime"
 
@@ -46,6 +48,8 @@ interface TaskListProps {
   openTaskId?: string | null
   commentRefreshEvent?: RealtimeEvent | null
   focusQuickAdd?: number
+  draftScope?: string
+  onDirtyChange?: (dirty: boolean) => void
   onReviewBoard?: () => Promise<void>
 }
 
@@ -66,6 +70,8 @@ export const TaskList = memo(function TaskList({
   onReviewBoard,
   paging,
   detailTask,
+  onDirtyChange,
+  draftScope,
 }: TaskListProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const editorPermissions = useTaskPermissions(
@@ -86,8 +92,45 @@ export const TaskList = memo(function TaskList({
   const selectedStatus = paging ? paging.filters.status ?? "all" : localSelectedStatus
   const selectedPriority = paging ? paging.filters.priority ?? "all" : localSelectedPriority
   const openedTaskIdRef = useRef<string | null>(null)
+  const [latestTask, setLatestTask] = useState<Task | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const reviewRequest = useRef(0)
+  const [quickAddDirty, setQuickAddDirty] = useState(false)
+  const draftKey = draftScope ? `${draftScope}:task-editor` : undefined
+  const [restoredScope, setRestoredScope] = useState<string | null>(null)
+  useEffect(() => {
+    if (!draftKey || restoredScope === draftKey) return
+    const retained = readDraft(draftKey, (value): value is { task: Task; draft: TaskEditorDraft } => {
+      if (!isDraftRecord(value) || !isDraftRecord(value.task) || !isDraftRecord(value.draft)) return false
+      const task = value.task, draft = value.draft
+      return [task.id, task.workspaceId, task.title, task.createdBy, task.createdAt, task.updatedAt].every(field => typeof field === "string")
+        && [task.description, task.dueDate, task.dueAt, task.assigneeEmail].every(field => field === undefined || typeof field === "string")
+        && (task.status === undefined || ["todo", "in-progress", "done"].includes(String(task.status)))
+        && (task.bucket === undefined || task.bucket === "today" || task.bucket === "next")
+        && (task.estimatedMinutes === undefined || (Number.isSafeInteger(task.estimatedMinutes) && Number(task.estimatedMinutes) > 0))
+        && typeof task.completed === "boolean" && ["low", "medium", "high"].includes(String(task.priority))
+        && (task.version === undefined || (Number.isSafeInteger(task.version) && Number(task.version) > 0))
+        && [draft.title, draft.description, draft.dueDate, draft.dueTime, draft.estimatedMinutes, draft.assigneeEmail].every(field => typeof field === "string")
+        && ["low", "medium", "high"].includes(String(draft.priority)) && ["todo", "in-progress", "done"].includes(String(draft.status))
+    })
+    if (retained) {
+      setEditingTask(retained.task)
+      setEditingDraft(retained.draft)
+      openedTaskIdRef.current = openTaskId ?? retained.task.id
+    }
+    setRestoredScope(draftKey)
+  }, [draftKey, restoredScope, openTaskId])
+  const originalDraft = editingTask ? toTaskEditorDraft(editingTask) : null
+  const editorDirty = Boolean(editingDraft && originalDraft && (Object.keys(originalDraft) as (keyof TaskEditorDraft)[]).some(key => originalDraft[key] !== editingDraft[key]))
+  useEffect(() => {
+    if (!draftKey || restoredScope !== draftKey) return
+    if (editorDirty && editingTask && editingDraft) writeDraft(draftKey, { task: editingTask, draft: editingDraft })
+    else removeDraft(draftKey)
+  }, [draftKey, restoredScope, editorDirty, editingTask, editingDraft])
+  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId)) }, [quickAddDirty, editorDirty, operatingTaskId, onDirtyChange])
 
   useEffect(() => {
+    if (draftKey && restoredScope !== draftKey) return
     if (!openTaskId) {
       openedTaskIdRef.current = null
       return
@@ -96,10 +139,13 @@ export const TaskList = memo(function TaskList({
     const task = tasks.find((item) => item.id === openTaskId) ?? (detailTask?.id === openTaskId ? detailTask : null)
     if (!task) return
     openedTaskIdRef.current = openTaskId
+    reviewRequest.current++
+    setLatestTask(null)
+    setReviewLoading(false)
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, tasks, detailTask])
+  }, [openTaskId, tasks, detailTask, draftKey, restoredScope])
 
   const filteredTasks = useMemo(() => {
     if (paging) return tasks
@@ -161,6 +207,9 @@ export const TaskList = memo(function TaskList({
   }
 
   const openEditor = (task: Task) => {
+    reviewRequest.current++
+    setLatestTask(null)
+    setReviewLoading(false)
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
@@ -168,6 +217,10 @@ export const TaskList = memo(function TaskList({
 
   const closeEditor = () => {
     if (editingTask && operatingTaskId === editingTask.id) return
+    removeDraft(draftKey)
+    reviewRequest.current++
+    setLatestTask(null)
+    setReviewLoading(false)
     setEditingTask(null)
     setEditingDraft(null)
     setEditError(null)
@@ -177,9 +230,34 @@ export const TaskList = memo(function TaskList({
     setEditingDraft((draft) => draft ? { ...draft, ...changes } : draft)
   }
 
+  const reviewLatestTask = async () => {
+    if (!editingTask || reviewLoading) return
+    const request = ++reviewRequest.current
+    setReviewLoading(true)
+    try {
+      const result = await getTaskById(editingTask.workspaceId, editingTask.id)
+      if (request !== reviewRequest.current) return
+      if ("error" in result) { setEditError(result.error || "Unable to load the latest task."); return }
+      setLatestTask(result.task)
+    } catch { if (request === reviewRequest.current) setEditError("Unable to load the latest task. Your draft is retained.") }
+    finally { if (request === reviewRequest.current) setReviewLoading(false) }
+  }
+  const keepTaskDraft = () => {
+    if (!editingTask || !editingDraft || !latestTask) return
+    const original = toTaskEditorDraft(editingTask)
+    const merged = toTaskEditorDraft(latestTask)
+    for (const key of Object.keys(original) as (keyof TaskEditorDraft)[]) {
+      if (editingDraft[key] !== original[key]) Object.assign(merged, { [key]: editingDraft[key] })
+    }
+    setEditingTask(latestTask)
+    setEditingDraft(merged)
+    setLatestTask(null)
+    setEditError(null)
+  }
+
   const saveEditor = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!editingTask || !editingDraft || !editorPermissions.canEdit) return
+    if (!editingTask || !editingDraft || !editorPermissions.canEdit || reviewLoading || latestTask) return
 
     const title = editingDraft.title.trim()
     if (!title) {
@@ -199,7 +277,9 @@ export const TaskList = memo(function TaskList({
       return
     }
 
-    const updates = buildTaskUpdate(editingTask, { ...editingDraft, title })
+    let updates: TaskUpdate
+    try { updates = buildTaskUpdate(editingTask, { ...editingDraft, title }) }
+    catch (caughtError) { setEditError(caughtError instanceof Error ? caughtError.message : "Check the deadline."); return }
     if (Object.keys(updates).length === 0) {
       closeEditor()
       return
@@ -268,7 +348,7 @@ export const TaskList = memo(function TaskList({
 
   return (
     <div className="space-y-4 p-4 sm:p-5">
-      <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
+      <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
 
       <TaskFilter
         searchQuery={searchQuery}
@@ -297,7 +377,7 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {/* Board */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Task board">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Task board">
         {loading ? (
           <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-8 text-center md:col-span-2 xl:col-span-3">
             <div className="flex items-center justify-center gap-2">
@@ -349,6 +429,11 @@ export const TaskList = memo(function TaskList({
         draft={editingDraft}
         canEdit={editorPermissions.canEdit}
         error={editError}
+        latestTask={latestTask}
+        reviewLoading={reviewLoading}
+        onReviewLatest={reviewLatestTask}
+        onKeepDraft={keepTaskDraft}
+        onUseLatest={() => { if (latestTask) openEditor(latestTask) }}
         isSaving={Boolean(editingTask && operatingTaskId === editingTask.id)}
         members={members}
         commentRefreshEvent={commentRefreshEvent}
@@ -372,7 +457,7 @@ function TaskColumn({
   children: ReactNode
 }) {
   return (
-    <section className="min-h-72 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
+    <section className="min-h-72 min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
       <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
         <Badge variant="outline" className="border-border bg-card text-muted-foreground">
@@ -396,6 +481,11 @@ export function TaskEditorDialog({
   canEdit,
   canComment = true,
   error,
+  latestTask,
+  reviewLoading = false,
+  onReviewLatest,
+  onKeepDraft,
+  onUseLatest,
   isSaving,
   members,
   commentRefreshEvent,
@@ -408,6 +498,11 @@ export function TaskEditorDialog({
   canEdit: boolean
   canComment?: boolean
   error: string | null
+  latestTask?: Task | null
+  reviewLoading?: boolean
+  onReviewLatest?: () => Promise<void>
+  onKeepDraft?: () => void
+  onUseLatest?: () => void
   isSaving: boolean
   members: Member[]
   commentRefreshEvent?: RealtimeEvent | null
@@ -523,7 +618,7 @@ export function TaskEditorDialog({
                     <Input id="task-edit-due-date" type="date" value={draft.dueDate} onChange={(event) => onDraftChange({ dueDate: event.target.value })} disabled={isSaving} className="h-10 bg-card" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="task-edit-due-time">Due time <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                    <Label htmlFor="task-edit-due-time">Due time ({Intl.DateTimeFormat().resolvedOptions().timeZone}) <span className="font-normal text-muted-foreground">(optional)</span></Label>
                     <Input id="task-edit-due-time" type="time" value={draft.dueTime} onChange={(event) => onDraftChange({ dueTime: event.target.value })} disabled={isSaving || !draft.dueDate} className="h-10 bg-card" />
                   </div>
                   <div className="space-y-2">
@@ -546,8 +641,15 @@ export function TaskEditorDialog({
                 </div>
               </section>
 
-              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}. If the task changed, copy your draft, close this editor, and reopen the task to review its latest details before saving.</p>}
+              {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</p>}
               </fieldset>
+              {error && onReviewLatest && <Button type="button" variant="outline" disabled={isSaving || reviewLoading} onClick={() => void onReviewLatest()}>{reviewLoading ? "Loading latest task..." : "Review latest task"}</Button>}
+              {latestTask && <section aria-label="Latest saved task" className="space-y-3 rounded-lg border border-border p-3">
+                <h3 className="font-semibold">Latest saved task</h3>
+                <dl className="space-y-1 text-sm">{Object.entries(toTaskEditorDraft(latestTask)).map(([key, value]) => <div key={key}><dt className="font-medium">{{ title: "Title", description: "Description", priority: "Priority", status: "Status", dueDate: "Due date", dueTime: `Due time (${Intl.DateTimeFormat().resolvedOptions().timeZone})`, estimatedMinutes: "Estimate (minutes)", assigneeEmail: "Assignee" }[key as keyof TaskEditorDraft]}</dt><dd className="break-words">{value || "None"}</dd></div>)}</dl>
+                <p className="text-sm">Your draft is retained. Review these values before keeping your edited fields or replacing your draft.</p>
+                <div className="flex flex-wrap gap-2"><Button type="button" onClick={onKeepDraft}>Keep my changes</Button><Button type="button" variant="outline" onClick={onUseLatest}>Use latest task</Button></div>
+              </section>}
               </form>
 
               <div className="px-5 pb-5 sm:px-6">
@@ -557,7 +659,7 @@ export function TaskEditorDialog({
 
             <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
               <Button type="button" variant="outline" onClick={requestClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
-              {canEdit && <Button type="submit" form="task-editor-form" disabled={isSaving}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
+              {canEdit && <Button type="submit" form="task-editor-form" disabled={isSaving || reviewLoading || Boolean(latestTask)}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
             </DialogFooter>
           </div>
         )}
@@ -637,21 +739,12 @@ const TaskListItem = memo(function TaskListItem({
           <button
             type="button"
             onClick={() => onStartEdit(task)}
-            className={`flex-1 cursor-pointer text-left text-base font-medium transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"}`}
+            aria-label={`${taskPermissions.canEdit ? "Edit" : "Open"} ${task.title}`}
+            className={`min-w-0 flex-1 break-words cursor-pointer text-left text-base font-medium transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"}`}
           >
             {task.title}
           </button>
           <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200 focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-            {taskPermissions.canEdit && (
-              <button
-                onClick={() => onStartEdit(task)}
-                aria-label={`Edit ${task.title}`}
-                title="Edit task"
-                className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-            )}
             {taskPermissions.canDelete && (
               <button
                 onClick={() => onConfirmDelete(task.id)}
@@ -667,7 +760,7 @@ const TaskListItem = memo(function TaskListItem({
 
         {task.description && (
           <div className="ml-9 mt-2">
-            <p className="text-sm text-muted-foreground">{task.description}</p>
+            <p className="break-words text-sm text-muted-foreground">{task.description}</p>
           </div>
         )}
 

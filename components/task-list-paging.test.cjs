@@ -29,11 +29,12 @@ const dependencies = {
   "@/components/ui/input": { Input: "Input" },
   "@/components/ui/dialog": Object.fromEntries(["Dialog", "DialogContent", "DialogDescription", "DialogFooter", "DialogHeader", "DialogTitle"].map(component => [component, component])),
   "@/components/ui/label": { Label: "Label" },
+  "@/app/tasks/actions": { getTaskById: async () => ({ error: "Unused in board rendering" }) },
   "@/components/task-comments": { TaskComments: "TaskComments" },
   "@/hooks/usePermissions": { useTaskPermissions: () => ({ canToggle: true, canEdit: true, canDelete: true, canAssign: true }) },
   "@/lib/mutation-result": { getMutationError: () => undefined },
   "@/lib/task-draft": { buildTaskUpdate: () => ({}), toTaskEditorDraft: () => ({}) },
-  "@/lib/task-time": { formatTaskDue: (dueAt, _dueDate, timeZone) => { formattedZones.push(timeZone); return dueAt ? "Jul 3, 2:30 PM" : null } },
+  '@/lib/draft-storage': { readDraft: () => null, writeDraft() {}, removeDraft() {}, isDraftRecord: value => Boolean(value && typeof value === 'object') }, "@/lib/task-time": { formatTaskDue: (dueAt, _dueDate, timeZone) => { formattedZones.push(timeZone); return dueAt ? "Jul 3, 2:30 PM" : null } },
 }
 const source = ts.transpileModule(fs.readFileSync("components/task-list.tsx", "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },

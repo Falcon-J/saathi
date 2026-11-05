@@ -11,7 +11,7 @@ export interface Task {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const taskStatusSchema = z.enum(["todo", "in-progress", "done"])
 
-const clearableText = z.string().trim().nullish().transform((value) => value || undefined)
+const clearableText = z.string().trim().nullish().transform((value) => value || undefined).optional()
 
 export const taskUpdateSchema = z.object({
   title: z.string().trim().min(1, "Task title is required").max(200).optional(),
@@ -30,11 +30,11 @@ export const taskUpdateSchema = z.object({
   ),
   status: taskStatusSchema.optional(),
   bucket: z.enum(["today", "next"]).optional(),
-  estimatedMinutes: z.number().int().min(1).max(1440).nullish().transform((value) => value ?? undefined),
+  estimatedMinutes: z.number().int().min(1).max(1440).nullish().transform((value) => value ?? undefined).optional(),
   assigneeEmail: clearableText.refine(
     (value) => !value || (value.length <= 255 && emailPattern.test(value)),
     "Task assignee is invalid",
-  ).transform((value) => value?.toLowerCase()),
+  ).transform((value) => value?.toLowerCase()).optional(),
 }).strict().superRefine((value, context) => {
   if (value.dueDate && value.dueAt) {
     context.addIssue({

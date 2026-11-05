@@ -26,11 +26,7 @@ export async function consumeDistributedRateLimit(
 
   const bucket = Math.floor(Date.now() / windowMs)
   const key = `rate:${hashScope(scope)}:${bucket}`
-  const count = await redis.incr(key)
-
-  if (count === 1) {
-    await redis.set(key, count, { ex: Math.ceil(windowMs / 1000) + 1 })
-  }
+  const count = await redis.incrementWithExpiry(key, Math.ceil(windowMs / 1000) + 1)
 
   if (count > maxRequests) {
     const elapsedMs = Date.now() % windowMs

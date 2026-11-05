@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +15,7 @@ import {
 
 interface InvitationNotificationsProps {
     userEmail: string
-    onInvitationAccepted?: () => void
+    onInvitationAccepted?: (workspaceId: string) => void | Promise<void>
 }
 
 export function InvitationNotifications({ userEmail, onInvitationAccepted }: InvitationNotificationsProps) {
@@ -24,27 +24,40 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
     const loadSequence = useRef(0)
+    const accountRef = useRef({ email: userEmail, active: false })
     const { success, error } = useNotifications()
 
+    useLayoutEffect(() => {
+        const account = { email: userEmail, active: true }
+        accountRef.current = account
+        setInvitations([])
+        setLoading(Boolean(userEmail))
+        setProcessingId(null)
+        setInlineError(null)
+        return () => { account.active = false }
+    }, [userEmail])
+
     const loadInvitations = useCallback(async () => {
+        const account = accountRef.current
+        const isCurrent = () => account.active && accountRef.current === account && account.email === userEmail
+        if (!isCurrent()) return
         const sequence = ++loadSequence.current
         setLoading(true)
         try {
             const userInvitations = await getUserInvitations(userEmail)
-            if (sequence !== loadSequence.current) return
+            if (!isCurrent() || sequence !== loadSequence.current) return
             setInvitations(userInvitations.filter(inv => inv.status === "pending"))
             setInlineError(null)
         } catch (error) {
-            if (sequence !== loadSequence.current) return
+            if (!isCurrent() || sequence !== loadSequence.current) return
             setInlineError(error instanceof Error ? error.message : "Unable to load invitations.")
         } finally {
-            if (sequence === loadSequence.current) setLoading(false)
+            if (isCurrent() && sequence === loadSequence.current) setLoading(false)
         }
     }, [userEmail])
 
     useEffect(() => {
         if (!userEmail) return
-        setInvitations([])
         void loadInvitations()
         const sequenceRef = loadSequence
         const refresh = () => { void loadInvitations() }
@@ -56,9 +69,13 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     }, [userEmail, loadInvitations])
 
     const handleAcceptInvitation = async (invitation: Invitation) => {
+        const account = accountRef.current
+        const isCurrent = () => account.active && accountRef.current === account && account.email === userEmail
+        if (!isCurrent()) return
         setProcessingId(invitation.id)
         try {
             const result = await acceptInvitation(invitation.id)
+            if (!isCurrent()) return
             if (result.error) throw new Error(result.error)
             loadSequence.current++
             setLoading(false)
@@ -69,19 +86,28 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
             setInvitations(prev => prev.filter(inv => inv.id !== invitation.id))
 
             // Notify parent component to refresh workspaces
-            onInvitationAccepted?.()
+            try {
+                await onInvitationAccepted?.(invitation.workspaceId)
+            } catch {
+                if (isCurrent()) setInlineError("Invitation accepted. Refresh your workspaces to open it.")
+            }
         } catch (caughtError: unknown) {
+            if (!isCurrent()) return
             setInlineError(caughtError instanceof Error ? caughtError.message : "Unable to update invitation.")
             error("Unable to accept invitation", caughtError instanceof Error ? caughtError.message : "Failed to accept invitation")
         } finally {
-            setProcessingId(null)
+            if (isCurrent()) setProcessingId(null)
         }
     }
 
     const handleDeclineInvitation = async (invitation: Invitation) => {
+        const account = accountRef.current
+        const isCurrent = () => account.active && accountRef.current === account && account.email === userEmail
+        if (!isCurrent()) return
         setProcessingId(invitation.id)
         try {
             const result = await declineInvitation(invitation.id)
+            if (!isCurrent()) return
             if (result.error) throw new Error(result.error)
             loadSequence.current++
             setLoading(false)
@@ -91,15 +117,16 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
             // Remove from local state
             setInvitations(prev => prev.filter(inv => inv.id !== invitation.id))
         } catch (caughtError: unknown) {
+            if (!isCurrent()) return
             setInlineError(caughtError instanceof Error ? caughtError.message : "Unable to update invitation.")
             error("Unable to decline invitation", caughtError instanceof Error ? caughtError.message : "Failed to decline invitation")
         } finally {
-            setProcessingId(null)
+            if (isCurrent()) setProcessingId(null)
         }
     }
 
     return (
-        <section aria-label="Workspace invitations" aria-busy={loading} className="mb-4 space-y-3">
+        <section aria-label="Workspace invitations" aria-busy={loading} className={!loading && !inlineError && invitations.length === 0 ? "mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : "mb-4 space-y-3"}>
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-primary" />

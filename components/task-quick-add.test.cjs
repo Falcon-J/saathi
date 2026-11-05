@@ -2,12 +2,12 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 const fs = require('node:fs')
 const ts = require('typescript')
-function harness(onAddTask, onReviewBoard) {
+function harness(onAddTask, onReviewBoard, timeHelpers) {
   assert.ok(fs.existsSync('components/task-quick-add.tsx'), 'Shared progressive quick add exists')
   const state = []; let cursor = 0
   const react = { useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], value => { state[i] = typeof value === 'function' ? value(state[i]) : value }] }, useRef: () => ({ current: null }), useEffect() {} }
   const jsx = (type, props) => ({ type, props })
-  const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Plus: 'Plus', Loader2: 'Loader2' }, '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' }, '@/components/ui/textarea': { Textarea: 'Textarea' }, '@/lib/mutation-result': { getMutationError: result => result?.error }, '@/lib/task-time': { localDateTimeToIso: (date, time) => date && time ? `${date}T${time}:00Z` : undefined } }
+  const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'lucide-react': { Plus: 'Plus', Loader2: 'Loader2' }, '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' }, '@/components/ui/textarea': { Textarea: 'Textarea' }, '@/lib/mutation-result': { getMutationError: result => result?.error }, '@/lib/draft-storage': { readDraft: () => null, writeDraft() {}, removeDraft() {}, isDraftRecord: value => Boolean(value && typeof value === 'object') }, '@/lib/task-time': timeHelpers ?? { localDateTimeToIso: (date, time) => date && time ? `${date}T${time}:00Z` : undefined } }
   const exports = {}
   const source = ts.transpileModule(fs.readFileSync('components/task-quick-add.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX } }).outputText
   new Function('require', 'exports', source)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports)
@@ -82,4 +82,29 @@ test('invalid estimate prevents a task mutation and keeps the input', async () =
   assert.equal(attempts, 0)
   assert.match(ui.render().find(node => node.props.role === 'alert').props.children, /whole number/)
   assert.equal(ui.render().find(node => node.props?.['aria-label'] === 'Task estimate in minutes').props.value, '1.5')
+})
+
+
+test('quick add rejects a DST gap before calling its mutation and preserves input', async () => {
+  const timeHelpers = {}
+  new Function('exports', ts.transpileModule(fs.readFileSync('lib/task-time.ts', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText)(timeHelpers)
+  const previous = process.env.TZ
+  try {
+    process.env.TZ = 'America/New_York'
+    let writes = 0
+    const ui = harness(async () => { writes++; return {} }, undefined, timeHelpers)
+    ui.render().find(node => node.props?.['aria-expanded'] === false).props.onClick()
+    input(ui, 'Task title', 'Keep deadline')
+    input(ui, 'Task due date', '2026-03-08')
+    input(ui, 'Task due time', '02:30')
+    await submit(ui)
+    assert.equal(writes, 0)
+    assert.match(ui.render().find(node => node.props.role === 'alert').props.children, /clock change/)
+    assert.equal(ui.render().find(node => node.props?.['aria-label'] === 'Task due time').props.value, '02:30')
+  } finally {
+    if (previous === undefined) delete process.env.TZ
+    else process.env.TZ = previous
+  }
 })

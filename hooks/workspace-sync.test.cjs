@@ -5,7 +5,7 @@ const ts = require('typescript')
 const tick = () => new Promise(resolve => setImmediate(resolve))
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
 
-function fixture(overrides = {}) {
+function fixture(overrides = {}, storage = new Map()) {
   const slots = []
   let cursor = 0, effects = [], realtimeOptions, result, workspaceReads = 0
   const same = (a,b) => a && b && a.length === b.length && a.every((value,i) => Object.is(value,b[i]))
@@ -29,7 +29,7 @@ function fixture(overrides = {}) {
   }
   const exports = {}
   const js = ts.transpileModule(fs.readFileSync('hooks/use-workspaces.ts','utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  new Function('require','exports','console',js)(name => { assert.ok(name in dependencies,name); return dependencies[name] }, exports, { error() {} })
+  new Function('require','exports','console','window',js)(name => { assert.ok(name in dependencies,name); return dependencies[name] }, exports, { error() {} }, { sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) } })
   return {
     render(email = 'owner@example.test', options) { cursor = 0; result = exports.useWorkspaces(email, options); const pending = effects; effects = []; pending.forEach(effect => effect()); return result },
     realtime: () => realtimeOptions,
@@ -117,4 +117,52 @@ test('Board mode does not fetch complete task collections, including realtime re
   assert.equal(reads,0)
   ui.render('owner@example.test', {loadTasks:true}); await tick()
   assert.equal(reads,1)
+})
+
+
+test('workspace selection survives reload, is account scoped and rejects revoked IDs', async () => {
+  const storage = new Map()
+  const ui = fixture({}, storage)
+  ui.render(); await tick(); ui.render(); await tick()
+  ui.render().setCurrentWorkspaceId('other'); ui.render(); await tick(); ui.render()
+  const reloaded = fixture({}, storage)
+  reloaded.render(); await tick(); assert.equal(reloaded.render().currentWorkspaceId, 'other')
+  reloaded.render('another@example.test'); await tick()
+  assert.equal(reloaded.render('another@example.test').currentWorkspaceId, 'workspace')
+  const revoked = fixture({ getUserWorkspaces: async () => [{ id: 'workspace' }] }, storage)
+  revoked.render(); await tick(); assert.equal(revoked.render().currentWorkspaceId, 'workspace')
+})
+
+
+test('accepted invitation selects the requested workspace only after authorized refresh', async () => {
+  const ui = fixture()
+  ui.render(); await tick(); ui.render(); await tick()
+  await ui.render().refreshWorkspaces('other')
+  assert.equal(ui.render().currentWorkspaceId, 'other')
+  await ui.render().refreshWorkspaces('not-authorized')
+  assert.equal(ui.render().currentWorkspaceId, 'other')
+})
+
+
+test('workspace refresh reports whether it applied and ignores retained old-account callbacks', async () => {
+  const ui = fixture()
+  ui.render(); await tick(); ui.render(); await tick()
+  const old = ui.render().refreshWorkspaces
+  assert.equal(await old(), true)
+  ui.render('new@example.test'); await tick(); ui.render('new@example.test')
+  const count = ui.workspaceReads()
+  assert.equal(await old('other'), false)
+  assert.equal(ui.workspaceReads(), count)
+})
+
+
+test('an invitation refresh cannot switch workspace when editing starts during its read', async () => {
+  const read = deferred(); let delay = false, dirty = false
+  const ui = fixture({ getUserWorkspaces: async () => delay ? read.promise : [{ id: 'workspace' }, { id: 'other' }] })
+  ui.render(); await tick(); ui.render(); await tick()
+  delay = true
+  const pending = ui.render().refreshWorkspaces('other', () => !dirty)
+  dirty = true
+  read.resolve([{ id: 'workspace' }, { id: 'other' }]); await pending
+  assert.equal(ui.render().currentWorkspaceId, 'workspace')
 })

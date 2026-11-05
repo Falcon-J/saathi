@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { getMutationError } from "@/lib/mutation-result"
+import { readDraft, writeDraft, removeDraft, isDraftRecord } from "@/lib/draft-storage"
 import { localDateTimeToIso } from "@/lib/task-time"
 
 type TaskQuickAddProps = {
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
   onReviewBoard?: () => Promise<void>
+  onDirtyChange?: (dirty: boolean) => void
+  draftScope?: string
   focusRequest?: number
 }
 
-export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQuickAddProps) {
+export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest, onDirtyChange, draftScope }: TaskQuickAddProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
@@ -30,6 +33,27 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingRef = useRef(false)
 
+  const draftKey = draftScope ? `${draftScope}:quick-add` : undefined
+  const [restoredScope, setRestoredScope] = useState<string | null>(null)
+  useEffect(() => {
+    if (!draftKey || restoredScope === draftKey) return
+    const retained = readDraft(draftKey, (value): value is { title: string; description: string; priority: "low" | "medium" | "high"; dueDate: string; dueTime: string; estimatedMinutes: string; detailsOpen: boolean; needsReconciliation: boolean } =>
+      isDraftRecord(value) && [value.title, value.description, value.dueDate, value.dueTime, value.estimatedMinutes].every(field => typeof field === "string")
+      && ["low", "medium", "high"].includes(String(value.priority)) && typeof value.detailsOpen === "boolean" && typeof value.needsReconciliation === "boolean")
+    setTitle(retained?.title ?? ""); setDescription(retained?.description ?? ""); setPriority(retained?.priority ?? "medium")
+    setDueDate(retained?.dueDate ?? ""); setDueTime(retained?.dueTime ?? ""); setEstimatedMinutes(retained?.estimatedMinutes ?? "")
+    setDetailsOpen(retained?.detailsOpen ?? false); setNeedsReconciliation(retained?.needsReconciliation ?? false)
+    setRestoredScope(draftKey)
+  }, [draftKey, restoredScope])
+  useEffect(() => {
+    if (!draftKey || restoredScope !== draftKey) return
+    if (title || description || dueDate || dueTime || estimatedMinutes || priority !== "medium" || needsReconciliation) {
+      writeDraft(draftKey, { title, description, priority, dueDate, dueTime, estimatedMinutes, detailsOpen, needsReconciliation: needsReconciliation || saving })
+    } else removeDraft(draftKey)
+  }, [draftKey, restoredScope, title, description, priority, dueDate, dueTime, estimatedMinutes, detailsOpen, needsReconciliation, saving])
+
+  useEffect(() => { onDirtyChange?.(Boolean(title || description || dueDate || dueTime || estimatedMinutes || priority !== "medium" || saving || needsReconciliation)) }, [title, description, dueDate, dueTime, estimatedMinutes, priority, saving, needsReconciliation, onDirtyChange])
+
   useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -41,18 +65,21 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
       return
     }
     if (dueTime && !dueDate) { setError("Choose a due date before adding a due time."); return }
+    const dueAt = localDateTimeToIso(dueDate, dueTime)
+    if (dueTime && !dueAt) { setError("This local time is invalid or occurs twice because of a clock change. Choose another time."); return }
     pendingRef.current = true
     setSaving(true)
     setAdded(false)
     setError(null)
     try {
-      const result = await onAddTask(title.trim(), description || undefined, priority, dueTime ? undefined : dueDate || undefined, undefined, estimate, localDateTimeToIso(dueDate, dueTime))
+      const result = await onAddTask(title.trim(), description || undefined, priority, dueTime ? undefined : dueDate || undefined, undefined, estimate, dueAt)
       const mutationError = getMutationError(result)
       if (result && typeof result === "object" && "unknownOutcome" in result && result.unknownOutcome === true) {
         setNeedsReconciliation(true)
         setError("Unable to confirm the task was saved. Refresh the workspace before retrying.")
       } else if (mutationError) setError(mutationError)
       else {
+        removeDraft(draftKey)
         setTitle(""); setDescription(""); setPriority("medium"); setDueDate(""); setDueTime(""); setEstimatedMinutes(""); setDetailsOpen(false)
         setAdded(true)
       }
@@ -85,7 +112,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest }: TaskQui
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-xs font-medium">Priority<select aria-label="Task priority" value={priority} onChange={event => setPriority(event.target.value as typeof priority)} disabled={saving} className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
           <label className="space-y-1 text-xs font-medium">Deadline date<Input aria-label="Task due date" type="date" value={dueDate} onChange={event => { setDueDate(event.target.value); if (!event.target.value) setDueTime("") }} disabled={saving} className="bg-card" /></label>
-          <label className="space-y-1 text-xs font-medium">Time <span className="text-muted-foreground">(optional)</span><Input aria-label="Task due time" type="time" value={dueTime} onChange={event => setDueTime(event.target.value)} disabled={saving || !dueDate} className="bg-card" /></label>
+          <label className="space-y-1 text-xs font-medium">Time ({Intl.DateTimeFormat().resolvedOptions().timeZone}) <span className="text-muted-foreground">(optional)</span><Input aria-label="Task due time" type="time" value={dueTime} onChange={event => setDueTime(event.target.value)} disabled={saving || !dueDate} className="bg-card" /></label>
           <label className="space-y-1 text-xs font-medium">Estimate <span className="text-muted-foreground">(minutes)</span><Input aria-label="Task estimate in minutes" type="number" min={1} max={1440} step={1} value={estimatedMinutes} onChange={event => setEstimatedMinutes(event.target.value)} disabled={saving} placeholder="e.g. 45" className="bg-card" /></label>
         </div>
       </div>}

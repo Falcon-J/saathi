@@ -151,7 +151,7 @@ try {
   await owner.getByRole('button', { name: 'Team', exact: true }).filter({ visible: true }).click()
   const invite = async email => {
     await owner.getByLabel('Invite by email').fill(email)
-    await owner.getByRole('button', { name: 'Send invitation', exact: true }).click()
+    await owner.getByRole('button', { name: 'Create invitation', exact: true }).click()
     await expect(owner.getByLabel('Invite by email')).toHaveValue('', { timeout: 30000 })
   }
   const invitationRow = email => owner.locator('section[aria-label="Workspace invitations"] > div').filter({ has: owner.getByText(email, { exact: true }) })
@@ -218,6 +218,16 @@ try {
   await layout(mobile)
   await mobile.getByLabel('Task title', { exact: true }).focus(); await mobile.keyboard.press('Tab')
   await expect(mobile.getByRole('button', { name: 'Add details', exact: true })).toBeFocused()
+  const longTitle = 'L'.repeat(200)
+  await mobile.getByLabel('Task title', { exact: true }).fill(longTitle)
+  await mobile.getByRole('button', { name: 'Add', exact: true }).click()
+  const longTitleButton = mobile.getByRole('button', { name: `Edit ${longTitle}`, exact: true })
+  await expect(longTitleButton).toBeVisible({ timeout: 30000 })
+  const titleBounds = await longTitleButton.evaluate(element => {
+    const title = element.getBoundingClientRect(), columnElement = element.closest('section'), column = columnElement?.getBoundingClientRect()
+    return { titleRight: title.right, columnRight: column?.right, viewport: document.documentElement.clientWidth, titleScroll: element.scrollWidth, titleWidth: element.clientWidth, columnScroll: columnElement?.scrollWidth, columnWidth: columnElement?.clientWidth }
+  })
+  assert.ok(titleBounds.columnRight <= titleBounds.viewport && titleBounds.titleRight <= titleBounds.viewport && titleBounds.titleScroll <= titleBounds.titleWidth + 1 && titleBounds.columnScroll <= titleBounds.columnWidth + 1, 'Long title and its column must fit within the mobile viewport')
   log('passed')
   phase = 'dirty-editor-discard-keyboard'
   await mobile.getByRole('button', { name: `Edit ${title}`, exact: true }).click()

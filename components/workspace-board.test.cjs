@@ -38,4 +38,6 @@ test('Board inline edits use the loaded version and preserve an editor version',
   assert.equal(writes.length, 2)
   assert.equal(reloads, 3)
   assert.equal(notices.length, 1)
+  await list.props.onEditTask('off-page', { title: 'Restored draft' }, 3)
+  assert.deepEqual(writes.at(-1), ['off-page', { title: 'Restored draft' }, 3])
 })

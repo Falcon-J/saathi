@@ -1,0 +1,29 @@
+{
+  "scope": "Separate server phase distributions from an eight-user local smoke; not sustained-capacity acceptance",
+  "notes": [
+    "Percentiles cannot be added or subtracted to attribute an individual request.",
+    "Measured authentication calls were the slowest recorded phase; host memory alone does not establish causation."
+  ],
+  "phases": {
+    "auth-get-user": {
+      "count": 56,
+      "p50Ms": 479,
+      "p95Ms": 1018
+    },
+    "auth-resolve-profile": {
+      "count": 24,
+      "p50Ms": 7,
+      "p95Ms": 74
+    },
+    "membership-read": {
+      "count": 24,
+      "p50Ms": 8,
+      "p95Ms": 56
+    },
+    "redis-poll": {
+      "count": 152,
+      "p50Ms": 10,
+      "p95Ms": 25
+    }
+  }
+}

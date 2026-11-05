@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -29,17 +29,21 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [passwordResetComplete, setPasswordResetComplete] = useState(false)
   const [returnTo, setReturnTo] = useState("/dashboard")
+  const [hydrated, setHydrated] = useState(false)
+  const pendingRequest = useRef(false)
   const isSignup = mode === "signup"
   const signInHref = `/login?redirect=${encodeURIComponent(returnTo)}`
   const registerHref = `/register?redirect=${encodeURIComponent(returnTo)}`
 
   useEffect(() => {
+    setHydrated(true)
     setReturnTo(safeAuthRedirect(new URLSearchParams(window.location.search).get("redirect")))
     if (!isSignup) setPasswordResetComplete(new URLSearchParams(window.location.search).get("reset") === "success")
   }, [isSignup])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (!hydrated || pendingRequest.current) return
     setFormError(null)
 
     if (!email.trim() || !password.trim()) {
@@ -52,6 +56,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       return
     }
 
+    pendingRequest.current = true
     setLoading(true)
 
     try {
@@ -68,7 +73,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           setConfirmation(result.message || "Check your email to verify your account.")
           return
         }
-        window.localStorage.setItem("auth-change", Date.now().toString())
+        try { window.localStorage.setItem("auth-change", Date.now().toString()) } catch { /* Cross-tab notification is optional after a committed login. */ }
         success(
           isSignup ? "Account created" : "Signed in",
           isSignup ? "Create your first workspace to get started." : "Welcome back to Saathi.",
@@ -80,11 +85,14 @@ export function AuthForm({ mode }: AuthFormProps) {
       console.error("Auth form error:", error)
       setFormError("Something went wrong. Please try again.")
     } finally {
+      pendingRequest.current = false
       setLoading(false)
     }
   }
 
   const handleGoogleAuth = async () => {
+    if (!hydrated || pendingRequest.current) return
+    pendingRequest.current = true
     setFormError(null)
     setGoogleLoading(true)
     try {
@@ -103,6 +111,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       console.error("Google auth error:", error)
       setFormError("Could not start Google sign-in. Please try again.")
     } finally {
+      pendingRequest.current = false
       setGoogleLoading(false)
     }
   }
@@ -148,21 +157,21 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Link href={signInHref} className="text-sm font-semibold text-[#0f766e] underline-offset-4 hover:underline">Return to sign in</Link>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
+                <form onSubmit={handleSubmit} aria-busy={!hydrated || loading || googleLoading} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
                   {isSignup && (
                     <FieldShell label="Name">
-                      <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
+                      <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading || googleLoading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
                     </FieldShell>
                   )}
 
                   <FieldShell label="Email">
-                    <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
+                    <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading || googleLoading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
                   </FieldShell>
 
                   <FieldShell label="Password">
                     <div className="relative">
-                      <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 pr-12 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:pr-8 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:pr-10 lg:text-sm" />
-                      <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#8290a5] transition-colors hover:text-[#0f766e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] lg:right-3 lg:p-2" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                      <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading || googleLoading} required className="h-14 rounded-xl border-[#cbd4df] px-4 pr-12 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:pr-8 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:pr-10 lg:text-sm" />
+                      <button type="button" disabled={!hydrated || loading || googleLoading} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#8290a5] transition-colors hover:text-[#0f766e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] lg:right-3 lg:p-2" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
                         {showPassword ? <EyeOff className="size-4 lg:size-5" aria-hidden="true" /> : <Eye className="size-4 lg:size-5" aria-hidden="true" />}
                       </button>
                     </div>
@@ -176,7 +185,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
                   {formError && <p role="alert" className="rounded-xl border border-[#f1b8b1] bg-[#fff4f1] px-4 py-3 text-sm leading-5 text-[#b42318]">{formError}</p>}
 
-                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={loading}>
+                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={!hydrated || loading || googleLoading}>
                     {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
                   </Button>
                 </form>
@@ -190,7 +199,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 </div>
 
                 <div className="grid gap-3 sm:gap-[clamp(0.25rem,1vh,0.5rem)] lg:gap-[clamp(0.4rem,1vh,0.625rem)]">
-                  <GoogleButton onClick={handleGoogleAuth} loading={googleLoading} disabled={loading || googleLoading} />
+                  <GoogleButton onClick={handleGoogleAuth} loading={googleLoading} disabled={!hydrated || loading || googleLoading} />
                 </div>
               </>}
 

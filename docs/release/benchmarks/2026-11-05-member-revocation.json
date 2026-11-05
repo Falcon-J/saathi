@@ -1,0 +1,35 @@
+{
+  "scope": "local production membership revocation",
+  "runId": "292ac8f4-a650-4740-93b9-ee7d288a6247",
+  "passed": true,
+  "phases": [
+    {
+      "phase": "real-auth-fixtures",
+      "result": "passed"
+    },
+    {
+      "phase": "production-server",
+      "result": "passed"
+    },
+    {
+      "phase": "authorized-member-stream",
+      "result": "passed"
+    },
+    {
+      "phase": "owner-removal-action",
+      "result": "passed"
+    },
+    {
+      "phase": "existing-stream-revocation",
+      "result": "passed",
+      "elapsedMs": 2312,
+      "controlErrors": 0
+    },
+    {
+      "phase": "subsequent-authorization",
+      "result": "passed"
+    }
+  ],
+  "manifestSha256": "1c89961740001568e009a74d507808aea6e1ce8acca2f00b07393e93152ee985",
+  "cleanup": "passed"
+}

@@ -18,9 +18,11 @@ type BoardProps = {
   openTaskId: string | null
   commentRefreshEvent: RealtimeEvent | null
   focusQuickAdd: number
+  onDirtyChange?: (dirty: boolean) => void
+  draftScope?: string
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
 }
-export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, openTaskId, commentRefreshEvent, focusQuickAdd, onAddTask }: BoardProps) {
+export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, openTaskId, commentRefreshEvent, focusQuickAdd, onAddTask, onDirtyChange, draftScope }: BoardProps) {
   const board = useTaskBoard(workspace.id, refreshSignal)
   const [detailTask, setDetailTask] = useState<Task | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
@@ -66,12 +68,15 @@ export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, ope
     {board.error && <div role="alert" className="m-4 rounded-lg border border-border p-4"><p>{board.error}</p><Button variant="outline" className="mt-2" onClick={() => void board.reload()}>Try again</Button></div>}
     {detailLoading && <p role="status" className="px-4 pt-3 text-sm text-muted-foreground">Opening task…</p>}
     {detailError && <div role="alert" className="p-4"><p>{detailError}</p><Button variant="outline" onClick={() => setDetailRetry(value => value + 1)}>Try opening task again</Button></div>}
-    <TaskList tasks={board.tasks} loading={board.loading} members={workspace.members} currentUserEmail={currentUserEmail} workspaceOwnerId={workspace.ownerId} timeZone={workspace.timezone} openTaskId={openTaskId} detailTask={detailTask} commentRefreshEvent={commentRefreshEvent} focusQuickAdd={focusQuickAdd}
+    <TaskList draftScope={draftScope} onDirtyChange={onDirtyChange} tasks={board.tasks} loading={board.loading} members={workspace.members} currentUserEmail={currentUserEmail} workspaceOwnerId={workspace.ownerId} timeZone={workspace.timezone} openTaskId={openTaskId} detailTask={detailTask} commentRefreshEvent={commentRefreshEvent} focusQuickAdd={focusQuickAdd}
       paging={board} onReviewBoard={async () => { if (!await board.reload()) throw new Error("Tasks unavailable") }}
       onAddTask={async (...args) => { const result = await onAddTask(...args); if (!getMutationError(result)) await board.reload(); return result }}
       onToggleTask={id => completeWrite(() => { const task = knownTask(id); return task ? toggleTask(id, task.version ?? task.updatedAt) : Promise.resolve({ error: "Task unavailable. Refresh tasks." }) })}
       onDeleteTask={id => completeWrite(() => { const task = knownTask(id); return task ? deleteTask(id, task.version ?? task.updatedAt) : Promise.resolve({ error: "Task unavailable. Refresh tasks." }) })}
       onEditTask={(id: string, updates: TaskUpdate, expected?: number | string) => completeWrite(() => {
+        // A restored editor can refer to a task outside the current page. The
+        // captured version is still checked with authorization by the action.
+        if (expected !== undefined) return updateTask(id, updates, expected)
         const task = knownTask(id)
         return task ? updateTask(id, updates, expected ?? task.version ?? task.updatedAt) : Promise.resolve({ error: "Task unavailable. Refresh tasks." })
       })} />

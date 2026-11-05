@@ -40,6 +40,13 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
   const pendingTaskIdsRef = useRef(new Set<string>())
   const { success, error: notifyError, info } = useNotifications()
 
+  useEffect(() => {
+    if (!userEmail || loadedUserEmail !== userEmail || !currentWorkspaceId || !workspaces.some(workspace => workspace.id === currentWorkspaceId)) return
+    try {
+      window.sessionStorage.setItem(`saathi:workspace:${normalizeEmail(userEmail)}`, currentWorkspaceId)
+    } catch { /* Storage can be unavailable; server membership remains authoritative. */ }
+  }, [userEmail, loadedUserEmail, currentWorkspaceId, workspaces])
+
   const updateTasks = useCallback((updater: (currentTasks: Task[]) => Task[]) => {
     taskReadVersion.current += 1
     setTasksLoading(false)
@@ -146,7 +153,9 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
 
         setWorkspaceError(null)
         setWorkspaces(userWorkspaces)
-        setCurrentWorkspaceId(userWorkspaces[0]?.id ?? null)
+        let remembered: string | null = null
+        try { remembered = window.sessionStorage.getItem(`saathi:workspace:${normalizeEmail(userEmail)}`) } catch { /* Use the first authorized workspace when storage is unavailable. */ }
+        setCurrentWorkspaceId(userWorkspaces.find(workspace => workspace.id === remembered)?.id ?? userWorkspaces[0]?.id ?? null)
       } catch (error) {
         if (!cancelled && workspaceVersion === workspaceReadVersion.current) {
           console.error("[Saathi] Failed to load workspaces:", error)
@@ -426,24 +435,29 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
 
   // Add function to refresh workspaces (for when invitations are accepted)
   const refreshWorkspaces = useCallback(
-    async () => {
-      if (!userEmail) return
+    async (preferredWorkspaceId?: string, canSelectPreferred: () => boolean = () => true) => {
+      if (!userEmail || selectionRef.current.userEmail !== userEmail) return false
 
       const version = ++workspaceReadVersion.current
       const selection = selectionRef.current
       try {
         const updatedWorkspaces = await getUserWorkspaces(userEmail)
-        if (selectionRef.current !== selection || version !== workspaceReadVersion.current) return
+        if (selectionRef.current !== selection || version !== workspaceReadVersion.current) return false
         setWorkspaceError(null)
         setWorkspaces(updatedWorkspaces)
+        const selectPreferred = canSelectPreferred()
         setCurrentWorkspaceId((currentId) => (
-          currentId && updatedWorkspaces.some((workspace) => workspace.id === currentId)
+          selectPreferred && preferredWorkspaceId && updatedWorkspaces.some(workspace => workspace.id === preferredWorkspaceId)
+            ? preferredWorkspaceId
+            : currentId && updatedWorkspaces.some((workspace) => workspace.id === currentId)
             ? currentId
             : updatedWorkspaces[0]?.id ?? null
         ))
+        return true
       } catch (error) {
         console.error("[Saathi] Failed to refresh workspaces:", error)
         if (selectionRef.current === selection && version === workspaceReadVersion.current) setWorkspaceError(error instanceof Error ? error.message : "Unable to load workspaces")
+        return false
       }
     },
     [userEmail],

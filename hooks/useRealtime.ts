@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { RealtimeEvent } from '@/lib/realtime'
+import { normalizeRealtimeEvent, type RealtimeEvent } from '@/lib/realtime-event'
 import { shouldProcessEvent } from '@/lib/realtime-sse'
 
 interface UseRealtimeOptions {
@@ -86,6 +86,7 @@ export function useRealtime(options: UseRealtimeOptions) {
             eventSourceRef.current = eventSource
 
             eventSource.onopen = () => {
+                if (eventSourceRef.current !== eventSource) return
                 setEventRevision(value => value + 1)
                 optionsRef.current.onResyncRequired?.()
                 setIsConnected(true)
@@ -93,12 +94,10 @@ export function useRealtime(options: UseRealtimeOptions) {
             }
 
             eventSource.onmessage = (event) => {
+                if (eventSourceRef.current !== eventSource) return
                 try {
-                    if (!shouldProcessEvent(seenEventIdsRef.current, event.lastEventId)) {
-                        return
-                    }
-
                     const data = JSON.parse(event.data)
+                    if (!data || typeof data !== 'object' || typeof data.type !== 'string') return
 
                     if (data.type === 'connected') {
                         console.log('[Realtime] Connected to workspace:', optionsRef.current.workspaceId)
@@ -106,11 +105,11 @@ export function useRealtime(options: UseRealtimeOptions) {
                         setError(null)
                     } else if (data.type === 'error') {
                         setIsConnected(false)
-                        setError(data.data?.message || 'Realtime updates are temporarily unavailable')
+                        setError(typeof data.data?.message === 'string' && data.data.message ? data.data.message : 'Realtime updates are temporarily unavailable')
                     } else if (data.type === 'heartbeat') {
                         setIsConnected(true)
                         setError(null)
-                        if (data.data?.activeUsers) {
+                        if (Array.isArray(data.data?.activeUsers) && data.data.activeUsers.every((user: unknown) => typeof user === 'string')) {
                             setActiveUsers(data.data.activeUsers)
                         }
                     } else if (data.type === 'resync-required') {
@@ -119,9 +118,14 @@ export function useRealtime(options: UseRealtimeOptions) {
                         setError('Refreshing after a missed realtime update')
                         optionsRef.current.onResyncRequired?.()
                     } else {
+                        // EventSource inherits IDs for idless controls. Only persisted
+                        // domain notifications participate in replay deduplication.
+                        const domainEvent = normalizeRealtimeEvent({ type: data.type, workspaceId: data.workspaceId, userId: data.userId, timestamp: data.timestamp, data: data.data })
+                        if (domainEvent.workspaceId !== optionsRef.current.workspaceId) return
+                        if (!shouldProcessEvent(seenEventIdsRef.current, event.lastEventId)) return
                         setIsConnected(true)
                         setError(null)
-                        handleEvent(data as RealtimeEvent)
+                        handleEvent(domainEvent)
                     }
                 } catch (err) {
                     console.error('[Realtime] Failed to parse SSE message:', err)
@@ -129,6 +133,7 @@ export function useRealtime(options: UseRealtimeOptions) {
             }
 
             eventSource.onerror = (event) => {
+                if (eventSourceRef.current !== eventSource) return
                 console.error('[Realtime] SSE connection error:', event)
                 setIsConnected(false)
                 setError('Connection lost')

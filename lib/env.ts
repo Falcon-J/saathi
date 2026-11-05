@@ -15,38 +15,38 @@ const envSchema = z.object({
     // Authentication
     NEXTAUTH_SECRET: z.string().min(32).default('dev-secret-key-change-in-production-please'),
     NEXTAUTH_URL: z.string().url().default('http://localhost:3000'),
-    SESSION_MAX_AGE: z.string().transform(Number).default('86400'),
+    SESSION_MAX_AGE: z.string().transform(Number).prefault('86400'),
 
     // Rate limiting
-    RATE_LIMIT_INVITATIONS_MAX: z.string().transform(Number).default('10'),
-    RATE_LIMIT_INVITATIONS_WINDOW: z.string().transform(Number).default('3600000'),
-    RATE_LIMIT_LOGIN_MAX: z.string().transform(Number).default('5'),
-    RATE_LIMIT_LOGIN_WINDOW: z.string().transform(Number).default('900000'),
-    RATE_LIMIT_SIGNUP_MAX: z.string().transform(Number).default('3'),
-    RATE_LIMIT_SIGNUP_WINDOW: z.string().transform(Number).default('3600000'),
-    RATE_LIMIT_TASKS_MAX: z.string().transform(Number).default('100'),
-    RATE_LIMIT_TASKS_WINDOW: z.string().transform(Number).default('60000'),
-    RATE_LIMIT_SSE_MAX: z.string().transform(Number).default('30'),
-    RATE_LIMIT_SSE_WINDOW: z.string().transform(Number).default('60000'),
-    SSE_MAX_CONNECTIONS: z.string().transform(Number).default('5'),
-    SSE_CONNECTION_LEASE_SECONDS: z.string().transform(Number).default('1900'),
+    RATE_LIMIT_INVITATIONS_MAX: z.string().transform(Number).prefault('10'),
+    RATE_LIMIT_INVITATIONS_WINDOW: z.string().transform(Number).prefault('3600000'),
+    RATE_LIMIT_LOGIN_MAX: z.string().transform(Number).prefault('5'),
+    RATE_LIMIT_LOGIN_WINDOW: z.string().transform(Number).prefault('900000'),
+    RATE_LIMIT_SIGNUP_MAX: z.string().transform(Number).prefault('3'),
+    RATE_LIMIT_SIGNUP_WINDOW: z.string().transform(Number).prefault('3600000'),
+    RATE_LIMIT_TASKS_MAX: z.string().transform(Number).prefault('100'),
+    RATE_LIMIT_TASKS_WINDOW: z.string().transform(Number).prefault('60000'),
+    RATE_LIMIT_SSE_MAX: z.string().transform(Number).prefault('30'),
+    RATE_LIMIT_SSE_WINDOW: z.string().transform(Number).prefault('60000'),
+    SSE_MAX_CONNECTIONS: z.string().transform(Number).prefault('5'),
+    SSE_CONNECTION_LEASE_SECONDS: z.string().transform(Number).prefault('1900'),
 
     // Application
     APP_NAME: z.string().default('Saathi'),
     APP_VERSION: z.string().default('1.0.0'),
 
     // Features
-    ENABLE_REAL_TIME: z.string().transform(val => val === 'true').default('true'),
-    ENABLE_RATE_LIMITING: z.string().transform(val => val === 'true').default('true'),
-    ENABLE_ANALYTICS: z.string().transform(val => val === 'true').default('false'),
-    ENABLE_ERROR_REPORTING: z.string().transform(val => val === 'true').default('false'),
+    ENABLE_REAL_TIME: z.string().transform(val => val === 'true').prefault('true'),
+    ENABLE_RATE_LIMITING: z.string().transform(val => val === 'true').prefault('true'),
+    ENABLE_ANALYTICS: z.string().transform(val => val === 'true').prefault('false'),
+    ENABLE_ERROR_REPORTING: z.string().transform(val => val === 'true').prefault('false'),
 
     // Logging
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-    DEBUG: z.string().transform(val => val === 'true').default('false'),
+    DEBUG: z.string().transform(val => val === 'true').prefault('false'),
 
     // Development
-    DISABLE_HTTPS: z.string().transform(val => val === 'true').default('false'),
+    DISABLE_HTTPS: z.string().transform(val => val === 'true').prefault('false'),
     USE_MOCK_REDIS: z.string().default('auto'),
 
     // Optional: Analytics
@@ -63,12 +63,12 @@ function parseEnv() {
         return envSchema.parse(process.env)
     } catch (error) {
         if (error instanceof z.ZodError) {
-            const missingVars = error.errors
-                .filter(err => err.code === 'invalid_type' && err.received === 'undefined')
+            const missingVars = error.issues
+                .filter(err => err.code === 'invalid_type' && process.env[String(err.path[0])] === undefined)
                 .map(err => err.path.join('.'))
 
-            const invalidVars = error.errors
-                .filter(err => err.code !== 'invalid_type' || err.received !== 'undefined')
+            const invalidVars = error.issues
+                .filter(err => err.code !== 'invalid_type' || process.env[String(err.path[0])] !== undefined)
                 .map(err => `${err.path.join('.')}: ${err.message}`)
 
             console.error('❌ Environment configuration error:')

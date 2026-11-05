@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Archive, ChevronDown, CircleHelp, History, Keyboard, LayoutGrid, LogOut, MoreHorizontal, PanelLeft, Plus, RefreshCw, Settings, Sparkles } from "lucide-react"
@@ -35,6 +35,7 @@ import { useWorkspaces } from "@/hooks/use-workspaces"
 import { getSession, logout } from "@/lib/auth-simple"
 import { getFeatureCapabilities } from "@/app/actions/capabilities"
 import { normalizeEmail } from "@/lib/identity"
+import { removeDraft, clearAccountDrafts } from "@/lib/draft-storage"
 import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
 type SessionUser = { email: string; username: string }
@@ -44,6 +45,34 @@ export default function Dashboard() {
   const [askOpen, setAskOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "overview" : workspaceViewFromHash(window.location.hash))
+  const viewRef = useRef(workspaceView)
+  useLayoutEffect(() => { viewRef.current = workspaceView }, [workspaceView])
+  const dirtyRef = useRef(false)
+  const draftScopeRef = useRef<string | undefined>(undefined)
+  const discardDrafts = useCallback(() => {
+    if (dirtyRef.current && draftScopeRef.current) {
+      const suffixes = viewRef.current === "settings" ? [":settings"] : viewRef.current === "board" ? [":quick-add", ":task-editor"] : [":quick-add"]
+      for (const suffix of suffixes) removeDraft(draftScopeRef.current + suffix)
+    }
+    dirtyRef.current = false
+  }, [])
+  const onDirtyChange = useCallback((dirty: boolean) => { dirtyRef.current = dirty }, [])
+  const confirmLeave = useCallback(() => {
+    if (dirtyRef.current && !window.confirm("Discard unsaved changes before leaving this view?")) return false
+    return true
+  }, [])
+  const [showReadiness, setShowReadiness] = useState(false)
+  const navigateTo = useCallback((view: WorkspaceView) => {
+    if (view === viewRef.current) return true
+    if (!confirmLeave()) return false
+    discardDrafts()
+    const hash = { overview: "#workspace-header", board: "#project-board", team: "#team-panel", activity: "#activity-history", settings: "#settings-panel" }[view]
+    setWorkspaceView(view)
+    viewRef.current = view
+    setShowReadiness(false)
+    if (window.location.hash !== hash) window.history.pushState(null, "", hash)
+    return true
+  }, [confirmLeave, discardDrafts])
   const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
   const [quickAddRequest, setQuickAddRequest] = useState(0)
   const [boardRefreshRequest, setBoardRefreshRequest] = useState(0)
@@ -75,11 +104,13 @@ export default function Dashboard() {
           setCapabilities({ aiWorkspace: false, csvImport: false })
         }
         const welcomeKey = `saathi:welcome:${session.email}`
-        if (!sessionStorage.getItem(welcomeKey) && !welcomeShownRef.current) {
-          welcomeShownRef.current = true
-          info("Welcome back", `${session.username}, your workspace is ready.`)
-          sessionStorage.setItem(welcomeKey, "true")
-        }
+        try {
+          if (!sessionStorage.getItem(welcomeKey) && !welcomeShownRef.current) {
+            welcomeShownRef.current = true
+            info("Welcome back", `${session.username}, your workspace is ready.`)
+            sessionStorage.setItem(welcomeKey, "true")
+          }
+        } catch { /* Optional welcome storage must not block a valid session. */ }
       } catch (authError) {
         setAuthErrorMessage("Account service is temporarily unavailable.")
       } finally {
@@ -101,11 +132,28 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      setWorkspaceView(workspaceViewFromHash(window.location.hash))
+      const next = workspaceViewFromHash(window.location.hash)
+      if (next === viewRef.current) return
+      if (!confirmLeave()) {
+        const hash = { overview: "#workspace-header", board: "#project-board", team: "#team-panel", activity: "#activity-history", settings: "#settings-panel" }[viewRef.current]
+        window.history.pushState(null, "", hash)
+        return
+      }
+      discardDrafts()
+      viewRef.current = next
+      setWorkspaceView(next)
+      setShowReadiness(false)
     }
     window.addEventListener("hashchange", handleHashChange)
-    return () => window.removeEventListener("hashchange", handleHashChange)
-  }, [])
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (dirtyRef.current) { event.preventDefault(); event.returnValue = "" }
+    }
+    window.addEventListener("beforeunload", beforeUnload)
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange)
+      window.removeEventListener("beforeunload", beforeUnload)
+    }
+  }, [confirmLeave, discardDrafts])
 
   const {
     workspaces,
@@ -127,6 +175,8 @@ export default function Dashboard() {
   } = useWorkspaces(user?.email && !loading ? user.email : undefined, { loadTasks: workspaceView === "overview" })
 
   const currentWorkspace = workspaces.find((workspace) => workspace.id === currentWorkspaceId)
+  const draftScope = user && currentWorkspace ? `saathi:draft:${normalizeEmail(user.email)}:${currentWorkspace.id}` : undefined
+  useLayoutEffect(() => { draftScopeRef.current = draftScope }, [draftScope])
   const isCurrentWorkspaceOwner = currentWorkspace && user
     ? normalizeEmail(currentWorkspace.ownerId) === normalizeEmail(user.email)
     : false
@@ -222,6 +272,9 @@ export default function Dashboard() {
   }
 
   const handleSelectWorkspace = (workspaceId: string) => {
+    if (workspaceId === currentWorkspaceId || !confirmLeave()) return
+    discardDrafts()
+    setShowReadiness(false)
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
     setAskOpen(false)
@@ -230,28 +283,16 @@ export default function Dashboard() {
     window.history.replaceState(null, "", "#workspace-header")
   }
 
-  const handleOpenSettings = () => {
-    setWorkspaceView("settings")
-    window.history.replaceState(null, "", "#settings-panel")
-  }
+  const handleOpenSettings = () => navigateTo("settings")
 
-  const handleOpenOverview = () => {
-    setWorkspaceView("overview")
-    window.history.replaceState(null, "", "#workspace-header")
-  }
+  const handleOpenOverview = () => navigateTo("overview")
 
-  const handleOpenTeam = () => {
-    setWorkspaceView("team")
-    window.history.replaceState(null, "", "#team-panel")
-  }
+  const handleOpenTeam = () => navigateTo("team")
 
-  const handleOpenActivity = () => {
-    setWorkspaceView("activity")
-    window.history.replaceState(null, "", "#activity-history")
-  }
+  const handleOpenActivity = () => navigateTo("activity")
 
   const handleNewTask = () => {
-    if (workspaceView !== "board") handleOpenOverview()
+    if (workspaceView !== "board" && !handleOpenOverview()) return
     setQuickAddRequest(request => request + 1)
   }
 
@@ -263,10 +304,8 @@ export default function Dashboard() {
   }, [currentWorkspace, workspaceView, isCurrentWorkspaceOwner])
 
   const handleOpenBoard = useCallback(() => {
-    setTaskToOpen(null)
-    setWorkspaceView("board")
-    window.history.replaceState(null, "", "#project-board")
-  }, [])
+    if (navigateTo("board")) setTaskToOpen(null)
+  }, [navigateTo])
 
   useEffect(() => {
     const handleKeyboardShortcut = (event: KeyboardEvent) => {
@@ -288,13 +327,11 @@ export default function Dashboard() {
   }, [handleOpenBoard])
 
   const handleOpenTask = (taskId: string) => {
-    setTaskToOpen(taskId)
-    setWorkspaceView("board")
-    window.history.replaceState(null, "", "#project-board")
+    if (navigateTo("board")) setTaskToOpen(taskId)
   }
 
   const handleLogout = async () => {
-    if (loggingOut) return
+    if (loggingOut || !confirmLeave()) return
 
     setLoggingOut(true)
     setLogoutError(null)
@@ -305,7 +342,8 @@ export default function Dashboard() {
         return
       }
 
-      window.localStorage.setItem("auth-change", Date.now().toString())
+      if (user) clearAccountDrafts(`saathi:draft:${normalizeEmail(user.email)}:`)
+      try { window.localStorage.setItem("auth-change", Date.now().toString()) } catch { /* Cross-tab notification is optional after committed logout. */ }
       router.replace("/login")
     } catch (caughtError) {
       setLogoutError(caughtError instanceof Error ? caughtError.message : "Unable to sign out. Please try again.")
@@ -319,7 +357,7 @@ export default function Dashboard() {
     return <PageLoader label="Loading your workspace..." />
   }
 
-  const dashboardState = getDashboardState({ authenticated: Boolean(user), loading: workspacesLoading, error: workspaceError, workspaceCount: workspaces.length, creating: creatingWorkspace })
+  const dashboardState = getDashboardState({ authenticated: Boolean(user), loading: workspacesLoading, error: currentWorkspace ? null : workspaceError, workspaceCount: workspaces.length, creating: creatingWorkspace })
   const showWorkspace = dashboardState === "workspace" && Boolean(currentWorkspace)
 
   return (
@@ -328,7 +366,7 @@ export default function Dashboard() {
         <div className="flex min-h-14 flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
           <SaathiLogo className="size-8 shrink-0" priority />
           <h1 className="sr-only">Saathi</h1>
-          {showWorkspace && <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1 sm:max-w-sm"><WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => setCreatingWorkspace(true)} showCreate={false} /></div>}
+          {showWorkspace && <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1 sm:max-w-sm"><WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => { if (confirmLeave()) { discardDrafts(); setCreatingWorkspace(true) } }} showCreate={false} /></div>}
           <div className="ml-auto flex items-center gap-2">
             {showWorkspace && <Button onClick={handleNewTask}><Plus className="size-4" /><span>New task</span></Button>}
             <DropdownMenu>
@@ -338,8 +376,8 @@ export default function Dashboard() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setShortcutsOpen(true)} aria-label="Keyboard shortcuts"><Keyboard className="size-4" />Keyboard shortcuts</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setSidebarOpen(open => !open)} className="hidden lg:flex"><PanelLeft className="size-4" />{sidebarOpen ? "Hide navigation" : "Show navigation"}</DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/guide"><CircleHelp className="size-4" />Help and guide</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/archive"><Archive className="size-4" />Archived workspaces</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/guide" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><CircleHelp className="size-4" />Help and guide</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/archive" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><Archive className="size-4" />Archived workspaces</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => void handleLogout()} disabled={loggingOut} aria-label="Logout" aria-busy={loggingOut}><LogOut className="size-4" />{loggingOut ? "Signing out..." : "Logout"}</DropdownMenuItem>
               </DropdownMenuContent>
@@ -381,9 +419,10 @@ export default function Dashboard() {
 
         <div className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1240px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
-            <InvitationNotifications userEmail={user.email} onInvitationAccepted={refreshWorkspaces} />
+            <InvitationNotifications userEmail={user.email} onInvitationAccepted={async workspaceId => { if (dirtyRef.current) { await refreshWorkspaces(); return } if (await refreshWorkspaces(workspaceId, () => !dirtyRef.current) && !dirtyRef.current) navigateTo("overview") }} />
 
-            {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError ? (
+            {workspaceError && currentWorkspace && <div role="alert" className="mb-4 rounded-lg border border-border p-4"><p>Workspace refresh failed. Showing previously loaded details; your unsaved changes are retained.</p><Button variant="outline" className="mt-2" onClick={() => void refreshWorkspaces()}>Try again</Button></div>}
+            {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError && !currentWorkspace ? (
               <section className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-8 text-center" role="alert">
                 <h2 className="text-xl font-semibold">Workspace unavailable</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{workspaceError}. Your data was not changed.</p>
@@ -408,7 +447,7 @@ export default function Dashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Workspace menu" className={workspaceView === "activity" || workspaceView === "settings" ? "border-primary text-primary" : ""}>{workspaceView === "activity" ? "Activity" : workspaceView === "settings" ? "Settings" : "Workspace"}<ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setCreatingWorkspace(true)}><Plus className="size-4" />New workspace</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => { if (confirmLeave()) { discardDrafts(); setCreatingWorkspace(true) } }}><Plus className="size-4" />New workspace</DropdownMenuItem>
                         <DropdownMenuItem onSelect={handleOpenActivity} aria-current={workspaceView === "activity" ? "page" : undefined}><History className="size-4" />Activity</DropdownMenuItem>
                         {isCurrentWorkspaceOwner && <DropdownMenuItem onSelect={handleOpenSettings} aria-current={workspaceView === "settings" ? "page" : undefined}><Settings className="size-4" />Settings</DropdownMenuItem>}
                       </DropdownMenuContent>
@@ -429,12 +468,12 @@ export default function Dashboard() {
                 {workspaceView === "activity" ? (
                   <section aria-labelledby="activity-title" className="space-y-4"><header><h2 id="activity-title" className="text-xl font-semibold">Activity</h2><p className="text-sm text-muted-foreground">Changes made in this workspace.</p></header><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></section>
                 ) : workspaceView === "settings" && isCurrentWorkspaceOwner ? (
-                  <section id="settings-panel"><WorkspaceSettings key={currentWorkspace.id} workspace={currentWorkspace} onSaved={refreshWorkspaces} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
+                  <section id="settings-panel"><WorkspaceSettings draftScope={draftScope} onDirtyChange={onDirtyChange} key={currentWorkspace.id} workspace={currentWorkspace} onSaved={async () => { if (!await refreshWorkspaces()) throw new Error("Unable to reload settings. Your draft is retained.") }} onArchived={handleArchiveWorkspace} onDeleted={handleDeleteWorkspace} /></section>
                 ) : workspaceView === "team" ? (
                   <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Team members</CardTitle><CardDescription>Invite people and manage access to this workspace.</CardDescription></CardHeader><CardContent className="p-5 sm:p-7"><MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /></CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (
                   <>
-                  <NextWorkView key={`next-work-${currentWorkspace.id}`} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} taskRevision={tasks.map(task => `${task.id}:${task.version ?? task.updatedAt}`).join("|")} connected={realtime.isConnected} onOpenTask={handleOpenTask} onChanged={refreshTasks} />
+
                   {taskError && (
                     <section className="rounded-xl border border-border bg-card p-8 text-center" role="alert">
                       <p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p>
@@ -447,6 +486,9 @@ export default function Dashboard() {
                       currentUserEmail={user.email}
                       tasks={tasks}
                       loading={tasksLoading}
+                      error={taskError}
+                      onDirtyChange={onDirtyChange}
+                      draftScope={draftScope}
                       onToggleTask={handleToggleTask}
                       onOpenTask={handleOpenTask}
                       onAddTask={handleAddTask}
@@ -454,6 +496,8 @@ export default function Dashboard() {
                       onReviewBoard={async () => { if (!await refreshTasks()) throw new Error("Tasks unavailable") }}
                       focusQuickAdd={quickAddRequest}
                     />
+                    <Button type="button" variant="outline" className="mt-4" aria-expanded={showReadiness} aria-controls="workspace-readiness" onClick={() => setShowReadiness(value => !value)}>Readiness and dependencies</Button>
+                    {showReadiness && <div id="workspace-readiness" className="mt-4"><NextWorkView key={`next-work-${currentWorkspace.id}`} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} taskRevision={tasks.map(task => `${task.id}:${task.version ?? task.updatedAt}`).join("|")} connected={realtime.isConnected} onOpenTask={handleOpenTask} onChanged={refreshTasks} /></div>}
                   </>
                 ) : (
                   <section className="min-w-0">
@@ -464,7 +508,7 @@ export default function Dashboard() {
                           </div>
                         </CardHeader>
                         <CardContent className="p-0">
-                          <WorkspaceBoard key={currentWorkspace.id} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} focusQuickAdd={quickAddRequest} />
+                          <WorkspaceBoard draftScope={draftScope} onDirtyChange={onDirtyChange} key={currentWorkspace.id} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} focusQuickAdd={quickAddRequest} />
                         </CardContent>
                     </Card>
                   </section>

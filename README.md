@@ -119,15 +119,18 @@ The response reports task creation, task completion, member additions, and uniqu
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- npm or pnpm
+- Node.js 22 (matches CI)
+- npm (use the committed `package-lock.json`)
+- Docker Desktop with a running engine for isolated database/Auth acceptance
 
 ### Run locally
 
 ```bash
 git clone https://github.com/Falcon-J/saathi.git
 cd saathi
-npm install
+npm ci
+# Copy .env.example to .env.local and configure your local/test services first.
+# Never point migration or QA commands at production.
 npm run db:migrate
 npm run dev
 ```
@@ -137,6 +140,18 @@ The app can render locally without external services, but authenticated workspac
 Visit [http://localhost:3000](http://localhost:3000)
 
 Register from the sign-up page after configuring the Supabase URL and publishable key. Durable workspaces and tasks are stored in PostgreSQL.
+
+On Windows, npm's configured target OS must match the host. If another tool set it to Linux, use command-scoped `npm ci --os=win32`; do not copy native packages between operating systems. Check `node --version` in the same shell used to run tests.
+
+### Verification and current readiness
+
+Run `npm run lint`, `npm run type-check -- --incremental false`, `npm test`, and `npm run build -- --webpack`. Browser tests additionally require `npx playwright install chromium`; the database commands below require their disposable local fixture. Run heavy checks sequentially on machines with limited memory.
+
+For a memory-constrained build, set `SAATHI_BUILD_WORKERS=1` in that command's environment. This limits build worker concurrency without skipping type checks or changing application runtime behavior.
+
+The public-page suite (`npm run test:e2e`) does not cover signed-in users. `npm run verify:auth:local` uses a separate local Supabase CLI project at `.local-test/supabase-acceptance`, creates disposable confirmed owner/member/invitee/outsider accounts, and cleans them up. Initialize and start that local project before running it; do not use the SQL identity stub below in a Supabase Auth database.
+
+See the [current remediation and verification ledger](docs/release/2026-11-05-review-remediation.md), [original QA report](docs/release/2026-11-05-persona-qa-review.md), and [system-design study guide](docs/interviews/saathi-qa-system-design-study-guide.md) for implemented fixes, evidence, and remaining release gates.
 
 ### Disposable local PostgreSQL
 
@@ -269,7 +284,7 @@ SSE works over standard HTTP/1.1 with no protocol upgrade — compatible with Ve
 Pub/Sub messages are lost if no subscriber is active. Streams are a bounded, ordered log — each SSE connection maintains its own cursor (`Last-Event-ID`) and independently reads from any retained offset via `XRANGE`. Reconnecting clients replay retained events; when retention has expired, Saathi emits `resync-required` and refetches authoritative task state.
 
 **Why polling instead of blocking stream reads?**
-Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. The route polls every 100ms; actual delivery latency must be measured with the authenticated load test and depends on Redis, network, and runtime conditions.
+Upstash uses a REST API (not persistent TCP), so `XREAD BLOCK` is not supported. The route polls every 500ms; actual delivery latency must be measured with the authenticated load test and depends on Redis, network, and runtime conditions.
 
 ---
 

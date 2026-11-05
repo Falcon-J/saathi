@@ -25,6 +25,7 @@ test('account switches and confirmation retain only safe return destinations', a
       react: {
         useState(initial) { const index = cursor++; slots[index] ??= { value: initial }; return [slots[index].value, value => { slots[index].value = typeof value === 'function' ? value(slots[index].value) : value }] },
         useEffect(effect) { effects.push(effect) },
+        useRef(initial) { const index = cursor++; slots[index] ??= { current: initial }; return slots[index] },
       },
       'react/jsx-runtime': { jsx, jsxs: jsx },
       'next/image': { default: 'Image' }, 'next/link': { default: 'Link' },

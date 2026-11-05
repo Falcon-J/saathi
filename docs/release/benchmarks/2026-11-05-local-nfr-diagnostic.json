@@ -1,0 +1,1992 @@
+{
+  "passed": false,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "runId": "ea58c988-567a-4894-85f1-20e2dd325e17",
+  "phase": "sse-admission",
+  "failure": "Local fixture or transport failed; inspect phase and scoped server log",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "attempts": 568,
+  "readAttempts": 0,
+  "streamAttempts": 568,
+  "successfulMutations": 0,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 0,
+    "missing": 2500,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [
+    {
+      "phase": "stream",
+      "actorSlot": 3
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 0
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 4
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 1
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 2
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 5
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 6
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 9
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 7
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 8
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 10
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 11
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 12
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 19
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 14
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 17
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 18
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 15
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 13
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 21
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 26
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 22
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 20
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 24
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 23
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 25
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 16
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 27
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 28
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 32
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 29
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 33
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 40
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 35
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 36
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 46
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 43
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 44
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 38
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 37
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 47
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 49
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 45
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 34
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 31
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 39
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 30
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 41
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 42
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 4
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 48
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 50
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 1
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 0
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 2
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 51
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 7
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 10
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 6
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 11
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 55
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 9
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 53
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 58
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 54
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 8
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 57
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 5
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 52
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 56
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 3
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 60
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 61
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 59
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 64
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 65
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 63
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 62
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 68
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 70
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 67
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 66
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 71
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 19
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 12
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 14
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 13
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 15
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 18
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 75
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 78
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 74
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 69
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 72
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 21
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 83
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 73
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 26
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 84
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 17
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 22
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 79
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 86
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 91
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 92
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 77
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 23
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 27
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 81
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 20
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 82
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 28
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 24
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 16
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 76
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 80
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 87
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 35
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 98
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 29
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 90
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 32
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 95
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 85
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 46
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 25
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 33
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 99
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 89
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 93
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 97
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 44
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 88
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 94
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 36
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 40
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 96
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 34
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 47
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 39
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 30
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 42
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 0
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 4
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 38
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 37
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 45
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 49
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 31
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 43
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 50
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 1
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 48
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 41
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 2
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 51
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 6
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 10
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 9
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 54
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 7
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 53
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 58
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 8
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 55
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 11
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 57
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 5
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 52
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 56
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 3
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 60
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 59
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 61
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 65
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 64
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 63
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 62
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 68
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 67
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 70
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 14
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 66
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 71
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 13
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 12
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 19
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 15
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 18
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 75
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 74
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 69
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 78
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 72
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 21
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 83
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 26
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 73
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 17
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 84
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 92
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 79
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 91
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 22
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 86
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 77
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 23
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 76
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 24
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 16
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 28
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 82
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 81
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 87
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 80
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 27
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 35
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 20
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 98
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 32
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 29
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 95
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 90
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 46
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 85
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 25
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 33
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 99
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 93
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 89
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 88
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 44
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 97
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 34
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 40
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 94
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 96
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 36
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 47
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 39
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 30
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 42
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 4
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 50
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 1
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 0
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 45
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 37
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 38
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 41
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 49
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 6
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 43
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 48
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 31
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 2
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 53
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 10
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 7
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 9
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 51
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 54
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 58
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 8
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 11
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 55
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 57
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 5
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 52
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 56
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 3
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 60
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 59
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 61
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 65
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 64
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 63
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 62
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 68
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 67
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 70
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 14
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 66
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 71
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 13
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 12
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 19
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 15
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 18
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 75
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 69
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 74
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 78
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 21
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 72
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 83
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 26
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 73
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 17
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 84
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 79
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 92
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 22
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 77
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 91
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 23
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 86
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 28
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 76
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 82
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 81
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 24
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 16
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 87
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 80
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 35
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 98
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 20
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 27
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 32
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 95
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 29
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 46
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 90
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 25
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 85
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 99
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 33
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 89
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 93
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 88
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 44
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 97
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 34
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 36
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 40
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 94
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 96
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 47
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 39
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 30
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 42
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 4
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 50
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 1
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 37
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 0
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 41
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 45
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 38
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 6
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 49
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 31
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 48
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 43
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 2
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 53
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 7
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 10
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 9
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 51
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 54
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 58
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 8
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 11
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 55
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 57
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 5
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 52
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 56
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 3
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 60
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 59
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 61
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 65
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 64
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 63
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 62
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 68
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 67
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 70
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 14
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 66
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 71
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 13
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 12
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 19
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 15
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 18
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 75
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 69
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 78
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 74
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 21
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 72
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 83
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 26
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 73
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 17
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 84
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 79
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 92
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 22
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 77
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 91
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 23
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 86
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 28
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 76
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 82
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 81
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 24
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 16
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 87
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 80
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 35
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 98
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 20
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 27
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 32
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 95
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 29
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 46
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 90
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 25
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 85
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 99
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 33
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 89
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 93
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 88
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 44
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 97
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 36
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 34
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 40
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 94
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 47
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 96
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 39
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 30
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 42
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 4
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 50
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 1
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 37
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 0
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 45
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 41
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 6
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 38
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 31
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 49
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 48
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 43
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 2
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 53
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 7
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 10
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 9
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 51
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 54
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 8
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 55
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 11
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 58
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 57
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 5
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 52
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 56
+    },
+    {
+      "phase": "stream",
+      "actorSlot": 3
+    }
+  ],
+  "timings": {
+    "warmRead": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "read": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "write": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "admission": {
+      "count": 471,
+      "p50Ms": 10373,
+      "p95Ms": 22685,
+      "p99Ms": 23894
+    },
+    "deliveryUpperBound": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 0,
+    "meanMs": null,
+    "maxMs": null,
+    "p95Ms": null,
+    "p99Ms": null
+  },
+  "workload": {
+    "elapsedMs": 0,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 0,
+    "achievedWriteRatePerSecond": 0,
+    "attemptedWriteRatePerSecond": 0,
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "elapsedMs": 0,
+  "fingerprint": {
+    "revision": "41ef5c34b83fef7c6da2a04bf385a0b39f01dd3a",
+    "workingDiffSha256": "4a20ce531ee950c45d7142eed1c039137472cf1ccc33360dbd90a2d0d8143217",
+    "verifierSha256": "915247b52f613aa4a75a2437c64cb5fdc7ce7f5d16deb7bc4196ee6ec772b38e",
+    "builtActionManifestSha256": "1c89961740001568e009a74d507808aea6e1ce8acca2f00b07393e93152ee985",
+    "recordedAt": "2026-11-05T16:12:39.949Z"
+  },
+  "databasePoolMax": "1",
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 0,
+    "achievedRequestsPerSecond": 0
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 568,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

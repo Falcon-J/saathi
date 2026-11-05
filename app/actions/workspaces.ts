@@ -51,6 +51,16 @@ export async function updateWorkspace(workspaceId: string, input: WorkspaceInput
   return workspace
 }
 
+export async function updateWorkspaceSettings(workspaceId: string, input: WorkspaceInput, expectedVersion: number): Promise<{ workspace: Workspace } | { error: string }> {
+  try {
+    return { workspace: await updateWorkspace(workspaceId, input, expectedVersion) }
+  } catch (error) {
+    return { error: error instanceof Error && error.message === "Workspace changed. Refresh and try again."
+      ? "Workspace changed. Refresh and try again."
+      : "Unable to save workspace settings. Please try again." }
+  }
+}
+
 export async function updateWorkspaceName(workspaceId: string, newName: string, expectedVersion: number): Promise<void> {
   const session = await requireSession()
   const current = await readWorkspace(workspaceId, session.id)
