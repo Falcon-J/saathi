@@ -149,7 +149,7 @@ Run `npm run lint`, `npm run type-check -- --incremental false`, `npm test`, and
 
 For a memory-constrained build, set `SAATHI_BUILD_WORKERS=1` in that command's environment. This limits build worker concurrency without skipping type checks or changing application runtime behavior.
 
-The public-page suite (`npm run test:e2e`) does not cover signed-in users. `npm run verify:auth:local` uses a separate local Supabase CLI project at `.local-test/supabase-acceptance`, creates disposable confirmed owner/member/invitee/outsider accounts, and cleans them up. Initialize and start that local project before running it; do not use the SQL identity stub below in a Supabase Auth database.
+The public-page suite (`npm run test:e2e`) does not cover signed-in users. `npm run verify:auth:local` uses a separate local Supabase CLI project at `.local-test/supabase-acceptance`, creates disposable personas, exercises signup and invitation links, and cleans up. Initialize and start that local project and the local Redis service before running it; do not use the SQL identity stub below in a Supabase Auth database. Set `SAATHI_TEST_BROWSER_CHANNEL=chrome` to use an installed Chrome instead of Playwright's bundled browser.
 
 See the [current remediation and verification ledger](docs/release/2026-11-05-review-remediation.md), [original QA report](docs/release/2026-11-05-persona-qa-review.md), and [system-design study guide](docs/interviews/saathi-qa-system-design-study-guide.md) for implemented fixes, evidence, and remaining release gates.
 
@@ -201,7 +201,7 @@ GROQ_API_KEY=your-server-only-groq-key
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Use the values in `.env.example`; keep database, auth, and scheduler credentials server-side. Invitations appear in the recipient's Saathi inbox; owners can also copy a join link. Links require the invited account, expire after seven days and can be revoked. No invitation-mail provider or sending domain is required. Supabase Auth still handles account verification and recovery.
+Use the values in `.env.example`; keep database, auth, and scheduler credentials server-side. Email/password signup can start a session immediately when the Auth provider is configured for automatic confirmation. That provider flag does **not** establish mailbox ownership. Owners can share a private, expiring, single-use invitation link; anyone possessing it can join after signing in and explicitly accepting. Existing workspace memberships are unaffected. Password recovery still requires email delivery. See the [authentication rollout notes](docs/handbook/06-simple-auth-rollout.md) before changing a hosted configuration.
 
 ---
 

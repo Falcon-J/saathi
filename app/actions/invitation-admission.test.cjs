@@ -47,7 +47,7 @@ function fixture({ outsider = false, member = false, existing = false, archived 
   const postcommit = load('lib/post-commit.ts', { 'next/server': { after() {} }, 'next/cache': { revalidatePath() { if (cacheFails) throw new Error('Cache unavailable') } }, './data/events': { flushOutbox: async () => {} } })
   const actions = load('app/actions/invitations.ts', {
     '@/lib/auth-simple': { getSession: async () => session }, 'next/cache': { revalidatePath() { if (cacheFails) throw new Error('Cache unavailable') } },
-    '@/lib/post-commit': postcommit, '@/lib/data/invitations': domain, '@/lib/rate-limit': rate, 'node:crypto': crypto,
+    '@supabase/supabase-js': { createClient() { throw new Error('OTP not expected') } }, '@/lib/supabase/config': {}, '@/lib/post-commit': postcommit, '@/lib/data/invitations': domain, '@/lib/rate-limit': rate, 'node:crypto': crypto,
   })
   return { ...actions, workspaceId, counts, domain, charged: () => charged, writes: () => ({ inserted, committed, events }), asOwner() { session = owner }, owner }
 }

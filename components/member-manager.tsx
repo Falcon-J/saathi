@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { X, Plus, Users, Loader2, Crown } from "lucide-react"
+import { InvitationLinkCreator } from "@/components/invitation-link-creator"
+import { X, Users, Loader2, Crown } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Member } from "@/app/actions/workspaces"
 import { getWorkspaceInvitations, revokeInvitation, type Invitation } from "@/app/actions/invitations"
@@ -20,19 +20,16 @@ interface MemberManagerProps {
   onTransferOwnership?: (memberUserId: string) => Promise<any>
 }
 
-export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onAddMember, onRemoveMember, onTransferOwnership }: MemberManagerProps) {
+export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onRemoveMember, onTransferOwnership }: MemberManagerProps) {
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [invitationOperation, setInvitationOperation] = useState<string | null>(null)
   const [invitationsLoading, setInvitationsLoading] = useState(true)
   const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null)
-  const [newMemberInput, setNewMemberInput] = useState("")
-  const [isAdding, setIsAdding] = useState(false)
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
   const [operatingMemberEmail, setOperatingMemberEmail] = useState<string | null>(null)
   const [transferConfirm, setTransferConfirm] = useState<Member | null>(null)
   const [transferring, setTransferring] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
-  const [copiedInvitationId, setCopiedInvitationId] = useState<string | null>(null)
 
   // Check if current user is the workspace owner
   const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail)
@@ -64,43 +61,6 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
   }
 
 
-  const handleAddMember = async () => {
-    const email = newMemberInput.trim()
-
-    if (!email) {
-      setLastError("Enter a team member's email address.")
-      return
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setLastError("Enter a valid email address, such as user@example.com.")
-      return
-    }
-
-    setIsAdding(true)
-    setLastError(null)
-
-    try {
-      const result = await onAddMember(email)
-      const mutationError = getMutationError(result)
-      if (mutationError) throw new Error(mutationError)
-      await loadInvitations()
-      setNewMemberInput("")
-      setLastError(null)
-    } catch (error) {
-      console.error("Failed to add member:", error)
-      const errorMessage = error instanceof Error ? error.message : "Failed to add member"
-
-      // Store error for retry functionality
-      setLastError(errorMessage)
-
-    } finally {
-      setIsAdding(false)
-    }
-  }
-
   const handleRemoveMember = async (memberEmail: string) => {
     setOperatingMemberEmail(memberEmail)
     try {
@@ -112,16 +72,6 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
     } finally {
       setRemoveConfirm(null)
       setOperatingMemberEmail(null)
-    }
-  }
-
-  const copyInvitationLink = async (id: string) => {
-    setLastError(null)
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/invitations/${id}`)
-      setCopiedInvitationId(id)
-    } catch {
-      setLastError("Unable to copy the invitation link. Please try again.")
     }
   }
 
@@ -187,38 +137,10 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
             <h3 className="text-sm font-medium text-foreground">Members ({members.length})</h3>
           </div>
 
-          {/* Only show invite section to workspace owners */}
-          {isOwner && (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  aria-label="Invite by email"
-                  type="email"
-                  placeholder="Invite by email..."
-                  value={newMemberInput}
-                  onChange={(e) => setNewMemberInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleAddMember()}
-                  disabled={isAdding}
-                  className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm disabled:opacity-50"
-                />
-                <Button
-                  aria-label="Create invitation"
-                  onClick={handleAddMember}
-                  disabled={isAdding || !newMemberInput.trim()}
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
-                >
-                  {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Share the invite link. The recipient can accept after they sign up or sign in with that email.
-              </p>
-            </div>
-          )}
+          {isOwner && <InvitationLinkCreator key={workspaceId} workspaceId={workspaceId} onCreated={loadInvitations} />}
 
           {lastError && <p role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{lastError}</p>}
-          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationsLoading ? <p role="status" className="text-xs text-muted-foreground">Loading invitations...</p> : invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · Expires {new Date(invitation.expiresAt).toLocaleDateString()}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => void copyInvitationLink(invitation.id)}>{copiedInvitationId === invitation.id ? "Copied" : "Copy invite link"}</Button><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button></div>}</div>)}</section>}
+          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationsLoading ? <p role="status" className="text-xs text-muted-foreground">Loading invitations...</p> : invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.kind === "link" ? "Single-use invite link" : invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · Expires {new Date(invitation.expiresAt).toLocaleDateString()}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button></div>}</div>)}</section>}
           {/* Members List */}
           <div className="space-y-2">
             {members.length === 0 ? (

@@ -14,7 +14,7 @@ The existing [FRS](../product/saathi-v1-product-requirements.md) owns FR-1 throu
 | --- | --- | --- | --- |
 | FR-1 Identity/access | Can Cara read W or invoke a write by guessing an ID? | Auth boundaries; membership checks; [collaboration tests](../../lib/data/collaboration.test.ts) | DB/browser evidence in [baseline](../release/2026-10-04-engineering-baseline-evidence.md); hosted auth flows need environment acceptance |
 | FR-2 Workspace lifecycle | Are owner/member invariants atomic? Do archive writes fail? | Deferred FK; version checks; [workspace tests](../../lib/data/workspaces.test.ts) | Recorded DB checks; current archived delete behavior is narrower than a general delete-any-workspace expectation |
-| FR-3 Invitations | Does repeated acceptance create one membership/event? | State machine, verified recipient matching, unique constraints | Inbox and copied-link acceptance require no invitation-mail provider |
+| FR-3 Invitations | Can one link add only one account, and can the owner revoke it? | Hashed bearer tokens, transactional state transitions, unique constraints; legacy email invitations retain recipient proof checks | Shareable links require no invitation-mail provider |
 | FR-4 Task lifecycle | Does version-7 editing fail after version 8? Does retry C create once? | Permissions, locks, receipts; [retry tests](../../lib/data/create-retry.test.ts) | Recorded DB and browser conflict evidence; cross-reload client retry identity remains limited |
 | FR-5 Discussion/history | Can all 137 comments be traversed without omissions? | Keyset paging; [comment tests](../../lib/data/comments.test.ts); [activity continuation](../../lib/data/activity.ts) | [Closeout](../release/2026-10-04-core-closeout-evidence.md) records comment traversal; activity continuation is implemented; see the [5 November QA boundary](../release/2026-11-05-persona-qa-review.md) for current execution |
 | FR-6 Daily experience | Are loading, empty, denied, conflict, offline distinct? | State helpers; components; [UX evidence](../release/2026-10-04-workspace-ux-evidence.md) | Board pagination is implemented; dated UI evidence does not close the error-state and navigation findings in the [5 November QA review](../release/2026-11-05-persona-qa-review.md) |
@@ -79,7 +79,7 @@ flowchart TD
 | Idle subscription survives removal briefly | Last membership check and check duration | Measure configured interval plus runtime latency; verify event-batch checks |
 | Many connections start slowly | Auth/profile SQL count, pool wait, lease Redis operations | Separate admission/startup from event-delivery latency |
 | Migration tries recreating tables | Actual schema and migration journal | Stop replay; use approved reconciliation procedure or a fresh DB |
-| Invitation not visible | Invited account, pending status, expiry and workspace archive state | Refresh the in-app inbox or open the copied invitation link with the invited account |
+| Invitation unavailable | Link status, expiry, prior use and workspace archive state | Ask the owner for a new link; an existing link is shown only when created |
 
 ## Deployment and recovery boundaries
 
@@ -93,3 +93,9 @@ flowchart TD
 ## Maintenance rule
 
 For an enhancement, attach its FRS behavior, NFR effect, changed contract/invariant, exact tests, and deployment implications. Update this handbook only where those decisions change. Dated evidence remains in `docs/release`; test totals belong there, not in a timeless architecture promise.
+
+### Local invitation acceptance fixture boundary
+
+`npm run verify:auth:local` runs [the local persona runner](../../scripts/verify-local-auth.mjs) against an isolated loopback Supabase stack and real local Redis through a temporary loopback bridge. It exercises a fresh account signup and an existing-account sign-in through shareable links, one-use and revocation checks, workspace isolation, and accessibility. It does not seed mailbox proof rows. Cleanup removes the runner's disposable accounts, workspace and scoped Redis keys.
+
+The local Auth stack must allow signup without email confirmation; verify that configuration separately for the intended deployment. A shareable link is a bearer credential: anyone holding it can use it once before expiry or revocation. Legacy email-targeted invitations still require their separate recipient-proof boundary. This local runner does not verify hosted Auth configuration or provider behavior.

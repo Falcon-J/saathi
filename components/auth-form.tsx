@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
-import { login, loginWithGoogle, signup } from "@/lib/auth-simple"
+import { login, signup } from "@/lib/auth-simple"
 import { safeAuthRedirect } from "@/lib/supabase/auth-boundary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,6 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [passwordResetComplete, setPasswordResetComplete] = useState(false)
@@ -90,32 +89,6 @@ export function AuthForm({ mode }: AuthFormProps) {
     }
   }
 
-  const handleGoogleAuth = async () => {
-    if (!hydrated || pendingRequest.current) return
-    pendingRequest.current = true
-    setFormError(null)
-    setGoogleLoading(true)
-    try {
-      const next = new URLSearchParams(window.location.search).get("redirect")
-      const result = await loginWithGoogle(next)
-      if (result.error) {
-        setFormError(result.error)
-        return
-      }
-      if (!result.url) {
-        setFormError("Could not start Google sign-in. Please try again.")
-        return
-      }
-      window.location.assign(result.url)
-    } catch (error) {
-      console.error("Google auth error:", error)
-      setFormError("Could not start Google sign-in. Please try again.")
-    } finally {
-      pendingRequest.current = false
-      setGoogleLoading(false)
-    }
-  }
-
   return (
     <main className="relative isolate min-h-[100svh] overflow-x-hidden bg-[#faf9f5] text-[#122039]">
       <Image
@@ -157,21 +130,21 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Link href={signInHref} className="text-sm font-semibold text-[#0f766e] underline-offset-4 hover:underline">Return to sign in</Link>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} aria-busy={!hydrated || loading || googleLoading} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
+                <form onSubmit={handleSubmit} aria-busy={!hydrated || loading} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
                   {isSignup && (
                     <FieldShell label="Name">
-                      <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading || googleLoading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
+                      <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
                     </FieldShell>
                   )}
 
                   <FieldShell label="Email">
-                    <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading || googleLoading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
+                    <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
                   </FieldShell>
 
                   <FieldShell label="Password">
                     <div className="relative">
-                      <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading || googleLoading} required className="h-14 rounded-xl border-[#cbd4df] px-4 pr-12 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:pr-8 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:pr-10 lg:text-sm" />
-                      <button type="button" disabled={!hydrated || loading || googleLoading} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#8290a5] transition-colors hover:text-[#0f766e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] lg:right-3 lg:p-2" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                      <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 pr-12 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:pr-8 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:pr-10 lg:text-sm" />
+                      <button type="button" disabled={!hydrated || loading} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#8290a5] transition-colors hover:text-[#0f766e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] lg:right-3 lg:p-2" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
                         {showPassword ? <EyeOff className="size-4 lg:size-5" aria-hidden="true" /> : <Eye className="size-4 lg:size-5" aria-hidden="true" />}
                       </button>
                     </div>
@@ -185,23 +158,11 @@ export function AuthForm({ mode }: AuthFormProps) {
 
                   {formError && <p role="alert" className="rounded-xl border border-[#f1b8b1] bg-[#fff4f1] px-4 py-3 text-sm leading-5 text-[#b42318]">{formError}</p>}
 
-                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={!hydrated || loading || googleLoading}>
+                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={!hydrated || loading}>
                     {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
                   </Button>
                 </form>
               )}
-
-              {!confirmation && <>
-                <div className="my-7 flex items-center gap-3 text-xs text-[#5f6c80] sm:my-[clamp(0.25rem,1.2vh,0.75rem)] lg:my-[clamp(0.5rem,1.5vh,1rem)] lg:gap-4 lg:text-xs">
-                  <span className="h-px flex-1 bg-[#dbe2e8]" aria-hidden="true" />
-                  <span>or continue with</span>
-                  <span className="h-px flex-1 bg-[#dbe2e8]" aria-hidden="true" />
-                </div>
-
-                <div className="grid gap-3 sm:gap-[clamp(0.25rem,1vh,0.5rem)] lg:gap-[clamp(0.4rem,1vh,0.625rem)]">
-                  <GoogleButton onClick={handleGoogleAuth} loading={googleLoading} disabled={!hydrated || loading || googleLoading} />
-                </div>
-              </>}
 
               <p className="mt-8 text-center text-sm text-[#5f6c80] sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:mt-[clamp(0.75rem,1.5vh,1rem)] lg:text-sm">
                 {isSignup ? "Already have an account?" : "New to Saathi?"}{" "}
@@ -221,25 +182,5 @@ function FieldShell({ label, children }: { label: string; children: React.ReactN
       <span className="flex items-center text-base font-medium text-[#122039] sm:text-[clamp(0.6rem,2.2vh,0.875rem)] lg:text-sm">{label}</span>
       {children}
     </label>
-  )
-}
-
-function GoogleButton({ onClick, loading, disabled }: { onClick: () => void; loading: boolean; disabled: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-[#cbd4df] bg-white px-3 text-sm font-medium text-[#122039] transition-colors hover:border-[#8eb9b0] hover:bg-[#f7fbfa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] disabled:cursor-not-allowed disabled:opacity-60 sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:gap-3 lg:px-4 lg:text-sm">
-      {loading ? <Loader2 className="size-5 animate-spin sm:size-3 lg:size-4" aria-hidden="true" /> : <GoogleMark />}
-      {loading ? "Connecting to Google" : "Continue with Google"}
-    </button>
-  )
-}
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5 sm:size-3 lg:size-4" aria-hidden="true">
-      <path fill="#4285F4" d="M21.35 12.23c0-.7-.06-1.37-.18-2.02H12v3.83h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.2Z" />
-      <path fill="#34A853" d="M12 21.68c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.7-1.72-5.47-4.03H3.28v2.53A9.75 9.75 0 0 0 12 21.68Z" />
-      <path fill="#FBBC05" d="M6.53 13.77a5.86 5.86 0 0 1 0-3.54V7.7H3.28a9.76 9.76 0 0 0 0 8.6l3.25-2.53Z" />
-      <path fill="#EA4335" d="M12 6.2c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.3 14.63 2.32 12 2.32a9.75 9.75 0 0 0-8.72 5.38l3.25 2.53C7.3 7.92 9.46 6.2 12 6.2Z" />
-    </svg>
   )
 }

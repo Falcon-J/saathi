@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto"
 import { getDb } from "../db/client.ts"
 import { createWorkspaceRecord } from "./workspaces.ts"
 import { createTaskRecord,changeTaskRecord,listTaskRecords } from "./tasks.ts"
-import { createInvitationRecord,listInvitationRecords,readInvitationPreview,respondToInvitation } from "./invitations.ts"
+import { createInvitationRecord,listInvitationRecords,readInvitationPreview,respondToInvitation,recordInvitationEmailProof } from "./invitations.ts"
 
 test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},async t=>{
   process.env.DATABASE_URL=process.env.DATABASE_TEST_URL
@@ -25,6 +25,14 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
       assert.equal((await db`SELECT id FROM invitation_emails WHERE invitation_id IN (${invitation.id},${newRecipientInvitation.id})`).length,0)
       await assert.rejects(createInvitationRecord(member,workspace.id,outsider.email),/owner/)
       await assert.rejects(createInvitationRecord(owner,workspace.id,owner.email),/yourself/)
+    })
+    await t.test("unverified recipients are denied before mailbox proof",async()=>{
+      await assert.rejects(listInvitationRecords(member),/Verify your email/)
+      await assert.rejects(respondToInvitation(member,invitation.id,"accepted"),/Verify your email/)
+      await assert.rejects(respondToInvitation(member,invitation.id,"declined"),/Verify your email/)
+      assert.equal((await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace.id} AND user_id=${member.id}`).length,0)
+      // Simulate the trusted OTP boundary for SQL domain tests; this is not Auth verification.
+      for(const actor of [owner,member,outsider])await recordInvitationEmailProof(actor)
     })
     await t.test("the inbox exposes only active invitations addressed to that account",async()=>{
       assert.deepEqual((await listInvitationRecords(member)).map(i=>i.id),[invitation.id])

@@ -27,7 +27,15 @@ test('login distinguishes authentication service failures from invalid credentia
     assert.deepEqual(await auth.login('user@example.test', 'password'), { error: 'Account service is temporarily unavailable. Please try again.' })
   }
   failure = { status: 400, code: 'invalid_credentials' }
-  assert.deepEqual(await auth.login('user@example.test', 'password'), { error: 'Unable to sign in. Check your email and password, and verify your email before signing in.' })
+  assert.deepEqual(await auth.login('user@example.test', 'password'), { error: 'Unable to sign in. Check your email and password.' })
+})
+
+test('signup starts a session immediately when the Auth provider enables automatic confirmation', async () => {
+  const auth = load('lib/auth-simple.ts', {
+    'next/headers': {}, './supabase/server': { createClient: async () => ({ auth: { signUp: async () => ({ data: { user: { email_confirmed_at: 'provider-confirmed' }, session: {} }, error: null }) } }) },
+    './supabase/config': { getAuthCallbackUrl: () => 'https://example.test/auth/callback' }, './supabase/auth-boundary': { validateCredentials: () => null, safeAuthRedirect: () => '/dashboard' }, './data/profiles': {}, './identity': { normalizeEmail: value => value.trim().toLowerCase() },
+  })
+  assert.deepEqual(await auth.signup('person@example.test', 'Person', 'password123'), { success: true })
 })
 
 test('settings action returns safe conflict and failure results without exposing internal errors', async () => {

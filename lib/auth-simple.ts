@@ -24,8 +24,10 @@ export async function signup(email: string, username: string, password: string, 
       options: { data: { username: username.trim() }, emailRedirectTo: getAuthCallbackUrl(safeAuthRedirect(next)) },
     })
     if (error) return { error: 'Could not create the account. Check your details or try signing in.' }
-    // Launch requires verified email. Supabase must have email confirmation enabled.
+    // Automatic confirmation enables immediate signup. Invitation access requires
+    // separate proof of mailbox ownership; the provider's flag alone is not proof.
     if (data.session && !data.user?.email_confirmed_at) await client.auth.signOut({ scope: 'local' })
+    if (data.session && data.user?.email_confirmed_at) return { success: true }
     return { success: true, confirmationRequired: !data.session || !data.user?.email_confirmed_at, message: 'Check your email to verify your account. If you already have an account, sign in or reset your password.' }
   } catch { return unavailable }
 }
@@ -38,7 +40,7 @@ export async function login(email: string, password: string): Promise<AuthResult
     const client = await createClient()
     const { data, error } = await client.auth.signInWithPassword({ email: normalizedEmail, password })
     if (error && (!error.status || error.status === 429 || error.status >= 500)) return unavailable
-    if (error || !data.user?.email_confirmed_at) return { error: 'Unable to sign in. Check your email and password, and verify your email before signing in.' }
+    if (error || !data.user?.email_confirmed_at) return { error: 'Unable to sign in. Check your email and password.' }
     return { success: true }
   } catch { return unavailable }
 }

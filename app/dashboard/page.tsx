@@ -12,7 +12,6 @@ import { confirmWorkspaceAdvisorDraft } from "@/app/actions/workspace-advisor"
 import { workspaceViewFromHash, type WorkspaceView } from "@/lib/dashboard-navigation"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ActivityHistory } from "@/components/activity-history"
-import { InvitationNotifications } from "@/components/invitation-notifications"
 import { MemberManager } from "@/components/member-manager"
 import { PageLoader } from "@/components/page-loader"
 import { SaathiLogo } from "@/components/saathi-logo"
@@ -173,6 +172,17 @@ export default function Dashboard() {
     tasksLoading,
     realtime,
   } = useWorkspaces(user?.email && !loading ? user.email : undefined, { loadTasks: workspaceView === "overview" })
+
+  useEffect(() => {
+    if (!user || loading || workspacesLoading || workspaceError) return
+    const params = new URLSearchParams(window.location.search)
+    const requested = params.get("workspace")
+    if (!requested) return
+    if (workspaces.some(workspace => workspace.id === requested)) setCurrentWorkspaceId(requested)
+    params.delete("workspace")
+    const query = params.toString()
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`)
+  }, [user, loading, workspacesLoading, workspaceError, workspaces, setCurrentWorkspaceId])
 
   const currentWorkspace = workspaces.find((workspace) => workspace.id === currentWorkspaceId)
   const draftScope = user && currentWorkspace ? `saathi:draft:${normalizeEmail(user.email)}:${currentWorkspace.id}` : undefined
@@ -419,7 +429,6 @@ export default function Dashboard() {
 
         <div className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1240px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
-            <InvitationNotifications userEmail={user.email} onInvitationAccepted={async workspaceId => { if (dirtyRef.current) { await refreshWorkspaces(); return } if (await refreshWorkspaces(workspaceId, () => !dirtyRef.current) && !dirtyRef.current) navigateTo("overview") }} />
 
             {workspaceError && currentWorkspace && <div role="alert" className="mb-4 rounded-lg border border-border p-4"><p>Workspace refresh failed. Showing previously loaded details; your unsaved changes are retained.</p><Button variant="outline" className="mt-2" onClick={() => void refreshWorkspaces()}>Try again</Button></div>}
             {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError && !currentWorkspace ? (

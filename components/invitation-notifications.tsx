@@ -8,10 +8,13 @@ import { Bell, Check, X, Users, Clock, RefreshCw } from "lucide-react"
 import { useNotifications } from "@/hooks/use-notifications"
 import {
     getUserInvitations,
+    getInvitationVerificationStatus,
     acceptInvitation,
     declineInvitation,
     type Invitation
 } from "@/app/actions/invitations"
+
+import { InvitationEmailVerification } from "@/components/invitation-email-verification"
 
 interface InvitationNotificationsProps {
     userEmail: string
@@ -19,6 +22,7 @@ interface InvitationNotificationsProps {
 }
 
 export function InvitationNotifications({ userEmail, onInvitationAccepted }: InvitationNotificationsProps) {
+    const [verified, setVerified] = useState<boolean | null>(null)
     const [inlineError, setInlineError] = useState<string | null>(null)
     const [invitations, setInvitations] = useState<Invitation[]>([])
     const [loading, setLoading] = useState(true)
@@ -30,6 +34,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     useLayoutEffect(() => {
         const account = { email: userEmail, active: true }
         accountRef.current = account
+        setVerified(null)
         setInvitations([])
         setLoading(Boolean(userEmail))
         setProcessingId(null)
@@ -44,6 +49,11 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
         const sequence = ++loadSequence.current
         setLoading(true)
         try {
+            const status = await getInvitationVerificationStatus()
+            if (!isCurrent() || sequence !== loadSequence.current) return
+            if (status.error) throw new Error(status.error)
+            setVerified(status.verified)
+            if (!status.verified) { setInvitations([]); setInlineError(null); return }
             const userInvitations = await getUserInvitations(userEmail)
             if (!isCurrent() || sequence !== loadSequence.current) return
             setInvitations(userInvitations.filter(inv => inv.status === "pending"))
@@ -126,7 +136,7 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
     }
 
     return (
-        <section aria-label="Workspace invitations" aria-busy={loading} className={!loading && !inlineError && invitations.length === 0 ? "mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : "mb-4 space-y-3"}>
+        <section aria-label="Workspace invitations" aria-busy={loading} className={!loading && verified && !inlineError && invitations.length === 0 ? "mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1" : "mb-4 space-y-3"}>
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-primary" />
@@ -136,8 +146,9 @@ export function InvitationNotifications({ userEmail, onInvitationAccepted }: Inv
             </div>
             {inlineError && <div role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm">{inlineError}</div>}
             {loading && <p role="status" className={invitations.length ? "sr-only" : "text-xs text-muted-foreground"}>Loading invitations...</p>}
-            {!loading && !inlineError && invitations.length === 0 && <p className="text-xs text-muted-foreground">No pending invitations.</p>}
+            {!loading && verified && !inlineError && invitations.length === 0 && <p className="text-xs text-muted-foreground">No pending invitations.</p>}
 
+            {verified === false && <InvitationEmailVerification key={userEmail} onVerified={loadInvitations} />}
             <div className="space-y-3">
                 {invitations.map((invitation) => (
                     <Card key={invitation.id} className="p-4 bg-card border-border">

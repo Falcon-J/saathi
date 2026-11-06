@@ -16,10 +16,10 @@ function fixture(workspaceOverrides = {}, options = {}) {
   react.useLayoutEffect = react.useEffect
   const window = {
     localStorage: options.localStorage ?? { setItem() {} },
-    location: { hash: '#workspace-header' },
+    location: { hash: '#workspace-header', search: options.search ?? '', pathname: '/dashboard' },
     addEventListener(name, fn) { listeners.set(name, fn) }, removeEventListener(name) { listeners.delete(name) },
     confirm: () => allowDiscard,
-    history: { pushState(_a, _b, hash) { pushes.push(hash); window.location.hash = hash }, replaceState(_a, _b, hash) { window.location.hash = hash } },
+    history: { pushState(_a, _b, hash) { pushes.push(hash); window.location.hash = hash }, replaceState(_a, _b, path) { const url = new URL(path, 'https://app.test/dashboard'); window.location.hash = url.hash; window.location.search = url.search } },
   }
   const workspace = { id: 'workspace', name: 'Pilot', members: [], ownerId: 'owner@example.test', timezone: 'UTC' }
   const redirects = []
@@ -52,12 +52,28 @@ function fixture(workspaceOverrides = {}, options = {}) {
   const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
   return {
     render() { cursor = 0; const tree = exports.default(); const pending = effects; effects = []; pending.forEach(fn => fn()); return nodes(tree) },
-    pushes, removed, redirects, selected: () => selected, allowDiscard(value) { allowDiscard = value },
+    pushes, removed, redirects, location: window.location, selected: () => selected, allowDiscard(value) { allowDiscard = value },
     back(hash) { window.location.hash = hash; listeners.get('hashchange')?.() },
   }
 }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 const component = (rows, name) => rows.find(node => node.type === name)
+
+test('joined-workspace query selects only an authorized workspace and preserves other URL state', async () => {
+  for (const id of ['other', 'unavailable']) {
+    const ui = fixture({ loading: false }, { search: `?workspace=${id}&keep=yes` })
+    ui.render(); await tick(); ui.render()
+    assert.equal(ui.selected(), id === 'other' ? 'other' : 'workspace')
+    assert.equal(ui.location.search, '?keep=yes'); assert.equal(ui.location.hash, '#workspace-header')
+  }
+})
+test('joined-workspace query remains available until a successful workspace load', async () => {
+  const state = { loading: true, workspaceError: null }
+  const ui = fixture(state, { search: '?workspace=other' })
+  ui.render(); await tick(); ui.render(); assert.equal(ui.location.search, '?workspace=other')
+  state.loading = false; state.workspaceError = 'Offline'; ui.render(); assert.equal(ui.location.search, '?workspace=other')
+  state.workspaceError = null; ui.render(); assert.equal(ui.selected(), 'other'); assert.equal(ui.location.search, '')
+})
 
 for (const failure of ['read', 'write']) test(`valid session remains usable when welcome storage ${failure} fails`, async () => {
   const ui = fixture({}, { sessionStorage: {

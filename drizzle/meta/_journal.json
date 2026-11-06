@@ -64,6 +64,20 @@
       "when": 1793059200000,
       "tag": "0008_task_dependencies",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793907482187,
+      "tag": "0009_invitation_email_verifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793909272184,
+      "tag": "0010_invitation_links",
+      "breakpoints": true
     }
   ]
 }
