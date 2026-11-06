@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import postgres from 'postgres'
 import { chromium, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { createClient } from '@supabase/supabase-js'
-import { mkdirSync } from 'node:fs'
+import net from 'node:net'
+import { startLocalRedisRest } from './local-redis-rest.mjs'
 
 // This runner only touches the isolated CLI stack, never the project's hosted env files.
 const base = 'http://127.0.0.1:3101'
-const workspace = randomUUID(), users = [], contexts = []
-const evidenceDir = `.local-test/invitation-browser-${workspace}`
-let phase = 'local-stack-status', db, admin, browser, server, failed = false, serverOutput = '', startupStatus = null
+const workspace = randomUUID(), users = [], contexts = [], secrets = []
+let phase = 'local-stack-status', db, admin, browser, server, redisBridge, failed = false, serverOutput = '', startupStatus = null
 function log(result) { console.log(JSON.stringify({ scope: 'local signed-in acceptance', phase, result })) }
 function capture(command, args, env = process.env) {
   return new Promise((resolve, reject) => {
@@ -33,11 +33,22 @@ function loopback(value, protocols) {
 async function login(user, viewport = { width: 1280, height: 900 }) {
   const context = await browser.newContext({ viewport }); contexts.push(context)
   const page = await context.newPage()
+  const actionStatuses = []
+  page.on('response', response => {
+    const request = response.request(), url = new URL(response.url())
+    if (url.origin === base && url.pathname === '/login' && request.method() === 'POST' && request.headers()['next-action']) actionStatuses.push(response.status())
+  })
   await page.goto(`${base}/login`)
   await page.getByLabel('Email', { exact: true }).fill(user.email)
   await page.getByLabel('Password', { exact: true }).fill(user.password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 60000 })
+  try { await expect(page).toHaveURL(/\/dashboard/, { timeout: 60000 }) }
+  catch (error) {
+    const alerts = await page.getByRole('alert').allTextContents()
+    const classes = alerts.map(value => /temporarily unavailable/i.test(value) ? 'service-unavailable' : /check your email and password/i.test(value) ? 'credentials' : /something went wrong/i.test(value) ? 'unexpected' : 'other')
+    log({ loginRole: user.role, actionStatuses, alertClasses: classes, signInEnabled: await page.getByRole('button', { name: 'Sign in', exact: true }).isEnabled().catch(() => false) })
+    throw error
+  }
   return page
 }
 async function board(page) {
@@ -89,7 +100,7 @@ try {
   db = postgres(database, { max: 1, prepare: false })
   admin = createClient(api, adminKey, { auth: { persistSession: false, autoRefreshToken: false } })
   phase = 'disposable-admin-auth-fixtures'
-  for (const role of ['owner', 'member', 'outsider', 'invitee']) {
+  for (const role of ['owner', 'member', 'outsider']) {
     const user = { role, email: `qa-${randomUUID()}@example.test`, password: `${randomUUID()}Aa9!` }
     const result = await admin.auth.admin.createUser({ email: user.email, password: user.password, email_confirm: true, user_metadata: { username: `QA ${role}` } })
     assert.equal(result.error, null)
@@ -101,11 +112,14 @@ try {
   })
   log('passed')
   phase = 'isolated-next-server'
+  await new Promise((resolve, reject) => { const probe = net.createServer(); probe.once('error', () => reject(new Error('Local acceptance port is occupied'))); probe.listen(3101, '127.0.0.1', () => probe.close(resolve)) })
+  const redisToken = randomUUID()
+  redisBridge = await startLocalRedisRest({ token: redisToken })
   const env = { ...process.env, NODE_ENV: 'development', DATABASE_URL: database, DATABASE_MIGRATION_URL: database,
     NEXT_PUBLIC_SUPABASE_URL: api, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey, NEXT_PUBLIC_SUPABASE_ANON_KEY: publicKey,
     NEXT_PUBLIC_APP_URL: base, APP_URL: base, ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false',
-    UPSTASH_REDIS_REST_URL: 'http://127.0.0.1:1', UPSTASH_REDIS_REST_TOKEN: '',
-    KV_REST_API_URL: 'http://127.0.0.1:1', KV_URL: 'http://127.0.0.1:1', KV_REST_API_TOKEN: '', GROQ_API_KEY: '', RESEND_API_KEY: '', EMAIL_FROM: '' }
+    UPSTASH_REDIS_REST_URL: redisBridge.url, UPSTASH_REDIS_REST_TOKEN: redisToken,
+    KV_REST_API_URL: redisBridge.url, KV_URL: redisBridge.url, KV_REST_API_TOKEN: redisToken, GROQ_API_KEY: '', RESEND_API_KEY: '', EMAIL_FROM: '' }
   server = process.platform === 'win32'
     ? spawn('cmd.exe', ['/d', '/s', '/c', 'npm.cmd run dev -- --webpack --hostname 127.0.0.1 --port 3101'], { cwd: process.cwd(), env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
     : spawn('npm', ['run', 'dev', '--', '--webpack', '--hostname', '127.0.0.1', '--port', '3101'], { cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -121,7 +135,7 @@ try {
   }
   assert.ok(ready)
   log('passed')
-  browser = await chromium.launch({ headless: true })
+  browser = await chromium.launch({ headless: true, ...(process.env.SAATHI_TEST_BROWSER_CHANNEL ? { channel: process.env.SAATHI_TEST_BROWSER_CHANNEL } : {}) })
   phase = 'owner-ui-login-refresh-persistence'
   const owner = await login(users[0]); await board(owner)
   await owner.reload(); await board(owner); log('passed')
@@ -143,73 +157,89 @@ try {
   await expect(outsider.getByLabel('Current workspace')).toHaveCount(0)
   assert.equal((await outsider.request.get(`${base}/api/usage?workspaceId=${workspace}`)).status(), 403)
   log('passed')
-  phase = 'platform-invitation-zero-workspace-inbox'
-  const invitee = await login(users[3])
-  await expect(invitee.getByLabel('Current workspace')).toHaveCount(0)
-  const inbox = invitee.getByRole('region', { name: 'Workspace invitations', exact: true })
-  await expect(inbox.getByText('No pending invitations.', { exact: true })).toBeVisible({ timeout: 30000 })
+  phase = 'owner-create-shareable-link'
   await owner.getByRole('button', { name: 'Team', exact: true }).filter({ visible: true }).click()
-  const invite = async email => {
-    await owner.getByLabel('Invite by email').fill(email)
-    await owner.getByRole('button', { name: 'Create invitation', exact: true }).click()
-    await expect(owner.getByLabel('Invite by email')).toHaveValue('', { timeout: 30000 })
+  const invite = async () => {
+    const input = owner.getByLabel('Invite link', { exact: true })
+    const previous = await input.count() ? await input.inputValue() : ''
+    await owner.getByRole('button', { name: 'Create invite link', exact: true }).click()
+    await expect(input).toBeVisible({ timeout: 30000 })
+    await expect.poll(() => input.inputValue(), { timeout: 30000 }).not.toBe(previous)
+    const link = await input.inputValue()
+    const url = new URL(link), token = new URLSearchParams(url.hash.slice(1)).get('token')
+    if (link) secrets.push(link)
+    if (token) secrets.push(token)
+    assert.equal(url.origin, base); assert.equal(url.pathname, '/join'); assert.equal(url.search, '')
+    assert.match(token ?? '', /^[A-Za-z0-9_-]{43}$/)
+    return { link, token }
   }
-  const invitationRow = email => owner.locator('section[aria-label="Workspace invitations"] > div').filter({ has: owner.getByText(email, { exact: true }) })
-  await invite(users[3].email)
-  const [pending] = await db`SELECT id FROM workspace_invitations WHERE workspace_id=${workspace} AND invitee_email=${users[3].email} AND status='pending'`
-  assert.ok(pending)
-  await inbox.getByRole('button', { name: 'Refresh invitations', exact: true }).click()
-  await expect(inbox.getByText('Disposable local acceptance', { exact: true })).toBeVisible({ timeout: 30000 })
-  await expect(inbox.getByText('QA owner', { exact: true })).toBeVisible()
-  await expect(invitationRow(users[3].email).getByRole('button', { name: 'Resend', exact: true })).toHaveCount(0)
-  mkdirSync(evidenceDir, { recursive: true })
-  await owner.screenshot({ path: `${evidenceDir}/owner-invitation-desktop.png`, fullPage: true })
-  await invitee.setViewportSize({ width: 360, height: 800 })
-  assert.equal(await invitee.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  await layout(invitee, inbox.getByRole('button', { name: 'Refresh invitations', exact: true }))
-  await invitee.screenshot({ path: `${evidenceDir}/recipient-invitation-mobile.png`, fullPage: true })
-  log('passed')
-  phase = 'platform-invitation-copy-link-wrong-account'
+  const first = await invite()
+  const digest = createHash('sha256').update(first.token).digest('hex')
+  const [pending] = await db`SELECT id, token_hash, invitee_email FROM workspace_invitations WHERE workspace_id=${workspace} AND token_hash=${digest} AND status='pending'`
+  assert.ok(pending); assert.equal(pending.invitee_email, null); assert.equal(pending.token_hash, digest)
   await owner.context().grantPermissions(['clipboard-read', 'clipboard-write'])
-  await invitationRow(users[3].email).getByRole('button', { name: 'Copy invite link', exact: true }).click()
+  await owner.getByRole('button', { name: 'Copy invite link', exact: true }).click()
   const copiedLink = await owner.evaluate(() => navigator.clipboard.readText())
-  assert.equal(copiedLink, `${base}/invitations/${pending.id}`)
-  await outsider.goto(copiedLink)
-  await expect(outsider.getByRole('heading', { name: 'Use the invited account', exact: true })).toBeVisible({ timeout: 30000 })
-  await expect(outsider.getByRole('button', { name: 'Accept invitation', exact: true })).toHaveCount(0)
+  assert.equal(copiedLink, first.link)
   log('passed')
-  phase = 'platform-invitation-accept-reload-duplicate'
-  const acceptRequestPromise = invitee.waitForRequest(request => request.method() === 'POST' && Boolean(request.headers()['next-action']) && Boolean(request.postData()?.includes(pending.id)))
-  await inbox.getByRole('button', { name: 'Accept', exact: true }).click()
-  const acceptRequest = await acceptRequestPromise
-  await expect(invitee.getByLabel('Current workspace')).toBeVisible({ timeout: 30000 })
-  await expect.poll(async () => (await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[3].id}`).length).toBe(1)
+  phase = 'fresh-signup-and-link-acceptance'
+  const inviteeUser = { role: 'invitee', email: `qa-${randomUUID()}@example.test`, password: `${randomUUID()}Aa9!` }
+  users.push(inviteeUser)
+  const inviteeContext = await browser.newContext({ viewport: { width: 360, height: 800 } }); contexts.push(inviteeContext)
+  const invitee = await inviteeContext.newPage()
+  await invitee.goto(first.link)
+  await expect(invitee.getByRole('heading', { name: 'Join Disposable local acceptance', exact: true })).toBeVisible({ timeout: 30000 })
+  await expect.poll(() => new URL(invitee.url()).hash).toBe('')
+  await invitee.getByRole('link', { name: 'Create an account', exact: true }).click()
+  await expect(invitee).toHaveURL(/\/register\?redirect=%2Fjoin/i)
+  await expect(invitee.getByRole('button', { name: /google/i })).toHaveCount(0)
+  await invitee.getByLabel('Name', { exact: true }).fill('QA invitee')
+  await invitee.getByLabel('Email', { exact: true }).fill(inviteeUser.email)
+  await invitee.getByLabel('Password', { exact: true }).fill(inviteeUser.password)
+  await invitee.getByRole('button', { name: 'Create account', exact: true }).click()
+  await expect(invitee).toHaveURL(/\/join(?:\?|$)/, { timeout: 60000 })
+  await expect(invitee.getByRole('button', { name: 'Join workspace', exact: true })).toBeVisible({ timeout: 30000 })
+  const [created] = await db`SELECT id FROM auth.users WHERE email=${inviteeUser.email}`
+  assert.ok(created); inviteeUser.id = created.id
+  await invitee.getByRole('button', { name: 'Join workspace', exact: true }).click()
+  await expect(invitee).toHaveURL(/\/dashboard\?workspace=/, { timeout: 30000 })
+  await expect.poll(async () => (await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${inviteeUser.id}`).length).toBe(1)
   await invitee.reload()
-  await expect(invitee.getByLabel('Current workspace')).toBeVisible({ timeout: 30000 })
-  await expect(invitee.getByLabel('Current workspace')).toHaveValue(workspace)
-  const repeated = await invitee.request.post(acceptRequest.url(), { headers: { 'Next-Action': acceptRequest.headers()['next-action'], 'Content-Type': acceptRequest.headers()['content-type'], Origin: base, Accept: 'text/x-component' }, data: acceptRequest.postData() })
-  assert.equal(repeated.status(), 200)
-  assert.match(await repeated.text(), /"success":true/)
-  assert.equal((await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[3].id}`).length, 1)
-  assert.equal((await db`SELECT id FROM activity_events WHERE workspace_id=${workspace} AND entity_id=${pending.id} AND event_type='member-added'`).length, 1)
+  await expect(invitee.getByLabel('Current workspace')).toHaveValue(workspace, { timeout: 30000 })
+  assert.equal((await db`SELECT status FROM workspace_invitations WHERE id=${pending.id}`)[0]?.status, 'accepted')
   log('passed')
-  phase = 'platform-invitation-focus-refresh-revoke'
-  await outsider.goto(`${base}/dashboard`)
-  const outsiderInbox = outsider.getByRole('region', { name: 'Workspace invitations', exact: true })
-  await expect(outsiderInbox.getByText('No pending invitations.', { exact: true })).toBeVisible({ timeout: 30000 })
-  await invite(users[2].email)
-  const [revoked] = await db`SELECT id FROM workspace_invitations WHERE workspace_id=${workspace} AND invitee_email=${users[2].email} AND status='pending'`
-  assert.ok(revoked)
-  await outsider.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await expect(outsiderInbox.getByRole('button', { name: 'Accept', exact: true })).toBeVisible({ timeout: 30000 })
-  await invitationRow(users[2].email).getByRole('button', { name: 'Revoke', exact: true }).click()
-  await expect.poll(async () => (await db`SELECT status FROM workspace_invitations WHERE id=${revoked.id}`)[0]?.status).toBe('revoked')
-  await outsider.goto(`${base}/invitations/${revoked.id}`)
+  phase = 'single-use-and-revoked-link'
+  await outsider.goto(first.link)
   await expect(outsider.getByRole('heading', { name: 'Invitation unavailable', exact: true })).toBeVisible({ timeout: 30000 })
-  await expect(outsider.getByRole('button', { name: 'Accept invitation', exact: true })).toHaveCount(0)
+  const second = await invite()
+  const [revoked] = await db`SELECT id FROM workspace_invitations WHERE workspace_id=${workspace} AND token_hash=${createHash('sha256').update(second.token).digest('hex')} AND status='pending'`
+  assert.ok(revoked)
+  const pendingRow = owner.locator('section[aria-label="Workspace invitations"] > div').filter({ hasText: 'Single-use invite link' }).filter({ hasText: 'pending' })
+  await pendingRow.getByRole('button', { name: 'Revoke', exact: true }).click()
+  await expect.poll(async () => (await db`SELECT status FROM workspace_invitations WHERE id=${revoked.id}`)[0]?.status).toBe('revoked')
+  await outsider.goto(second.link)
+  await expect(outsider.getByRole('heading', { name: 'Invitation unavailable', exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(outsider.getByRole('button', { name: 'Join workspace', exact: true })).toHaveCount(0)
   assert.equal((await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[2].id}`).length, 0)
   assert.equal((await outsider.request.get(`${base}/api/usage?workspaceId=${workspace}`)).status(), 403)
-  log({ accepted: true, duplicateAcceptIdempotent: true, copiedLinkRecipientBound: true, revokedLinkBlocked: true, screenshots: evidenceDir })
+  log({ accepted: true, secondAccountBlocked: true, revokedLinkBlocked: true })
+  phase = 'existing-account-sign-in-and-link-acceptance'
+  const third = await invite()
+  const signInContext = await browser.newContext(); contexts.push(signInContext)
+  const signInPage = await signInContext.newPage()
+  await signInPage.goto(third.link)
+  await expect(signInPage.getByRole('heading', { name: 'Join Disposable local acceptance', exact: true })).toBeVisible({ timeout: 30000 })
+  await signInPage.getByRole('link', { name: 'Sign in', exact: true }).click()
+  await expect(signInPage).toHaveURL(/\/login\?redirect=%2Fjoin/i)
+  await expect(signInPage.getByRole('button', { name: /google/i })).toHaveCount(0)
+  await signInPage.getByLabel('Email', { exact: true }).fill(users[2].email)
+  await signInPage.getByLabel('Password', { exact: true }).fill(users[2].password)
+  await signInPage.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(signInPage).toHaveURL(/\/join(?:\?|$)/, { timeout: 60000 })
+  await signInPage.getByRole('button', { name: 'Join workspace', exact: true }).click()
+  await expect(signInPage).toHaveURL(/\/dashboard\?workspace=/, { timeout: 30000 })
+  await expect.poll(async () => (await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace} AND user_id=${users[2].id}`).length).toBe(1)
+  log('passed')
   await board(owner)
   phase = 'signed-desktop-accessibility-layout'
   await layout(owner); log('passed')
@@ -266,6 +296,7 @@ try {
 } catch (error) {
   let reason = error instanceof Error ? error.message : 'Unknown acceptance failure'
   for (const user of users) reason = reason.replaceAll(user.password, '[fixture password]').replaceAll(user.email, '[fixture email]')
+  for (const secret of secrets) reason = reason.replaceAll(secret, '[invite secret]')
   console.log(JSON.stringify({ phase, errorType: error?.name, reason: reason.slice(0, 1600) }))
   if (phase === 'isolated-next-server') console.log(JSON.stringify({ phase, startupStatus, childExit: server?.exitCode,
     addressInUse: serverOutput.includes('EADDRINUSE'), lockConflict: serverOutput.includes('Unable to acquire lock'),
@@ -274,6 +305,7 @@ try {
   failed = true; log('failed'); process.exitCode = 1
 } finally {
   phase = 'cleanup'
+  let cleanupFailed = false
   await Promise.allSettled(contexts.map(context => context.close())); await browser?.close()
   if (server?.pid) {
     if (process.platform === 'win32') await capture('taskkill.exe', ['/pid', String(server.pid), '/t', '/f']).catch(() => {})
@@ -285,11 +317,34 @@ try {
       await db`DELETE FROM outbox_events WHERE workspace_id=${workspace}`
       await db`DELETE FROM workspaces WHERE id=${workspace}`
       for (const user of users) {
-        await db`DELETE FROM profiles WHERE id=${user.id}`
-        assert.equal((await admin.auth.admin.deleteUser(user.id)).error, null)
+        const id = user.id ?? (await db`SELECT id FROM auth.users WHERE email=${user.email}`)[0]?.id
+        if (!id) continue
+        user.id = id
+        await db`DELETE FROM invitation_email_verifications WHERE user_id=${id}`
+        await db`DELETE FROM profiles WHERE id=${id}`
+        assert.equal((await admin.auth.admin.deleteUser(id)).error, null)
       }
     }
-    log('passed')
-  } catch { log('failed'); process.exitCode = 1 }
+  } catch { cleanupFailed = true; log('database-cleanup-failed'); process.exitCode = 1 }
+  if (redisBridge) {
+    try {
+      const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 16)
+      const keys = new Set([`stream:${workspace}`])
+      const scopes = [`invite-workspace:${workspace}`]
+      for (const user of users) {
+        scopes.push(`sse-attempt:${user.email}`)
+        keys.add(`sse:connections:v2:${hash(user.email.trim().toLowerCase())}`)
+        if (user.id) scopes.push(`tasks:${user.id}`, `invite-owner:${user.id}`, `invite-response:${user.id}`)
+      }
+      for (const scope of scopes) {
+        const prefix = `rate:${hash(scope)}:`
+        let cursor = '0'
+        do { const page = await redisBridge.command(['SCAN', cursor, 'MATCH', `${prefix}*`, 'COUNT', 100]); cursor = String(page[0]); for (const key of page[1]) if (key.startsWith(prefix)) keys.add(key) } while (cursor !== '0')
+      }
+      for (const key of keys) await redisBridge.command(['DEL', key])
+    } catch { cleanupFailed = true; log('redis-cleanup-failed'); process.exitCode = 1 }
+    try { await redisBridge.close() } catch { cleanupFailed = true; log('redis-bridge-close-failed'); process.exitCode = 1 }
+  }
+  if (!cleanupFailed) log('passed')
   await db?.end()
 }

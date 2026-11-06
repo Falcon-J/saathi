@@ -23,7 +23,8 @@ function fixture(overrides = {}) {
     '@/components/ui/button': { Button: 'Button' }, '@/components/ui/card': { Card: 'Card' }, '@/components/ui/badge': { Badge: 'Badge' },
     'lucide-react': Object.fromEntries(['Bell', 'Check', 'X', 'Users', 'Clock', 'RefreshCw'].map(name => [name, name])),
     '@/hooks/use-notifications': { useNotifications: () => ({ success(...args) { notifications.push(args) }, error(...args) { notifications.push(args) } }) },
-    '@/app/actions/invitations': { getUserInvitations: async email => { reads.push(email); return [] }, acceptInvitation: async () => ({ success: true }), declineInvitation: async () => ({ success: true }), ...overrides },
+    '@/components/invitation-email-verification': { InvitationEmailVerification: 'InvitationEmailVerification' },
+    '@/app/actions/invitations': { getInvitationVerificationStatus: async () => ({ verified: true }), getUserInvitations: async email => { reads.push(email); return [] }, acceptInvitation: async () => ({ success: true }), declineInvitation: async () => ({ success: true }), ...overrides },
   }
   const exports = {}
   const source = ts.transpileModule(fs.readFileSync('components/invitation-notifications.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
@@ -80,9 +81,9 @@ test('failed invitation action retains the invitation and offers retry controls'
   assert.equal(button(rows, 'Decline').props.disabled, false)
 })
 
-test('the dashboard mounts the account inbox before the no-workspace creation flow', () => {
+test('the dashboard does not prompt legacy email verification for link-based invitations', () => {
   const dashboard = fs.readFileSync('app/dashboard/page.tsx', 'utf8')
-  assert.ok(dashboard.indexOf('<InvitationNotifications') < dashboard.indexOf(') : !showWorkspace ?'))
+  assert.equal(dashboard.includes('<InvitationNotifications'), false)
 })
 
 for (const action of ['Accept', 'Decline']) test(`${action} from a previous account cannot cancel the new inbox read or notify/navigate`, async () => {
@@ -111,4 +112,30 @@ test('a failed invitation action from an unmounted inbox cannot display an error
   operation.resolve({ error: 'Old account failure' }); await pending
   assert.deepEqual(ui.notifications, [])
   assert.equal(ui.accepted(), 0)
+})
+
+test('unverified inbox hides invitations until proof succeeds', async () => {
+ let verified=false
+ const ui=fixture({getInvitationVerificationStatus:async()=>({verified})})
+ ui.render();await tick()
+ const rows=ui.render()
+ assert.deepEqual(ui.reads,[])
+ assert.equal(JSON.stringify(rows).includes('No pending invitations.'),false)
+ const gate=rows.find(node=>node.type==='InvitationEmailVerification');assert.ok(gate)
+ verified=true;await gate.props.onVerified();await tick()
+ assert.equal(ui.reads.length,1)
+})
+test('failed verification status does not load or disclose invitations', async()=>{
+ const ui=fixture({getInvitationVerificationStatus:async()=>({verified:false,error:'Try again'})})
+ ui.render();await tick()
+ assert.deepEqual(ui.reads,[])
+ assert.ok(ui.render().some(node=>node.props?.role==='alert'))
+})
+
+test('focus refresh keeps the verification form mounted while checking status', async()=>{
+ const pending=deferred();let checks=0
+ const ui=fixture({getInvitationVerificationStatus:()=>++checks===1?Promise.resolve({verified:false}):pending.promise})
+ ui.render();await tick();assert.ok(ui.render().some(node=>node.type==='InvitationEmailVerification'))
+ ui.focus();assert.ok(ui.render().some(node=>node.type==='InvitationEmailVerification'))
+ pending.resolve({verified:false});await tick()
 })

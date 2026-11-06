@@ -7,6 +7,13 @@ export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(), username: varchar("username", { length: 80 }).notNull(), ...times(),
 }, t => [check("profiles_username_check", sql`length(trim(${t.username})) > 0`)])
 
+// FK to auth.users and email-change invalidation are maintained in SQL migrations.
+export const invitationEmailVerifications = pgTable("invitation_email_verifications", {
+  userId: uuid("user_id").primaryKey(),
+  email: text("email").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [check("invitation_email_verifications_email_check", sql`${t.email} = lower(trim(${t.email})) AND length(${t.email}) > 0`)])
+
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey(), name: varchar("name", { length: 100 }).notNull(), summary: varchar("summary", { length: 240 }),
   targetAt: timestamp("target_at", { withTimezone: true }), timezone: text("timezone").notNull().default("UTC"),
@@ -21,10 +28,13 @@ export const workspaceMembers = pgTable("workspace_members", {
 
 export const workspaceInvitations = pgTable("workspace_invitations", {
   id: uuid("id").primaryKey(), workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  inviterUserId: uuid("inviter_user_id").notNull().references(() => profiles.id), inviteeEmail: text("invitee_email").notNull(),
+  inviterUserId: uuid("inviter_user_id").notNull().references(() => profiles.id), inviteeEmail: text("invitee_email"), tokenHash: text("token_hash"),
   status: text("status").notNull().default("pending"), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   respondedAt: timestamp("responded_at", { withTimezone: true }), acceptedByUserId: uuid("accepted_by_user_id").references(() => profiles.id), ...times(),
 }, t => [
+  check("invitation_address_or_token_check", sql`num_nonnulls(${t.inviteeEmail},${t.tokenHash}) = 1`),
+  check("invitation_token_hash_check", sql`${t.tokenHash} IS NULL OR ${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+  uniqueIndex("invitation_token_hash_unique").on(t.tokenHash),
   check("workspace_invitations_invitee_email_check", sql`${t.inviteeEmail} = lower(trim(${t.inviteeEmail}))`),
   check("workspace_invitations_status_check", sql`${t.status} IN ('pending','accepted','declined','revoked','expired')`),
   uniqueIndex("invitation_pending_unique").on(t.workspaceId, t.inviteeEmail).where(sql`${t.status} = 'pending'`),

@@ -5,23 +5,7 @@ const path = require("node:path")
 
 const source = readFileSync(path.join(__dirname, "member-manager.tsx"), "utf8")
 
-test("member invitations keep validation feedback beside the invite field", () => {
-  assert.match(source, /setLastError\("Enter a team member's email address\."\)/)
-  assert.match(source, /setLastError\("Enter a valid email address, such as user@example\.com\."\)/)
-  assert.doesNotMatch(source, /useNotifications/)
-})
-
-test("owners can recover a pending invitation without relying on email delivery", () => {
-  assert.match(source, /Copy invite link/)
-  assert.match(source, /navigator\.clipboard\.writeText/)
-  assert.match(source, /after they sign up or sign in with that email/)
-  assert.match(source, /invitation\.status.*Expires/)
-  assert.doesNotMatch(source, /deliveryStatus|resendInvitation|Email status|>Resend</)
-  const hook = readFileSync(path.join(__dirname, "../hooks/use-workspaces.ts"), "utf8")
-  assert.match(hook, /success\("Invitation created", "Share the invite link from Team/)
-  assert.doesNotMatch(hook, /deliveryStatus|Email delivery is queued|accepted by the provider/)
-})
-
+test('owner invitation controls use shareable links without email entry',()=>{assert.match(source,/InvitationLinkCreator/);assert.doesNotMatch(source,/Invite by email|copyInvitationLink/);assert.match(source,/revokePendingInvitation/)})
 
 test("invitation loading does not announce an empty team before the request resolves", async () => {
   const ts = require("typescript")
@@ -52,6 +36,7 @@ test("invitation loading does not announce an empty team before the request reso
     react,
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "@/components/ui/button": { Button: "Button" },
+    "@/components/invitation-link-creator": { InvitationLinkCreator: "InvitationLinkCreator" },
     "@/components/ui/input": { Input: "Input" },
     "lucide-react": { X: "X", Plus: "Plus", Users: "Users", Loader2: "Loader2", Crown: "Crown" },
     "@/components/confirm-dialog": { ConfirmDialog: "ConfirmDialog" },

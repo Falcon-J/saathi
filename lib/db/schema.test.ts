@@ -25,6 +25,23 @@ test("PostgreSQL schema invariants", { skip: !connection }, async t => {
     } catch (error) { if (error !== rollback) throw error }
   }
   try {
+    await t.test("mailbox proof starts empty and is invalidated by email changes", () => fixture(async (tx, owner) => {
+      assert.equal((await tx`SELECT * FROM invitation_email_verifications WHERE user_id=${owner}`).length, 0)
+      await tx`INSERT INTO invitation_email_verifications(user_id,email) VALUES(${owner},${owner + "@example.test"})`
+      await tx`UPDATE auth.users SET email=${owner + "-changed@example.test"} WHERE id=${owner}`
+      assert.equal((await tx`SELECT * FROM invitation_email_verifications WHERE user_id=${owner}`).length, 0)
+      await tx`UPDATE auth.users SET email=${owner + "@example.test"} WHERE id=${owner}`
+      assert.equal((await tx`SELECT * FROM invitation_email_verifications WHERE user_id=${owner}`).length, 0)
+    }))
+    await t.test("mailbox proof is normalized and inaccessible to browser roles", () => fixture(async (tx, owner) => {
+      await assert.rejects(tx.savepoint(async sp => {
+        await sp`INSERT INTO invitation_email_verifications(user_id,email) VALUES(${owner},'Mixed@Example.test')`
+      }), {code:"23514"})
+      for(const role of ["anon","authenticated"]){
+        const [row]=await tx`SELECT has_table_privilege(${role},'invitation_email_verifications','SELECT,INSERT,UPDATE,DELETE') AS allowed`
+        assert.equal(row.allowed,false)
+      }
+    }))
     await t.test("signup creates one bounded profile", () => fixture(async (tx, owner) => {
       const rows = await tx`SELECT username FROM profiles WHERE id = ${owner}`
       assert.equal(rows.length, 1)
@@ -73,4 +90,11 @@ test("migration leaves browser domain access closed", async () => {
   const migration = await readFile(new URL("../../drizzle/0000_workspace_foundation.sql", import.meta.url), "utf8")
   assert.match(migration, /ALTER TABLE tasks ENABLE ROW LEVEL SECURITY/)
   assert.match(migration, /REVOKE ALL ON .* FROM anon, authenticated/)
+})
+
+test("mailbox proof migration never trusts automatic confirmation or user metadata", async () => {
+  const migration = await readFile(new URL("../../drizzle/0009_invitation_email_verifications.sql", import.meta.url), "utf8")
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/)
+  assert.match(migration, /FROM PUBLIC, anon, authenticated/)
+  assert.doesNotMatch(migration, /email_confirmed_at|raw_user_meta_data|INSERT INTO invitation_email_verifications/i)
 })

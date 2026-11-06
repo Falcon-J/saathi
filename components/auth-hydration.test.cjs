@@ -7,7 +7,7 @@ const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(nod
 function harness(file, name, mode, action) {
  const slots=[], effects=[], destinations=[]; let cursor=0
  const react={useState(initial){const index=cursor++;if(!(index in slots))slots[index]=initial;return[slots[index],value=>{slots[index]=typeof value==='function'?value(slots[index]):value}]},useRef(value){const index=cursor++;if(!(index in slots))slots[index]={current:value};return slots[index]},useEffect(effect,deps){const index=cursor++;if(!slots[index]||deps.some((v,i)=>v!==slots[index][i])){slots[index]=deps;effects.push(effect)}}}
- const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'next/image':{default:'Image'},'next/link':{default:'Link'},'next/navigation':{useRouter:()=>({replace:value=>destinations.push(value),refresh(){}})},'lucide-react':{},'@/lib/auth-simple':{login:action,signup:action,loginWithGoogle:action,requestPasswordReset:action,updatePassword:action},'@/lib/supabase/auth-boundary':{safeAuthRedirect:()=>'/dashboard'},'@/components/ui/button':{Button:'Button'},'@/components/ui/input':{Input:'Input'},'@/hooks/use-notifications':{useNotifications:()=>({success(){}})},'@/components/saathi-logo':{SaathiLogo:'SaathiLogo'}}
+ const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'next/image':{default:'Image'},'next/link':{default:'Link'},'next/navigation':{useRouter:()=>({replace:value=>destinations.push(value),refresh(){}})},'lucide-react':{},'@/lib/auth-simple':{login:action,signup:action,requestPasswordReset:action,updatePassword:action},'@/lib/supabase/auth-boundary':{safeAuthRedirect:()=>'/dashboard'},'@/components/ui/button':{Button:'Button'},'@/components/ui/input':{Input:'Input'},'@/hooks/use-notifications':{useNotifications:()=>({success(){}})},'@/components/saathi-logo':{SaathiLogo:'SaathiLogo'}}
  const loaded={};new Function('require','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText)(key=>{assert.ok(key in deps,key);return deps[key]},loaded)
  const draw=()=>{cursor=0;return nodes(loaded[name]({mode}))}
  return {draw,destinations,mount(){draw();effects.splice(0).forEach(effect=>effect());return draw()},fill(){for(const input of draw().filter(node=>node.type==='Input')) input.props.onChange({target:{value:input.props.type==='email'?'qa@example.test':input.props.type==='password'?'long-password':'QA'}})},submit(){return draw().find(node=>node.type==='form').props.onSubmit({preventDefault(){}})}}
@@ -35,21 +35,17 @@ test('committed login still redirects when optional localStorage broadcast fails
  try {const ui=harness('components/auth-form.tsx','AuthForm','login',async()=>({success:true}));ui.mount();ui.fill();await ui.submit();assert.deepEqual(ui.destinations,['/dashboard']);assert.equal(ui.draw().some(node=>node.props?.role==='alert'),false)}finally{global.window=oldWindow}
 })
 
-test('Google sign-in shares hydration and in-flight protection with password login', async () => {
- const oldWindow=global.window
- global.window={location:{search:'',assign(){}},localStorage:{setItem(){}}}
- let calls=0, finish
- try {
-  const ui=harness('components/auth-form.tsx','AuthForm','login',()=>{calls++;return new Promise(resolve=>{finish=resolve})})
-  const google=()=>ui.draw().find(node=>node.type==='button'&&Array.isArray(node.props.children)&&node.props.children.includes('Continue with Google'))
-  await google().props.onClick();assert.equal(calls,0)
-  ui.mount();ui.fill()
-  const passwordRequest=ui.submit()
-  await google().props.onClick();assert.equal(calls,1)
-  finish({error:'Try again'});await passwordRequest
-  const handler=google().props.onClick
-  const first=handler(),second=handler()
-  assert.equal(calls,2)
-  finish({url:'https://example.test/oauth'});await Promise.all([first,second])
- } finally {global.window=oldWindow}
+for (const mode of ['login', 'signup']) test(mode + ' offers email/password without a Google provider', () => {
+ const ui=harness('components/auth-form.tsx','AuthForm',mode,async()=>({success:true}))
+ assert.doesNotMatch(JSON.stringify(ui.draw()), /Google|or continue with/)
+})
+
+test('signup enters the dashboard immediately when a session is returned', async () => {
+ const oldWindow=global.window;global.window={location:{search:''},localStorage:{setItem(){}}}
+ try {const ui=harness('components/auth-form.tsx','AuthForm','signup',async()=>({success:true,confirmationRequired:false}));ui.mount();ui.fill();await ui.submit();assert.deepEqual(ui.destinations,['/dashboard']);assert.doesNotMatch(JSON.stringify(ui.draw()),/Check your email/)}finally{global.window=oldWindow}
+})
+
+test('unexpected confirmation requirement offers recovery without pretending signup signed in', async () => {
+ const oldWindow=global.window;global.window={location:{search:''},localStorage:{setItem(){}}}
+ try {const ui=harness('components/auth-form.tsx','AuthForm','signup',async()=>({success:true,confirmationRequired:true}));ui.mount();ui.fill();await ui.submit();assert.deepEqual(ui.destinations,[]);assert.match(JSON.stringify(ui.draw()),/Check your email/);assert.ok(ui.draw().some(node=>node.type==='Link'&&node.props.children==='Return to sign in'))}finally{global.window=oldWindow}
 })
