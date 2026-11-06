@@ -216,6 +216,7 @@ try {
   assert.ok(revoked)
   const pendingRow = owner.locator('section[aria-label="Workspace invitations"] > div').filter({ hasText: 'Single-use invite link' }).filter({ hasText: 'pending' })
   await pendingRow.getByRole('button', { name: 'Revoke', exact: true }).click()
+  await expect(owner.getByRole('button', { name: 'Copy invite link', exact: true })).toHaveCount(0)
   await expect.poll(async () => (await db`SELECT status FROM workspace_invitations WHERE id=${revoked.id}`)[0]?.status).toBe('revoked')
   await outsider.goto(second.link)
   await expect(outsider.getByRole('heading', { name: 'Invitation unavailable', exact: true })).toBeVisible({ timeout: 30000 })

@@ -23,6 +23,7 @@ interface MemberManagerProps {
 export function MemberManager({ workspaceId, members, currentUserEmail, workspaceOwnerId, onRemoveMember, onTransferOwnership }: MemberManagerProps) {
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [invitationOperation, setInvitationOperation] = useState<string | null>(null)
+  const [revokedInvitationIds, setRevokedInvitationIds] = useState<string[]>([])
   const [invitationsLoading, setInvitationsLoading] = useState(true)
   const [invitationLoadError, setInvitationLoadError] = useState<string | null>(null)
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
@@ -54,6 +55,7 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
     try {
       const result = await revokeInvitation(id)
       if (result.error) throw new Error(result.error)
+      setRevokedInvitationIds(ids => [...ids, id])
       await loadInvitations()
     } catch (caughtError) {
       setLastError(caughtError instanceof Error ? caughtError.message : "Unable to update invitation.")
@@ -137,7 +139,7 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
             <h3 className="text-sm font-medium text-foreground">Members ({members.length})</h3>
           </div>
 
-          {isOwner && <InvitationLinkCreator key={workspaceId} workspaceId={workspaceId} onCreated={loadInvitations} />}
+          {isOwner && <InvitationLinkCreator key={workspaceId} workspaceId={workspaceId} onCreated={loadInvitations} revokedInvitationIds={revokedInvitationIds} />}
 
           {lastError && <p role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{lastError}</p>}
           {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationsLoading ? <p role="status" className="text-xs text-muted-foreground">Loading invitations...</p> : invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.kind === "link" ? "Single-use invite link" : invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · Expires {new Date(invitation.expiresAt).toLocaleDateString()}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button></div>}</div>)}</section>}
