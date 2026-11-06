@@ -17,7 +17,7 @@ function fixture(file, name, props, actions = {}, stored = new Map()) {
   const result = {}
   new Function('require', 'exports', 'window', 'sessionStorage', 'navigator', ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText)(key => { assert.ok(key in deps, key); return deps[key] }, result, window, sessionStorage, { clipboard: { writeText: async () => { throw Error('denied') } } })
   const draw = () => { cursor = 0; return nodes(result[name](props)) }
-  return { draw, routes, window, stored, hash(value) { window.location.hash = value; listeners.get('hashchange')?.() }, mount() { draw(); effects.splice(0).forEach(effect => cleanups.push(effect())); return draw() }, unmount() { cleanups.forEach(cleanup => cleanup?.()) } }
+  return { draw, routes, window, stored, hash(value) { window.location.hash = value; listeners.get('hashchange')?.() }, mount() { draw(); effects.splice(0).forEach(effect => cleanups.push(effect())); return draw() }, update(next) { Object.assign(props, next); return draw() }, unmount() { cleanups.forEach(cleanup => cleanup?.()) } }
 }
 const preview = { workspaceName: 'Pilot', inviterUsername: 'Owner', expiresAt: '2026-12-01' }
 test('signed-out link preserves token only in session storage and auth redirects exclude it', async () => {
@@ -96,4 +96,15 @@ test('owner links always use the canonical auth origin',async()=>{
  const ui=fixture('components/invitation-link-creator.tsx','InvitationLinkCreator',{workspaceId:'workspace',onCreated:async()=>{}},{createWorkspaceInvitationLink:async()=>({success:true,token})})
  ui.window.location.origin='https://alias.test';ui.mount();await ui.draw().find(node=>node.type==='Button').props.onClick()
  assert.equal(ui.draw().find(node=>node.type==='Input').props.value,'https://app.test/join#token='+token)
+})
+
+test('revoking the displayed invite removes its copy control without hiding a different invite', async () => {
+ const ui=fixture('components/invitation-link-creator.tsx','InvitationLinkCreator',{workspaceId:'workspace',onCreated:async()=>{},revokedInvitationIds:[]},{createWorkspaceInvitationLink:async()=>({success:true,token,invitation:{id:'current'}})})
+ ui.mount();await ui.draw().find(node=>node.type==='Button').props.onClick()
+ assert.ok(ui.draw().some(node=>node.props?.children==='Copy invite link'))
+ ui.update({revokedInvitationIds:['another']})
+ assert.ok(ui.draw().some(node=>node.props?.children==='Copy invite link'))
+ ui.update({revokedInvitationIds:['another','current']})
+ assert.equal(ui.draw().some(node=>node.props?.children==='Copy invite link'),false)
+ assert.equal(ui.draw().some(node=>node.type==='Input'),false)
 })
