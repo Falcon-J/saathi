@@ -38,6 +38,9 @@ test("protected dashboard redirects to sign-in", async ({ page }) => {
 
 test("sign-in page has no serious or critical accessibility violations", async ({ page }) => {
   await page.goto("/login")
+  const submit = page.getByRole("button", { name: "Sign in", exact: true })
+  await expect(submit).toBeEnabled()
+  await expect(submit).toHaveCSS("opacity", "1")
   const results = await new AxeBuilder({ page }).analyze()
   const violations = results.violations.filter(({ impact }) => impact === "serious" || impact === "critical")
   expect(violations, JSON.stringify(violations.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ html, failureSummary }) => ({ html, failureSummary })) })), null, 2)).toEqual([])
