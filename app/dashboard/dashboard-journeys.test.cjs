@@ -6,6 +6,7 @@ const ts = require('typescript')
 function fixture(workspaceOverrides = {}, options = {}) {
   const slots = [], listeners = new Map(), pushes = [], removed = []
   let cursor = 0, effects = [], selected = 'workspace', allowDiscard = false
+  const taskReadModes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]))
   const react = {
     useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value }] },
@@ -40,11 +41,12 @@ function fixture(workspaceOverrides = {}, options = {}) {
     'next/navigation': { useRouter: () => router },
     '@/hooks/use-notifications': { useNotifications: () => notifications },
     '@/lib/auth-simple': { getSession: async () => ({ email: 'owner@example.test', username: 'Owner' }), logout: async () => options.logoutResult ?? ({ error: 'Unavailable' }) },
-    '@/app/actions/capabilities': { getFeatureCapabilities: async () => ({ aiWorkspace: false, csvImport: false }) },
+    '@/app/actions/capabilities': { getFeatureCapabilities: async () => options.capabilities ?? ({ aiWorkspace: false, csvImport: false }) },
+    '@/app/actions/workspace-advisor': { confirmWorkspaceAdvisorDraft: async () => options.advisorResult },
     '@/lib/identity': { normalizeEmail: value => value.toLowerCase() },
     '@/lib/dashboard-state': { getDashboardState: () => 'workspace' },
     '@/lib/dashboard-navigation': { workspaceViewFromHash: hash => ({ '#project-board': 'board', '#team-panel': 'team', '#settings-panel': 'settings' }[hash] ?? 'overview') },
-    '@/hooks/use-workspaces': { useWorkspaces: () => ({ workspaces: [workspace, { ...workspace, id: 'other' }], currentWorkspaceId: selected, setCurrentWorkspaceId: id => { selected = id }, tasks: [], realtime: { isConnected: true, eventRevision: 0 }, refreshWorkspaces: async () => {}, refreshTasks: async () => true, ...workspaceOverrides }) },
+    '@/hooks/use-workspaces': { useWorkspaces: (_email, options) => { taskReadModes.push(options.loadTasks); return ({ workspaces: [workspace, { ...workspace, id: 'other' }], currentWorkspaceId: selected, setCurrentWorkspaceId: id => { selected = id }, tasks: [], realtime: { isConnected: true, eventRevision: 0 }, refreshWorkspaces: async () => {}, refreshTasks: async () => true, ...workspaceOverrides }) } },
   })
   const exports = {}
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
@@ -52,7 +54,7 @@ function fixture(workspaceOverrides = {}, options = {}) {
   const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
   return {
     render() { cursor = 0; const tree = exports.default(); const pending = effects; effects = []; pending.forEach(fn => fn()); return nodes(tree) },
-    pushes, removed, redirects, location: window.location, selected: () => selected, allowDiscard(value) { allowDiscard = value },
+    pushes, removed, redirects, taskReadModes, location: window.location, selected: () => selected, allowDiscard(value) { allowDiscard = value },
     back(hash) { window.location.hash = hash; listeners.get('hashchange')?.() },
   }
 }
@@ -117,9 +119,32 @@ test('dirty quick-add blocks navigation and workspace changes until explicit dis
   assert.ok(component(ui.render(), 'WorkspaceBoard'))
 })
 
-test('Overview does not load the full dependency view until requested', async () => {
+test('workspace opens directly into handoffs and retains Board navigation', async () => {
   const ui = fixture(); ui.render(); await tick()
-  assert.equal(component(ui.render(), 'NextWorkView'), undefined)
+  assert.equal(component(ui.render(), 'WorkspaceOverview').props.workContent.type, 'NextWorkView')
+  component(ui.render(), 'WorkspaceOverview').props.onOpenBoard()
+  assert.ok(component(ui.render(), 'WorkspaceBoard'))
+})
+
+test('handoffs own task reads and quick-add reconciles through the mounted graph', async () => {
+  const ui = fixture(); ui.render(); await tick()
+  const overview = component(ui.render(), 'WorkspaceOverview')
+  assert.ok(ui.taskReadModes.every(value => value === false), 'do not also subscribe to full task lists')
+  let refreshes = 0
+  overview.props.workContent.props.onRefreshReady(async () => { refreshes++; return true })
+  await overview.props.onReviewBoard()
+  assert.equal(refreshes, 1)
+  overview.props.workContent.props.onRefreshReady(async () => false)
+  await assert.rejects(overview.props.onReviewBoard(), /Tasks unavailable/)
+})
+
+test('advisor creation on Board refreshes Board without requiring an unmounted handoff graph', async () => {
+  const ui = fixture({}, { capabilities: { aiWorkspace: true, csvImport: false }, advisorResult: { task: { id: 'new-task' } } })
+  ui.render(); await tick(); ui.render()
+  component(ui.render(), 'DashboardNavigation').props.onOpenBoard()
+  const result = await component(ui.render(), 'WorkspaceAdvisor').props.onConfirmDraft({}, 'command')
+  assert.equal(result.task.id, 'new-task')
+  assert.equal(result.warning, undefined)
 })
 
 

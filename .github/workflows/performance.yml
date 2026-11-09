@@ -1,0 +1,76 @@
+name: Disposable Linux performance acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/performance.yml
+
+permissions:
+  contents: read
+
+jobs:
+  performance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_POOL_MAX: '1'
+      # Pace fixture sign-ins below the normal 30-per-five-minute Auth quota.
+      # This delay is before the unchanged measured workload.
+      SAATHI_QA_AUTH_SETUP_INTERVAL_MS: '11000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - run: npm ci
+      - name: Verify preparation safeguards
+        run: node --test scripts/prepare-nfr-local.test.cjs
+      - name: Prepare exact disposable project
+        run: |
+          mkdir -p .local-test/supabase-acceptance/supabase
+          cp scripts/fixtures/supabase-performance.toml .local-test/supabase-acceptance/supabase/config.toml
+      - name: Start real local Auth and PostgreSQL
+        # Keep gotrue, kong, database and mailpit; never ignore health checks.
+        # Start prints local keys; discard it. Status is captured in memory only.
+        run: |
+          supabase start --workdir .local-test/supabase-acceptance --exclude realtime,storage-api,imgproxy,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > /dev/null 2>&1
+      - name: Start disposable Redis
+        run: |
+          docker run --detach --name saathi-performance-redis --publish 127.0.0.1:56379:6379 --health-cmd 'redis-cli ping' --health-interval 1s --health-timeout 3s --health-retries 30 redis:7-alpine
+          for attempt in $(seq 1 40); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' saathi-performance-redis)" = healthy ]; then exit 0; fi
+            sleep 1
+          done
+          echo 'Disposable Redis did not become healthy' >&2
+          exit 1
+      - name: Migrate real Auth database and build production app
+        run: node scripts/prepare-nfr-local.mjs
+      - name: Run unchanged sustained acceptance workload
+        run: node scripts/verify-nfr-local.mjs
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-performance-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: |
+            .local-test/nfr-*/result.json
+            .local-test/nfr-*/progress.json
+            .local-test/nfr-*/revision.json
+            .local-test/nfr-*/timings.jsonl
+      - name: Stop exact disposable services
+        if: always()
+        run: |
+          status=0
+          supabase stop --workdir .local-test/supabase-acceptance --project-id saathi-performance-ci --no-backup || status=1
+          if docker container inspect saathi-performance-redis >/dev/null 2>&1; then
+            docker rm --force saathi-performance-redis || status=1
+          fi
+          exit "$status"

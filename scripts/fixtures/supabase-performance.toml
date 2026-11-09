@@ -1,0 +1,53 @@
+# Disposable CLI 2.120.0 project; no linked project or application SQL stubs.
+project_id = "saathi-performance-ci"
+
+[api]
+enabled = true
+port = 56321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 56322
+shadow_port = 56320
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = false
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = false
+
+# CLI 2.120 calls the local email sink mailpit, exposed by local_smtp.
+[local_smtp]
+enabled = true
+port = 56324
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3101"
+additional_redirect_urls = ["http://127.0.0.1:3101/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[analytics]
+enabled = false
+
+[edge_runtime]
+enabled = false

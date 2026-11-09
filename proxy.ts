@@ -31,8 +31,10 @@ export async function proxy(request: NextRequest) {
       },
     })
     if (refreshOnly) {
-      // Actions and API handlers own live user and permission checks; this only refreshes session cookies.
-      await client.auth.getClaims()
+      // Cookie maintenance only: never authorize from this unverified session.
+      // The action/API performs getUser and its own membership checks. getClaims
+      // would duplicate that network check for symmetric signing keys.
+      await client.auth.getSession()
     } else {
       const { data: { user }, error } = await client.auth.getUser()
       if (protectedPage && error && (!error.status || error.status >= 500)) return new NextResponse('Account service temporarily unavailable. Please reload shortly.', { status: 503, headers: { 'Cache-Control': 'no-store' } })

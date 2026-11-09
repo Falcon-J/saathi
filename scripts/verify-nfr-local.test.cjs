@@ -47,6 +47,36 @@ test('a slow identity does not delay another identity scheduled to write', async
   assert.deepEqual(calls.map(call => call.index).sort(), [0, 1, 2, 3])
 })
 
+test('host suspension rejects the timed workload before dispatching late catch-up writes', async () => {
+  let writes = 0
+  await assert.rejects(runWrites(['first', 'second'], 4, 0, 900000,
+    async () => { writes++ }, () => 1000000, async () => {}), { code: 'schedule_overrun' })
+  assert.equal(writes, 0)
+})
+
+test('a failed required write settles active writers and stops subsequent dispatch', async () => {
+  let rejectFirst, finishSecond, settled = false
+  const calls = []
+  const pending = runWrites(['first', 'second'], 4, 0, 0, async (user, index) => {
+    calls.push(index)
+    if (user === 'first') await new Promise((_, reject) => { rejectFirst = reject })
+    else await new Promise(resolve => { finishSecond = resolve })
+  }, () => 0, async () => {})
+  const outcome = pending.then(() => { settled = true; return null }, error => { settled = true; return error })
+  await tick(); rejectFirst(new Error('private transport details')); await tick()
+  const settledBeforeSecondFinished = settled
+  finishSecond(); const failure = await outcome
+  assert.equal(settledBeforeSecondFinished, false, 'cleanup cannot start while another write is active')
+  assert.equal(failure?.code, 'write_failure')
+  assert.deepEqual(calls, [0, 1])
+})
+
+test('required-write failure diagnostics never expose dependency error contents', async () => {
+  await assert.rejects(runWrites(['actor'], 1, 0, 0,
+    async () => { throw new Error('private transport details') }, () => 0, async () => {}),
+  error => error.code === 'write_failure' && !error.message.includes('private transport details'))
+})
+
 test('timing evidence uses a fixed allowlist and drops samples beyond its bound', () => {
   const rows = [], flushed = []
   const timing = new Function('timingLimit', 'timingBuffer', 'flushTimings', `let timingCount=0,timingDropped=0; ${functionSource('timing')}; return {sample:timing,counts:()=>({timingCount,timingDropped})}`)(2, rows, () => flushed.push(true))
@@ -68,4 +98,13 @@ test('an unfinished failed workload retains elapsed time and intended versus ach
   assert.equal(stats.achievedWriteRatePerSecond, .75)
   assert.equal(stats.attemptedWriteRatePerSecond, 1)
   assert.deepEqual(stats.scheduleLag, { count: 2 })
+})
+
+test('failure diagnostics preserve known categories and discard untrusted codes and messages', () => {
+  const classify = new Function(`return (${functionSource('safeFailureCode')})`)()
+  assert.equal(classify({ name: 'TimeoutError', message: 'private dependency body' }), 'request_timeout')
+  assert.equal(classify({ code: 'unavailable' }), 'unavailable')
+  assert.equal(classify({ code: 'rate_limited' }), 'rate_limited')
+  assert.equal(classify({ code: 'private-key-material', message: 'private response body' }), 'transport_or_result')
+  assert.equal(classify(null), 'transport_or_result')
 })

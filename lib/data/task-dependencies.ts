@@ -18,21 +18,26 @@ const commandSchema = z.object({
 
 export async function readTaskGraph(actorId: string, workspaceId: string): Promise<TaskGraph> {
   if (!z.string().uuid().safeParse(workspaceId).success) throw new TaskError("Invalid workspace identifier", "validation")
-  return getDb().begin("isolation level repeatable read read only", async tx => {
-    const [workspace] = await tx`SELECT w.timezone FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
-      WHERE w.id=${workspaceId} AND m.user_id=${actorId}`
-    if (!workspace) throw new TaskError("Workspace unavailable or access denied", "forbidden")
-    const [clock] = await tx`SELECT transaction_timestamp() AS as_of`
-    const rows = await tx`SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
+  // Membership, tasks, edges and clock share the statement's MVCC snapshot.
+  const [graph] = await getDb()`WITH authorized AS MATERIALIZED (
+      SELECT w.id,w.timezone FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+      WHERE w.id=${workspaceId} AND m.user_id=${actorId}
+    ), task_rows AS (
+      SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
       FROM tasks t JOIN auth.users creator ON creator.id=t.created_by_user_id
       LEFT JOIN auth.users assignee ON assignee.id=t.assignee_user_id
-      WHERE t.workspace_id=${workspaceId} ORDER BY t.id`
-    const edges = await tx`SELECT workspace_id, dependent_task_id, prerequisite_task_id FROM task_dependencies
-      WHERE workspace_id=${workspaceId} ORDER BY dependent_task_id, prerequisite_task_id`
-    return { tasks: rows.map(mapTask), dependencies: edges.map(row => ({ workspaceId: row.workspace_id,
+      JOIN authorized a ON a.id=t.workspace_id
+    ), edge_rows AS (
+      SELECT d.workspace_id,d.dependent_task_id,d.prerequisite_task_id FROM task_dependencies d
+      JOIN authorized a ON a.id=d.workspace_id
+    ) SELECT EXISTS(SELECT 1 FROM authorized) AS authorized,
+      (SELECT timezone FROM authorized) AS timezone,transaction_timestamp() AS as_of,
+      COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id) FROM task_rows t),'[]'::jsonb) AS tasks,
+      COALESCE((SELECT jsonb_agg(to_jsonb(d) ORDER BY d.dependent_task_id,d.prerequisite_task_id) FROM edge_rows d),'[]'::jsonb) AS dependencies`
+  if (!graph?.authorized) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+  return { tasks: graph.tasks.map(mapTask), dependencies: graph.dependencies.map((row: { workspace_id: string; dependent_task_id: string; prerequisite_task_id: string }) => ({ workspaceId: row.workspace_id,
       dependentTaskId: row.dependent_task_id, prerequisiteTaskId: row.prerequisite_task_id })),
-      timezone: workspace.timezone, asOf: new Date(clock.as_of).toISOString() }
-  })
+    timezone: graph.timezone, asOf: new Date(graph.as_of).toISOString() }
 }
 
 export async function changeTaskPrerequisite(actorId: string, input: PrerequisiteCommand): Promise<PrerequisiteResult> {

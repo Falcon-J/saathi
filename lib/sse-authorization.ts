@@ -11,42 +11,44 @@ export function createMembershipVerifier(read: (workspaceId: string, actorId: st
   }
 }
 
-/** Batch concurrent fresh checks by workspace; never retain completed decisions. */
+export type MembershipPair = { workspaceId: string; actorId: string }
+
+/** Batch exact pairs across workspaces; never retain completed decisions. */
 export function createBatchedMembershipVerifier(
-  read: (workspaceId: string, actorIds: string[]) => Promise<string[]>,
+  read: (pairs: MembershipPair[]) => Promise<MembershipPair[]>,
 ) {
-  type Request = { resolve: (allowed: boolean) => void; reject: (error: unknown) => void }
-  const queued = new Map<string, Map<string, Request>>()
-  const active = new Map<string, Promise<void>>()
+  type Request = MembershipPair & { resolve: (allowed: boolean) => void; reject: (error: unknown) => void }
+  let queued: Map<string, Request> | undefined
+  let active: Promise<void> | undefined
   const pending = new Map<string, Promise<boolean>>()
   return (workspaceId: string, actorId: string): Promise<boolean> => {
     const key = JSON.stringify([workspaceId, actorId])
     const existing = pending.get(key)
     if (existing) return existing
-    let batch = queued.get(workspaceId)
-    if (!batch) {
-      batch = new Map()
-      queued.set(workspaceId, batch)
-      const requests = batch
+    if (!queued) {
+      queued = new Map()
+      const requests = queued
       setTimeout(() => {
         void (async () => {
-          await active.get(workspaceId)
-          queued.delete(workspaceId)
+          await active
+          queued = undefined
           const operation = (async () => {
             try {
-              const allowed = new Set(await read(workspaceId, [...requests.keys()]))
-              for (const [actor, request] of requests) request.resolve(allowed.has(actor))
+              const pairs = [...requests.values()].map(({ workspaceId, actorId }) => ({ workspaceId, actorId }))
+              const allowed = new Set((await read(pairs)).map(({ workspaceId, actorId }) => JSON.stringify([workspaceId, actorId])))
+              for (const [pairKey, request] of requests) request.resolve(allowed.has(pairKey))
             } catch (error) {
               for (const request of requests.values()) request.reject(error)
             }
           })()
-          active.set(workspaceId, operation)
+          active = operation
           await operation
-          if (active.get(workspaceId) === operation) active.delete(workspaceId)
+          if (active === operation) active = undefined
         })()
       }, 10)
     }
-    const result = new Promise<boolean>((resolve, reject) => batch!.set(actorId, { resolve, reject }))
+    const requests = queued
+    const result = new Promise<boolean>((resolve, reject) => requests.set(key, { workspaceId, actorId, resolve, reject }))
       .finally(() => pending.delete(key))
     pending.set(key, result)
     return result

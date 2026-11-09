@@ -14,11 +14,18 @@ const recordTiming = (phase: string, started: number) => {
     if (process.env.SSE_PERFORMANCE_DIAGNOSTICS === "1") console.info(JSON.stringify({ ssePhase: phase, durationMs: performance.now() - started }))
 }
 
-const verifyMembership = createBatchedMembershipVerifier(async (workspaceId, actorIds) => {
+const verifyMembership = createBatchedMembershipVerifier(async pairs => {
     const started = performance.now()
-    const rows = await getDb()`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id = ANY(${actorIds}::uuid[])`
+    const workspaceIds = pairs.map(pair => pair.workspaceId)
+    const actorIds = pairs.map(pair => pair.actorId)
+    const rows = await getDb()`
+        SELECT requested.request_index
+        FROM unnest(${workspaceIds}::uuid[], ${actorIds}::uuid[]) WITH ORDINALITY AS requested(workspace_id, user_id, request_index)
+        JOIN workspace_members AS members
+          ON members.workspace_id = requested.workspace_id AND members.user_id = requested.user_id
+    `
     recordTiming("membership-read", started)
-    return rows.map(row => row.user_id as string)
+    return rows.map(row => pairs[Number(row.request_index) - 1])
 })
 
 // Vercel serverless invocations are limited to 300 seconds. Close before the
@@ -78,7 +85,7 @@ export async function GET(request: NextRequest) {
         if (!workspaceIdResult.success) {
             return new Response("Workspace ID required", { status: 400 })
         }
-        const workspaceId = workspaceIdResult.data
+        const workspaceId = workspaceIdResult.data.toLowerCase()
 
         const authorized = async () => {
             const started = performance.now()
