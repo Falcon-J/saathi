@@ -181,7 +181,7 @@ export class RealtimeService {
             await redis.set(`${presenceKey}:${userId}`, timestamp.toString(), { ex: 300 })
 
             // Add to active users set
-            await redis.sadd(`${presenceKey}:active`, userId)
+            await redis.saddWithExpiry(`${presenceKey}:active`, 300, userId)
         } catch (error) {
             console.error('[Realtime] Failed to set user presence:', error)
         }
