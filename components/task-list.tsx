@@ -425,6 +425,7 @@ export const TaskList = memo(function TaskList({
         isLoading={operatingTaskId === deleteConfirm}
       />
       <TaskEditorDialog
+        draftScope={draftScope}
         task={editingTask}
         draft={editingDraft}
         canEdit={editorPermissions.canEdit}
@@ -476,6 +477,7 @@ function TaskColumn({
 }
 
 export function TaskEditorDialog({
+  draftScope,
   task,
   draft,
   canEdit,
@@ -493,6 +495,7 @@ export function TaskEditorDialog({
   onClose,
   onSubmit,
 }: {
+  draftScope?: string
   task: Task | null
   draft: TaskEditorDraft | null
   canEdit: boolean
@@ -653,7 +656,7 @@ export function TaskEditorDialog({
               </form>
 
               <div className="px-5 pb-5 sm:px-6">
-                <TaskComments taskId={task.id} key={task.id} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+                <TaskComments taskId={task.id} draftScope={draftScope} key={task.id} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
               </div>
             </div>
 

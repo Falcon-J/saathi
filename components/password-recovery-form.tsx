@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { requestPasswordReset, updatePassword } from '@/lib/auth-simple'
+import { requestPasswordReset, updatePassword, logout } from '@/lib/auth-simple'
 import { SaathiLogo } from '@/components/saathi-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,7 +32,9 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
       const result = mode === 'request' ? await requestPasswordReset(email) : await updatePassword(password)
       if (result.error) setError(result.error)
       else if (result.success) {
-        if (mode === 'update') {
+        if (mode === 'update' && result.sessionEnded === false) {
+          setMessage(result.message || 'Password updated. Sign out to finish.')
+        } else if (mode === 'update') {
           router.replace('/login?reset=success')
           router.refresh()
         } else {
@@ -40,6 +42,19 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
         }
       }
     } catch { setError('Account service is temporarily unavailable. Please try again.') }
+    finally { pendingRequest.current = false; setPending(false) }
+  }
+  async function finishSignOut() {
+    if (pendingRequest.current) return
+    pendingRequest.current = true
+    setPending(true)
+    setError('')
+    try {
+      const result = await logout()
+      if (result.error || !result.success) { setError(result.error || 'Could not sign out. Please try again.'); return }
+      router.replace('/login?reset=success')
+      router.refresh()
+    } catch { setError('Could not sign out. Please try again.') }
     finally { pendingRequest.current = false; setPending(false) }
   }
   const requesting = mode === 'request'
@@ -51,7 +66,7 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
         <h1 className="mt-3 text-4xl font-semibold leading-[1.05] tracking-[-0.04em]">{requesting ? 'Forgot your password?' : 'Set a new password'}</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">{requesting ? "Enter your email and we'll send you a secure reset link." : 'Choose a strong password to secure your account and return to your work.'}</p>
         <div className="mt-7 rounded-[var(--saathi-radius-container)] border border-border bg-card p-6 shadow-[0_16px_48px_rgb(44_50_89/0.08)] sm:p-8">
-          {message ? <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="font-semibold">Check your inbox</p><p className="mt-2 text-sm text-muted-foreground">{message}</p></div> : <form onSubmit={submit} aria-busy={!hydrated || pending} className="space-y-4">
+          {message ? <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="font-semibold">{requesting ? 'Check your inbox' : 'Password updated'}</p><p className="mt-2 text-sm text-muted-foreground">{message}</p>{!requesting && <Button type="button" disabled={pending} onClick={() => void finishSignOut()} className="mt-4">{pending ? 'Signing out…' : 'Sign out'}</Button>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</div> : <form onSubmit={submit} aria-busy={!hydrated || pending} className="space-y-4">
             {requesting ? <label className="block space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><Mail className="size-4" />Email</span><Input type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={event => setEmail(event.target.value)} disabled={!hydrated || pending} /></label> : <>
               <label className="block space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><KeyRound className="size-4" />New password</span><Input type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={event => setPassword(event.target.value)} disabled={!hydrated || pending} /></label>
               <p className="flex items-center gap-2 text-xs text-muted-foreground"><CheckCircle2 className="size-3.5 text-[var(--saathi-success)]" />Use at least 8 characters.</p>

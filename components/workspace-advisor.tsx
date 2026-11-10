@@ -1,18 +1,20 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, ListChecks, Send, Sparkles } from "lucide-react"
 import { askWorkspaceAdvisor, type WorkspaceAdvisorConfirmationResult } from "@/app/actions/workspace-advisor"
-import type { AdvisorResponse, AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
+import { advisorResponseSchema, type AdvisorResponse, type AdvisorTaskDraft } from "@/lib/ai/workspace-advisor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { readDraft, writeDraft, removeDraft, isDraftRecord } from "@/lib/draft-storage"
 
 type TaskDraft = NonNullable<AdvisorResponse["draft"]>
 
 type WorkspaceAdvisorProps = {
   workspaceId: string
+  draftScope?: string
   timeZone?: string
   onConfirmDraft: (draft: AdvisorTaskDraft, idempotencyKey: string) => Promise<WorkspaceAdvisorConfirmationResult>
 }
@@ -25,11 +27,22 @@ const capabilities: Array<{ value: Capability; label: string; icon: typeof Spark
   { value: "draft_task", label: "Draft a task", icon: Sparkles },
 ]
 
-function hasError(value: unknown): value is { error: string } {
+function hasError(value: unknown): value is { error: string; unknownOutcome?: boolean } {
   return Boolean(value && typeof value === "object" && "error" in value && typeof value.error === "string")
 }
 
-export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: WorkspaceAdvisorProps) {
+type RetainedConfirmation = { question: string; response: AdvisorResponse; commandId: string }
+
+function readConfirmation(draftKey: string | undefined) {
+  return readDraft(draftKey, (value): value is RetainedConfirmation =>
+    isDraftRecord(value) && typeof value.question === "string" && typeof value.commandId === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.commandId)
+    && advisorResponseSchema.safeParse(value.response).success)
+}
+
+export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft, draftScope }: WorkspaceAdvisorProps) {
+  const draftKey = draftScope ? `${draftScope}:advisor` : undefined
+  const scope = useRef({ workspaceId, draftKey, active: true })
   const [question, setQuestion] = useState("What should we focus on next?")
   const [response, setResponse] = useState<AdvisorResponse | null>(null)
   const [pending, setPending] = useState<Capability | null>(null)
@@ -43,7 +56,36 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
   const [error, setError] = useState<string | null>(null)
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null)
 
+  useLayoutEffect(() => {
+    const current = { workspaceId, draftKey, active: true }
+    scope.current = current
+    requesting.current = false
+    confirming.current = false
+    unresolvedConfirmation.current = false
+    draftCommand.current = null
+    setQuestion("What should we focus on next?")
+    setResponse(null)
+    setPending(null)
+    setCreating(false)
+    setConfirmationUncertain(false)
+    setError(null)
+    setRetryAfterSeconds(null)
+    const retained = readConfirmation(draftKey)
+    if (!retained) return () => { current.active = false }
+    setQuestion(retained.question)
+    setResponse(retained.response)
+    setCapability(retained.response.capability)
+    draftCommand.current = retained.commandId
+    unresolvedConfirmation.current = true
+    setConfirmationUncertain(true)
+    setError("A task confirmation was interrupted. Retry this proposal to safely recover its result.")
+    return () => { current.active = false }
+  }, [draftKey, workspaceId])
+
   const ask = async (capability: Capability) => {
+    const current = scope.current
+    const isCurrent = () => current.active && scope.current === current
+    if (!isCurrent() || current.workspaceId !== workspaceId || current.draftKey !== draftKey) return
     if (!question.trim() || requesting.current || confirming.current || unresolvedConfirmation.current) return
     setCapability(capability)
     requesting.current = true
@@ -54,6 +96,7 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
     setRetryAfterSeconds(null)
     try {
       const result = await askWorkspaceAdvisor(workspaceId, capability, question)
+      if (!isCurrent()) return
       if (result.error) {
         setError(result.error)
         setRetryAfterSeconds(result.code === "rate_limited" ? result.retryAfterSeconds ?? null : null)
@@ -61,38 +104,55 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft }: Work
       }
       setResponse(result.response ?? null)
     } catch {
+      if (!isCurrent()) return
       setError("AI advice is temporarily unavailable. Please try again.")
     } finally {
-      requesting.current = false
-      setPending(null)
+      if (isCurrent()) { requesting.current = false; setPending(null) }
     }
   }
 
   const createDraft = async (draft: TaskDraft) => {
+    const current = scope.current
+    const isCurrent = () => current.active && scope.current === current
+    if (!isCurrent() || current.workspaceId !== workspaceId || current.draftKey !== draftKey) return
     if (confirming.current || requesting.current) return
     confirming.current = true
     setCreating(true)
     setError(null)
     try {
       draftCommand.current ??= crypto.randomUUID()
+      // Save before sending so closing the dialog or reloading retains the receipt.
+      if (response) writeDraft(draftKey, { question, response, commandId: draftCommand.current })
+      if (draftKey && readConfirmation(draftKey)?.commandId !== draftCommand.current) {
+        setError("Browser session storage is unavailable. Enable storage before creating this task so an interrupted confirmation can be recovered.")
+        return
+      }
       const result = await onConfirmDraft(draft, draftCommand.current)
+      if (!isCurrent()) return
       if (hasError(result)) {
+        if (result.unknownOutcome) {
+          unresolvedConfirmation.current = true
+          setConfirmationUncertain(true)
+        } else if (!unresolvedConfirmation.current && readConfirmation(draftKey)?.commandId === draftCommand.current) {
+          removeDraft(draftKey)
+        }
         setError(unresolvedConfirmation.current ? `${result.error} Retry this proposal to safely recover the original result.` : result.error)
         return
       }
       if (!result.task) throw new Error("Confirmation outcome unavailable")
       unresolvedConfirmation.current = false
       setConfirmationUncertain(false)
+      if (readConfirmation(draftKey)?.commandId === draftCommand.current) removeDraft(draftKey)
       draftCommand.current = null
       setError(result.warning ?? null)
       setResponse(current => current ? { ...current, draft: null } : current)
     } catch {
+      if (!isCurrent()) return
       unresolvedConfirmation.current = true
       setConfirmationUncertain(true)
       setError("We could not confirm whether the task was created. Retry this proposal to safely recover the result.")
     } finally {
-      confirming.current = false
-      setCreating(false)
+      if (isCurrent()) { confirming.current = false; setCreating(false) }
     }
   }
 

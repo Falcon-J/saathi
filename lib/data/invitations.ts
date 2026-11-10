@@ -12,6 +12,7 @@ export interface Invitation {
 export interface InvitationPreview {
   id:string;workspaceName:string;inviterUsername:string;status:"pending";expiresAt:string;
 }
+export interface InvitationLinkPreview extends Omit<InvitationPreview,"status"> { status:"pending"|"accepted";workspaceId?:string }
 type Actor={id:string;email:string}
 const verificationRequired = "Verify your email to view and respond to workspace invitations."
 const normalizedEmail = (email:string) => email.trim().toLowerCase()
@@ -143,13 +144,16 @@ export async function createInvitationLinkRecord(actor:Actor,workspaceId:string,
     return {invitation:await projection(tx,id),token}
   })
 }
-export async function readInvitationLinkPreview(token:string):Promise<InvitationPreview|null> {
+export async function readInvitationLinkPreview(token:string,actor?:Actor|null):Promise<InvitationLinkPreview|null> {
   const hash=invitationTokenHash(token)
   if(!hash)return null
-  const [row]=await getDb()`SELECT i.id,i.expires_at,w.name AS workspace_name,p.username AS inviter_username
+  const [row]=await getDb()`SELECT i.id,i.expires_at,i.status,w.id AS workspace_id,w.name AS workspace_name,p.username AS inviter_username
     FROM workspace_invitations i JOIN workspaces w ON w.id=i.workspace_id JOIN profiles p ON p.id=i.inviter_user_id
-    WHERE i.token_hash=${hash} AND i.status='pending' AND i.expires_at>now() AND w.archived_at IS NULL`
-  return row?{id:row.id,workspaceName:row.workspace_name,inviterUsername:row.inviter_username,status:"pending",expiresAt:iso(row.expires_at)}:null
+    WHERE i.token_hash=${hash} AND w.archived_at IS NULL AND (
+      (i.status='pending' AND i.expires_at>now()) OR
+      (i.status='accepted' AND i.accepted_by_user_id=${actor?.id ?? null}
+        AND EXISTS(SELECT 1 FROM workspace_members m WHERE m.workspace_id=w.id AND m.user_id=${actor?.id ?? null})))`
+  return row?{id:row.id,workspaceName:row.workspace_name,inviterUsername:row.inviter_username,status:row.status,expiresAt:iso(row.expires_at),...(row.status==="accepted"?{workspaceId:row.workspace_id}:{})}:null
 }
 export async function acceptInvitationLinkRecord(actor:Actor,token:string):Promise<string> {
   const hash=invitationTokenHash(token)

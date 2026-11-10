@@ -166,3 +166,22 @@ test('an invitation refresh cannot switch workspace when editing starts during i
   read.resolve([{ id: 'workspace' }, { id: 'other' }]); await pending
   assert.equal(ui.render().currentWorkspaceId, 'workspace')
 })
+
+test('committed membership removal remains successful when reconciliation fails', async () => {
+ let reads=0,removed=false
+ const ui=fixture({removeMemberFromWorkspace:async()=>{removed=true},getUserWorkspaces:async()=>{if(++reads>1)throw Error('Offline');return [{id:'workspace',members:[{email:'member@example.test'}]},{id:'other'}]}})
+ ui.render();await tick();ui.render();await tick()
+ await assert.doesNotReject(ui.render().removeMember('member@example.test'))
+ assert.equal(removed,true)
+ const state=ui.render()
+ assert.equal(state.workspaces[0].members.length,0)
+ assert.match(state.workspaceError,/removed.*refresh/i)
+})
+test('committed leave removes local workspace access even when reconciliation fails', async () => {
+ let reads=0
+ const ui=fixture({removeMemberFromWorkspace:async()=>{},getUserWorkspaces:async()=>{if(++reads>1)throw Error('Offline');return [{id:'workspace'},{id:'other'}]}})
+ ui.render();await tick();ui.render();await tick()
+ await assert.doesNotReject(ui.render().removeMember('owner@example.test'))
+ assert.deepEqual(ui.render().workspaces.map(w=>w.id),['other'])
+ assert.equal(ui.render().currentWorkspaceId,'other')
+})

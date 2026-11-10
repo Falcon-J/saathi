@@ -7,7 +7,7 @@ import { consumeDistributedRateLimit, RateLimitExceeded } from "@/lib/rate-limit
 import { createClient } from "@supabase/supabase-js"
 import { getSupabaseConfig } from "@/lib/supabase/config"
 import { createHash } from "node:crypto"
-export type { Invitation, InvitationPreview } from "@/lib/data/invitations"
+export type { Invitation, InvitationPreview, InvitationLinkPreview } from "@/lib/data/invitations"
 import type { Invitation } from "@/lib/data/invitations"
 export type InvitationResult = {success?:true;invitation?:Invitation;error?:string}
 async function actor(){const s=await getSession();if(!s)throw new InvitationError("Please sign in and try again.");return s}
@@ -75,8 +75,8 @@ export async function createWorkspaceInvitationLink(workspaceId:string):Promise<
     return {success:true,...result}
   }catch(e){return failure(e)}
 }
-export async function getInvitationLinkPreview(token:string):Promise<import("@/lib/data/invitations").InvitationPreview|null> {
-  return readInvitationLinkPreview(token)
+export async function getInvitationLinkPreview(token:string):Promise<import("@/lib/data/invitations").InvitationLinkPreview|null> {
+  return readInvitationLinkPreview(token,await getSession())
 }
 export async function acceptInvitationLink(token:string):Promise<InvitationResult & {workspaceId?:string}> {
   try {

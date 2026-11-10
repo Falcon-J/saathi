@@ -32,6 +32,15 @@ test('bearer invitations preserve atomic admission and legacy boundaries', {skip
     const winner=actors.find(a=>a.id===stored.accepted_by_user_id)!
     assert.equal(await acceptInvitationLinkRecord(winner,link.token),workspace.id)
     const loser=winner.id===first.id?second:first
+    const recovered=await readInvitationLinkPreview(link.token,winner)
+    assert.equal(recovered?.status,'accepted')
+    assert.equal(recovered?.workspaceId,workspace.id)
+    assert.equal(await readInvitationLinkPreview(link.token),null)
+    assert.equal(await readInvitationLinkPreview(link.token,loser),null)
+    await db`DELETE FROM workspace_members WHERE workspace_id=${workspace.id} AND user_id=${winner.id}`
+    assert.equal(await readInvitationLinkPreview(link.token,winner),null)
+    await db`INSERT INTO workspace_members(workspace_id,user_id) VALUES(${workspace.id},${winner.id})`
+
     await assert.rejects(acceptInvitationLinkRecord(loser,link.token),/no longer pending/)
     assert.equal((await db`SELECT user_id FROM workspace_members WHERE workspace_id=${workspace.id}`).length,2)
     assert.equal((await db`SELECT id FROM activity_events WHERE entity_id=${link.invitation.id} AND event_type='member-added'`).length,1)

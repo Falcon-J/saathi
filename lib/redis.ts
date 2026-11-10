@@ -224,10 +224,17 @@ class RedisService {
     // Fallback to mock
     this.assertMockStorageEnabled()
     this.mockStore.set(key, serializedValue)
+    const previous = this.mockExpiryTimers.get(key)
+    if (previous) clearTimeout(previous)
+    this.mockExpiryTimers.delete(key)
     if (options?.ex) {
-      // Simple expiry simulation for mock
-      const expiryTimer = setTimeout(() => this.mockStore.delete(key), options.ex * 1000)
+      const expiryTimer = setTimeout(() => {
+        if (this.mockExpiryTimers.get(key) !== expiryTimer) return
+        this.mockStore.delete(key)
+        this.mockExpiryTimers.delete(key)
+      }, options.ex * 1000)
       expiryTimer.unref?.()
+      this.mockExpiryTimers.set(key, expiryTimer)
     }
     return "OK"
   }
@@ -274,6 +281,9 @@ class RedisService {
     // Fallback to mock
     this.assertMockStorageEnabled()
     const existed = this.mockStore.has(key)
+    const previous = this.mockExpiryTimers.get(key)
+    if (previous) clearTimeout(previous)
+    this.mockExpiryTimers.delete(key)
     this.mockStore.delete(key)
     return existed ? 1 : 0
   }

@@ -10,8 +10,8 @@ export async function POST(request:Request){
   const expected=Buffer.from(`Bearer ${secret}`),actual=Buffer.from(header)
   if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return Response.json({error:"Unauthorized"},{status:401})
   const outbox = await flushOutbox()
-  try { await deleteExpiredAiOperations() } catch { console.warn("[Saathi] AI operation retention cleanup deferred") }
   let retentionDeferred = false
+  try { await deleteExpiredAiOperations() } catch { retentionDeferred = true; console.warn("[Saathi] AI operation retention cleanup deferred") }
   try { await deleteExpiredPublishedOutbox() } catch { retentionDeferred = true; console.warn("[Saathi] Outbox retention cleanup deferred") }
   const degraded = retentionDeferred || outbox.unavailable || outbox.failed > 0
   return Response.json({ status: degraded ? "deferred" : "ok", outbox }, { status: degraded ? 503 : 200 })

@@ -7,7 +7,7 @@ import { validateCredentials, resolveVerifiedActor, resolveVerifiedSession, safe
 import { getProfile } from './data/profiles'
 import { normalizeEmail } from './identity'
 
-type AuthResult = { success?: boolean; error?: string; confirmationRequired?: boolean; message?: string }
+type AuthResult = { success?: boolean; error?: string; confirmationRequired?: boolean; message?: string; sessionEnded?: boolean }
 type OAuthResult = { url?: string; error?: string }
 const unavailable = { error: 'Account service is temporarily unavailable. Please try again.' }
 
@@ -124,7 +124,9 @@ export async function updatePassword(password: string): Promise<AuthResult> {
     if (authError || !user?.email_confirmed_at) return { error: 'This recovery session has expired. Request a new reset link.' }
     const { error } = await client.auth.updateUser({ password })
     if (error) return { error: 'Could not update the password. Use a different password or request a new reset link.' }
-    const { error: logoutError } = await client.auth.signOut({ scope: 'local' })
-    return { success: true, message: logoutError ? 'Password updated. Sign out from the workspace when you finish.' : 'Password updated. Sign in with your new password.' }
+    // Password persistence succeeded; cleanup failure is a separate recoverable state.
+    let sessionEnded = false
+    try { sessionEnded = !(await client.auth.signOut({ scope: 'local' })).error } catch { /* Offer cleanup retry. */ }
+    return { success: true, sessionEnded, message: sessionEnded ? 'Password updated. Sign in with your new password.' : 'Password updated. Sign out to finish.' }
   } catch { return unavailable }
 }
