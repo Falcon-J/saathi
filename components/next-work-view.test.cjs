@@ -19,17 +19,16 @@ function harness(options = {}) {
     useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value }] },
     useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial } },
     useCallback(fn, deps) { const i = cursor++; if (!slots[i] || changed(slots[i].deps, deps)) slots[i] = { deps, fn }; return slots[i].fn },
+    useMemo(fn, deps) { const i = cursor++; if (!slots[i] || changed(slots[i].deps, deps)) slots[i] = { deps, value: fn() }; return slots[i].value },
     useEffect(fn, deps) { const i = cursor++; if (!slots[i] || changed(slots[i].deps, deps)) { const old = slots[i]; slots[i] = { deps }; effects.push(() => { old?.cleanup?.(); slots[i].cleanup = fn() }) } },
   }
   const dependencies = {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
     '@/lib/identity': { normalizeEmail: value => value?.trim().toLowerCase() ?? '' },
+    '@/lib/read-coordinator': require('../lib/read-coordinator.ts'),
     '@/lib/task-time': { formatTaskDue: () => '' },
-    '@/lib/next-work': { deriveNextWork(tasks, dependencies) {
-      const items = tasks.map(t => ({ task: t, readiness: t.completed ? 'completed_inconsistent' : 'ready', unassigned: !t.assigneeEmail, prerequisites: dependencies.filter(d => d.dependentTaskId === t.id).map(d => ({ taskId: d.prerequisiteTaskId, title: d.prerequisiteTaskId, status: tasks.find(t => t.id === d.prerequisiteTaskId).status })) }))
-      return { ready: items.filter(i => !i.task.completed), waiting: [], completedInconsistencies: [] }
-    } },
+    '@/lib/next-work': require('../lib/next-work.ts'),
     '@/app/actions/task-dependencies': {
       getTaskGraph: options.read ?? (async () => graph),
       addPrerequisite: async input => { calls.push(['add', input]); return options.mutate ? options.mutate(input) : { success: true, task: task('Frontend', { version: 2 }) } },
@@ -56,6 +55,94 @@ test('Next work loads authorized graph, shows evidence and opens canonical tasks
   assert.match(ui.text(), /Complete/)
   ui.button('Open Frontend').props.onClick()
   assert.deepEqual(ui.opened, ['Frontend'])
+})
+
+test('handoffs show prerequisite owners and open unfinished dependent tasks', async () => {
+  const ui = harness({ read: async () => ({ ...graph,
+    tasks: [task('API', { assigneeEmail: 'developer@test.com' }), task('Frontend'), task('Launch')],
+    dependencies: [
+      { workspaceId: 'workspace', dependentTaskId: 'Frontend', prerequisiteTaskId: 'API' },
+      { workspaceId: 'workspace', dependentTaskId: 'Launch', prerequisiteTaskId: 'Frontend' },
+    ],
+  }) })
+  ui.render(); await tick(); ui.render()
+  const frontend = ui.render().find(node => node.type === 'article' && JSON.stringify(node).includes('Open Frontend'))
+  assert.match(JSON.stringify(frontend), /developer@test.com/)
+  assert.match(JSON.stringify(frontend), /Needed by/)
+  ui.button('Open dependent Launch').props.onClick()
+  assert.deepEqual(ui.opened, ['Launch'])
+})
+
+test('graph refresh bursts share an in-flight read and retain one trailing reconciliation', async () => {
+  let reads = 0, finish
+  const ui = harness({ read: async () => { reads++; if (reads === 1) return new Promise(resolve => { finish = resolve }); return graph } })
+  ui.render()
+  for (let refreshSignal = 1; refreshSignal <= 20; refreshSignal++) ui.render({ refreshSignal })
+  assert.equal(reads, 1)
+  finish(graph); await tick(); ui.render()
+  assert.equal(reads, 2)
+  assert.ok(ui.button('Open Frontend'))
+})
+
+test('queued graph reads stop on unmount and unregister explicit reconciliation', async () => {
+  let reads = 0, finish, registered
+  const ui = harness({ read: async () => { reads++; return new Promise(resolve => { finish = resolve }) } })
+  ui.render({ onRefreshReady: refresh => { registered = refresh } })
+  assert.equal(typeof registered, 'function')
+  ui.render({ refreshSignal: 1 })
+  ui.unmount()
+  assert.equal(registered, null)
+  finish(graph); await tick()
+  assert.equal(reads, 1)
+})
+
+test('explicit graph reconciliation reports a failed read without caching prior success', async () => {
+  let fail = false, refresh
+  const ui = harness({ read: async () => fail ? { error: 'Unavailable', code: 'unavailable' } : graph })
+  ui.render({ onRefreshReady: value => { refresh = value } }); await tick(); ui.render()
+  assert.equal(await refresh(), true)
+  fail = true
+  assert.equal(await refresh(), false)
+  ui.render()
+  assert.match(ui.text(), /Unavailable/)
+  assert.doesNotMatch(ui.text(), /Open Frontend/)
+})
+
+test('an old queued read cannot replace graph data after account and workspace changes', async () => {
+  let reads = 0, finish
+  const ui = harness({ read: async () => {
+    if (++reads === 1) return new Promise(resolve => { finish = resolve })
+    return { ...graph, tasks: [task('Other account task', { workspaceId: 'other-workspace' })], dependencies: [] }
+  } })
+  ui.render(); ui.render({ refreshSignal: 1 })
+  ui.render({ currentUserEmail: 'other@test.com', workspace: { id: 'other-workspace', ownerId: 'other@test.com', timezone: 'UTC' } })
+  await tick(); ui.render()
+  finish(graph); await tick(); ui.render()
+  assert.equal(reads, 2)
+  assert.ok(ui.button('Open Other account task'))
+  assert.equal(ui.button('Open Frontend'), undefined)
+})
+
+test('real projection waits for every prerequisite and returns to Waiting after reopening one', async () => {
+  let apiDone = false, consentDone = false
+  const ui = harness({ read: async () => ({ ...graph,
+    tasks: [task('API', { completed: apiDone, status: apiDone ? 'done' : 'todo' }),
+      task('Consent', { completed: consentDone, status: consentDone ? 'done' : 'todo' }), task('Frontend')],
+    dependencies: ['API', 'Consent'].map(prerequisiteTaskId => ({ workspaceId: 'workspace', dependentTaskId: 'Frontend', prerequisiteTaskId })),
+  }) })
+  const group = name => JSON.stringify(ui.render().find(node => node.props?.['aria-label'] === name))
+  ui.render(); await tick(); ui.render()
+  assert.match(group('Waiting'), /"aria-label":"Open Frontend"/)
+  apiDone = true
+  ui.render({ refreshSignal: 1 }); await tick(); ui.render()
+  assert.match(group('Waiting'), /"aria-label":"Open Frontend"/)
+  assert.doesNotMatch(group('Ready'), /"aria-label":"Open Frontend"/)
+  consentDone = true
+  ui.render({ refreshSignal: 2 }); await tick(); ui.render()
+  assert.match(group('Ready'), /"aria-label":"Open Frontend"/)
+  apiDone = false
+  ui.render({ refreshSignal: 3 }); await tick(); ui.render()
+  assert.match(group('Waiting'), /"aria-label":"Open Frontend"/)
 })
 
 test('Next work failure clears prior graph and never reports empty readiness', async () => {

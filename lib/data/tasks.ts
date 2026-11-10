@@ -75,26 +75,35 @@ export async function listTaskRecordsPage(actorId: string, workspaceId: string, 
     scope = normalizeTaskPage(input)
     if(scope.cursor) boundary = decodeTaskCursor(scope.cursor,workspaceId,scope)
   } catch { throw new TaskError("Invalid task page or cursor", "validation") }
-  return getDb().begin("isolation level repeatable read read only", async tx => {
-    await authorizeTaskRead(tx,actorId,workspaceId)
-    if(boundary) {
-      const [row] = await tx`SELECT id FROM tasks WHERE id=${boundary} AND workspace_id=${workspaceId}`
-      if(!row) throw new TaskError("Task cursor unavailable", "validation")
-    }
-    const rows = await tx`SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
+  // One statement shares an MVCC snapshot for membership, cursor and rows.
+  // Compare cursor timestamps in SQL: JS Dates truncate stored microseconds.
+  const rows = await getDb()`WITH authorized AS MATERIALIZED (
+      SELECT w.id FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+      WHERE w.id=${workspaceId} AND m.user_id=${actorId}
+    ), boundary_task AS (
+      SELECT t.created_at FROM tasks t JOIN authorized a ON a.id=t.workspace_id WHERE t.id=${boundary}::uuid
+    ), access AS (
+      SELECT EXISTS(SELECT 1 FROM authorized) AS authorized,
+        (${boundary}::uuid IS NULL OR EXISTS(SELECT 1 FROM boundary_task)) AS cursor_valid
+    )
+    SELECT access.*, page.* FROM access LEFT JOIN LATERAL (
+      SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
       FROM tasks t JOIN auth.users creator ON creator.id=t.created_by_user_id
       LEFT JOIN auth.users assignee ON assignee.id=t.assignee_user_id
-      WHERE t.workspace_id=${workspaceId}
+      WHERE access.authorized AND access.cursor_valid AND t.workspace_id=${workspaceId}
         AND (${scope.status}='all' OR (${scope.status}='active' AND t.status<>'done') OR (${scope.status}='completed' AND t.status='done'))
         AND (${scope.priority}::text IS NULL OR t.priority=${scope.priority})
         AND (${scope.assigneeEmail}::text IS NULL OR lower(assignee.email)=${scope.assigneeEmail})
         AND (${scope.search}='' OR position(${scope.search} in lower(t.title))>0 OR position(${scope.search} in lower(coalesce(t.description,'')))>0)
-        AND (${boundary}::uuid IS NULL OR t.created_at < (SELECT created_at FROM tasks WHERE id=${boundary}::uuid AND workspace_id=${workspaceId})
-          OR (t.created_at = (SELECT created_at FROM tasks WHERE id=${boundary}::uuid AND workspace_id=${workspaceId}) AND t.id>${boundary}::uuid))
-      ORDER BY t.created_at DESC,t.id ASC LIMIT ${scope.limit+1}`
-    const visible=rows.slice(0,scope.limit)
-    return {tasks:visible.map(mapTask),nextCursor:rows.length>scope.limit ? encodeTaskCursor(workspaceId,scope,visible[visible.length-1].id) : null}
-  })
+        AND (${boundary}::uuid IS NULL OR t.created_at < (SELECT created_at FROM boundary_task)
+          OR (t.created_at = (SELECT created_at FROM boundary_task) AND t.id>${boundary}::uuid))
+      ORDER BY t.created_at DESC,t.id ASC LIMIT ${scope.limit+1}
+    ) page ON true ORDER BY page.created_at DESC,page.id ASC`
+  if (!rows[0]?.authorized) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+  if (!rows[0].cursor_valid) throw new TaskError("Task cursor unavailable", "validation")
+  const tasks = rows.filter(row => row.id !== null)
+  const visible=tasks.slice(0,scope.limit)
+  return {tasks:visible.map(mapTask),nextCursor:tasks.length>scope.limit ? encodeTaskCursor(workspaceId,scope,visible[visible.length-1].id) : null}
 }
 export async function getTaskRecord(actorId: string, workspaceId: string, taskId: string): Promise<Task> {
   if(!z.string().uuid().safeParse(workspaceId).success || !z.string().uuid().safeParse(taskId).success) throw new TaskError("Invalid task identifier","validation")
@@ -107,16 +116,17 @@ export async function getTaskRecord(actorId: string, workspaceId: string, taskId
 }
 export async function getTaskAggregates(actorId: string, workspaceId: string): Promise<TaskAggregates> {
   if(!z.string().uuid().safeParse(workspaceId).success) throw new TaskError("Invalid workspace identifier","validation")
-  return getDb().begin("isolation level repeatable read read only",async tx => {
-    await authorizeTaskRead(tx,actorId,workspaceId)
-    const [row]=await tx`SELECT count(*)::int AS total,
+  const [row]=await getDb()`WITH authorized AS MATERIALIZED (
+      SELECT w.id,w.timezone FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+      WHERE w.id=${workspaceId} AND m.user_id=${actorId}
+    ) SELECT EXISTS(SELECT 1 FROM authorized) AS authorized,count(*)::int AS total,
       count(*) FILTER(WHERE status='todo')::int AS todo, count(*) FILTER(WHERE status='in_progress')::int AS progress,
       count(*) FILTER(WHERE status='done')::int AS done, count(*) FILTER(WHERE priority='low')::int AS low,
       count(*) FILTER(WHERE priority='medium')::int AS medium, count(*) FILTER(WHERE priority='high')::int AS high,
-      count(*) FILTER(WHERE status<>'done' AND (due_at < now() OR (due_at IS NULL AND due_date < (now() AT TIME ZONE (SELECT timezone FROM workspaces WHERE id=${workspaceId}))::date)))::int AS overdue
-      FROM tasks WHERE workspace_id=${workspaceId}`
-    return {total:row.total,open:row.total-row.done,done:row.done,overdue:row.overdue,byStatus:{todo:row.todo,"in-progress":row.progress,done:row.done},byPriority:{low:row.low,medium:row.medium,high:row.high}}
-  })
+      count(*) FILTER(WHERE status<>'done' AND (due_at < now() OR (due_at IS NULL AND due_date < (now() AT TIME ZONE a.timezone)::date)))::int AS overdue
+      FROM tasks t JOIN authorized a ON a.id=t.workspace_id`
+  if (!row?.authorized) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+  return {total:row.total,open:row.total-row.done,done:row.done,overdue:row.overdue,byStatus:{todo:row.todo,"in-progress":row.progress,done:row.done},byPriority:{low:row.low,medium:row.medium,high:row.high}}
 }
 export async function createTaskRecord(actorId: string, workspaceId: string, input: TaskUpdate, commandId?: string): Promise<Task> {
   const result = normalizeTaskUpdates(input)

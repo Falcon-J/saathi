@@ -46,7 +46,7 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 - `workspace-error`: workspace query failed; show retry without an empty-state form.
 - `zero-workspaces`: query succeeded with zero memberships; show the intention-based creation form.
 - `creating-workspace`: an existing user explicitly requested another workspace; show creation with cancel.
-- `workspace-ready`: a valid workspace is selected; show Overview, Board, or Team content.
+- `workspace-ready`: a valid workspace is selected; show Overview (Ready and Waiting), Board, or Team content.
 
 ## Compatibility decisions
 
@@ -54,3 +54,7 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 - Existing Redis durable records are retained temporarily for rollback but are not dual-written.
 - The PostgreSQL cutover starts with an intentionally empty dataset unless a separate import is explicitly approved.
 - A task uses either a date-only `dueDate` or a precise `dueAt` instant, plus the workspace IANA timezone for rendering. Existing date-only commitments remain calendar dates rather than being converted to instants.
+
+## Capacity verification
+
+Use the `Disposable Linux performance acceptance` GitHub Actions workflow for the real Auth/PostgreSQL/Redis capacity gate. It keeps 100 identities, 1,000 writes over 900 seconds, normal admission limits, read p95 at most 750ms and delivery upper-bound p95 at most 2,000ms, and unexpected failure rate below 1%. Disposable password sign-ins are paced before measurement under the normal Auth quota; measured task reads and writes are not retried by the load generator. Only sanitized evidence is uploaded, and the exact local project and Redis container are removed afterward.

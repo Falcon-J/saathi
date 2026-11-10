@@ -104,3 +104,14 @@ test('failed task reads preserve quick add but never announce empty work or comp
   assert.ok(rows.some(node => node.props?.role === 'status'))
   assert.doesNotMatch(JSON.stringify(rows), /Nothing needs your attention|0 of 0/)
 })
+
+test('handoff content replaces date lists and progress while preserving quick add during read failure', () => {
+  const ui = harness(async () => ({}))
+  const workContent = { type: 'Handoffs', props: { children: 'Ready and Waiting' } }
+  for (const error of [null, 'Task read failed']) {
+    const rows = ui.render({ workContent, error })
+    assert.ok(rows.some(node => node.type === 'Handoffs'))
+    assert.ok(rows.some(node => node.type === 'form'), 'quick-add remains mounted')
+    assert.equal(rows.some(node => node.type === 'Progress' || node.type === 'h3'), false)
+  }
+})

@@ -15,6 +15,12 @@ if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
 return count
 `
 
+const saddWithExpiryScript = `
+local added = redis.call('SADD', KEYS[1], unpack(ARGV, 2))
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+return added
+`
+
 const claimSseLeaseScript = `
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
@@ -54,6 +60,7 @@ class RedisService {
   private redis: Redis | null = null
   private mockStore = sharedMockRedis.store
   private mockStreams = sharedMockRedis.streams
+  private mockExpiryTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private isConnected = false
   private mockStorageEnabled = false
   private maxRetries = 2
@@ -307,6 +314,29 @@ class RedisService {
     this.assertMockStorageEnabled()
     const set = this.mockStore.get(key)
     return set ? JSON.parse(set) : []
+  }
+
+  /** Add members and refresh their set's expiry in one atomic Redis command. */
+  async saddWithExpiry(key: string, expirySeconds: number, ...members: string[]): Promise<number> {
+    if (!key || !Number.isSafeInteger(expirySeconds) || expirySeconds < 1 || members.length === 0) {
+      throw new Error("Set expiry configuration is invalid")
+    }
+    if (this.redis) return this.withRetry(async () => Number(await this.redis!.eval(saddWithExpiryScript, [key], [expirySeconds, ...members])))
+    this.assertMockStorageEnabled()
+    const currentMembers = new Set<string>(JSON.parse(this.mockStore.get(key) ?? "[]"))
+    const previousSize = currentMembers.size
+    members.forEach(member => currentMembers.add(member))
+    this.mockStore.set(key, JSON.stringify([...currentMembers]))
+    const previous = this.mockExpiryTimers.get(key)
+    if (previous) clearTimeout(previous)
+    const timer = setTimeout(() => {
+      if (this.mockExpiryTimers.get(key) !== timer) return
+      this.mockStore.delete(key)
+      this.mockExpiryTimers.delete(key)
+    }, expirySeconds * 1000)
+    timer.unref?.()
+    this.mockExpiryTimers.set(key, timer)
+    return currentMembers.size - previousSize
   }
 
   async srem(key: string, ...members: string[]): Promise<number> {

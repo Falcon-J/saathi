@@ -37,7 +37,13 @@ test("task prerequisites are authorized, versioned, replay safe and race safe", 
   })
   try {
     await db`INSERT INTO workspace_members (workspace_id,user_id) VALUES (${workspace.id},${member.id})`
-    const a = await createTaskRecord(owner.id, workspace.id, { title: "Build API" })
+    const empty = await readTaskGraph(member.id, workspace.id)
+    assert.deepEqual(empty.tasks, [])
+    assert.deepEqual(empty.dependencies, [])
+    assert.equal(empty.timezone, workspace.timezone)
+    assert.ok(!Number.isNaN(Date.parse(empty.asOf)))
+    await assert.rejects(readTaskGraph(outsider.id, workspace.id), /access denied/)
+    const a = await createTaskRecord(owner.id, workspace.id, { title: "Build API", dueDate: "2030-11-09" })
     const b = await createTaskRecord(owner.id, workspace.id, { title: "Connect frontend", assigneeEmail: member.email })
     const other = await createTaskRecord(owner.id, foreign.id, { title: "Other workspace" })
     const add = command(b.id, a.id)
@@ -55,6 +61,8 @@ test("task prerequisites are authorized, versioned, replay safe and race safe", 
       assert.equal(result.replayed, false)
       const graph = await readTaskGraph(member.id, workspace.id)
       assert.equal(graph.tasks.length, 2)
+      assert.deepEqual(graph.tasks.find(task => task.id === a.id), a)
+      assert.deepEqual(graph.tasks.find(task => task.id === b.id), result.task)
       assert.deepEqual(graph.dependencies, [{ workspaceId: workspace.id, dependentTaskId: b.id, prerequisiteTaskId: a.id }])
       assert.ok(!Number.isNaN(Date.parse(graph.asOf)))
       const events = await db`SELECT id FROM activity_events WHERE entity_id=${b.id} AND metadata->>'action'='dependency-add'`

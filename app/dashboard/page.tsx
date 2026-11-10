@@ -48,6 +48,7 @@ export default function Dashboard() {
   useLayoutEffect(() => { viewRef.current = workspaceView }, [workspaceView])
   const dirtyRef = useRef(false)
   const draftScopeRef = useRef<string | undefined>(undefined)
+  const taskGraphRefresh = useRef<{ scope: string; refresh: () => Promise<boolean> } | null>(null)
   const discardDrafts = useCallback(() => {
     if (dirtyRef.current && draftScopeRef.current) {
       const suffixes = viewRef.current === "settings" ? [":settings"] : viewRef.current === "board" ? [":quick-add", ":task-editor"] : [":quick-add"]
@@ -60,7 +61,6 @@ export default function Dashboard() {
     if (dirtyRef.current && !window.confirm("Discard unsaved changes before leaving this view?")) return false
     return true
   }, [])
-  const [showReadiness, setShowReadiness] = useState(false)
   const navigateTo = useCallback((view: WorkspaceView) => {
     if (view === viewRef.current) return true
     if (!confirmLeave()) return false
@@ -68,7 +68,6 @@ export default function Dashboard() {
     const hash = { overview: "#workspace-header", board: "#project-board", team: "#team-panel", activity: "#activity-history", settings: "#settings-panel" }[view]
     setWorkspaceView(view)
     viewRef.current = view
-    setShowReadiness(false)
     if (window.location.hash !== hash) window.history.pushState(null, "", hash)
     return true
   }, [confirmLeave, discardDrafts])
@@ -141,7 +140,6 @@ export default function Dashboard() {
       discardDrafts()
       viewRef.current = next
       setWorkspaceView(next)
-      setShowReadiness(false)
     }
     window.addEventListener("hashchange", handleHashChange)
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -166,12 +164,11 @@ export default function Dashboard() {
     addMember,
     removeMember,
     refreshWorkspaces,
-    refreshTasks,
     workspaceError,
     taskError,
     tasksLoading,
     realtime,
-  } = useWorkspaces(user?.email && !loading ? user.email : undefined, { loadTasks: workspaceView === "overview" })
+  } = useWorkspaces(user?.email && !loading ? user.email : undefined, { loadTasks: false })
 
   useEffect(() => {
     if (!user || loading || workspacesLoading || workspaceError) return
@@ -186,6 +183,15 @@ export default function Dashboard() {
 
   const currentWorkspace = workspaces.find((workspace) => workspace.id === currentWorkspaceId)
   const draftScope = user && currentWorkspace ? `saathi:draft:${normalizeEmail(user.email)}:${currentWorkspace.id}` : undefined
+  const registerGraphRefresh = useCallback((refresh: (() => Promise<boolean>) | null) => {
+    if (refresh && draftScope) taskGraphRefresh.current = { scope: draftScope, refresh }
+    else if (taskGraphRefresh.current?.scope === draftScope) taskGraphRefresh.current = null
+  }, [draftScope])
+  const refreshTasks = useCallback(async () => {
+    const target = taskGraphRefresh.current
+    if (!target || target.scope !== draftScope) return false
+    return target.refresh()
+  }, [draftScope])
   useLayoutEffect(() => { draftScopeRef.current = draftScope }, [draftScope])
   const isCurrentWorkspaceOwner = currentWorkspace && user
     ? normalizeEmail(currentWorkspace.ownerId) === normalizeEmail(user.email)
@@ -284,7 +290,6 @@ export default function Dashboard() {
   const handleSelectWorkspace = (workspaceId: string) => {
     if (workspaceId === currentWorkspaceId || !confirmLeave()) return
     discardDrafts()
-    setShowReadiness(false)
     setCurrentWorkspaceId(workspaceId)
     setCreatingWorkspace(false)
     setAskOpen(false)
@@ -464,7 +469,7 @@ export default function Dashboard() {
                   </div>
                 </section>
 
-                {aiWorkspaceEnabled && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (result.task) { setBoardRefreshRequest(value => value + 1); try { if (!await refreshTasks()) return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } catch { return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } } return result }} /></DialogContent></Dialog>}
+                {aiWorkspaceEnabled && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (result.task) { setBoardRefreshRequest(value => value + 1); try { if (workspaceView === "overview" && !await refreshTasks()) return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } catch { return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } } return result }} /></DialogContent></Dialog>}
                 {capabilities.csvImport && <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent><DialogHeader><DialogTitle>Import tasks</DialogTitle><DialogDescription>Choose a CSV file with task titles and optional details.</DialogDescription></DialogHeader><TaskImport key={currentWorkspace.id} workspaceId={currentWorkspace.id} onImported={async () => { setBoardRefreshRequest(value => value + 1); await refreshTasks() }} /></DialogContent></Dialog>}
 
                 {realtime.error && (
@@ -504,9 +509,8 @@ export default function Dashboard() {
                       onOpenBoard={handleOpenBoard}
                       onReviewBoard={async () => { if (!await refreshTasks()) throw new Error("Tasks unavailable") }}
                       focusQuickAdd={quickAddRequest}
+                      workContent={<NextWorkView key={`next-work-${currentWorkspace.id}`} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} taskRevision={tasks.map(task => `${task.id}:${task.version ?? task.updatedAt}`).join("|")} connected={realtime.isConnected} onOpenTask={handleOpenTask} onRefreshReady={registerGraphRefresh} />}
                     />
-                    <Button type="button" variant="outline" className="mt-4" aria-expanded={showReadiness} aria-controls="workspace-readiness" onClick={() => setShowReadiness(value => !value)}>Readiness and dependencies</Button>
-                    {showReadiness && <div id="workspace-readiness" className="mt-4"><NextWorkView key={`next-work-${currentWorkspace.id}`} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} taskRevision={tasks.map(task => `${task.id}:${task.version ?? task.updatedAt}`).join("|")} connected={realtime.isConnected} onOpenTask={handleOpenTask} onChanged={refreshTasks} /></div>}
                   </>
                 ) : (
                   <section className="min-w-0">

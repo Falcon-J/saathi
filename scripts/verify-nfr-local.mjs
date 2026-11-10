@@ -9,11 +9,15 @@ import postgres from 'postgres'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { startLocalRedisRest } from './local-redis-rest.mjs'
+import { createLocalAuthFixture, signInLocalAuthFixture } from './local-auth-fixtures.mjs'
 
-assert.ok(process.argv.slice(2).every(arg => ['--smoke', '--diagnostic'].includes(arg)), 'Only --smoke or --diagnostic is supported')
+assert.ok(process.argv.slice(2).every(arg => ['--smoke', '--diagnostic', '--profile'].includes(arg)), 'Only --smoke, --diagnostic or --profile is supported')
 const smoke = process.argv.includes('--smoke')
 const diagnostic = process.argv.includes('--diagnostic')
+const profile = process.argv.includes('--profile')
 assert.ok(!(smoke && diagnostic), 'Choose either smoke or diagnostic')
+const fixtureSignInInterval = Number(process.env.SAATHI_QA_AUTH_SETUP_INTERVAL_MS ?? '0')
+assert.ok(Number.isInteger(fixtureSignInInterval) && fixtureSignInInterval >= 0 && fixtureSignInInterval <= 60000, 'Fixture sign-in interval must be an integer from 0 to 60000ms')
 const acceptance = !smoke && !diagnostic
 const mode = smoke ? 'smoke' : diagnostic ? 'diagnostic' : 'acceptance'
 const envelope = smoke ? { users: 8, members: 2, writes: 8, seconds: 8, seed: 2 } : diagnostic ? { users: 100, members: 25, writes: 100, seconds: 60, seed: 750 } : { users: 100, members: 25, writes: 1000, seconds: 900, seed: 750 }
@@ -22,6 +26,10 @@ const directory = `.local-test/nfr-${runId}`
 mkdirSync(directory, { recursive: true })
 const pause = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)))
 const users = [], workspaces = Array.from({ length: 4 }, () => randomUUID()), observers = [], mutations = [], errors = []
+// Recovery manifest contains disposable UUIDs only; never persist cookies, keys or passwords.
+const recordOwnedFixtures = (extraIds = []) => writeFileSync(`${directory}/owned-fixtures.json`, JSON.stringify({ runId, workspaces, userIds: [...new Set([...users.map(user => user.id), ...extraIds])] }, null, 2))
+recordOwnedFixtures()
+const setupRecovery = { createRetries: 0, recoveredCreates: 0, signInRetries: 0, minimumSignInIntervalMs: fixtureSignInInterval }
 const samples = { warmRead: [], read: [], write: [], admission: [], deliveryUpperBound: [], scheduleLag: [] }
 const timingLimit = 60000, timingBuffer = [], eventSlots = new Map()
 const eventLoop = monitorEventLoopDelay({ resolution: 20 })
@@ -41,7 +49,10 @@ function workloadStats() {
   return { elapsedMs: Math.round(elapsedMs), intendedWriteRatePerSecond: envelope.writes / envelope.seconds, attemptedWrites: writesAttempted, achievedWriteRatePerSecond: elapsedMs ? mutations.length * 1000 / elapsedMs : 0, attemptedWriteRatePerSecond: elapsedMs ? writesAttempted * 1000 / elapsedMs : 0, scheduleLag: summary(samples.scheduleLag) }
 }
 const deliveryCounts = () => ({ expected: envelope.writes * envelope.members, observed: observers.reduce((sum, observer) => sum + observer.seen.size, 0), missing: Math.max(0, envelope.writes * envelope.members - observers.reduce((sum, observer) => sum + observer.seen.size, 0)), duplicateNotifications })
-const progress = () => writeFileSync(`${directory}/progress.json`, JSON.stringify({ runId, phase, mode, envelope, ...workloadStats(), identitiesCreated: users.length, identitiesSignedIn: users.filter(user => user.cookie).length, observersReady: observers.filter(observer => observer.ready && observer.connected).length, attemptedRequests: attempts, successfulMutations: mutations.length, errors: errors.length, deliveries: deliveryCounts(), updatedAt: new Date().toISOString() }, null, 2))
+const progress = () => {
+  if (process.env.CI === 'true') console.log(JSON.stringify({ nfrProgress: true, phase, identitiesCreated: users.length, identitiesSignedIn: users.filter(user => user.cookie).length, observersReady: observers.filter(observer => observer.ready && observer.connected).length, successfulMutations: mutations.length, errors: errors.length, deliveries: deliveryCounts() }))
+  writeFileSync(`${directory}/progress.json`, JSON.stringify({ runId, phase, mode, envelope, ...workloadStats(), identitiesCreated: users.length, identitiesSignedIn: users.filter(user => user.cookie).length, observersReady: observers.filter(observer => observer.ready && observer.connected).length, attemptedRequests: attempts, successfulMutations: mutations.length, errors: errors.length, deliveries: deliveryCounts(), updatedAt: new Date().toISOString() }, null, 2))
+}
 const percentile = (values, quantile) => values.length ? Math.round([...values].sort((a, b) => a - b)[Math.ceil(values.length * quantile) - 1]) : null
 const summary = values => ({ count: values.length, p50Ms: percentile(values, .5), p95Ms: percentile(values, .95), p99Ms: percentile(values, .99) })
 function loopback(value, protocols) {
@@ -64,13 +75,28 @@ async function until(check, timeout = 30000) {
   throw new Error('Timed out waiting for local verification condition')
 }
 async function runWrites(users, count, started, duration, write, now = () => performance.now(), sleep = pause) {
+  let scheduleOverrun = false
+  let writeFailure = false
   await Promise.all(users.map(async (user, userIndex) => {
     for (let index = userIndex; index < count; index += users.length) {
+      if (scheduleOverrun || writeFailure) return
       const intendedAt = started + index * duration / count
       await sleep(Math.max(0, intendedAt - now()))
-      await write(user, index, intendedAt)
+      if (scheduleOverrun || writeFailure) return
+      if (now() - intendedAt > 30000) { scheduleOverrun = true; return }
+      try { await write(user, index, intendedAt) } catch { writeFailure = true }
     }
   }))
+  if (scheduleOverrun) {
+    const error = new Error('Workload schedule overrun exceeded 30 seconds; host suspension or severe overload invalidated the timed run')
+    error.code = 'schedule_overrun'
+    throw error
+  }
+  if (writeFailure) {
+    const error = new Error('A required mutation failed; stopped the workload after settling active writers')
+    error.code = 'write_failure'
+    throw error
+  }
 }
 // The built action results are plain JSON objects. Follow the RSC action reference instead of assuming a row number.
 function actionResult(body) {
@@ -83,13 +109,23 @@ function actionResult(body) {
   assert.match(root?.a ?? '', /^\$@[0-9a-f]+$/, 'Missing RSC action result reference')
   const result = rows.get(root.a.slice(2))
   assert.ok(result && typeof result === 'object', 'Missing RSC action result')
-  assert.equal(result.success, true, `Server Action failed (${result.code ?? 'unknown'})`)
+  if (result.success !== true) {
+    const error = new Error('Server Action failed')
+    error.code = safeFailureCode({ code: result.code })
+    throw error
+  }
   return result
 }
 assert.equal(actionResult('0:{"a":"$@2"}\n2:{"success":true,"task":{"id":"fixture"}}\n').task.id, 'fixture')
 assert.throws(() => actionResult('0:{"a":"$@1"}\n1:{"error":"Denied"}'))
 
 let actions
+function safeFailureCode(error) {
+  if (['TimeoutError', 'AbortError'].includes(error?.name)) return 'request_timeout'
+  const allowed = ['unauthenticated', 'forbidden', 'validation', 'not_found', 'conflict', 'unavailable', 'rate_limited', 'invalid_action_result']
+  return allowed.includes(error?.code) ? error.code : 'transport_or_result'
+}
+
 async function action(user, name, args, category) {
   attempts++
   const started = performance.now(), startedAt = new Date().toISOString()
@@ -113,8 +149,9 @@ async function action(user, name, args, category) {
 }
 async function read(user, category = 'read') {
   for (const [name, args] of [['getTasksPage', [user.workspace, { limit: 50 }]], ['getWorkspaceTaskAggregates', [user.workspace]]]) {
+    if (stopping) return
     readAttempts++
-    try { await action(user, name, args, category); user.reads++ } catch { errors.push({ phase: category, actorSlot: users.indexOf(user), action: name }) }
+    try { await action(user, name, args, category); user.reads++ } catch (error) { errors.push({ phase: category, actorSlot: users.indexOf(user), action: name, code: safeFailureCode(error) }) }
   }
 }
 async function observe(observer) {
@@ -180,8 +217,10 @@ try {
   const hash = value => createHash('sha256').update(value).digest('hex')
   fingerprint = { revision: (await capture('git', ['rev-parse', 'HEAD'])).trim(), workingDiffSha256: hash(await capture('git', ['diff', '--binary', 'HEAD', '--', '.'])), verifierSha256: hash(readFileSync('scripts/verify-nfr-local.mjs')), builtActionManifestSha256: hash(readFileSync('.next/server/server-reference-manifest.json')), recordedAt: new Date().toISOString() }
   writeFileSync(`${directory}/revision.json`, JSON.stringify(fingerprint, null, 2))
-  const command = process.platform === 'win32' ? 'cmd.exe' : 'npx'
-  const args = process.platform === 'win32' ? ['/d', '/s', '/c', 'npx.cmd --yes supabase@2.120.0 status --workdir .local-test/supabase-acceptance -o json'] : ['--yes', 'supabase@2.120.0', 'status', '--workdir', '.local-test/supabase-acceptance', '-o', 'json']
+  phase = 'local-stack-status'
+  const cli = process.env.SAATHI_QA_SUPABASE_CLI
+  const command = cli || (process.platform === 'win32' ? 'cmd.exe' : 'npx')
+  const args = cli ? ['status', '--workdir', '.local-test/supabase-acceptance', '-o', 'json'] : process.platform === 'win32' ? ['/d', '/s', '/c', 'npx.cmd --yes supabase@2.120.0 status --workdir .local-test/supabase-acceptance -o json'] : ['--yes', 'supabase@2.120.0', 'status', '--workdir', '.local-test/supabase-acceptance', '-o', 'json']
   const status = JSON.parse(await capture(command, args))
   const api = loopback(status.API_URL, ['http:']), database = loopback(status.DB_URL, ['postgresql:', 'postgres:'])
   const publicKey = status.PUBLISHABLE_KEY || status.ANON_KEY, adminKey = status.SECRET_KEY || status.SERVICE_ROLE_KEY
@@ -201,16 +240,26 @@ try {
   admin = createClient(api, adminKey, { auth: { persistSession: false, autoRefreshToken: false } })
   phase = 'local-auth-fixtures'
   progress()
+  let nextFixtureSignInAt = 0
   for (let index = 0; index < envelope.users; index++) {
     const email = `nfr-${runId}-${index}@example.test`, password = randomUUID() + 'Aa9!'
-    const created = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { username: 'Disposable NFR member' } })
-    assert.ok(!created.error && created.data.user, 'Local Auth identity creation failed')
-    const user = { id: created.data.user.id, email, workspace: workspaces[Math.floor(index / envelope.members)], reads: 0, writes: 0 }
+    let created
+    try { created = await createLocalAuthFixture({ email, createUser: () => admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { username: 'Disposable NFR member' } }), findUserByEmail: async ownedEmail => (await db`SELECT id FROM auth.users WHERE email=${ownedEmail}`)[0] ?? null }) }
+    catch (error) { setupRecovery.createRetries += error.retries ?? 0; throw error }
+    setupRecovery.createRetries += created.retries
+    setupRecovery.recoveredCreates += Number(created.recovered)
+    const user = { id: created.user.id, email, workspace: workspaces[Math.floor(index / envelope.members)], reads: 0, writes: 0 }
     users.push(user)
+    recordOwnedFixtures()
     const jar = new Map()
     const client = createServerClient(api, publicKey, { cookies: { getAll: () => Array.from(jar, ([name, value]) => ({ name, value })), setAll: values => values.forEach(({ name, value }) => jar.set(name, value)) } })
-    const signed = await client.auth.signInWithPassword({ email, password })
-    assert.ok(!signed.error && signed.data.session, 'Local real password sign-in failed')
+    await pause(nextFixtureSignInAt - performance.now())
+    nextFixtureSignInAt = performance.now() + fixtureSignInInterval
+    let signed
+    try { signed = await signInLocalAuthFixture({ signIn: () => client.auth.signInWithPassword({ email, password }) }) }
+    catch (error) { setupRecovery.signInRetries += error.retries ?? 0; throw error }
+    setupRecovery.signInRetries += signed.retries
+    assert.ok(jar.size > 0, 'Real password sign-in produced no cookies')
     user.cookie = Array.from(jar, ([name, value]) => `${name}=${value}`).join('; ')
     progress()
   }
@@ -228,11 +277,13 @@ try {
     NEXT_PUBLIC_APP_URL: base, APP_URL: base, UPSTASH_REDIS_REST_URL: bridge.url, UPSTASH_REDIS_REST_TOKEN: token, KV_REST_API_URL: bridge.url, KV_URL: bridge.url, KV_REST_API_TOKEN: token,
     CRON_SECRET: randomUUID(), GROQ_API_KEY: '', ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false', ENABLE_RATE_LIMITING: 'true', ENABLE_REAL_TIME: 'true', USE_MOCK_REDIS: 'false' }
   for (const key of Object.keys(env)) if (key.startsWith('RATE_LIMIT_') || key.startsWith('SSE_') || key === 'LOAD_TEST_SECRET') delete env[key]
-  if (diagnostic) env.SSE_PERFORMANCE_DIAGNOSTICS = '1'
+  if (diagnostic || profile) env.SSE_PERFORMANCE_DIAGNOSTICS = '1'
+  phase = 'server-startup'
+  progress()
   log = createWriteStream(`${directory}/server.log`)
   server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '-p', '3101'], { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
   server.stdout.pipe(log); server.stderr.pipe(log)
-  await until(async () => { try { return (await fetch(`${base}/api/health/live`, { signal: AbortSignal.timeout(1000) })).ok } catch { return false } })
+  await until(async () => { try { return (await fetch(`${base}/api/health/live`, { signal: AbortSignal.timeout(1000) })).ok } catch { return false } }, 120000)
   phase = 'sse-admission'
   progress()
   for (const user of users) {
@@ -256,6 +307,7 @@ try {
     while (!stopping && performance.now() < deadline) { await read(user); await pause(Math.min(15000, Math.max(0, deadline - performance.now()))) }
   }))
   await runWrites(users, envelope.writes, started, duration, async (user, index, intendedAt) => {
+    if (stopping) throw new Error('Workload stopped')
     writesAttempted++
     const scheduleLagMs = Math.max(0, performance.now() - intendedAt)
     samples.scheduleLag.push(scheduleLagMs)
@@ -266,7 +318,12 @@ try {
       assert.ok(saved.task?.id, 'Mutation returned no task')
       mutations.push({ id: saved.task.id, workspace: user.workspace, commandId })
       user.writes++
-    } catch { errors.push({ phase: 'write', index }) }
+    } catch (error) {
+      errors.push({ phase: 'write', index, code: safeFailureCode(error) })
+      stopping = true
+      observers.forEach(observer => observer.controller?.abort())
+      throw new Error('Required mutation failed')
+    }
     if ((index + 1) % 25 === 0 || index + 1 === envelope.writes) progress()
   })
   const workloadFinishedWithinEnvelope = mutations.length === envelope.writes && performance.now() - started <= duration + 1000
@@ -304,7 +361,7 @@ try {
     performanceThresholds: { taskReadP95Ms: 750, deliveryUpperBoundP95Ms: 2000, unexpectedFailureRateExclusive: .01 }, performanceTargets: { taskReadP95Within750ms: percentile(samples.read, .95) <= 750, deliveryUpperBoundP95Within2s: percentile(samples.deliveryUpperBound, .95) <= 2000, unexpectedFailureRateBelow1Percent: errors.length / attempts < .01 }, performanceAssertionsApplied: acceptance, revocationWithin30s: 'not measured', reconciliationWithin5s: 'not measured' }
   if (acceptance && Object.values(result.performanceTargets).some(value => !value)) { result.passed = false; process.exitCode = 1 }
 } catch (error) {
-  result = { passed: false, mode, scope: smoke ? 'SMOKE ONLY' : diagnostic ? 'DIAGNOSTIC ONLY; not NFR acceptance' : 'Local NFR verification', runId, phase, failure: error instanceof assert.AssertionError ? error.message.split('\n')[0] : 'Local fixture or transport failed; inspect phase and scoped server log', envelope, attempts, readAttempts, streamAttempts, successfulMutations: mutations.length, deliveries: deliveryCounts(), allRolesActuallyActive: users.length === envelope.users && users.every(user => user.reads >= 2 && user.writes > 0), errors, timings: Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, summary(values)])) }
+  result = { passed: false, mode, scope: smoke ? 'SMOKE ONLY' : diagnostic ? 'DIAGNOSTIC ONLY; not NFR acceptance' : 'Local NFR verification', runId, phase, failure: ['schedule_overrun', 'write_failure'].includes(error.code) ? error.message : error instanceof assert.AssertionError ? error.message.split('\n')[0] : 'Local fixture or transport failed; inspect phase and scoped server log', envelope, attempts, readAttempts, streamAttempts, successfulMutations: mutations.length, deliveries: deliveryCounts(), allRolesActuallyActive: users.length === envelope.users && users.every(user => user.reads >= 2 && user.writes > 0), errors, timings: Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, summary(values)])) }
   process.exitCode = 1
 } finally {
   eventLoop.disable()
@@ -312,7 +369,9 @@ try {
   result.workload = workloadStats()
   result.elapsedMs = result.workload.elapsedMs
   result.fingerprint = fingerprint
+  result.setupRecovery = setupRecovery
   result.databasePoolMax = process.env.DATABASE_POOL_MAX ?? '1'
+  result.phaseProfiling = diagnostic || profile
   result.readWorkload = { scheduling: 'Response-dependent reads with 15-second think time per user', attempts: samples.read.length, achievedRequestsPerSecond: result.elapsedMs ? samples.read.length * 1000 / result.elapsedMs : 0 }
   stopping = true
   observers.forEach(observer => observer.controller?.abort())
@@ -321,22 +380,26 @@ try {
   if (server) { const exited = new Promise(resolve => server.once('exit', resolve)); server.kill(); await Promise.race([exited, pause(5000)]); if (server.exitCode === null) server.kill('SIGKILL') }
   log?.end()
   try {
+    const expectedEmails = Array.from({ length: envelope.users }, (_, index) => `nfr-${runId}-${index}@example.test`)
+    const discovered = db ? await db`SELECT id,email FROM auth.users WHERE email=ANY(${expectedEmails}::text[])` : []
+    const cleanupUsers = [...new Map([...users, ...discovered].map(user => [user.id, user])).values()]
+    recordOwnedFixtures(cleanupUsers.map(user => user.id))
     if (db) await db.begin(async tx => {
       await tx`DELETE FROM outbox_events WHERE workspace_id=ANY(${workspaces}::uuid[])`
       await tx`DELETE FROM activity_events WHERE workspace_id=ANY(${workspaces}::uuid[])`
       await tx`DELETE FROM workspaces WHERE id=ANY(${workspaces}::uuid[])`
-      for (const user of users) await tx`DELETE FROM profiles WHERE id=${user.id}`
+      for (const user of cleanupUsers) await tx`DELETE FROM profiles WHERE id=${user.id}`
     })
-    for (const user of users) { const deleted = await admin.auth.admin.deleteUser(user.id); assert.ok(!deleted.error, 'Owned local Auth fixture cleanup failed') }
+    for (const user of cleanupUsers) { const deleted = await admin.auth.admin.deleteUser(user.id); assert.ok(!deleted.error, 'Owned local Auth fixture cleanup failed') }
     if (bridge) {
-      const owned = [...workspaces, ...users.map(user => user.id), ...users.map(user => user.email)]
+      const owned = [...workspaces, ...cleanupUsers.map(user => user.id), ...cleanupUsers.map(user => user.email)]
       const keys = new Set()
       for (const identity of owned) {
         let cursor = '0'
         do { const page = await bridge.command(['SCAN', cursor, 'MATCH', `*${identity}*`, 'COUNT', 100]); cursor = String(page[0]); for (const key of page[1]) if (key.includes(identity)) keys.add(key) } while (cursor !== '0')
       }
       const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 16)
-      for (const user of users) {
+      for (const user of cleanupUsers) {
         // These exact hashes use the application's fixture-specific lease/rate key derivation.
         keys.add(`sse:connections:v2:${hash(user.email.trim().toLowerCase())}`)
         for (const scope of [`tasks:${user.id}`, `sse-attempt:${user.email}`]) {
@@ -348,7 +411,7 @@ try {
       for (const key of keys) await bridge.command(['DEL', key])
     }
     result.cleanup = 'Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped'
-  } catch { result.cleanup = 'FAILED; inspect owned fixture UUIDs using runId; no broad deletion attempted'; result.passed = false; process.exitCode = 1 }
+  } catch { result.cleanup = 'FAILED; owned-fixtures.json records exact disposable UUIDs for recovery; no broad deletion attempted'; result.passed = false; process.exitCode = 1 }
   await bridge?.close(); await db?.end()
   result.timingEvidence = { file: 'timings.jsonl', samples: timingCount, dropped: timingDropped, limit: timingLimit }
   flushTimings()
