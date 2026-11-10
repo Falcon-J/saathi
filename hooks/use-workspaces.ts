@@ -478,9 +478,22 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
       if (!currentWorkspaceId || !userEmail) return
 
       const commandSelection = selectionRef.current
+      let committed = false
       try {
         await removeMemberFromWorkspace(currentWorkspaceId, memberEmail)
+        committed = true
         if (selectionRef.current !== commandSelection) return
+
+        // Apply the acknowledged membership change before best-effort reconciliation.
+        const leaving = normalizeEmail(memberEmail) === normalizeEmail(userEmail)
+        setWorkspaces(previous => leaving
+          ? previous.filter(workspace => workspace.id !== currentWorkspaceId)
+          : previous.map(workspace => workspace.id === currentWorkspaceId
+            ? { ...workspace, members: workspace.members.filter(member => normalizeEmail(member.email) !== normalizeEmail(memberEmail)) }
+            : workspace))
+        updateTasks(previous => leaving ? [] : previous.map(task => normalizeEmail(task.assigneeEmail ?? '') === normalizeEmail(memberEmail)
+          ? { ...task, assigneeEmail: undefined } : task))
+        if (leaving) setCurrentWorkspaceId(workspaces.find(workspace => workspace.id !== currentWorkspaceId)?.id ?? null)
 
         // Refresh workspaces to get updated member list
         const version = ++workspaceReadVersion.current
@@ -509,13 +522,17 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
           )
         }
       } catch (error) {
+        if (committed) {
+          if (selectionRef.current === commandSelection) setWorkspaceError("Member removed. Unable to refresh workspaces. Please try again.")
+          return
+        }
         console.error("[Saathi] Failed to remove member:", error)
         const errorMessage = error instanceof Error ? error.message : "Failed to remove member"
         if (selectionRef.current === commandSelection) notifyError("Failed to remove member", errorMessage)
         throw error
       }
     },
-    [currentWorkspaceId, updateTasks, userEmail, success, notifyError, info],
+    [currentWorkspaceId, workspaces, updateTasks, userEmail, success, notifyError, info],
   )
 
   return {

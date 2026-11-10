@@ -3,6 +3,13 @@ const fs = require("node:fs")
 const test = require("node:test")
 const ts = require("typescript")
 
+
+const draftStorage = {}
+new Function('exports', ts.transpileModule(require('node:fs').readFileSync('lib/draft-storage.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(draftStorage)
+const advisorSchema = {}
+new Function('require', 'exports', ts.transpileModule(fs.readFileSync('lib/ai/workspace-advisor.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(require, advisorSchema)
+const memoryStorage = () => { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) } }
+
 const source = fs.readFileSync("components/workspace-advisor.tsx", "utf8")
 
 test("advisor panel keeps AI contextual and reviewable", () => {
@@ -19,16 +26,19 @@ test("advisor panel keeps AI contextual and reviewable", () => {
   assert.doesNotMatch(source, /autoCreate|autonomous|saveWithoutReview/i)
 })
 
-function harness(onConfirmDraft, askWorkspaceAdvisor = async () => ({ response: { capability: 'draft_task', answer: 'Review', attention: [], draft: { title: 'Reviewed', priority: 'medium' } } })) {
+function harness(onConfirmDraft, askWorkspaceAdvisor = async () => ({ response: { capability: 'draft_task', answer: 'Review', attention: [], draft: { title: 'Reviewed', priority: 'medium', description: null, dueDate: null, dueAt: null, estimatedMinutes: null } } })) {
   const slots = []
-  let cursor = 0, tree
+  let cursor = 0, tree, effects = []
   const jsx = (type, props) => ({ type, props })
   const dependencies = {
     react: {
       useState(initial) { const index = cursor++; slots[index] ??= { value: initial }; return [slots[index].value, value => { slots[index].value = typeof value === 'function' ? value(slots[index].value) : value }] },
+      useLayoutEffect(effect, deps) { const index = cursor++; if (!slots[index] || deps.some((value, i) => !Object.is(value, slots[index].deps[i]))) { slots[index] = { deps }; effects.push(effect) } },
       useRef(initial) { const index = cursor++; slots[index] ??= { current: initial }; return slots[index] },
     },
     'react/jsx-runtime': { jsx, jsxs: jsx },
+    '@/lib/draft-storage': draftStorage,
+    '@/lib/ai/workspace-advisor': advisorSchema,
     '@/app/actions/workspace-advisor': { askWorkspaceAdvisor },
     'lucide-react': {},
     ...Object.fromEntries(['badge', 'button', 'card', 'textarea'].map(name => [`@/components/ui/${name}`, Object.fromEntries((name === 'card' ? ['Card', 'CardContent', 'CardDescription', 'CardHeader', 'CardTitle'] : [name[0].toUpperCase() + name.slice(1)]).map(component => [component, component]))])),
@@ -38,7 +48,7 @@ function harness(onConfirmDraft, askWorkspaceAdvisor = async () => ({ response: 
   new Function('require', 'exports', js)(name => dependencies[name] ?? {}, exports)
   const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
   return {
-    render() { cursor = 0; tree = exports.WorkspaceAdvisor({ workspaceId: 'workspace', onConfirmDraft }) },
+    render(props = {}) { cursor = 0; tree = exports.WorkspaceAdvisor({ workspaceId: 'workspace', onConfirmDraft, ...props }); const pending = effects; effects = []; pending.forEach(effect => effect()) },
     button(label) { return nodes(tree).find(node => node.type === 'Button' && JSON.stringify(node.props.children).includes(label)) },
     textarea() { return nodes(tree).find(node => node.type === 'Textarea') },
     text() { return JSON.stringify(tree) },
@@ -170,4 +180,75 @@ test('a committed draft clears the proposal even when refreshing failed', async 
     assert.equal(ui.button('Create task'), undefined, path)
     assert.match(ui.text(), /created.*refresh|saved.*refresh/i, path)
   }
+})
+
+test('an advisor confirmation keeps its exact proposal and command across closing and reload', async () => {
+  global.sessionStorage = memoryStorage()
+  const props = { draftScope: 'account:workspace' }, keys = []
+  let finish
+  const confirm = async (draft, key) => { keys.push([draft.title, key]); return keys.length === 1 ? new Promise(resolve => { finish = resolve }) : { task: { id: 'task' } } }
+  const first = harness(confirm); first.render(props); first.button('Draft a task').props.onClick(); await tick(); first.render(props)
+  first.button('Create task').props.onClick()
+  const reopened = harness(confirm); reopened.render(props); reopened.render(props)
+  assert.ok(reopened.button('Create task'), 'the unresolved proposal is available after remount')
+  assert.equal(reopened.button('Draft a task').props.disabled, true)
+  const other = harness(confirm); other.render({ draftScope: 'other:workspace' }); other.render({ draftScope: 'other:workspace' })
+  assert.equal(other.button('Create task'), undefined)
+  reopened.button('Create task').props.onClick(); await tick(); reopened.render(props)
+  assert.equal(keys.length, 2); assert.deepEqual(keys[0], keys[1]); assert.equal(reopened.button('Create task'), undefined)
+  finish({ error: 'Response lost' }); await tick()
+  const last = harness(confirm); last.render(props); last.render(props)
+  assert.equal(last.button('Create task'), undefined, 'successful recovery clears the retained proposal')
+  delete global.sessionStorage
+})
+
+test('a returned unknown confirmation keeps replacement blocked until the same command succeeds', async () => {
+  const keys = []
+  const ui = harness(async (_draft, key) => { keys.push(key); return keys.length === 1 ? { error: 'Temporarily unavailable', unknownOutcome: true } : { task: { id: 'task' } } })
+  ui.render(); ui.button('Draft a task').props.onClick(); await tick(); ui.render()
+  ui.button('Create task').props.onClick(); await tick(); ui.render()
+  assert.equal(ui.button('Draft a task').props.disabled, true)
+  assert.equal(ui.button('Dismiss').props.disabled, true)
+  ui.button('Create task').props.onClick(); await tick(); ui.render()
+  assert.equal(keys[0], keys[1]); assert.equal(ui.button('Create task'), undefined)
+})
+
+test('advisor confirmation pauses when its recovery command cannot be stored', async () => {
+  global.sessionStorage = { getItem: () => null, setItem: () => { throw new Error('Storage denied') }, removeItem() {} }
+  let writes = 0
+  const props = { draftScope: 'account:workspace' }
+  const ui = harness(async () => { writes++; return { task: { id: 'task' } } })
+  ui.render(props); ui.button('Draft a task').props.onClick(); await tick(); ui.render(props)
+  ui.button('Create task').props.onClick(); await tick(); ui.render(props)
+  assert.equal(writes, 0); assert.ok(ui.button('Create task')); assert.match(ui.text(), /storage/i)
+  delete global.sessionStorage
+})
+
+test('an advisor account change clears old advice and ignores its late request', async () => {
+  let finish
+  const ui = harness(async () => ({}), () => new Promise(resolve => { finish = resolve }))
+  const first = { draftScope: 'first:workspace' }, next = { draftScope: 'next:workspace' }
+  ui.render(first); ui.textarea().props.onChange({ target: { value: 'Private question' } }); ui.render(first)
+  ui.button('Send').props.onClick(); ui.render(next); ui.render(next)
+  assert.doesNotMatch(ui.text(), /Private question/)
+  finish({ response: { capability: 'identify_attention', answer: 'Private advice', attention: [], draft: null } }); await tick(); ui.render(next)
+  assert.doesNotMatch(ui.text(), /Private question|Private advice/)
+  assert.equal(ui.button('Send').props.disabled, false)
+})
+
+test('an advisor account change preserves only the original account confirmation for recovery', async () => {
+  global.sessionStorage = memoryStorage()
+  let finish
+  const keys = []
+  const ui = harness((_draft, key) => { keys.push(key); return new Promise(resolve => { finish = resolve }) })
+  const first = { draftScope: 'first:workspace' }, next = { draftScope: 'next:workspace' }
+  ui.render(first); ui.button('Draft a task').props.onClick(); await tick(); ui.render(first)
+  ui.button('Create task').props.onClick(); ui.render(next); ui.render(next)
+  assert.equal(ui.button('Create task'), undefined); assert.equal(ui.button('Send').props.disabled, false)
+  finish({ error: 'Private failure', unknownOutcome: true }); await tick(); ui.render(next)
+  assert.doesNotMatch(ui.text(), /Private failure|Reviewed/)
+  const restored = harness(async (_draft, key) => { keys.push(key); return { task: { id: 'task' } } })
+  restored.render(first); restored.render(first); assert.ok(restored.button('Create task'))
+  restored.button('Create task').props.onClick(); await tick(); assert.equal(keys[0], keys[1])
+  delete global.sessionStorage
 })

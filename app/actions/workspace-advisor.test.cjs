@@ -2,6 +2,7 @@ const assert = require("node:assert/strict")
 const fs = require("node:fs")
 const test = require("node:test")
 const ts = require("typescript")
+class TaskError extends Error { constructor(message, code) { super(message); this.code = code } }
 
 test('confirming an existing AI draft schedules delivery after durable creation', async () => {
   const order = []
@@ -9,7 +10,7 @@ test('confirming an existing AI draft schedules delivery after durable creation'
   const dependencies = {
     '@/lib/auth-simple': { getSession: async () => ({ id: 'actor' }) },
     '@/lib/feature-flags': { isAiWorkspaceEnabled: () => true },
-    '@/lib/data/tasks': { createTaskRecord: async () => { order.push('commit'); return task } },
+    '@/lib/data/tasks': { TaskError, createTaskRecord: async () => { order.push('commit'); return task } },
     '@/lib/ai/workspace-advisor': { advisorTaskDraftSchema: { safeParse: data => ({ success: true, data }) } },
     '@/app/tasks/contract': { normalizeTaskUpdates: updates => ({ updates }) },
     '@/lib/redis': { redis: { get: async () => null, setIfAbsent: async () => true, set: async () => {} } },
@@ -30,7 +31,7 @@ test('confirmation retries always reach authoritative authorization instead of c
     const dependencies = {
       '@/lib/auth-simple': { getSession: async () => ({ id: 'actor' }) },
       '@/lib/feature-flags': { isAiWorkspaceEnabled: () => true },
-      '@/lib/data/tasks': { createTaskRecord: async (actor, workspace, _draft, key) => { authorizedCalls++; assert.equal(actor, 'actor'); assert.equal(workspace, 'workspace'); assert.match(key, /^[a-f0-9-]{36}$/); throw new Error(denial) } },
+      '@/lib/data/tasks': { TaskError, createTaskRecord: async (actor, workspace, _draft, key) => { authorizedCalls++; assert.equal(actor, 'actor'); assert.equal(workspace, 'workspace'); assert.match(key, /^[a-f0-9-]{36}$/); throw new Error(denial) } },
       '@/lib/ai/workspace-advisor': { advisorTaskDraftSchema: { safeParse: data => ({ success: true, data }) } },
       '@/app/tasks/contract': { normalizeTaskUpdates: updates => ({ updates }) },
       '@/lib/redis': { redis: { get: async () => ({ status: 'complete', task: { id: 'private-task' } }) } },
@@ -80,7 +81,7 @@ test("disabled capabilities reject direct actions before provider calls or write
       "@/lib/auth-simple": { getSession: async () => ({ id: "actor", email: "actor@example.test" }) },
       "@/lib/feature-flags": { isAiWorkspaceEnabled: () => capabilities.aiWorkspace, resolveFeatureFlags: () => capabilities },
       "@/lib/data/workspaces": { readWorkspace: async () => ({ name: "Workspace" }), createWorkspaceRecord: async () => { effects++; throw new Error("Unexpected write") } },
-      "@/lib/data/tasks": { listTaskRecords: async () => [], createTaskRecord: async () => { effects++; throw new Error("Unexpected write") } },
+      "@/lib/data/tasks": { TaskError, listTaskRecords: async () => [], createTaskRecord: async () => { effects++; throw new Error("Unexpected write") } },
       "@/lib/ai/workspace-advisor": { buildAdvisorProjection: () => ({}) },
       "@/lib/data/ai-operations": { recordAiOperation: async () => {}, AiOperationError: Error },
       "@/lib/groq-chat": { requestGroqStructuredResponse: async () => { effects++; throw new Error("Unexpected provider call") } },
@@ -135,7 +136,7 @@ for (const scenario of [
       '@/lib/feature-flags': { isAiWorkspaceEnabled: () => true },
       '@/lib/rate-limit': { consumeDistributedRateLimit: async () => {}, RateLimitExceeded: class extends Error {} },
       '@/lib/data/workspaces': { readWorkspace: async () => ({ name: 'Workspace' }) },
-      '@/lib/data/tasks': { listTaskRecords: async () => [{ id: 'task-1', title: 'Authorized task', priority: 'medium', status: 'todo' }] },
+      '@/lib/data/tasks': { TaskError, listTaskRecords: async () => [{ id: 'task-1', title: 'Authorized task', priority: 'medium', status: 'todo' }] },
       '@/lib/post-commit': {},
       '@/lib/data/ai-operations': { recordAiOperation: async (...args) => recorded.push(args), AiOperationError: class extends Error {} },
       '@/lib/ai/workspace-advisor': model,
@@ -152,3 +153,36 @@ for (const scenario of [
     assert.equal(recorded[0][2].capability, scenario.capability)
   })
 }
+
+test('a persistence exception marks confirmation uncertain while validation stays definitive', async () => {
+  const deps = {
+    '@/lib/auth-simple': { getSession: async () => ({ id: 'actor' }) },
+    '@/lib/feature-flags': { isAiWorkspaceEnabled: () => true },
+    '@/lib/data/tasks': { TaskError, createTaskRecord: async () => { throw new Error('Connection lost after commit') } },
+    '@/lib/ai/workspace-advisor': { advisorTaskDraftSchema: { safeParse: data => ({ success: true, data }) } },
+    '@/app/tasks/contract': { normalizeTaskUpdates: updates => ({ updates }) },
+    zod: require('zod'),
+  }
+  const exports = {}
+  new Function('require', 'exports', ts.transpileModule(fs.readFileSync('app/actions/workspace-advisor.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(name => deps[name] ?? {}, exports)
+  const uncertain = await exports.confirmWorkspaceAdvisorDraft('workspace', { title: 'Reviewed', priority: 'medium' }, 'a4e39e6a-98e7-462c-9c2f-42c4dd434edf')
+  assert.equal(uncertain.unknownOutcome, true)
+  assert.doesNotMatch(uncertain.error, /Connection lost/)
+  const invalid = await exports.confirmWorkspaceAdvisorDraft('workspace', {}, 'invalid-key')
+  assert.ok(invalid.error); assert.notEqual(invalid.unknownOutcome, true)
+})
+
+test('domain task errors remain definitive confirmation rejections', async () => {
+  const deps = {
+    '@/lib/auth-simple': { getSession: async () => ({ id: 'actor' }) },
+    '@/lib/feature-flags': { isAiWorkspaceEnabled: () => true },
+    '@/lib/data/tasks': { TaskError, createTaskRecord: async () => { throw new TaskError('Workspace unavailable', 'forbidden') } },
+    '@/lib/ai/workspace-advisor': { advisorTaskDraftSchema: { safeParse: data => ({ success: true, data }) } },
+    '@/app/tasks/contract': { normalizeTaskUpdates: updates => ({ updates }) },
+    zod: require('zod'),
+  }
+  const exports = {}
+  new Function('require', 'exports', ts.transpileModule(fs.readFileSync('app/actions/workspace-advisor.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(name => deps[name] ?? {}, exports)
+  const result = await exports.confirmWorkspaceAdvisorDraft('workspace', { title: 'Reviewed', priority: 'medium' }, 'a4e39e6a-98e7-462c-9c2f-42c4dd434edf')
+  assert.equal(result.error, 'Workspace unavailable'); assert.notEqual(result.unknownOutcome, true)
+})

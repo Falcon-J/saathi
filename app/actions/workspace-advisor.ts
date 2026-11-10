@@ -5,7 +5,7 @@ import { isAiWorkspaceEnabled } from "@/lib/feature-flags"
 import { consumeDistributedRateLimit, RateLimitExceeded } from "@/lib/rate-limit"
 import { readWorkspace } from "@/lib/data/workspaces"
 import { listTaskRecords } from "@/lib/data/tasks"
-import { createTaskRecord } from "@/lib/data/tasks"
+import { createTaskRecord, TaskError } from "@/lib/data/tasks"
 import { afterDomainCommit } from "@/lib/post-commit"
 import { recordAiOperation, type AiOperationMetadata } from "@/lib/data/ai-operations"
 import { advisorTaskDraftSchema, buildAdvisorProjection, type AdvisorResponse } from "@/lib/ai/workspace-advisor"
@@ -24,6 +24,7 @@ export type WorkspaceAdvisorResult = {
 export type WorkspaceAdvisorConfirmationResult = {
   task?: Task
   error?: string
+  unknownOutcome?: boolean
   warning?: string
 }
 
@@ -142,7 +143,8 @@ export async function confirmWorkspaceAdvisorDraft(
     const task = await createTaskRecord(session.id, workspaceId, normalized.updates, parsedKey.data)
     afterDomainCommit(workspaceId)
     return { task }
-  } catch {
-    return { error: "Task confirmation is temporarily unavailable. Please try again." }
+  } catch (error) {
+    if (error instanceof TaskError) return { error: error.message }
+    return { error: "Task confirmation is temporarily unavailable. Please try again.", unknownOutcome: true }
   }
 }
