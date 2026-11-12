@@ -8,6 +8,8 @@ const expect = baseExpect.configure({ timeout: 30_000 })
 export async function verifyCanvasWorkflow({ page, member, db, workspace, users, base, accessibility, evidence, log }) {
   const companyName = `Canvas acceptance ${randomUUID()}`
   const sectionName = 'Delivery section'
+  const agentRunId = randomUUID(), agentGrantId = randomUUID(), agentClientId = `canvas-browser-${randomUUID()}`
+  let agentTaskId
   let companyId
   try {
     await page.goto(`${base}/canvas`)
@@ -41,6 +43,66 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await page.getByRole('option', { name: 'Create task', exact: true }).click()
     await expect(page.getByLabel('Task title', { exact: true })).toHaveValue(retainedDraft)
     await page.getByLabel('Task title', { exact: true }).fill('')
+    // A real persisted run is a precondition; approval itself must cross the cookie/origin action boundary.
+    const [agentTask] = await db`SELECT id,version FROM tasks WHERE workspace_id=${workspace} AND title=${title}`
+    agentTaskId = agentTask.id
+    const originalTasks = await db`SELECT id,status,version FROM tasks WHERE workspace_id=${workspace} AND id<>${agentTaskId} ORDER BY id`
+    const progress = `Prepared canvas review ${agentRunId}`
+    const agentEvidence = `Acceptance evidence ${agentRunId}`
+    await db.begin(async tx => {
+      await tx`INSERT INTO platform_delegations(id,actor_user_id,client_id,capabilities,workspace_ids,expires_at)
+        VALUES(${agentGrantId},${users[0].id},${agentClientId},${tx.json(['agent_runs:read', 'agent_runs:write'])},${tx.json([workspace])},clock_timestamp()+interval '15 minutes')`
+      await tx`INSERT INTO agent_runs(id,workspace_id,task_id,actor_user_id,client_id,grant_id,state,fencing_token,lease_expires_at,progress,evidence,version)
+        VALUES(${agentRunId},${workspace},${agentTaskId},${users[0].id},${agentClientId},${agentGrantId},'awaiting_review',1,clock_timestamp()+interval '15 minutes',${progress},${tx.json([{ kind: 'text', text: agentEvidence }])},4)`
+      await tx`INSERT INTO task_agent_leases(workspace_id,task_id,holder_run_id,fencing_token,lease_expires_at)
+        SELECT workspace_id,task_id,id,fencing_token,lease_expires_at FROM agent_runs WHERE id=${agentRunId}`
+    })
+    await search.fill('open workspace')
+    await page.getByRole('option', { name: 'Open workspace', exact: true }).click()
+    const workArea = page.getByRole('complementary', { name: 'Workspace work area', exact: true })
+    await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('agents')
+    const activity = page.getByRole('region', { name: 'Agent activity', exact: true })
+    const run = activity.locator('article').filter({ has: activity.getByRole('heading', { name: title, exact: true }) })
+    await expect(run).toContainText('Awaiting review')
+    await expect(run).toContainText(progress)
+    await expect(run).toContainText(agentEvidence)
+    await expect(page.getByRole('button', { name: 'Stop following', exact: true })).toHaveCount(0)
+    await expect(workArea.getByRole('heading', { name: 'Ready Waiting acceptance', exact: true, level: 2 })).toBeVisible()
+    await run.getByRole('button', { name: 'Follow agent', exact: true }).click()
+    await expect(run.getByRole('button', { name: 'Following agent', exact: true })).toBeDisabled()
+    await expect(workArea.getByRole('heading', { name: title, exact: true, level: 2 })).toBeVisible()
+    await page.getByRole('button', { name: 'Stop following', exact: true }).click()
+    await expect(run.getByRole('button', { name: 'Follow agent', exact: true })).toBeEnabled()
+    await run.getByRole('button', { name: 'Follow agent', exact: true }).click()
+    await page.getByRole('button', { name: 'Fit View', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Stop following', exact: true })).toHaveCount(0)
+    await expect(run.getByRole('button', { name: 'Follow agent', exact: true })).toBeEnabled()
+    await run.getByLabel('Review comment', { exact: true }).fill('Verified in the signed-in canvas')
+    const reviewRequestPending = page.waitForRequest(request => request.method() === 'POST' && Boolean(request.headers()['next-action']) && Boolean(request.postData()?.includes(agentRunId)))
+    await run.getByRole('button', { name: 'Approve and complete task', exact: true }).click()
+    const reviewRequest = await reviewRequestPending
+    const reviewHeaders = await reviewRequest.allHeaders()
+    assert.equal(reviewHeaders.origin, base)
+    assert.ok(reviewHeaders.authorization === undefined, 'Human review must not carry an Authorization header')
+    const authCookieNames = (await page.context().cookies(base)).filter(cookie => /^sb-.+-auth-token(?:\.\d+)?$/.test(cookie.name)).map(cookie => cookie.name)
+    assert.ok(authCookieNames.length > 0, 'Real Supabase sign-in must establish an auth cookie')
+    assert.ok(authCookieNames.some(name => reviewHeaders.cookie?.split(';').some(part => part.trim().startsWith(`${name}=`))), 'Human review must carry the real signed-in Supabase cookie')
+    assert.match(reviewRequest.postData(), new RegExp(`"expectedTaskVersion":${agentTask.version}(?:[,}])`))
+    await expect.poll(async () => {
+      const [row] = await db`SELECT t.status,t.version,r.state,r.reviewer_user_id,r.review_comment,l.holder_run_id FROM tasks t
+        JOIN agent_runs r ON r.task_id=t.id AND r.workspace_id=t.workspace_id
+        JOIN task_agent_leases l ON l.task_id=t.id AND l.workspace_id=t.workspace_id WHERE r.id=${agentRunId}`
+      return row && { status: row.status, version: row.version, state: row.state, reviewer: row.reviewer_user_id, comment: row.review_comment, lease: row.holder_run_id }
+    }).toEqual({ status: 'done', version: agentTask.version + 1, state: 'succeeded', reviewer: users[0].id, comment: 'Verified in the signed-in canvas', lease: null })
+    await expect(run).toContainText('Succeeded')
+    await expect.poll(async () => (await db`SELECT command_id FROM platform_command_receipts WHERE actor_user_id=${users[0].id}
+      AND client_id='saathi-human-review' AND workspace_id=${workspace} AND command_type='agent_runs.human_review' AND result->>'id'=${agentRunId}`).length).toBe(1)
+    assert.deepEqual(await db`SELECT id,status,version FROM tasks WHERE workspace_id=${workspace} AND id<>${agentTaskId} ORDER BY id`, originalTasks)
+    await expect(run.getByRole('button', { name: 'Approve and complete task', exact: true })).toHaveCount(0)
+    await expect(activity).toContainText('Review approved. Task completed.')
+    await accessibility(page)
+    await page.screenshot({ path: `${evidence}/canvas-agent-reviewed.png`, fullPage: true })
+    log({ canvasAgent: { reportedProgressAndEvidence: true, explicitFollow: true, manualNavigationStopsFollowing: true, signedInHumanApproval: true, versionCheckedCompletion: true, releasedLease: true } })
     await page.getByRole('button', { name: 'Close work area', exact: true }).click()
     await accessibility(page)
     await page.screenshot({ path: `${evidence}/canvas-desktop.png`, fullPage: true })
@@ -130,6 +192,18 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     log({ canvas: { deterministicCreate: true, scopedSearch: true, draftRecovery: true, desktopMobileAccessibility: true, reducedMotion: true, sectionReadOnly: true, legacyReadOnly: true, referenceRoundtrip: true, realtimeRevocation: true } })
   } finally {
     await member.evaluate(() => { window.__canvasAccessProbe?.source.close(); delete window.__canvasAccessProbe }).catch(() => {})
+    await db.begin(async tx => {
+      await tx`DELETE FROM platform_command_receipts WHERE actor_user_id=${users[0].id} AND client_id='saathi-human-review'
+        AND workspace_id=${workspace} AND command_type='agent_runs.human_review' AND result->>'id'=${agentRunId}`
+      if (agentTaskId) await tx`DELETE FROM task_agent_leases WHERE workspace_id=${workspace} AND task_id=${agentTaskId}`
+      await tx`DELETE FROM agent_runs WHERE id=${agentRunId} AND actor_user_id=${users[0].id} AND workspace_id=${workspace}`
+      await tx`DELETE FROM platform_delegations WHERE id=${agentGrantId} AND actor_user_id=${users[0].id} AND client_id=${agentClientId}`
+    })
+    assert.equal((await db`SELECT id FROM agent_runs WHERE id=${agentRunId}`).length, 0)
+    assert.equal((await db`SELECT id FROM platform_delegations WHERE id=${agentGrantId}`).length, 0)
+    if (agentTaskId) assert.equal((await db`SELECT task_id FROM task_agent_leases WHERE workspace_id=${workspace} AND task_id=${agentTaskId}`).length, 0)
+    assert.equal((await db`SELECT command_id FROM platform_command_receipts WHERE actor_user_id=${users[0].id}
+      AND client_id='saathi-human-review' AND workspace_id=${workspace} AND command_type='agent_runs.human_review' AND result->>'id'=${agentRunId}`).length, 0)
     const owned = await db`SELECT id FROM canvas_resources WHERE kind='organization' AND name=${companyName} AND created_by_user_id=${users[0].id}`
     assert.ok(owned.length <= 1)
     for (const row of owned) {
