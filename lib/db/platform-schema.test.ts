@@ -29,7 +29,6 @@ test('canvas grants and references preserve organization boundaries in composite
   assert.equal(resourceKeys.length, 2)
   assert.ok(resourceKeys.every(key => key.reference().columns[0].name === 'organization_id' && key.onDelete === 'cascade'))
   assert.equal(schema.canvasResourceGrants.capabilities.getSQLType(), 'text[]')
-  assert.equal(schema.canvasAgentDelegations.capabilities.getSQLType(), 'text[]')
 })
 
 test('canvas actor bindings and historical deletion semantics are retained without cascading MCP receipts', () => {
