@@ -12,6 +12,8 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
   let agentTaskId
   let companyId
   try {
+    // The preceding Ready/Waiting journey ends at its mobile viewport.
+    await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto(`${base}/canvas`)
     await expect(page.getByRole('region', { name: 'Workspace canvas', exact: true })).toBeVisible()
     const search = page.getByRole('combobox', { name: 'Search commands and tasks', exact: true })
