@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
 import { formatCalendarDate, formatTaskDue, todayCalendarDate } from "@/lib/task-time"
 import { useTaskPermissions } from "@/hooks/usePermissions"
+import { permitsCapability } from "@/lib/capability-ceiling"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
@@ -32,13 +33,14 @@ type WorkspaceOverviewProps = {
 function TaskRow({ task, timeZone, workspace, currentUserEmail, onToggleTask, onOpenTask }: { task: Task; timeZone: string; workspace: Workspace; currentUserEmail: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const done = task.completed || task.status === "done"
   const permissions = useTaskPermissions(currentUserEmail, workspace, task)
+  const canToggle = permissions.canToggle && permitsCapability(workspace.capabilityCeiling, "edit")
 
   return (
     <div className="relative flex min-h-14 items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
       <button
         type="button"
-        disabled={!permissions.canToggle}
-        onClick={() => { if (permissions.canToggle) void onToggleTask(task.id) }}
+        disabled={!canToggle}
+        onClick={() => { if (canToggle) void onToggleTask(task.id) }}
         aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
         className={`grid size-11 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${done ? "bg-[var(--saathi-success)]/12 text-[var(--saathi-success)]" : "text-muted-foreground hover:bg-secondary hover:text-primary"}`}
       >
@@ -99,7 +101,7 @@ export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading,
         </div>
       </header>
       <div className="space-y-5 px-4 py-4 sm:px-6">
-        <TaskQuickAdd draftScope={draftScope} onDirtyChange={onDirtyChange} onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
+        {permitsCapability(workspace.capabilityCeiling, "create") && <TaskQuickAdd draftScope={draftScope} onDirtyChange={onDirtyChange} onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />}
         {workContent ?? (loading ? (
           <div role="status" className="space-y-3">
             <span className="sr-only">Loading tasks…</span>

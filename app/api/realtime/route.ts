@@ -19,13 +19,22 @@ const verifyMembership = createBatchedMembershipVerifier(async pairs => {
     const workspaceIds = pairs.map(pair => pair.workspaceId)
     const actorIds = pairs.map(pair => pair.actorId)
     const rows = await getDb()`
-        SELECT requested.request_index
+        SELECT requested.request_index, canvas.id AS canvas_resource_id
         FROM unnest(${workspaceIds}::uuid[], ${actorIds}::uuid[]) WITH ORDINALITY AS requested(workspace_id, user_id, request_index)
         JOIN workspace_members AS members
           ON members.workspace_id = requested.workspace_id AND members.user_id = requested.user_id
+        LEFT JOIN canvas_resources AS canvas ON canvas.workspace_id = requested.workspace_id
     `
     recordTiming("membership-read", started)
-    return rows.map(row => pairs[Number(row.request_index) - 1])
+    return rows.map(row => row.canvas_resource_id
+        ? { ...pairs[Number(row.request_index) - 1], sectionAttached: true }
+        : pairs[Number(row.request_index) - 1])
+}, async (actorId, workspaces) => {
+    try {
+        // Load section policy only for attached workspaces; one batch per actor.
+        const { filterWorkspaces } = await import("@/features/access/service")
+        return await filterWorkspaces(actorId, workspaces, "read")
+    } catch { throw new Error("Workspace authorization unavailable") }
 })
 
 // Vercel serverless invocations are limited to 300 seconds. Close before the
@@ -149,11 +158,18 @@ export async function GET(request: NextRequest) {
                 let closed = false
                 let streamErrorSent = false
                 let lastAuthorizationCheck = Date.now()
+                let presenceAllowed = true
                 const recheckMembership = async () => {
-                    const permitted = await authorized()
-                    lastAuthorizationCheck = Date.now()
-                    if (!permitted) cleanupStream?.()
-                    return permitted
+                    try {
+                        const permitted = await authorized()
+                        lastAuthorizationCheck = Date.now()
+                        if (!permitted) { presenceAllowed = false; cleanupStream?.() }
+                        return permitted
+                    } catch {
+                        presenceAllowed = false
+                        cleanupStream?.()
+                        return false
+                    }
                 }
 
                 if (replayStatus === "resync-required") {
@@ -275,7 +291,7 @@ export async function GET(request: NextRequest) {
                     clearInterval(pollInterval)
                     clearInterval(heartbeatInterval)
                     if (cleanupTimer) clearTimeout(cleanupTimer)
-                    realtimeService.setUserPresence(workspaceId, session.email).catch(err =>
+                    if (presenceAllowed) realtimeService.setUserPresence(workspaceId, session.email).catch(err =>
                         console.error('[SSE] Error updating presence on disconnect:', err)
                     )
                     void releaseSseConnection?.().catch(err =>

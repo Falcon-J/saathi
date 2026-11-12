@@ -5,9 +5,14 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: saathi-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -34,6 +39,7 @@ jobs:
       - run: npm run type-check -- --incremental false
       - run: npm run lint
       - run: npm test
+      - run: npm run test:platform
       - name: Prepare disposable SQL test database
         run: node scripts/bootstrap-test-database.mjs
         env:
@@ -42,6 +48,9 @@ jobs:
         env:
           DATABASE_MIGRATION_URL: ${{ env.SAATHI_CI_DATABASE_URL }}
       - run: npm run test:database
+        env:
+          DATABASE_TEST_URL: ${{ env.SAATHI_CI_DATABASE_URL }}
+      - run: npm run test:database:platform
         env:
           DATABASE_TEST_URL: ${{ env.SAATHI_CI_DATABASE_URL }}
       - run: npx playwright install --with-deps chromium

@@ -173,7 +173,7 @@ test('a committed draft clears the proposal even when refreshing failed', async 
     visit(file); assert.ok(callback)
     const exports = {}
     const js = ts.transpileModule(`exports.confirm = ${callback.getText(file)}`, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
-    new Function('exports', 'confirmWorkspaceAdvisorDraft', 'currentWorkspace', 'workspace', 'setBoardRefreshRequest', 'refreshTasks', 'onRefreshTasks', js)(exports, async () => ({ task: { id: 'task' } }), { id: 'workspace' }, { id: 'workspace' }, () => {}, async () => { throw new Error('Refresh unavailable') }, async () => { throw new Error('Refresh unavailable') })
+    new Function('exports', 'confirmWorkspaceAdvisorDraft', 'currentWorkspace', 'workspace', 'setBoardRefreshRequest', 'refreshTasks', 'onRefreshTasks', 'canCreateTask', 'workspaceView', js)(exports, async () => ({ task: { id: 'task' } }), { id: 'workspace' }, { id: 'workspace' }, () => {}, async () => { throw new Error('Refresh unavailable') }, async () => { throw new Error('Refresh unavailable') }, true, 'overview')
     const ui = harness(exports.confirm)
     ui.render(); ui.button('Draft a task').props.onClick(); await tick(); ui.render()
     ui.button('Create task').props.onClick(); await tick(); ui.render()

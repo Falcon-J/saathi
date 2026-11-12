@@ -44,9 +44,9 @@ const assistantLimits: Record<string, string> = {
 
 const workflowSteps = [
   { number: "01", icon: Target, title: "Start with an outcome", description: "Set the outcome and start with a focused workspace." },
-  { number: "02", icon: List, title: "Focus on what is next", description: "Use Overview to see Today, Next, and Completed." },
-  { number: "03", icon: Grid2X2, title: "Use Board for detail", description: "Open Board for ownership, dates, priority, and search." },
-  { number: "04", icon: Users, title: "Move together", description: "Invite teammates and keep everyone aligned." },
+  { number: "02", icon: List, title: "Find ready work", description: "Connect prerequisites. Ready and Waiting shows what can move and who can unblock it." },
+  { number: "03", icon: Grid2X2, title: "Open the canvas", description: "Zoom from workspace blocks into tasks. Search and create work from the scoped command bar." },
+  { number: "04", icon: Users, title: "Share deliberately", description: "Invite teammates and organize company sections. Section access narrows workspace membership." },
 ]
 
 const requestExamples = [
@@ -84,7 +84,7 @@ export default function GuidePage() {
               Know what Saathi <span className="text-primary">can do.</span>
             </h1>
             <p className="mt-5 max-w-[28rem] text-base leading-7 text-[#53627a] sm:text-lg">
-              Saathi keeps execution simple: decide the outcome, focus on today, and open the full board only when you need more control.
+              See ready work, understand blockers, and coordinate people and agents in a shared workspace.
             </p>
           </div>
           <div className="relative h-64 overflow-hidden rounded-[2rem] border border-[#dce4dd] bg-[#e9f0e9] md:hidden">
@@ -116,11 +116,26 @@ export default function GuidePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-[1240px] px-5 pb-12 sm:px-8 sm:pb-16" aria-labelledby="canvas-guide-title">
+        <h2 id="canvas-guide-title" className="text-4xl font-semibold tracking-tight">Canvas and connected agents</h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <Card className="space-y-3 rounded-2xl border-[#dfe6e1] bg-white/65 p-6 shadow-none">
+            <h3 className="text-lg font-semibold">Work on the canvas</h3>
+            <p className="text-sm leading-6">Open a workspace or task block to work on it. The bottom bar searches the current scope and offers direct actions. Use Ctrl or Command + K to focus it, or open Task list for keyboard navigation. These controls work without AI.</p>
+            <Button asChild variant="outline"><Link href="/canvas">Open canvas</Link></Button>
+          </Card>
+          <Card className="space-y-3 rounded-2xl border-[#dfe6e1] bg-white/65 p-6 shadow-none">
+            <h3 className="text-lg font-semibold">Connect your agent</h3>
+            <p className="text-sm leading-6">When your deployment enables MCP, connect your preferred client and review its requested workspaces, permissions and expiry. Current membership and section access still apply. Agent runs show progress and evidence for review. Following a run is optional; stopping following does not cancel it.</p>
+            <Button asChild variant="outline"><Link href="/connections">Agent connections</Link></Button>
+          </Card>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-[1240px] px-5 pb-12 sm:px-8 sm:pb-16" aria-labelledby="assistant-title">
         <div>
-          <p className="saathi-label text-primary">Your AI partner</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <h2 id="assistant-title" className="text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Use the Saathi assistant</h2>
+            <h2 id="assistant-title" className="text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Built-in assistant</h2>
             <Badge className="bg-[#e4f5e9] text-[#087c55] hover:bg-[#e4f5e9]">
               <span className="mr-1.5 size-2 rounded-full bg-[#14a56f]" />
               Optional

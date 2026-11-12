@@ -27,6 +27,7 @@ export function useRealtime(options: UseRealtimeOptions) {
     const eventSourceRef = useRef<EventSource | null>(null)
     const optionsRef = useRef(options)
     const seenEventIdsRef = useRef(new Set<string>())
+    const lossRevalidatedRef = useRef(false)
 
     useEffect(() => {
         optionsRef.current = options
@@ -69,6 +70,15 @@ export function useRealtime(options: UseRealtimeOptions) {
         }
     }, [])
 
+    // A policy revocation can close the stream before its domain event is delivered.
+    // Revalidate once per outage; native retry errors must not create a refresh storm.
+    const revalidateAfterLoss = useCallback(() => {
+        if (lossRevalidatedRef.current) return
+        lossRevalidatedRef.current = true
+        setEventRevision(value => value + 1)
+        optionsRef.current.onResyncRequired?.()
+    }, [])
+
     const connect = useCallback(() => {
         try {
             // Close any existing connection first
@@ -79,7 +89,7 @@ export function useRealtime(options: UseRealtimeOptions) {
 
             const url = `/api/realtime?workspaceId=${encodeURIComponent(optionsRef.current.workspaceId)}`
 
-            // withCredentials: true ensures the auth-session cookie is forwarded
+            // withCredentials: true ensures the signed-in cookies are forwarded
             // on Vercel and other edge deployments where same-origin cookie
             // forwarding is not guaranteed without explicit opt-in.
             const eventSource = new EventSource(url, { withCredentials: true })
@@ -87,6 +97,7 @@ export function useRealtime(options: UseRealtimeOptions) {
 
             eventSource.onopen = () => {
                 if (eventSourceRef.current !== eventSource) return
+                lossRevalidatedRef.current = false
                 setEventRevision(value => value + 1)
                 optionsRef.current.onResyncRequired?.()
                 setIsConnected(true)
@@ -100,19 +111,23 @@ export function useRealtime(options: UseRealtimeOptions) {
                     if (!data || typeof data !== 'object' || typeof data.type !== 'string') return
 
                     if (data.type === 'connected') {
+                        lossRevalidatedRef.current = false
                         console.log('[Realtime] Connected to workspace:', optionsRef.current.workspaceId)
                         setIsConnected(true)
                         setError(null)
                     } else if (data.type === 'error') {
                         setIsConnected(false)
                         setError(typeof data.data?.message === 'string' && data.data.message ? data.data.message : 'Realtime updates are temporarily unavailable')
+                        revalidateAfterLoss()
                     } else if (data.type === 'heartbeat') {
+                        lossRevalidatedRef.current = false
                         setIsConnected(true)
                         setError(null)
                         if (Array.isArray(data.data?.activeUsers) && data.data.activeUsers.every((user: unknown) => typeof user === 'string')) {
                             setActiveUsers(data.data.activeUsers)
                         }
                     } else if (data.type === 'resync-required') {
+                        lossRevalidatedRef.current = false
                         setEventRevision(value => value + 1)
                         setIsConnected(true)
                         setError('Refreshing after a missed realtime update')
@@ -123,6 +138,7 @@ export function useRealtime(options: UseRealtimeOptions) {
                         const domainEvent = normalizeRealtimeEvent({ type: data.type, workspaceId: data.workspaceId, userId: data.userId, timestamp: data.timestamp, data: data.data })
                         if (domainEvent.workspaceId !== optionsRef.current.workspaceId) return
                         if (!shouldProcessEvent(seenEventIdsRef.current, event.lastEventId)) return
+                        lossRevalidatedRef.current = false
                         setIsConnected(true)
                         setError(null)
                         handleEvent(domainEvent)
@@ -137,14 +153,16 @@ export function useRealtime(options: UseRealtimeOptions) {
                 console.error('[Realtime] SSE connection error:', event)
                 setIsConnected(false)
                 setError('Connection lost')
+                revalidateAfterLoss()
                 optionsRef.current.onError?.(event)
             }
 
         } catch (err) {
             console.error('[Realtime] Failed to create SSE connection:', err)
             setError('Failed to connect')
+            revalidateAfterLoss()
         }
-    }, [handleEvent])
+    }, [handleEvent, revalidateAfterLoss])
 
     const disconnect = useCallback(() => {
         if (eventSourceRef.current) {
@@ -158,6 +176,7 @@ export function useRealtime(options: UseRealtimeOptions) {
         const handleOnline = () => connect()
         if (options.workspaceId) {
             seenEventIdsRef.current.clear()
+            lossRevalidatedRef.current = false
             connect()
             window.addEventListener('online', handleOnline)
         }

@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getCanonicalAuthEntryUrl, getSupabaseConfig } from './lib/supabase/config'
 
 export async function proxy(request: NextRequest) {
+  // MCP authenticates bearer tokens itself; resource metadata is public discovery.
+  if (request.nextUrl.pathname === '/mcp' || request.nextUrl.pathname === '/.well-known/oauth-protected-resource/mcp') {
+    const response = NextResponse.next({ request })
+    response.headers.set('Cache-Control', 'no-store')
+    return response
+  }
   if (request.method === 'GET' || request.method === 'HEAD') {
     try {
       const entry = getCanonicalAuthEntryUrl(request.url, request.headers.get('host'))

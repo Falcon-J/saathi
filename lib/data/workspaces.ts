@@ -1,8 +1,10 @@
+import { assertWorkspaceAccess, filterWorkspaces, AccessPolicyError } from "../../features/access/service.ts"
 import type { Row } from "postgres"
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { getDb, type Transaction } from "../db/client.ts"
 import { appendDomainEvent } from "./events.ts"
+import type { CapabilityCeiling } from "../capability-ceiling.ts"
 
 export interface Member {
   id: string; userId: string; email: string; username: string; role: "owner" | "member"; joinedAt: string
@@ -11,6 +13,7 @@ export interface Workspace {
   id: string; name: string; summary?: string; targetDate?: string | null; targetAt: string | null;
   timezone: string; version: number; members: Member[]; createdAt: string; ownerId: string; ownerUserId: string
   archivedAt?: string
+  capabilityCeiling?: CapabilityCeiling
 }
 export interface WorkspaceInput {
   name: string; summary?: string; targetAt?: string | null; targetDate?: string | null; timezone?: string;
@@ -35,7 +38,14 @@ export function validateWorkspace(value: unknown) {
 
 const timestamp = (value: Date | string) => new Date(value).toISOString()
 
-export async function readWorkspace(workspaceId: string, userId: string, tx: ReturnType<typeof getDb> | Transaction = getDb()): Promise<Workspace | null> {
+export async function readWorkspace(workspaceId: string, userId: string, tx?: ReturnType<typeof getDb> | Transaction): Promise<Workspace | null> {
+  if (!tx) return getDb().begin("isolation level repeatable read read only", inner => readWorkspace(workspaceId, userId, inner))
+  let capabilityCeiling: CapabilityCeiling | undefined
+  try {
+    const access = await assertWorkspaceAccess(userId, workspaceId, "read", tx)
+    if (access?.capabilities) capabilityCeiling = Object.fromEntries(access.capabilities.map(capability => [capability, true]))
+  }
+  catch (error) { if (error instanceof AccessPolicyError && error.code === "forbidden") return null; throw error }
   const rows = await tx`SELECT w.*, u.email AS owner_email FROM workspaces w JOIN auth.users u ON u.id = w.owner_user_id
     WHERE w.id = ${workspaceId} AND EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id = w.id AND m.user_id = ${userId})`
   const row = rows[0]
@@ -43,7 +53,7 @@ export async function readWorkspace(workspaceId: string, userId: string, tx: Ret
   const members = await tx`SELECT m.user_id, m.joined_at, p.username, u.email FROM workspace_members m
     JOIN profiles p ON p.id = m.user_id JOIN auth.users u ON u.id = m.user_id
     WHERE m.workspace_id = ${workspaceId} ORDER BY m.joined_at, m.user_id`
-  return mapWorkspace(row, members)
+  return mapWorkspace({ ...row, capabilityCeiling }, members)
 }
 
 function mapWorkspace(row: Row, members: Row[]): Workspace {
@@ -52,6 +62,7 @@ function mapWorkspace(row: Row, members: Row[]): Workspace {
     timezone: row.timezone, version: row.version, createdAt: timestamp(row.created_at), ownerId: row.owner_email,
     archivedAt: row.archived_at ? timestamp(row.archived_at) : undefined,
     ownerUserId: row.owner_user_id,
+    ...(row.capabilityCeiling ? { capabilityCeiling: row.capabilityCeiling as CapabilityCeiling } : {}),
     members: members.map(m => ({ id: m.email, userId: m.user_id, email: m.email, username: m.username,
       role: m.user_id === row.owner_user_id ? "owner" : "member", joinedAt: timestamp(m.joined_at) })) }
 }
@@ -62,17 +73,18 @@ export async function listWorkspaces(userId: string, archived = false): Promise<
       JOIN auth.users u ON u.id=w.owner_user_id
       WHERE EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id=w.id AND m.user_id=${userId})
       AND (w.archived_at IS NOT NULL) = ${archived} ORDER BY w.created_at DESC, w.id ASC`
-    if (!rows.length) return []
+    const visible = await filterWorkspaces(userId, rows.map(row => ({ ...row, id: String(row.id) })), "read", tx, { includeCapabilities: true })
+    if (!visible.length) return []
     const members = await tx`SELECT m.workspace_id, m.user_id, m.joined_at, p.username, u.email FROM workspace_members m
       JOIN profiles p ON p.id=m.user_id JOIN auth.users u ON u.id=m.user_id
-      WHERE m.workspace_id IN ${tx(rows.map(row => row.id))} ORDER BY m.joined_at, m.user_id`
+      WHERE m.workspace_id IN ${tx(visible.map(row => row.id))} ORDER BY m.joined_at, m.user_id`
     const byWorkspace = new Map<string, Row[]>()
     for (const member of members) {
       const group = byWorkspace.get(member.workspace_id) ?? []
       group.push(member)
       byWorkspace.set(member.workspace_id, group)
     }
-    return rows.map(row => mapWorkspace(row, byWorkspace.get(row.id) ?? []))
+    return visible.map(row => mapWorkspace(row, byWorkspace.get(row.id) ?? []))
   })
 }
 
@@ -100,9 +112,10 @@ export async function createWorkspaceRecord(userId: string, input: WorkspaceInpu
   return workspace
 }
 
-export async function requireWorkspaceOwner(tx: Transaction, workspaceId: string, userId: string) {
+export async function requireWorkspaceOwner(tx: Transaction, workspaceId: string, userId: string, capability: "manage" | "delete" = "manage") {
   const rows = await tx`SELECT * FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`
-  if (!rows[0] || rows[0].owner_user_id !== userId) throw new Error("Only workspace owner can manage this workspace")
+  if (!rows[0] || rows[0].owner_user_id !== userId) throw new AccessPolicyError("Only workspace owner can manage this workspace")
+  await assertWorkspaceAccess(userId, workspaceId, capability, tx)
   return rows[0]
 }
 
@@ -155,13 +168,14 @@ export async function removeWorkspaceMember(userId: string, workspaceId: string,
   await getDb().begin(async tx => {
     const rows = await tx`SELECT * FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`
     const row = rows[0]
-    if (!row) throw new Error("Workspace not found")
+    if (!row) throw new AccessPolicyError("Workspace unavailable or access denied")
+    await assertWorkspaceAccess(userId, workspaceId, "manage", tx)
     if (row.archived_at) throw new Error("Archived workspaces cannot change membership")
     const members = await tx`SELECT m.user_id FROM workspace_members m JOIN auth.users u ON u.id = m.user_id
       WHERE m.workspace_id = ${workspaceId} AND lower(u.email) = ${memberEmail.trim().toLowerCase()}`
     const member = members[0]
     if (!member) throw new Error("Member not found in this workspace")
-    if (row.owner_user_id !== userId && member.user_id !== userId) throw new Error("Only workspace owner can remove other members")
+    if (row.owner_user_id !== userId && member.user_id !== userId) throw new AccessPolicyError("Only workspace owner can remove other members")
     if (member.user_id === row.owner_user_id) throw new Error("Transfer ownership before leaving, or delete the workspace")
     await tx`UPDATE tasks SET assignee_user_id = NULL, version = version + 1, updated_at = now()
       WHERE workspace_id = ${workspaceId} AND assignee_user_id = ${member.user_id}`
@@ -173,7 +187,7 @@ export async function removeWorkspaceMember(userId: string, workspaceId: string,
 
 export async function deleteWorkspaceRecord(userId: string, workspaceId: string): Promise<void> {
   await getDb().begin(async tx => {
-    const row = await requireWorkspaceOwner(tx, workspaceId, userId)
+    const row = await requireWorkspaceOwner(tx, workspaceId, userId, "delete")
     if (row.archived_at) throw new Error("Archived workspaces cannot be deleted")
     await appendDomainEvent(tx, { workspaceId, actorUserId: userId, type: "member-removed", entityType: "workspace", entityId: workspaceId,
       metadata: { action: "workspace_deleted" }, payload: { deleted: true } })

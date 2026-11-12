@@ -23,6 +23,8 @@ import { getTaskById } from "@/app/tasks/actions"
 import { TaskComments } from "@/components/task-comments"
 import type { RealtimeEvent } from "@/lib/realtime"
 
+import { permitsCapability, type CapabilityCeiling } from "@/lib/capability-ceiling"
+
 export interface BoardPaging {
   filters: import("@/lib/task-page").TaskPageInput
   changeFilters: (filters: import("@/lib/task-page").TaskPageInput) => void
@@ -33,6 +35,7 @@ export interface BoardPaging {
 }
 
 interface TaskListProps {
+  capabilityCeiling?: CapabilityCeiling
   paging?: BoardPaging
   detailTask?: Task | null
   tasks: Task[]
@@ -72,6 +75,7 @@ export const TaskList = memo(function TaskList({
   detailTask,
   onDirtyChange,
   draftScope,
+  capabilityCeiling,
 }: TaskListProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const editorPermissions = useTaskPermissions(
@@ -257,7 +261,7 @@ export const TaskList = memo(function TaskList({
 
   const saveEditor = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!editingTask || !editingDraft || !editorPermissions.canEdit || reviewLoading || latestTask) return
+    if (!editingTask || !editingDraft || !(editorPermissions.canEdit && permitsCapability(capabilityCeiling, "edit")) || reviewLoading || latestTask) return
 
     const title = editingDraft.title.trim()
     if (!title) {
@@ -334,6 +338,7 @@ export const TaskList = memo(function TaskList({
     <TaskListItem
       key={task.id}
       task={task}
+      capabilityCeiling={capabilityCeiling}
       members={members}
       currentUserEmail={currentUserEmail}
       workspaceOwnerId={workspaceOwnerId}
@@ -348,7 +353,7 @@ export const TaskList = memo(function TaskList({
 
   return (
     <div className="space-y-4 p-4 sm:p-5">
-      <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
+      {permitsCapability(capabilityCeiling, "create") && <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />}
 
       <TaskFilter
         searchQuery={searchQuery}
@@ -428,7 +433,8 @@ export const TaskList = memo(function TaskList({
         draftScope={draftScope}
         task={editingTask}
         draft={editingDraft}
-        canEdit={editorPermissions.canEdit}
+        canEdit={(editorPermissions.canEdit && permitsCapability(capabilityCeiling, "edit"))}
+        canComment={permitsCapability(capabilityCeiling, "comment")}
         error={editError}
         latestTask={latestTask}
         reviewLoading={reviewLoading}
@@ -517,7 +523,7 @@ export function TaskEditorDialog({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const requestClose = () => {
     if (isSaving) return
-    if (canEdit && task && draft) {
+    if (task && draft) {
       const original = toTaskEditorDraft(task)
       if ((Object.keys(original) as (keyof TaskEditorDraft)[]).some(key => original[key] !== draft[key])) {
         setDiscardConfirm(true)
@@ -691,6 +697,7 @@ export function TaskEditorDialog({
 }
 
 interface TaskListItemProps {
+  capabilityCeiling?: CapabilityCeiling
   task: Task
   members: Member[]
   currentUserEmail: string
@@ -714,6 +721,7 @@ const TaskListItem = memo(function TaskListItem({
   onEditTask,
   onStartEdit,
   onConfirmDelete,
+  capabilityCeiling,
 }: TaskListItemProps) {
   const taskPermissions = useTaskPermissions(
     currentUserEmail,
@@ -727,7 +735,7 @@ const TaskListItem = memo(function TaskListItem({
         <div className="flex items-center gap-3">
           <button
             onClick={() => onToggleTask(task.id)}
-            disabled={operatingTaskId === task.id || !taskPermissions.canToggle}
+            disabled={operatingTaskId === task.id || !(taskPermissions.canToggle && permitsCapability(capabilityCeiling, "edit"))}
             aria-label={task.completed ? `Reopen ${task.title}` : `Complete ${task.title}`}
             title={task.completed ? "Reopen task" : "Complete task"}
             className="flex-shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
@@ -742,13 +750,13 @@ const TaskListItem = memo(function TaskListItem({
           <button
             type="button"
             onClick={() => onStartEdit(task)}
-            aria-label={`${taskPermissions.canEdit ? "Edit" : "Open"} ${task.title}`}
+            aria-label={`${(taskPermissions.canEdit && permitsCapability(capabilityCeiling, "edit")) ? "Edit" : "Open"} ${task.title}`}
             className={`min-w-0 flex-1 break-words cursor-pointer text-left text-base font-medium transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${task.completed ? "line-through text-muted-foreground" : "text-foreground group-hover:text-primary/80"}`}
           >
             {task.title}
           </button>
           <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200 focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-            {taskPermissions.canDelete && (
+            {(taskPermissions.canDelete && permitsCapability(capabilityCeiling, "delete")) && (
               <button
                 onClick={() => onConfirmDelete(task.id)}
                 aria-label={`Delete ${task.title}`}
@@ -773,7 +781,7 @@ const TaskListItem = memo(function TaskListItem({
               <select
                 value={task.status ?? (task.completed ? "done" : "todo")}
               onChange={(event) => onEditTask(task.id, { status: event.target.value as TaskStatus })}
-                disabled={operatingTaskId === task.id || !taskPermissions.canEdit}
+                disabled={operatingTaskId === task.id || !(taskPermissions.canEdit && permitsCapability(capabilityCeiling, "edit"))}
                 aria-label={`Change status for ${task.title}`}
                 className="cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
               >
@@ -810,7 +818,7 @@ const TaskListItem = memo(function TaskListItem({
             <select
               value={task.assigneeEmail || ""}
               onChange={(e) => onEditTask(task.id, { assigneeEmail: e.target.value || "" })}
-              disabled={operatingTaskId === task.id || !taskPermissions.canAssign}
+              disabled={operatingTaskId === task.id || !(taskPermissions.canAssign && permitsCapability(capabilityCeiling, "edit"))}
               aria-label={`Assign ${task.title}`}
               className="min-w-0 max-w-full cursor-pointer rounded-[var(--saathi-radius-control)] border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:border-primary/40 focus:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
             >

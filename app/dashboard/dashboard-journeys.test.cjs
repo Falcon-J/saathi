@@ -36,6 +36,7 @@ function fixture(workspaceOverrides = {}, options = {}) {
     dependencies[statement.moduleSpecifier.text] = Object.fromEntries(names?.elements?.map(item => [item.name.text, item.name.text]) ?? [])
   }
   Object.assign(dependencies, {
+    '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'),
     '@/lib/draft-storage': { removeDraft(key) { removed.push(key) }, clearAccountDrafts() {} },
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     'next/navigation': { useRouter: () => router },
@@ -170,6 +171,22 @@ test('workspace refresh failure leaves a dirty settings editor mounted', async (
   assert.ok(component(ui.render(), 'WorkspaceSettings'))
 })
 
+
+test('read-only section capability reaches Board and removes legacy creation and management controls', async () => {
+  const workspace = { id: 'workspace', name: 'Pilot', members: [], ownerId: 'owner@example.test', timezone: 'UTC', capabilityCeiling: { read: true } }
+  const ui = fixture({ workspaces: [workspace] }, { capabilities: { aiWorkspace: true, csvImport: true } })
+  ui.render(); await tick()
+  let rows = ui.render()
+  assert.equal(rows.some(node => node.type === 'Button' && JSON.stringify(node.props.children).includes('New task')), false)
+  assert.equal(rows.some(node => node.props?.onSelect && JSON.stringify(node.props.children).includes('Settings')), false)
+  assert.equal(component(rows, 'WorkspaceAdvisor'), undefined)
+  component(rows, 'DashboardNavigation').props.onOpenBoard()
+  assert.deepEqual(component(ui.render(), 'WorkspaceBoard').props.capabilityCeiling, { read: true })
+  ui.back('#team-panel')
+  assert.equal(component(ui.render(), 'MemberManager'), undefined)
+  ui.back('#settings-panel')
+  assert.equal(component(ui.render(), 'WorkspaceSettings'), undefined)
+})
 
 test('same-tab Help discards confirmed drafts while cancel and new-tab preserve them', async () => {
   const ui = fixture(); ui.render(); await tick()

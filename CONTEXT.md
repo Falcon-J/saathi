@@ -133,3 +133,22 @@ This catalog covers first-party product, client coordination and server lifecycl
 Behavioral tests cover generation/scope changes, draft remounts, storage failures, duplicate submits, unknown outcomes and definitive rejection. Real database tests cover lock races, stale versions, receipt replay, current authorization, graph invariants, invitation terminal transitions and outbox lease fencing. Browser acceptance covers hydration/accessibility and the real owner/member/outsider Ready and Waiting path. Capacity evidence remains a separate100-user/1000-write/900-second gate. A passing read or receipt alone must not be reported as a current end-to-end live result.
 
 Provider transport metadata currently groups some provider429 and malformed JSON/schema failures under provider_unavailable. User recovery remains retryable; this is a diagnostic classification limitation rather than a durable-state transition failure.
+
+## Canvas and external agent boundaries
+
+- Company, space and section resources organize workspaces through one canonical path. References never grant access. Workspace membership remains mandatory; section capabilities only narrow existing ownership, creation and assignment rules. Restricted sections reset inheritance; management does not bypass restricted descendants.
+- MCP identity uses a dedicated OAuth audience and allowlisted client. Revocable application capabilities and workspace restrictions are separate from provider identity scopes and are checked on every dispatch and retry.
+- Agent runs use finite task leases and fencing tokens. Progress and evidence remain advisory until a signed-in human with current task permissions reviews them. External clients cannot invoke approval.
+- Canvas, command bar and MCP reuse authoritative domain operations. Layout and camera state never change task status or permissions. Historical command responses carry a replay marker and current visibility checks.
+
+See [ADR 0002](docs/adr/0002-shared-commands-and-canvas-access.md) for the accepted architecture.
+
+### Canvas and agent state machines
+
+| Boundary | States and authoritative transition rules |
+| --- | --- |
+| Canvas navigation | Overview, workspace focus and task focus retain stable record identity. Zoom changes representation. Manual navigation ends agent following; incoming events do not steal the camera. |
+| Section access | Inherited or restricted policy; explicit grants may be active, expired or revoked. Membership and a fresh canonical-path policy snapshot are both required. Placement and references never grant membership. |
+| Agent connection | Disabled or configured endpoint; verified OAuth identity plus active, expired or revoked application grant. Disconnection revokes application access before optional provider cleanup; disabled endpoints do not prevent revocation. |
+| Shared command | Validated and admitted, then committed, rejected, conflicted or unconfirmed. Actor/client command identity separates external clients. A replay is explicitly historical and rechecks current permissions and visibility. |
+| Agent run | Queued, running, awaiting review, succeeded, failed or cancelled. Finite leases and increasing fences reject stale workers. Current human review and task version govern approval. Cancellation does not assert that an external process stopped. |

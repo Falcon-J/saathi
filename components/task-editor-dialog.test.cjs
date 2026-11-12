@@ -13,6 +13,7 @@ const useState = initial => {
 }
 const names = ["AlertCircle", "Calendar", "CheckCircle2", "Circle", "Clock", "Edit2", "Flag", "Loader2", "SquarePen", "Trash2", "Users"]
 const dependencies = {
+  "@/lib/capability-ceiling": require("../lib/capability-ceiling.ts"),
   react: { memo: component => component, useState, useMemo: callback => callback(), useRef: current => ({ current }), useEffect() {} },
   "react/jsx-runtime": { jsx, jsxs: jsx },
   "lucide-react": Object.fromEntries(names.map(name => [name, name])),
@@ -96,8 +97,8 @@ for (const trigger of ["Cancel", "dialog dismissal"]) {
   })
 }
 
-test("unchanged and read-only task dialogs close without confirmation", () => {
-  for (const overrides of [{ task: { id: "task", draft } }, { canEdit: false }]) {
+test("unchanged task dialogs close without confirmation", () => {
+  for (const overrides of [{ task: { id: "task", draft } }, { canEdit: false, task: { id: "task", draft } }]) {
     state = []
     let closes = 0
     const tree = render(true, null, { ...overrides, onClose: () => closes++ })
@@ -202,4 +203,8 @@ test('Board reports combined editor and quick-add dirty state without false rese
     draw()
     assert.equal(dirty.at(-1),false)
   } finally { dependencies.react.useEffect=oldEffect }
+})
+
+test("revoked edit permission preserves a dirty draft until explicit discard", () => {
+ state=[];let closes=0;const draw=()=>render(false,null,{onClose:()=>closes++});nodes(draw()).find(n=>n.type==="Dialog").props.onOpenChange(false);assert.equal(closes,0);const confirm=nodes(draw()).find(n=>n.type==="ConfirmDialog");assert.equal(confirm.props.open,true);confirm.props.onConfirm();assert.equal(closes,1);
 })

@@ -16,6 +16,7 @@ const react = {
 const components = ["Button", "Card", "Badge", "Textarea", "TaskQuickAdd", "TaskFilter", "ConfirmDialog", "Dialog", "DialogContent", "DialogDescription", "DialogFooter", "DialogHeader", "DialogTitle", "Label", "TaskComments"]
 const icons = ["CheckCircle2", "Circle", "Trash2", "Loader2", "Users", "Edit2", "Calendar", "Flag", "Clock", "AlertCircle", "SquarePen"]
 const dependencies = {
+  "@/lib/capability-ceiling": require("../lib/capability-ceiling.ts"),
   react,
   "react/jsx-runtime": { jsx, jsxs: jsx },
   "lucide-react": Object.fromEntries(icons.map(icon => [icon, icon])),

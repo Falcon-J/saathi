@@ -32,7 +32,7 @@ test("task comments require membership and create one durable activity event", {
     assert.equal(comment.authorEmail, member.email)
     assert.equal((await listTaskComments(member.id, task.id)).length, 1)
     assert.equal((await db`SELECT id FROM activity_events WHERE entity_id=${comment.id} AND event_type='task-comment-created'`).length, 1)
-    await t.test("comment list preserves full projections and deterministic order in three queries", async () => {
+    await t.test("comment list preserves full projections and deterministic order with bounded policy reads", async () => {
       const next = await createTaskComment(owner.id, task.id, "Owner context")
       await db`UPDATE task_comments SET created_at='2026-10-04T00:00:00Z' WHERE task_id=${task.id}`
       const originalBegin = db.begin
@@ -42,7 +42,7 @@ test("task comments require membership and create one durable activity event", {
       })))) as typeof db.begin
       let listed
       try { listed = await listTaskComments(member.id, task.id) } finally { db.begin = originalBegin }
-      assert.equal(queries, 3, "task lookup, membership check and one joined projection")
+      assert.equal(queries, 4, "task lookup, membership, current section policy and one joined projection")
       assert.deepEqual(listed.map(row => row.id), [comment.id, next.id].sort())
       assert.equal(listed.find(row => row.id === comment.id)?.authorEmail, member.email)
       assert.equal(listed.find(row => row.id === next.id)?.body, "Owner context")

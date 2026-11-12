@@ -78,6 +78,27 @@
       "when": 1793909272184,
       "tag": "0010_invitation_links",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794528000000,
+      "tag": "0011_platform_access_and_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794528000001,
+      "tag": "0012_agent_coordination",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794528000002,
+      "tag": "0013_canvas_access",
+      "breakpoints": true
     }
   ]
 }

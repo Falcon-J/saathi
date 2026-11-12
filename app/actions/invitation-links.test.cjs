@@ -14,7 +14,7 @@ function fixture(){
  if(q.includes('INSERT INTO workspace_members')){members.add(v[1]);return []}
  throw Error(q)}
  const db=Object.assign(tx,{begin:async callback=>callback(tx)})
- const deps={'node:crypto':crypto,zod:require('zod'),'../db/client.ts':{getDb:()=>db},'./events.ts':{appendDomainEvent:async()=>events++}}
+ const deps={'../../features/access/service.ts':{assertWorkspaceAccess:async()=>{}},'node:crypto':crypto,zod:require('zod'),'../db/client.ts':{getDb:()=>db},'./events.ts':{appendDomainEvent:async()=>events++}}
  const exports={};new Function('require','exports',ts.transpileModule(fs.readFileSync('lib/data/invitations.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText)(n=>deps[n],exports)
  return {api:exports,owner,recipient,other,workspace:'11111111-1111-4111-8111-111111111111',row:()=>row,events:()=>events,members,queries}
 }
