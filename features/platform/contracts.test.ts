@@ -4,6 +4,12 @@ import { z } from 'zod'
 import { actorSchema, commandResultSchema, platformContracts } from './contracts.ts'
 const id = '11111111-1111-4111-8111-111111111111'
 const command = { commandId: id, expectedVersion: 1, workspaceId: id, taskId: id }
+
+test('workspace initial tasks match the domain maximum of twenty',()=>{
+  const input={commandId:id,expectedVersion:null,name:'Goal',tasks:Array.from({length:20},()=>({title:'Initial task'}))}
+  assert.equal(platformContracts['workspaces.create'].input.safeParse(input).success,true)
+  assert.equal(platformContracts['workspaces.create'].input.safeParse({...input,tasks:[...input.tasks,{title:'One too many'}]}).success,false)
+})
 test('task writes require exact resource, version, command and explicit status', () => {
   const schema = platformContracts['tasks.set_status'].input
   assert.equal(schema.safeParse({ ...command, status: 'done' }).success, true)

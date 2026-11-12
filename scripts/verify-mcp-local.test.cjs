@@ -45,3 +45,13 @@ test('MCP transport selects its matching JSON-RPC response rather than a trailin
   assert.equal(decodeMcpResponse(body, 'text/event-stream', 7).serverInfo.name, 'saathi')
   assert.throws(() => decodeMcpResponse(body, 'text/event-stream', 8))
 })
+
+test('revocation evidence accepts the SDK missing-session normalization but rejects outages and foreign identities', async () => {
+  const { classifyRevokedProviderIdentity } = await import('./verify-mcp-local.mjs')
+  const { AuthSessionMissingError } = await import('@supabase/supabase-js')
+  assert.deepEqual(classifyRevokedProviderIdentity({ data: { user: null }, error: new AuthSessionMissingError() }, 'actor'), { behavior: 'session_rejected', sdkStatus: 400, sdkError: 'AuthSessionMissingError', providerCode: null })
+  assert.equal(classifyRevokedProviderIdentity({ data: { user: null }, error: { status: 404, code: 'session_not_found' } }, 'actor').behavior, 'session_rejected')
+  assert.equal(classifyRevokedProviderIdentity({ data: { user: { id: 'actor' } }, error: null }, 'actor').behavior, 'identity_still_accepted')
+  for (const error of [{ status: 503, code: 'unexpected_failure' }, { status: 0 }, { status: 404, code: 'unknown' }]) assert.throws(() => classifyRevokedProviderIdentity({ data: { user: null }, error }, 'actor'))
+  assert.throws(() => classifyRevokedProviderIdentity({ data: { user: { id: 'foreign' } }, error: null }, 'actor'))
+})

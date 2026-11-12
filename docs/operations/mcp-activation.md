@@ -23,6 +23,8 @@ Supabase may return a completed redirect for previously granted consent without 
 
 Disconnect first revokes the actor-bound application delegation, then asks Supabase to revoke that user's OAuth grant. If provider cleanup fails, application access stays disabled and the page offers a cleanup retry. Provider grant revocation invalidates refresh tokens and client sessions; the MCP resource also checks its own current delegation on every request. Human password recovery and token setup remain browser/account flows, never MCP tools.
 
+GoTrue v2.197 deletes the user's sessions for the revoked OAuth client. Its live user lookup rejects a deleted session, while the JavaScript SDK normalizes `session_not_found` into `AuthSessionMissingError` with SDK status 400. That status is not the original HTTP response. JWT signature validity alone does not establish current access. Verification records the provider identity outcome separately, requires the client sessions to be removed and refresh to fail, and requires MCP access to remain denied after both application and provider revocation.
+
 ## Activation evidence required
 
 Before declaring a deployment ready, exercise a real MCP client: protected-resource discovery; PKCE/login/explicit consent; allowed reads and edits; scope/workspace denial; exact-command retry; refresh; expiry and revocation; provider-cleanup retry; membership removal; and a browser login regression. Verify a browser JWT with the ordinary `authenticated` audience fails against MCP, while the dedicated audience is accepted. Confirm unrelated OAuth clients cannot reach the resource. Redact access tokens, authorization codes, passwords and connection strings from diagnostics.
@@ -39,3 +41,5 @@ The harness creates a separate GoTrue container and fresh database, runs the rep
 - [Supabase OAuth token security and audience hooks](https://supabase.com/docs/guides/auth/oauth-server/token-security)
 - [Supabase Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)
 - [MCP authorization](https://modelcontextprotocol.io/specification/latest/basic/authorization)
+- [Pinned GoTrue OAuth grant revocation](https://github.com/supabase/auth/blob/v2.197.0/internal/api/oauthserver/handlers.go)
+- [Auth JavaScript error normalization](https://github.com/supabase/auth-js/blob/master/src/lib/fetch.ts)

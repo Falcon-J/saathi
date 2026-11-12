@@ -180,6 +180,26 @@ test('real local PostgreSQL platform receipts and complete adapter contracts', {
         assert.equal((await db`SELECT command_id FROM platform_command_receipts WHERE actor_user_id=${owner} AND client_id=${clientId} AND command_id=${commandId}`).length,1)
       }finally{console.warn=original}
     })
+    await t.test('assigned members can explicitly complete and reopen without gaining general edit authority',async()=>{
+      const task=await createTaskRecord(owner,workspace.id,{title:'Assignee completion regression',assigneeEmail:email(member)})
+      const input=(status:string,version:number)=>({...command(),workspaceId:workspace.id,taskId:task.id,expectedVersion:version,status})
+      const done=await invoke('tasks.set_status',input('done',1),memberPrincipal)
+      assert.equal(done.status,'done');assert.equal(done.version,2)
+      const noOp=await invoke('tasks.set_status',input('done',2),memberPrincipal)
+      assert.equal(noOp.status,'done');assert.equal(noOp.version,2,'A fresh command requesting the same state must not reopen or rewrite')
+      const stale=await executor.call(memberPrincipal,'tasks.set_status',input('todo',1))
+      assert.equal(stale.state,'conflict')
+      assert.equal((await db`SELECT status FROM tasks WHERE id=${task.id}`)[0].status,'done')
+      const reopened=await invoke('tasks.set_status',input('todo',2),memberPrincipal)
+      assert.equal(reopened.status,'todo');assert.equal(reopened.version,3)
+      for(const [name,fields] of [['tasks.set_status',{status:'in-progress'}],['tasks.update',{changes:{title:'Forbidden general edit'}}]] as const){
+        const denied=await executor.call(memberPrincipal,name,{...command(),workspaceId:workspace.id,taskId:task.id,expectedVersion:3,...fields})
+        assert.equal(denied.state,'rejected');if(denied.state==='rejected')assert.equal(denied.error.code,'forbidden')
+      }
+      const unassigned=await createTaskRecord(owner,workspace.id,{title:'No completion authority'})
+      const denied=await executor.call(memberPrincipal,'tasks.set_status',{...command(),workspaceId:workspace.id,taskId:unassigned.id,expectedVersion:1,status:'todo'})
+      assert.equal(denied.state,'rejected');if(denied.state==='rejected')assert.equal(denied.error.code,'forbidden')
+    })
     await t.test('all 37 supported tool adapters return validated real-data schemas',async()=>{
       const wid=workspace.id
       await invoke('workspaces.list',{});await invoke('workspaces.get',{workspaceId:wid});await invoke('members.list',{workspaceId:wid})

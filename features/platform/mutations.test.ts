@@ -8,13 +8,28 @@ const actor = '11111111-1111-4111-8111-111111111111', wid='22222222-2222-4222-82
 const workspace = { id:wid,name:'Goal',targetAt:null,timezone:'UTC',version:2,members:[{userId:member,email:'member@example.com',username:'Member',role:'member'}],ownerUserId:actor } as Workspace
 const task = { id:tid,workspaceId:wid,title:'Task',priority:'medium',version:3,status:'done',completed:true } as Task
 function context(input: Record<string,unknown>): HandlerContext { return { input:{workspaceId:wid,taskId:tid,expectedVersion:3,commandId:actor,...input},principal:{userId:actor,clientId:'test',grantId:actor,capabilities:[],workspaceIds:null} } }
-const base = { assertWorkspaceVersion:async()=>{}, assertTaskVersion:async()=>{}, readWorkspace:async()=>workspace, getTaskRecord:async()=>task }
-test('set status passes explicit edit state even when task already has that state', async()=>{
+const base = { assertWorkspaceVersion:async()=>{}, assertTaskVersion:async()=>{}, assertTaskCompletionAccess:async()=>{}, readWorkspace:async()=>workspace, getTaskRecord:async()=>task }
+test('setting an already-completed task confirms the state without toggling or writing', async()=>{
   const edits:unknown[][]=[]
-  const handlers=createPlatformMutationHandlers({...base,changeTaskRecord:async(...args)=>{edits.push(args);return task}})
+  let authorized=0
+  const handlers=createPlatformMutationHandlers({...base,assertTaskCompletionAccess:async()=>{authorized++},changeTaskRecord:async(...args)=>{edits.push(args);return task}})
   const result=await handlers['tasks.set_status']!(context({status:'done'}))
-  assert.equal(edits[0][2],'edit');assert.deepEqual(edits[0][3],{status:'done'});assert.equal(edits[0][4],3)
+  assert.equal(edits.length,0);assert.equal(authorized,1)
   assert.equal(result.version,3)
+})
+test('explicit completion and reopening use only version-guarded completion authority',async()=>{
+  for(const [current,target] of [['todo','done'],['in-progress','done'],['done','todo']] as const){
+    const calls:unknown[][]=[],order:string[]=[]
+    const handlers=createPlatformMutationHandlers({...base,getTaskRecord:async()=>({...task,status:current,completed:current==='done'}),assertTaskVersion:async()=>{order.push('locked-version')},changeTaskRecord:async(...args)=>{order.push('mutation');calls.push(args);return {...task,status:target,completed:target==='done'}}})
+    await handlers['tasks.set_status']!(context({status:target}))
+    assert.deepEqual(order,['locked-version','mutation']);assert.deepEqual(calls[0],[actor,tid,'toggle',{},3])
+  }
+})
+test('non-completion transitions still require edit authority and no-op cannot bypass access revocation',async()=>{
+  const handlers=createPlatformMutationHandlers({...base,getTaskRecord:async()=>({...task,status:'in-progress'}),changeTaskRecord:async(_actor,_id,action)=>{assert.equal(action,'edit');throw Object.assign(new Error('No edit permission'),{code:'forbidden'})}})
+  await assert.rejects(handlers['tasks.set_status']!(context({status:'todo'})),{code:'forbidden'})
+  const denied=createPlatformMutationHandlers({...base,assertTaskCompletionAccess:async()=>{throw Object.assign(new Error('No edit access'),{code:'forbidden'})}})
+  await assert.rejects(denied['tasks.set_status']!(context({status:'done'})),{code:'forbidden'})
 })
 test('scoped lookup rejects a task before an ID-only DAL mutation can execute', async()=>{
   let mutations=0

@@ -11,10 +11,25 @@ import { createCompany, createCanvasContainer, attachWorkspace, addOrganizationM
   getWorkspaceAccess, filterWorkspaces, listAuthorizedCanvasResources, getAuthorizedCanvasView, createCanvasReference, revokeCanvasGrant,
   createCanvasGroup, setCanvasGroupMembership, assertWorkspaceAccess } from "./service.ts"
 
+async function bounded<T>(operation: PromiseLike<T>, label: string, timeoutMs = 10000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([Promise.resolve(operation), new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Timed out: ${label}`)), timeoutMs)
+    })])
+  } finally { clearTimeout(timer) }
+}
+
+test("database concurrency handshakes fail within their deadline", async () => {
+  await assert.rejects(bounded(new Promise<void>(() => {}), "missing second connection", 10), /Timed out: missing second connection/)
+  assert.equal(await bounded(Promise.resolve("entered"), "ready"), "entered")
+})
+
 test("persisted company policy narrows membership, preserves receipts and closes cross-tenant/browser access", { skip: !process.env.DATABASE_TEST_URL }, async t => {
   const url = new URL(process.env.DATABASE_TEST_URL!)
   assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(url.hostname), "access DB acceptance requires loopback fixtures")
   process.env.DATABASE_URL = process.env.DATABASE_TEST_URL
+  process.env.DATABASE_POOL_MAX = "5"
   const db = getDb()
   const [migration] = await db`SELECT to_regclass('public.canvas_resources') AS installed`
   assert.ok(migration.installed, "0013_canvas_access must be applied to the disposable local database first")
@@ -106,25 +121,35 @@ test("persisted company policy narrows membership, preserves receipts and closes
       const revokerEntered = new Promise<void>(resolve => { revocationStarted = resolve })
       let writerPid = 0, revokerPid = 0
       const writer = db.begin(async tx => {
+        await tx`SET LOCAL statement_timeout = '15s'`
+        await tx`SET LOCAL lock_timeout = '10s'`
         const [backend] = await tx`SELECT pg_backend_pid() AS pid`; writerPid = backend.pid
         await tx`SELECT id FROM workspaces WHERE id=${workspace.id} FOR UPDATE`
-        admitted(); await releaseWriter
+        admitted(); await bounded(releaseWriter, "release admitted writer", 15000)
         await assertWorkspaceAccess(member, workspace.id, "edit", tx)
       })
-      await writerAdmitted
+      // Observe failures immediately, including before a handshake is reached.
+      const writerFailed = writer.then(() => { throw new Error("Writer exited before its handshake") })
+      void writerFailed.catch(() => {})
       const originalBegin = db.begin
       type Begin = (callback: (tx: import("../../lib/db/client.ts").Transaction) => Promise<unknown>) => Promise<unknown>
       const begin = originalBegin as unknown as Begin
-      db.begin = ((callback: Parameters<Begin>[0]) => begin.call(db, async tx => {
-        const [backend] = await tx`SELECT pg_backend_pid() AS pid`; revokerPid = backend.pid
-        revocationStarted()
-        return callback(tx)
-      })) as typeof db.begin
-      const revoking = revokeCanvasGrant(owner, { grantId: id, resourceId: section, expectedVersion: sectionVersion, commandId: randomUUID() })
+      let revoking: ReturnType<typeof revokeCanvasGrant> | undefined
       // Observe actual lock blocking using a separate bounded connection, not a guessed sleep.
-      const inspector = postgres(process.env.DATABASE_TEST_URL!, { max: 1, prepare: false, connect_timeout: 5 })
+      const inspector = postgres(process.env.DATABASE_TEST_URL!, { max: 1, prepare: false, connect_timeout: 5, connection: { statement_timeout: 10000 } })
       try {
-        await revokerEntered
+        await bounded(Promise.race([writerAdmitted, writerFailed]), "writer admission")
+        db.begin = ((callback: Parameters<Begin>[0]) => begin.call(db, async tx => {
+          await tx`SET LOCAL statement_timeout = '15s'`
+          await tx`SET LOCAL lock_timeout = '10s'`
+          const [backend] = await tx`SELECT pg_backend_pid() AS pid`; revokerPid = backend.pid
+          revocationStarted()
+          return callback(tx)
+        })) as typeof db.begin
+        revoking = revokeCanvasGrant(owner, { grantId: id, resourceId: section, expectedVersion: sectionVersion, commandId: randomUUID() })
+        const revokerFailed = revoking.then(() => { throw new Error("Revoker exited before its handshake") })
+        void revokerFailed.catch(() => {})
+        await bounded(Promise.race([revokerEntered, revokerFailed]), "revoker admission")
         let blocked = false
         for (let attempt = 0; attempt < 100; attempt++) {
           const [state] = await inspector`SELECT ${writerPid}::int=ANY(pg_blocking_pids(${revokerPid}::int)) AS blocked`
@@ -135,10 +160,12 @@ test("persisted company policy narrows membership, preserves receipts and closes
       } finally {
         db.begin = originalBegin
         unlock()
-        await inspector.end()
+        try { await bounded(Promise.allSettled([writer, ...(revoking ? [revoking] : [])]), "concurrency worker cleanup", 20000) }
+        finally { await inspector.end({ timeout: 5 }) }
       }
-      await writer
-      sectionVersion = (await revoking).version
+      await bounded(writer, "writer completion")
+      assert.ok(revoking)
+      sectionVersion = (await bounded(revoking, "revoker completion")).version
       await assert.rejects(assertWorkspaceAccess(member, workspace.id, "edit"), /access denied/i)
     })
 

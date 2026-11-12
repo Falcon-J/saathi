@@ -45,11 +45,11 @@ sources[0].onmessage({ data: JSON.stringify({ type: 'error', data: { message: 'R
 const state = render()
 const observed = { taskEvents, before, after: { resyncs, revision: state.eventRevision, activeUsers: state.activeUsers, isConnected: state.isConnected, error: state.error } }
 assert.equal(taskEvents, 1)
-assert.equal(resyncs, before.resyncs + 1)
+assert.equal(resyncs, before.resyncs + 2, 'missed-event and policy-error controls both revalidate current records')
 assert.deepEqual(state.activeUsers, ['member@example.test'])
 assert.equal(state.error, 'Realtime unavailable')
 assert.equal(state.isConnected, false)
-assert.equal(state.eventRevision, before.revision + 1)
+assert.equal(state.eventRevision, before.revision + 2)
 for (const [index, invalid] of [
   { ...taskEvent, type: 'unknown' }, { ...taskEvent, workspaceId: 'another-workspace' },
   { ...taskEvent, userId: undefined }, { ...taskEvent, timestamp: 'yesterday' }, { ...taskEvent, data: null },

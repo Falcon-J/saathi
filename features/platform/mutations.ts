@@ -9,6 +9,8 @@ import { createInvitationRecord, readInvitationRecord, respondToInvitation, crea
 import { parseCsv } from "../../lib/csv.ts"
 import { resolveFeatureFlags } from "../../lib/feature-flags.ts"
 import { normalizeTaskUpdates } from "../../lib/task-contract.ts"
+import { canChangeTask } from "../../lib/task-permission.ts"
+import { assertWorkspaceAccess } from "../access/service.ts"
 import type { TaskUpdate } from "../../lib/task-contract.ts"
 import { platformContracts } from "./contracts.ts"
 import { projectPlatformWorkspace, projectPlatformTask, projectPlatformComment } from "./queries.ts"
@@ -33,6 +35,14 @@ async function assertTaskVersion(actorId: string, workspaceId: string, taskId: s
   if (!row) fail("not_found")
   if (row.version !== expectedVersion) fail("version_conflict")
 }
+async function assertTaskCompletionAccess(actorId: string, workspaceId: string, taskId: string) {
+  const tx = getCurrentTransaction()
+  if (!tx) fail("unavailable")
+  await assertWorkspaceAccess(actorId, workspaceId, "edit", tx)
+  const [row] = await tx`SELECT w.owner_user_id,t.created_by_user_id,t.assignee_user_id FROM tasks t JOIN workspaces w ON w.id=t.workspace_id
+    WHERE t.id=${taskId} AND t.workspace_id=${workspaceId}`
+  if (!row || !canChangeTask({ ownerId: row.owner_user_id, creatorId: row.created_by_user_id, assigneeId: row.assignee_user_id }, actorId, "toggle")) fail("forbidden")
+}
 async function getActor(userId: string) {
   const [row] = await getDb()`SELECT id,email FROM auth.users WHERE id=${userId}`
   if (!row?.email) fail("unauthenticated")
@@ -48,7 +58,7 @@ async function rateLimit(scope: string, limit: number, window: number) {
   const { consumeDistributedRateLimit } = await import("../../lib/rate-limit.ts")
   await consumeDistributedRateLimit(scope, limit, window)
 }
-const defaults = { createWorkspaceRecord, updateWorkspaceRecord, archiveWorkspaceRecord, deleteWorkspaceRecord, transferWorkspaceOwnershipRecord, removeWorkspaceMember, readWorkspace, createTaskRecord, changeTaskRecord, getTaskRecord, createTaskComment, changeTaskPrerequisite, createInvitationRecord, readInvitationRecord, respondToInvitation, createInvitationLinkRecord, acceptInvitationLinkRecord, assertWorkspaceVersion, assertTaskVersion, getActor, resolveLinkWorkspace, rateLimit, csvImportEnabled: () => resolveFeatureFlags(process.env).csvImport }
+const defaults = { createWorkspaceRecord, updateWorkspaceRecord, archiveWorkspaceRecord, deleteWorkspaceRecord, transferWorkspaceOwnershipRecord, removeWorkspaceMember, readWorkspace, createTaskRecord, changeTaskRecord, getTaskRecord, createTaskComment, changeTaskPrerequisite, createInvitationRecord, readInvitationRecord, respondToInvitation, createInvitationLinkRecord, acceptInvitationLinkRecord, assertWorkspaceVersion, assertTaskVersion, assertTaskCompletionAccess, getActor, resolveLinkWorkspace, rateLimit, csvImportEnabled: () => resolveFeatureFlags(process.env).csvImport }
 export type PlatformMutationDependencies = typeof defaults
 /** Handlers run inside executeWithReceipt's transaction. Domain DALs retain permission checks. */
 export function createPlatformMutationHandlers(overrides: Partial<PlatformMutationDependencies> = {}): PlatformHandlers {
@@ -134,7 +144,22 @@ export function createPlatformMutationHandlers(overrides: Partial<PlatformMutati
       return { data: projectPlatformTask(created, ws), version: created.version ?? null }
     },
     "tasks.update": editTask(c => c.input.changes as Record<string, unknown>),
-    "tasks.set_status": editTask(c => ({ status: c.input.status })),
+    "tasks.set_status": async c => {
+      const { ws, record } = await scopedTask(c)
+      const current = record.status ?? (record.completed ? "done" : "todo"), target = c.input.status
+      let updated = record
+      if ((target === "todo" || target === "done") && current === target) {
+        // A repeated explicit state is a no-op, but still requires current completion authority.
+        await d.assertTaskCompletionAccess(user(c), ws.id, record.id)
+      } else {
+        // scopedTask holds the workspace/task locks and verifies expectedVersion. The DAL
+        // toggle is safe only when its exact resulting state equals the explicit request.
+        const completion = target === "done" && current !== "done" || target === "todo" && current === "done"
+        updated = await d.changeTaskRecord(user(c), record.id, completion ? "toggle" : "edit",
+          completion ? {} : taskUpdates({ status: target }, ws), expected(c))
+      }
+      return { data: projectPlatformTask(updated, ws), version: updated.version ?? null }
+    },
     "tasks.assign": editTask(c => ({ assigneeUserId: c.input.assigneeUserId })),
     "tasks.delete": async c => { const { record } = await scopedTask(c); await d.changeTaskRecord(user(c), record.id, "delete", {}, expected(c)); return tombstone(record.id) },
     "comments.create": async c => { const { record } = await scopedTask(c); const comment = await d.createTaskComment(user(c), record.id, String(c.input.body), String(c.input.commandId)); return { data: projectPlatformComment(comment), version: null } },

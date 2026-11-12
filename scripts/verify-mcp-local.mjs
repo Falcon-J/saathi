@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import postgres from 'postgres'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, isAuthSessionMissingError } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { startLocalRedisRest } from './local-redis-rest.mjs'
 
@@ -64,6 +64,19 @@ export function decodeMcpResponse(body, contentType, id) {
   const envelope = messages.find(message => message?.id === id)
   assert.ok(envelope && !envelope.error && Object.hasOwn(envelope, 'result'))
   return envelope.result
+}
+
+/** SDK-normalized errors are not raw HTTP statuses; never mistake an outage for revocation. */
+export function classifyRevokedProviderIdentity(result, expectedUserId) {
+  if (!result.error) {
+    assert.equal(result.data.user?.id, expectedUserId)
+    return { behavior: 'identity_still_accepted', sdkStatus: null, sdkError: null, providerCode: null }
+  }
+  const error = result.error
+  const sessionMissing = isAuthSessionMissingError(error)
+  const knownCode = ['session_not_found', 'bad_jwt', 'user_not_found', 'no_authorization'].includes(error.code) ? error.code : null
+  assert.ok(sessionMissing || [401, 403].includes(error.status) || (error.status === 404 && knownCode === 'session_not_found'))
+  return { behavior: 'session_rejected', sdkStatus: error.status, sdkError: sessionMissing ? 'AuthSessionMissingError' : error.name === 'AuthApiError' ? 'AuthApiError' : null, providerCode: knownCode }
 }
 
 function command(program, args, options = {}) {
@@ -335,12 +348,21 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     assert.equal(requireData(await identity.auth.getUser(refreshed.access_token), 'Refreshed getUser failed').user.id, created.user.id)
     assert.equal((await tool(refreshed.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).state, 'ok')
     await revokeMcpDelegation(created.user.id, grant.id)
-    assert.ok([401, 403].includes((await rpc(refreshed.access_token, 'tools/list')).httpStatus))
+    assert.equal((await rpc(refreshed.access_token, 'tools/list')).httpStatus, 403)
     const revoked = await human.auth.oauth.revokeGrant({ clientId }); assert.equal(revoked.error, null)
+    const [remainingSessions] = await db`SELECT count(*)::int AS count FROM auth.sessions WHERE user_id=${created.user.id} AND oauth_client_id=${clientId}`
+    assert.equal(remainingSessions.count, 0)
     const rejectedIdentity = await identity.auth.getUser(refreshed.access_token)
-    assert.ok([401, 403].includes(rejectedIdentity.error?.status))
-    const afterRevoke = await fetch(metadata.token_endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'refresh_token', client_id: clientId, refresh_token: refreshed.refresh_token }) })
+    const providerIdentity = classifyRevokedProviderIdentity(rejectedIdentity, created.user.id)
+    report({ providerGrantRevokeSucceeded: true, providerOAuthSessionsRemoved: true, providerIdentity })
+    const providerRevokedMcpStatus = (await rpc(refreshed.access_token, 'tools/list')).httpStatus
+    assert.ok([401, 403].includes(providerRevokedMcpStatus))
+    const afterRevoke = await fetch(metadata.token_endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'refresh_token', client_id: clientId, refresh_token: refreshed.refresh_token, resource }) })
     assert.ok([400, 401, 403].includes(afterRevoke.status))
+    const refreshFailure = await afterRevoke.json()
+    const refreshErrorCode = [refreshFailure.error, refreshFailure.error_code, refreshFailure.code].find(value => ['invalid_grant', 'session_not_found', 'refresh_token_not_found', 'refresh_token_already_used'].includes(value))
+    assert.ok(refreshErrorCode)
+    report({ revokedRefreshHttpStatus: afterRevoke.status, revokedRefreshErrorCode: refreshErrorCode })
     assert.equal(requireData(await human.auth.getUser(), 'Browser session was affected').user.id, created.user.id)
     const browserRegression = createClient(base, publicKey, options)
     const freshBrowser = requireData(await browserRegression.auth.signInWithPassword({ email, password }), 'Browser sign-in regression failed')
@@ -349,7 +371,7 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     assert.equal((await rpc(freshBrowser.session.access_token, 'tools/list')).httpStatus, 401)
     const unchanged = await inspect(authName)
     assert.equal(unchanged.Id, originalId); assert.equal(JSON.stringify(unchanged.Config.Env), originalEnvironment)
-    report({ dedicatedAudiencePreservedOnRefresh: true, applicationRevocationDeniedMcp: true, oauthRevocationDeniedAccessAndRefresh: true, browserSessionUnaffected: true, freshBrowserLoginAudiencePreserved: true, existingQaAuthUnchanged: true })
+    report({ dedicatedAudiencePreservedOnRefresh: true, applicationRevocationDeniedMcp: true, providerRevokedMcpStatus, oauthRevocationRemovedSessionsAndDeniedRefresh: true, providerIdentity, browserSessionUnaffected: true, freshBrowserLoginAudiencePreserved: true, existingQaAuthUnchanged: true })
   } catch (error) {
     failed = true
     report({ passed: false, ...safeError(error), status: Number.isInteger(error?.status) ? error.status : undefined, errorCode: typeof error?.code === 'string' && /^[A-Z0-9_]+$/.test(error.code) ? error.code : undefined, detail: 'Sanitized failure; no token, code, password or connection string is printed' })
