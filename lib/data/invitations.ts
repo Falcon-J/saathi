@@ -1,3 +1,4 @@
+import { assertWorkspaceAccess } from "../../features/access/service.ts"
 import { randomUUID, randomBytes, createHash } from "node:crypto"
 import { z } from "zod"
 import { getDb, type Transaction } from "../db/client.ts"
@@ -60,6 +61,7 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
   return getDb().begin(async tx=>{
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${workspaceId} FOR UPDATE`
     if(!w || w.owner_user_id!==actor.id || w.archived_at)throw new InvitationError("Only an active workspace owner can send invitations")
+    await assertWorkspaceAccess(actor.id,workspaceId,"manage",tx)
     const [member]=await tx`SELECT m.user_id FROM workspace_members m JOIN auth.users u ON u.id=m.user_id WHERE m.workspace_id=${workspaceId} AND lower(u.email)=${recipient}`
     if(member)throw new InvitationError("User is already a member of this workspace")
     await tx`UPDATE workspace_invitations SET status='expired',updated_at=now() WHERE workspace_id=${workspaceId} AND invitee_email=${recipient} AND status='pending' AND expires_at<=now()`
@@ -76,7 +78,7 @@ export async function createInvitationRecord(actor:Actor,workspaceId:string,emai
 }
 export async function listInvitationRecords(actor:Actor,workspaceId?:string):Promise<Invitation[]> {
   return getDb().begin("isolation level repeatable read read only",async tx=>{
-    if(workspaceId){const [w]=await tx`SELECT id FROM workspaces WHERE id=${workspaceId} AND owner_user_id=${actor.id} AND archived_at IS NULL`;if(!w)throw new InvitationError("Only the owner can view active workspace invitations")}
+    if(workspaceId){await assertWorkspaceAccess(actor.id,workspaceId,"read",tx);const [w]=await tx`SELECT id FROM workspaces WHERE id=${workspaceId} AND owner_user_id=${actor.id} AND archived_at IS NULL`;if(!w)throw new InvitationError("Only the owner can view active workspace invitations")}
     if(!workspaceId)await requireEmailProof(tx,actor)
     const rows=workspaceId ? await tx`SELECT id FROM workspace_invitations WHERE workspace_id=${workspaceId} ORDER BY created_at DESC LIMIT 100`
       : await tx`SELECT i.id FROM workspace_invitations i JOIN workspaces w ON w.id=i.workspace_id
@@ -86,9 +88,9 @@ export async function listInvitationRecords(actor:Actor,workspaceId?:string):Pro
 }
 export async function readInvitationRecord(actor:Actor,id:string):Promise<Invitation|null> {
   return getDb().begin(async tx=>{
-    const [owned]=await tx`SELECT i.id FROM workspace_invitations i JOIN workspaces w ON w.id=i.workspace_id
+    const [owned]=await tx`SELECT i.id,i.workspace_id FROM workspace_invitations i JOIN workspaces w ON w.id=i.workspace_id
       WHERE i.id=${id} AND w.owner_user_id=${actor.id}`
-    if(owned)return projection(tx,id)
+    if(owned){await assertWorkspaceAccess(actor.id,owned.workspace_id,"read",tx);return projection(tx,id)}
     await requireEmailProof(tx,actor,true)
     const [allowed]=await tx`SELECT i.id FROM workspace_invitations i JOIN workspaces w ON w.id=i.workspace_id
       WHERE i.id=${id} AND i.invitee_email=${normalizedEmail(actor.email)}`
@@ -111,6 +113,7 @@ export async function respondToInvitation(actor:Actor,id:string,action:"accepted
     const [i]=await tx`SELECT * FROM workspace_invitations WHERE id=${id} FOR UPDATE`
     if(!w || !i || w.archived_at)throw new InvitationError("Invitation unavailable")
     const ownerAction=action==="revoked"
+    if(ownerAction)await assertWorkspaceAccess(actor.id,w.id,"manage",tx)
     if(ownerAction?w.owner_user_id!==actor.id:i.invitee_email!==actor.email.toLowerCase())throw new InvitationError("This invitation is not available for your account")
     if(action==="accepted" && i.status==="accepted" && i.accepted_by_user_id===actor.id)return w.id as string
     if(action===i.status)return w.id as string
@@ -136,6 +139,7 @@ export async function createInvitationLinkRecord(actor:Actor,workspaceId:string,
   return getDb().begin(async tx=>{
     const [w]=await tx`SELECT * FROM workspaces WHERE id=${workspaceId} FOR UPDATE`
     if(!w || w.owner_user_id!==actor.id || w.archived_at)throw new InvitationError("Only an active workspace owner can create invitation links")
+    await assertWorkspaceAccess(actor.id,workspaceId,"manage",tx)
     await beforeCreate?.()
     const id=randomUUID(),token=randomBytes(32).toString("base64url"),hash=invitationTokenHash(token)!
     await tx`INSERT INTO workspace_invitations(id,workspace_id,inviter_user_id,token_hash,expires_at)

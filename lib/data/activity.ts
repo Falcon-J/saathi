@@ -1,3 +1,4 @@
+import { assertWorkspaceAccess } from "../../features/access/service.ts"
 import { getDb, type Transaction } from "../db/client.ts"
 import { z } from "zod"
 
@@ -29,7 +30,8 @@ export async function listActivityEventsPage(actorId: string, workspaceId: strin
   return getDb().begin("isolation level repeatable read read only", async (tx: Transaction) => {
     const [member] = await tx`SELECT 1 FROM workspace_members m JOIN workspaces w ON w.id = m.workspace_id
       WHERE m.workspace_id = ${workspaceId} AND m.user_id = ${actorId}`
-    if (!member) throw new Error("Workspace unavailable or access denied")
+    await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
+    if (!member) throw Object.assign(new Error("Workspace unavailable or access denied"), { code: "forbidden" })
     if (cursor) {
       const [boundary] = await tx`SELECT id FROM activity_events WHERE id=${cursor} AND workspace_id=${workspaceId}`
       if (!boundary) throw new Error("Activity cursor unavailable")

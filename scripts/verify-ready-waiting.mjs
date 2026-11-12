@@ -11,9 +11,12 @@ import net from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import postgres from 'postgres'
 import { createClient } from '@supabase/supabase-js'
-import { chromium, expect } from '@playwright/test'
+import { chromium, expect as baseExpect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { startLocalRedisRest } from './local-redis-rest.mjs'
+
+// Functional recovery waits are separate from the measured latency acceptance gate.
+const expect = baseExpect.configure({ timeout: 30_000 })
 
 const port = Number(process.env.SAATHI_QA_PORT || 3101)
 assert.ok(Number.isInteger(port) && port > 1024 && port < 65536)
@@ -138,7 +141,7 @@ try {
     try { return (await fetch(`${base}/login`, { signal: AbortSignal.timeout(1000) })).status } catch { return 0 }
   }, { timeout: 60000 }).toBe(200)
   browser = await chromium.launch({ channel: 'chrome', headless: true })
-  page = await login(users[0]); await expect(page.getByLabel('Current workspace')).toHaveValue(workspace)
+  page = await login(users[0]); await expect(page.getByLabel('Current workspace')).toHaveValue(workspace, { timeout: 30000 })
   await expect(page.getByLabel('Search next work')).toBeVisible()
   await expect.poll(() => actionSamples.filter(sample => sample.action === 'getTaskGraph').length).toBeGreaterThan(0)
   assert.equal(actionSamples.some(sample => sample.action === 'getTasks'), false, 'Initial Ready/Waiting must not fetch the full task list')
@@ -264,6 +267,11 @@ try {
   await inspector.getByRole('button', { name: 'Close prerequisites', exact: true }).click(); await expect(trigger).toBeFocused()
   await page.screenshot({ path: `${evidence}/mobile-waiting.png`, fullPage: true })
   log({ passed: true, evidence, realRedisRequests: bridge.requests })
+  if (process.env.SAATHI_QA_CANVAS === 'true') {
+    phase = 'canvas-workflow'
+    const { verifyCanvasWorkflow } = await import('./verify-canvas-workflow.mjs')
+    await verifyCanvasWorkflow({ page, member, db, workspace, users, base, accessibility, evidence, log })
+  }
 } catch (error) {
   failed = true
   let reason = String(error?.message || error)

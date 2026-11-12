@@ -23,6 +23,7 @@ function harness(options = {}) {
     useEffect(fn, deps) { const i = cursor++; if (!slots[i] || changed(slots[i].deps, deps)) { const old = slots[i]; slots[i] = { deps }; effects.push(() => { old?.cleanup?.(); slots[i].cleanup = fn() }) } },
   }
   const dependencies = {
+    '@/lib/capability-ceiling': require('../lib/capability-ceiling.ts'),
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
     '@/lib/identity': { normalizeEmail: value => value?.trim().toLowerCase() ?? '' },
@@ -46,6 +47,20 @@ function harness(options = {}) {
     unmount() { slots.forEach(slot => slot?.cleanup?.()) },
   }
 }
+
+test('read-only section membership preserves inspection without prerequisite mutation controls', async () => {
+  const ui = harness()
+  ui.render({ workspace: { id: 'workspace', ownerId: 'owner@test.com', timezone: 'UTC', capabilityCeiling: { read: true } } })
+  await tick(); ui.render()
+  assert.equal(ui.button('Edit prerequisites for Frontend'), undefined)
+  ui.field('Task to inspect').props.onChange({ target: { value: 'Frontend' } })
+  ui.render()
+  assert.equal(ui.field('Prerequisite for Frontend'), undefined)
+  assert.equal(ui.button('Remove API prerequisite'), undefined)
+  ui.button('Open Frontend').props.onClick()
+  assert.deepEqual(ui.opened, ['Frontend'])
+  assert.deepEqual(ui.calls, [])
+})
 
 test('Next work loads authorized graph, shows evidence and opens canonical tasks', async () => {
   const ui = harness()

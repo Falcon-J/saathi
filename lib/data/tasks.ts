@@ -1,3 +1,5 @@
+import { assertWorkspaceAccess } from "../../features/access/service.ts"
+import type { AccessCapability } from "../../features/access/contracts.ts"
 import { taskDeadline } from "../task-deadline.ts"
 import { z } from "zod"
 import { commandHash, readCommandReceipt, saveCommandReceipt } from "./command-receipts.ts"
@@ -40,10 +42,11 @@ export function mapTask(row: Row): Task {
     estimatedMinutes: row.estimated_minutes ?? undefined, assigneeEmail: row.assignee_email ?? undefined,
     createdBy: row.creator_email, createdAt: iso(row.created_at), updatedAt: iso(row.updated_at), version: row.version }
 }
-export async function lockWorkspace(tx: Transaction, workspaceId: string, actorId: string) {
+export async function lockWorkspace(tx: Transaction, workspaceId: string, actorId: string, capability: AccessCapability = "read") {
   const [workspace] = await tx`SELECT * FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`
   const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id = ${workspaceId} AND user_id = ${actorId}`
   if (!workspace || !member || workspace.archived_at) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+  await assertWorkspaceAccess(actorId, workspaceId, capability, tx)
   return workspace
 }
 async function assigneeId(tx: Transaction, workspaceId: string, email?: string) {
@@ -57,6 +60,7 @@ export async function listTaskRecords(actorId: string, workspaceId: string): Pro
   return getDb().begin("isolation level repeatable read read only", async tx => {
     const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id=${actorId}`
     if (!member) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+    await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
     const rows = await tx`SELECT t.*, creator.email AS creator_email, assignee.email AS assignee_email
       FROM tasks t JOIN auth.users creator ON creator.id = t.created_by_user_id
       LEFT JOIN auth.users assignee ON assignee.id = t.assignee_user_id
@@ -67,6 +71,7 @@ export async function listTaskRecords(actorId: string, workspaceId: string): Pro
 async function authorizeTaskRead(tx: Transaction, actorId: string, workspaceId: string) {
   const [member] = await tx`SELECT user_id FROM workspace_members WHERE workspace_id=${workspaceId} AND user_id=${actorId}`
   if (!member) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+  await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
 }
 export async function listTaskRecordsPage(actorId: string, workspaceId: string, input: TaskPageInput = {}): Promise<TaskPage> {
   let scope, boundary: string | null = null
@@ -75,9 +80,11 @@ export async function listTaskRecordsPage(actorId: string, workspaceId: string, 
     scope = normalizeTaskPage(input)
     if(scope.cursor) boundary = decodeTaskCursor(scope.cursor,workspaceId,scope)
   } catch { throw new TaskError("Invalid task page or cursor", "validation") }
-  // One statement shares an MVCC snapshot for membership, cursor and rows.
+  // ACL facts and page rows share the same repeatable-read snapshot.
+  return getDb().begin("isolation level repeatable read read only", async tx => {
+  await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
   // Compare cursor timestamps in SQL: JS Dates truncate stored microseconds.
-  const rows = await getDb()`WITH authorized AS MATERIALIZED (
+  const rows = await tx`WITH authorized AS MATERIALIZED (
       SELECT w.id FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
       WHERE w.id=${workspaceId} AND m.user_id=${actorId}
     ), boundary_task AS (
@@ -104,6 +111,7 @@ export async function listTaskRecordsPage(actorId: string, workspaceId: string, 
   const tasks = rows.filter(row => row.id !== null)
   const visible=tasks.slice(0,scope.limit)
   return {tasks:visible.map(mapTask),nextCursor:tasks.length>scope.limit ? encodeTaskCursor(workspaceId,scope,visible[visible.length-1].id) : null}
+  })
 }
 export async function getTaskRecord(actorId: string, workspaceId: string, taskId: string): Promise<Task> {
   if(!z.string().uuid().safeParse(workspaceId).success || !z.string().uuid().safeParse(taskId).success) throw new TaskError("Invalid task identifier","validation")
@@ -116,7 +124,9 @@ export async function getTaskRecord(actorId: string, workspaceId: string, taskId
 }
 export async function getTaskAggregates(actorId: string, workspaceId: string): Promise<TaskAggregates> {
   if(!z.string().uuid().safeParse(workspaceId).success) throw new TaskError("Invalid workspace identifier","validation")
-  const [row]=await getDb()`WITH authorized AS MATERIALIZED (
+  return getDb().begin("isolation level repeatable read read only", async tx => {
+  await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
+  const [row]=await tx`WITH authorized AS MATERIALIZED (
       SELECT w.id,w.timezone FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
       WHERE w.id=${workspaceId} AND m.user_id=${actorId}
     ) SELECT EXISTS(SELECT 1 FROM authorized) AS authorized,count(*)::int AS total,
@@ -127,6 +137,7 @@ export async function getTaskAggregates(actorId: string, workspaceId: string): P
       FROM tasks t JOIN authorized a ON a.id=t.workspace_id`
   if (!row?.authorized) throw new TaskError("Workspace unavailable or access denied", "forbidden")
   return {total:row.total,open:row.total-row.done,done:row.done,overdue:row.overdue,byStatus:{todo:row.todo,"in-progress":row.progress,done:row.done},byPriority:{low:row.low,medium:row.medium,high:row.high}}
+  })
 }
 export async function createTaskRecord(actorId: string, workspaceId: string, input: TaskUpdate, commandId?: string): Promise<Task> {
   const result = normalizeTaskUpdates(input)
@@ -136,7 +147,7 @@ export async function createTaskRecord(actorId: string, workspaceId: string, inp
   const hash = commandHash(data)
   const deadline = validatedDeadline(data)
   const task = await getDb().begin(async tx => {
-    await lockWorkspace(tx, workspaceId, actorId)
+    await lockWorkspace(tx, workspaceId, actorId, "create")
     if (commandId) {
       let receipt: Task | null
       try { receipt = await readCommandReceipt<Task>(tx, workspaceId, actorId, commandId, "task-create", hash) }
@@ -161,7 +172,7 @@ export async function changeTaskRecord(actorId: string, id: string, action: "edi
   const task = await getDb().begin(async tx => {
     const [location] = await tx`SELECT workspace_id FROM tasks WHERE id=${id}`
     if (!location) throw new TaskError("Task not found", "not_found")
-    const workspace = await lockWorkspace(tx, location.workspace_id, actorId)
+    const workspace = await lockWorkspace(tx, location.workspace_id, actorId, action === "delete" ? "delete" : "edit")
     const [row] = await tx`SELECT * FROM tasks WHERE id=${id} FOR UPDATE`
     if (!row) throw new TaskError("Task not found", "not_found")
     if (!canChangeTask({ownerId:workspace.owner_user_id,creatorId:row.created_by_user_id,assigneeId:row.assignee_user_id},actorId,action)) throw new TaskError("Access denied for this task action", "forbidden")

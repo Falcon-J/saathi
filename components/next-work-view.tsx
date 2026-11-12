@@ -7,6 +7,7 @@ import type { Task } from "@/app/tasks/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { normalizeEmail } from "@/lib/identity"
+import { permitsCapability } from "@/lib/capability-ceiling"
 import { createCoalescedRefresh } from "@/lib/read-coordinator"
 import { deriveNextWork, type NextWorkItem, type NextWorkResult } from "@/lib/next-work"
 import { formatTaskDue } from "@/lib/task-time"
@@ -131,12 +132,13 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
 
   useEffect(() => { if (selectedId) editor.current?.focus() }, [selectedId])
 
-  const canEdit = (task: Task) => Boolean(task.version) && (
+  const canEdit = (task: Task) => permitsCapability(workspace.capabilityCeiling, "edit") && Boolean(task.version) && (
     normalizeEmail(currentUserEmail) === normalizeEmail(workspace.ownerId)
     || normalizeEmail(currentUserEmail) === normalizeEmail(task.createdBy)
   )
 
   const save = async (change: PendingChange) => {
+    if (!permitsCapability(workspace.capabilityCeiling, "edit")) return
     if (writing.current || !recoveryReady || activeScope.current !== storageKey) return
     try { window.sessionStorage.setItem(storageKey, JSON.stringify(change)) } catch {
       setError("Browser session storage is unavailable. Enable storage before changing prerequisites so an interrupted save can be recovered.")
@@ -249,7 +251,7 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
       {!connected && <p role="status" className="text-sm text-muted-foreground">Live updates are paused. Refresh next work to check the latest state.</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {!recoveryReady && <div role="alert" className="space-y-2 text-sm text-destructive"><p>Session recovery storage is unavailable. Prerequisite changes are paused.</p><Button type="button" variant="outline" onClick={() => { restorePending(); void load() }}>Retry recovery</Button></div>}
-      {pending && !saving && <div className="space-y-2"><p className="text-sm">A prerequisite change needs confirmation. Retry the same change to recover its result.</p><Button type="button" onClick={() => save(pendingChange.current!)}>Retry change</Button></div>}
+      {pending && !saving && <div className="space-y-2"><p className="text-sm">A prerequisite change needs confirmation. Your original change is retained for recovery.</p>{permitsCapability(workspace.capabilityCeiling, "edit") && <Button type="button" onClick={() => save(pendingChange.current!)}>Retry change</Button>}</div>}
       {data && <>
         <Input aria-label="Search next work" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks or assignees" />
         <div className="grid gap-4 md:grid-cols-2">{section("Ready", data.projection.ready)}{section("Waiting", data.projection.waiting)}</div>

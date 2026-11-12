@@ -1,10 +1,13 @@
 import postgres from "postgres"
+import { getTransactionDatabase } from "./transaction-context.ts"
 
 let database: ReturnType<typeof postgres> | undefined
 const developmentRuntime = globalThis as typeof globalThis & { saathiDatabase?: ReturnType<typeof postgres> }
 
 /** Server-only pooled connection. No connection is opened during build/import. */
 export function getDb() {
+  const transaction = getTransactionDatabase()
+  if (transaction) return transaction
   if (!process.env.DATABASE_URL) throw new Error("Database is not configured")
   if (!database) {
     const configuredMax = process.env.DATABASE_POOL_MAX ?? "1"

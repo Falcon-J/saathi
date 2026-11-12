@@ -26,6 +26,30 @@ test('membership query maps allowed row positions to the exact requested UUID pa
   ]])
 })
 
+test('attached SSE workspaces use actor-batched live section policy while legacy membership stays on one query', async () => {
+  let readMembership, filterAttached, permitted = false, sqlReads = 0
+  const policyCalls = []
+  const deps = {
+    '@/lib/db/client': { getDb: () => async (sql, workspaceIds) => {
+      sqlReads++
+      assert.match(sql.join(''), /LEFT JOIN canvas_resources/)
+      return workspaceIds.map((id, index) => ({ request_index: index + 1, canvas_resource_id: id === 'legacy' ? null : 'attached' }))
+    } },
+    '@/lib/sse-authorization': { createBatchedMembershipVerifier: (read, filter) => { readMembership = read; filterAttached = filter; return () => {} } },
+    '@/features/access/service': { filterWorkspaces: async (actorId, rows, capability) => { policyCalls.push({ actorId, rows, capability }); return permitted ? rows : [] } },
+  }
+  const js = ts.transpileModule(fs.readFileSync('app/api/realtime/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
+  new Function('require', 'exports', js)(name => deps[name] ?? {}, {})
+  const { createBatchedMembershipVerifier } = require('../../../lib/sse-authorization.ts')
+  const check = createBatchedMembershipVerifier(readMembership, filterAttached)
+  assert.deepEqual(await Promise.all([check('restricted', 'owner'), check('legacy', 'owner'), check('restricted', 'other')]), [false, true, false])
+  assert.equal(sqlReads, 1)
+  assert.deepEqual(policyCalls, [{ actorId: 'owner', rows: [{ id: 'restricted' }], capability: 'read' }, { actorId: 'other', rows: [{ id: 'restricted' }], capability: 'read' }])
+  permitted = true
+  assert.equal(await check('restricted', 'owner'), true)
+  assert.equal(sqlReads, 2)
+})
+
 test('uppercase workspace UUIDs use the canonical workspace for authorization and every realtime operation', async () => {
   const requestedId = 'AAAAAAAA-0000-4000-8000-000000000001'
   const canonicalId = 'aaaaaaaa-0000-4000-8000-000000000001'
@@ -80,9 +104,9 @@ test('uppercase workspace UUIDs use the canonical workspace for authorization an
   assert.ok(calls.presence.every(workspaceId => workspaceId === canonicalId), 'disconnect presence must use the canonical UUID')
 })
 
-test('idle polling avoids per-tick SQL but rechecks membership before delivering an event batch', async () => {
+for (const revocation of [false, 'policy-unavailable']) test(`idle polling avoids per-tick SQL and suppresses batches/presence on ${revocation === false ? 'revocation' : 'policy outage'}`, async () => {
   const timers = [], messages = []
-  let membershipReads = 0, redisReads = 0, now = 1000, member = true, events = []
+  let membershipReads = 0, redisReads = 0, presenceWrites = 0, now = 1000, member = true, events = []
   let bounds = { oldestId: null, latestId: null }
   const replay = {}
   const replayJs = ts.transpileModule(fs.readFileSync('lib/realtime-sse.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
@@ -90,9 +114,9 @@ test('idle polling avoids per-tick SQL but rechecks membership before delivering
   const deps = {
     'next/server': {},
     '@/lib/auth-simple': { getSession: async () => ({ id: 'actor', email: 'actor@example.test' }) },
-    '@/lib/db/client': { getDb: () => async () => { membershipReads++; return member ? [{ request_index: 1 }] : [] } },
+    '@/lib/db/client': { getDb: () => async () => { membershipReads++; if (member === 'policy-unavailable') throw new Error('Policy unavailable'); return member ? [{ request_index: 1 }] : [] } },
     '@/lib/realtime': { realtimeService: {
-      setUserPresence: async () => {}, getStreamBounds: async () => bounds,
+      setUserPresence: async () => { presenceWrites++ }, getStreamBounds: async () => bounds,
       readNewEvents: async () => { redisReads++; return events },
     } },
     '@/lib/security': { schemas: { workspaceId: { safeParse: () => ({ success: true, data: 'workspace' }) } } },
@@ -123,11 +147,13 @@ test('idle polling avoids per-tick SQL but rechecks membership before delivering
   await poll.fn()
   await new Promise(setImmediate)
   assert.ok(messages.some(message => message.includes('First event')), 'a new empty stream must deliver its first event')
-  member = false
+  member = revocation
+  const presenceBeforeDenial = presenceWrites
   events = [{ _streamId: '2-0', type: 'task-created', workspaceId: 'workspace', data: { title: 'Private' } }]
   now += poll.ms
   await poll.fn()
   await new Promise(setImmediate)
   assert.ok(membershipReads >= 2)
   assert.ok(!messages.some(message => message.includes('Private')))
+  assert.equal(presenceWrites, presenceBeforeDenial, 'revoked streams must not refresh presence during cleanup')
 })

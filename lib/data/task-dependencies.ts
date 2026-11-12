@@ -1,3 +1,4 @@
+import { assertWorkspaceAccess } from "../../features/access/service.ts"
 import { z } from "zod"
 import { getDb } from "../db/client.ts"
 import { canChangeTask } from "../task-permission.ts"
@@ -18,8 +19,10 @@ const commandSchema = z.object({
 
 export async function readTaskGraph(actorId: string, workspaceId: string): Promise<TaskGraph> {
   if (!z.string().uuid().safeParse(workspaceId).success) throw new TaskError("Invalid workspace identifier", "validation")
-  // Membership, tasks, edges and clock share the statement's MVCC snapshot.
-  const [graph] = await getDb()`WITH authorized AS MATERIALIZED (
+  // ACL, membership, tasks, edges and clock share one repeatable-read snapshot.
+  return getDb().begin("isolation level repeatable read read only", async tx => {
+  await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
+  const [graph] = await tx`WITH authorized AS MATERIALIZED (
       SELECT w.id,w.timezone FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
       WHERE w.id=${workspaceId} AND m.user_id=${actorId}
     ), task_rows AS (
@@ -38,6 +41,7 @@ export async function readTaskGraph(actorId: string, workspaceId: string): Promi
   return { tasks: graph.tasks.map(mapTask), dependencies: graph.dependencies.map((row: { workspace_id: string; dependent_task_id: string; prerequisite_task_id: string }) => ({ workspaceId: row.workspace_id,
       dependentTaskId: row.dependent_task_id, prerequisiteTaskId: row.prerequisite_task_id })),
     timezone: graph.timezone, asOf: new Date(graph.as_of).toISOString() }
+  })
 }
 
 export async function changeTaskPrerequisite(actorId: string, input: PrerequisiteCommand): Promise<PrerequisiteResult> {
@@ -49,7 +53,7 @@ export async function changeTaskPrerequisite(actorId: string, input: Prerequisit
   const type = operation === "add" ? "dependency-add" : "dependency-remove"
   const hash = commandHash(command)
   return getDb().begin(async tx => {
-    const workspace = await lockWorkspace(tx, workspaceId, actorId)
+    const workspace = await lockWorkspace(tx, workspaceId, actorId, "edit")
     let receipt: Task | null
     try { receipt = await readCommandReceipt<Task>(tx, workspaceId, actorId, commandId, type, hash) }
     catch (error) {

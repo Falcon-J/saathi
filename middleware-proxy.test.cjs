@@ -114,6 +114,16 @@ test('auth entry redirects before issuing PKCE cookies or calling Auth', async (
   assert.equal(response.cookies.getAll().length, 0)
 })
 
+for (const path of ['/mcp', '/.well-known/oauth-protected-resource/mcp']) for (const method of ['GET', 'POST', 'OPTIONS']) test(`bearer/public route ${path} ${method} bypasses browser session maintenance`, async () => {
+  let clients = 0
+  const ui = fixture({ path, method, clientFactory: () => { clients++; assert.fail('MCP must not create a cookie Auth client') } })
+  const response = await ui.proxy()
+  assert.equal(response.status, 200)
+  assert.deepEqual(ui.calls, { user: 0, session: 0 })
+  assert.equal(response.cookies.getAll().length, 0)
+  assert.equal(clients, 0)
+})
+
 test('auth entry compares browser Host rather than a forwarded host or normalized URL', async () => {
   let compared
   const ui = fixture({ path: '/login', onCanonicalEntry: (...args) => { compared = args } })

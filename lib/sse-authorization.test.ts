@@ -2,6 +2,35 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { createMembershipVerifier } from "./sse-authorization.ts"
 
+test('section policies are batched once per actor while unattached workspace membership stays on its fast path', async () => {
+  const { createBatchedMembershipVerifier } = await import('./sse-authorization.ts')
+  const policyReads: unknown[] = []
+  let revoked = false
+  const check = createBatchedMembershipVerifier(async pairs => pairs.map(pair => ({ ...pair, sectionAttached: pair.workspaceId !== 'legacy' })), async (actorId, rows) => {
+    policyReads.push({ actorId, rows })
+    return revoked ? [] : rows.filter(row => row.id === 'readable')
+  })
+  assert.deepEqual(await Promise.all([check('legacy', 'owner'), check('readable', 'owner'), check('restricted', 'owner'), check('readable', 'other')]), [true, true, false, true])
+  assert.deepEqual(policyReads, [{ actorId: 'owner', rows: [{ id: 'readable' }, { id: 'restricted' }] }, { actorId: 'other', rows: [{ id: 'readable' }] }])
+  revoked = true
+  assert.equal(await check('readable', 'owner'), false)
+  const before = policyReads.length
+  assert.equal(await check('legacy', 'owner'), true)
+  assert.equal(policyReads.length, before)
+})
+
+test('policy outages fail closed for the whole batch and do not cache completed policy decisions', async () => {
+  const { createBatchedMembershipVerifier } = await import('./sse-authorization.ts')
+  let failed = true
+  const check = createBatchedMembershipVerifier(async pairs => pairs.map(pair => ({ ...pair, sectionAttached: true })), async (_actor, rows) => {
+    if (failed) throw new Error('Policy unavailable')
+    return rows
+  })
+  await assert.rejects(() => check('restricted', 'owner'), /Policy unavailable/)
+  failed = false
+  assert.equal(await check('restricted', 'owner'), true)
+})
+
 test("concurrent checks across workspaces dispatch one exact-pair batch", async () => {
   const { createBatchedMembershipVerifier } = await import("./sse-authorization.ts")
   const batches: unknown[] = []

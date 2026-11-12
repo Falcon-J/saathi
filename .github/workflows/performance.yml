@@ -3,6 +3,7 @@ name: Disposable Linux performance acceptance
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/performance.yml
 
@@ -15,6 +16,7 @@ permissions:
 
 jobs:
   performance:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -55,6 +57,12 @@ jobs:
           exit 1
       - name: Migrate real Auth database and build production app
         run: node scripts/prepare-nfr-local.mjs
+      - name: Install authenticated browser acceptance dependencies
+        run: npx playwright install --with-deps chrome
+      - name: Verify Ready and Waiting and canvas with real Auth
+        run: npm run verify:canvas:local
+        env:
+          SAATHI_QA_SUPABASE_CLI: supabase
       - name: Run unchanged sustained acceptance workload
         run: node scripts/verify-nfr-local.mjs
       - name: Upload sanitized evidence
@@ -69,6 +77,8 @@ jobs:
             .local-test/nfr-*/progress.json
             .local-test/nfr-*/revision.json
             .local-test/nfr-*/timings.jsonl
+            .local-test/ready-waiting-*/results.json
+            .local-test/ready-waiting-*/*.png
       - name: Stop exact disposable services
         if: always()
         run: |
