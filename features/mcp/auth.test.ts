@@ -68,6 +68,7 @@ test('confirmation, matching live profile and current grant are mandatory', asyn
 
 test('dependency outages fail closed with redacted errors and do not resemble invalid credentials', async () => {
   const secret = await token()
+  await assert.rejects(() => createMcpAuthenticator(enabled, { ...deps, resolveActor: async () => { throw new Error(secret) } })(request(secret)), (error: unknown) => error instanceof McpAuthenticationError && error.status === 503 && !error.message.includes(secret))
   await assert.rejects(() => createMcpAuthenticator(enabled, { ...deps, resolveDelegation: async () => { throw new Error(secret) } })(request(secret)), (error: unknown) => error instanceof McpAuthenticationError && error.status === 503 && !error.message.includes(secret))
 })
 

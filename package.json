@@ -30,7 +30,8 @@
     "verify:sse:leases:local": "node --experimental-strip-types scripts/verify-sse-leases.mjs",
     "test:platform": "node scripts/test-platform.mjs",
     "test:database:platform": "node scripts/require-database-test.mjs && node scripts/test-platform.mjs --database",
-    "verify:canvas:local": "node scripts/verify-canvas-local.mjs"
+    "verify:canvas:local": "node scripts/verify-canvas-local.mjs",
+    "verify:mcp:local": "node --experimental-strip-types scripts/verify-mcp-local.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

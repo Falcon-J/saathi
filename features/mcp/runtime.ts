@@ -21,6 +21,7 @@ import { createMcpHttpHandler } from "./server.ts"
 import { createAccessPlatformHandlers, authorizeAccessPlatformReplay, getAccessPlatformPostCommitWorkspaces } from "../access/platform.ts"
 import { createCoordinationHandlers } from "../coordination/handlers.ts"
 import { getDb } from "../../lib/db/client.ts"
+import { resolveMcpActor } from "./identity.ts"
 
 // Public signing keys may be reused; identity, delegation and membership may not.
 let signingKeys: { url: string; resolver: ReturnType<typeof createRemoteJWKSet> } | undefined
@@ -48,10 +49,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
         }
       },
       async resolveActor({ userId, accessToken }) {
-        const { data, error } = await identity.auth.getUser(accessToken)
-        if (error || !data.user || data.user.id !== userId || !data.user.email) return null
-        const profile = await getProfile(userId)
-        return profile ? { id: userId, email: data.user.email, emailConfirmed: Boolean(data.user.email_confirmed_at), profileId: profile.id } : null
+        return resolveMcpActor({ userId, accessToken }, { getUser: token => identity.auth.getUser(token), getProfile })
       },
       resolveDelegation: getMcpDelegation,
     })

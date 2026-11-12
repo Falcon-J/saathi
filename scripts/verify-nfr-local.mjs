@@ -10,11 +10,13 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { startLocalRedisRest } from './local-redis-rest.mjs'
 import { createLocalAuthFixture, signInLocalAuthFixture } from './local-auth-fixtures.mjs'
+import { canvasAccessEnabled, planCanvasAccessFixtures, seedCanvasAccessFixtures, cleanupCanvasAccessFixtures } from './local-canvas-access-fixtures.mjs'
 
 assert.ok(process.argv.slice(2).every(arg => ['--smoke', '--diagnostic', '--profile'].includes(arg)), 'Only --smoke, --diagnostic or --profile is supported')
 const smoke = process.argv.includes('--smoke')
 const diagnostic = process.argv.includes('--diagnostic')
 const profile = process.argv.includes('--profile')
+const canvasAccess = canvasAccessEnabled(process.env.SAATHI_QA_CANVAS_ACCESS)
 assert.ok(!(smoke && diagnostic), 'Choose either smoke or diagnostic')
 const fixtureSignInInterval = Number(process.env.SAATHI_QA_AUTH_SETUP_INTERVAL_MS ?? '0')
 assert.ok(Number.isInteger(fixtureSignInInterval) && fixtureSignInInterval >= 0 && fixtureSignInInterval <= 60000, 'Fixture sign-in interval must be an integer from 0 to 60000ms')
@@ -26,8 +28,10 @@ const directory = `.local-test/nfr-${runId}`
 mkdirSync(directory, { recursive: true })
 const pause = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)))
 const users = [], workspaces = Array.from({ length: 4 }, () => randomUUID()), observers = [], mutations = [], errors = []
+const canvasFixtures = canvasAccess ? planCanvasAccessFixtures(workspaces) : null
+let canvasSeeded = null, canvasRemaining = null
 // Recovery manifest contains disposable UUIDs only; never persist cookies, keys or passwords.
-const recordOwnedFixtures = (extraIds = []) => writeFileSync(`${directory}/owned-fixtures.json`, JSON.stringify({ runId, workspaces, userIds: [...new Set([...users.map(user => user.id), ...extraIds])] }, null, 2))
+const recordOwnedFixtures = (extraIds = []) => writeFileSync(`${directory}/owned-fixtures.json`, JSON.stringify({ runId, workspaces, canvasFixtures, userIds: [...new Set([...users.map(user => user.id), ...extraIds])] }, null, 2))
 recordOwnedFixtures()
 const setupRecovery = { createRetries: 0, recoveredCreates: 0, signInRetries: 0, minimumSignInIntervalMs: fixtureSignInInterval }
 const samples = { warmRead: [], read: [], write: [], admission: [], deliveryUpperBound: [], scheduleLag: [] }
@@ -270,6 +274,7 @@ try {
       for (const user of members) await tx`INSERT INTO workspace_members(workspace_id,user_id) VALUES(${workspace},${user.id})`
       for (let index = 0; index < envelope.seed; index++) await tx`INSERT INTO tasks(id,workspace_id,title,priority,created_by_user_id) VALUES(${randomUUID()},${workspace},${`Seed ${index}`},'medium',${owner.id})`
     }
+    if (canvasFixtures) canvasSeeded = await seedCanvasAccessFixtures(tx, canvasFixtures, users)
   })
   const token = randomUUID()
   bridge = await startLocalRedisRest({ token })
@@ -385,6 +390,7 @@ try {
     const cleanupUsers = [...new Map([...users, ...discovered].map(user => [user.id, user])).values()]
     recordOwnedFixtures(cleanupUsers.map(user => user.id))
     if (db) await db.begin(async tx => {
+      if (canvasFixtures) canvasRemaining = await cleanupCanvasAccessFixtures(tx, canvasFixtures)
       await tx`DELETE FROM outbox_events WHERE workspace_id=ANY(${workspaces}::uuid[])`
       await tx`DELETE FROM activity_events WHERE workspace_id=ANY(${workspaces}::uuid[])`
       await tx`DELETE FROM workspaces WHERE id=ANY(${workspaces}::uuid[])`
@@ -412,6 +418,7 @@ try {
     }
     result.cleanup = 'Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped'
   } catch { result.cleanup = 'FAILED; owned-fixtures.json records exact disposable UUIDs for recovery; no broad deletion attempted'; result.passed = false; process.exitCode = 1 }
+  result.canvasAccess = { enabled: canvasAccess, seeded: canvasSeeded, remaining: canvasRemaining }
   await bridge?.close(); await db?.end()
   result.timingEvidence = { file: 'timings.jsonl', samples: timingCount, dropped: timingDropped, limit: timingLimit }
   flushTimings()

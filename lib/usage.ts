@@ -12,8 +12,8 @@ export async function getWorkspaceUsage(workspaceId: string, actorId: string): P
   return getDb().begin("isolation level repeatable read read only", async tx => {
     const [member] = await tx`SELECT user_id FROM workspace_members
       WHERE workspace_id=${workspaceId} AND user_id=${actorId}`
-    await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
     if (!member) return null
+    await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
     const [row] = await tx`SELECT count(*) FILTER(WHERE event_type='task-created')::int AS created,
       count(*) FILTER(WHERE event_type IN ('task-toggled','task-updated') AND metadata->>'completed'='true')::int AS completed,
       count(*) FILTER(WHERE event_type='member-added')::int AS members,
