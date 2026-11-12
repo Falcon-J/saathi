@@ -62,7 +62,7 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     const workArea = page.getByRole('complementary', { name: 'Workspace work area', exact: true })
     await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('agents')
     const activity = page.getByRole('region', { name: 'Agent activity', exact: true })
-    const run = activity.locator('article').filter({ has: activity.getByRole('heading', { name: title, exact: true }) })
+    const run = activity.locator('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) })
     await expect(run).toContainText('Awaiting review')
     await expect(run).toContainText(progress)
     await expect(run).toContainText(agentEvidence)
@@ -186,7 +186,7 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await page.getByRole('button', { name: 'Company canvas', exact: true }).click()
     const [section] = await db`SELECT id FROM canvas_resources WHERE organization_id=${companyId} AND name=${sectionName}`
     await panel.getByLabel('Company, section or workspace', { exact: true }).selectOption(section.id)
-    const grant = panel.locator('section').filter({ has: panel.getByRole('heading', { name: 'Explicit grants', exact: true }) }).locator('div.rounded-lg').filter({ hasText: 'QA member' })
+    const grant = panel.locator('section').filter({ has: page.getByRole('heading', { name: 'Explicit grants', exact: true }) }).locator('div.rounded-lg').filter({ hasText: 'QA member' })
     await expect(member.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     page.once('dialog', dialog => dialog.accept())
     await grant.getByRole('button', { name: 'Revoke', exact: true }).click()
