@@ -11,6 +11,7 @@ import type { AuthorizedCanvasResource } from "@/features/access/service"
 import { layoutCompanyResources, projectCanvasReferences } from "./company-layout"
 import type { CanvasReference } from "@/features/access/contracts"
 import type { Workspace } from "@/lib/data/workspaces"
+import { canvasHandleStyle, canvasNodeGeometry } from "./node-geometry"
 
 type NodeData = { title: string; subtitle?: string; description?: string; representation: CanvasRepresentation; kind: "workspace" | "task" | "container"; expanded: boolean; open: () => void }
 type FlowNode = Node<NodeData, "workspace" | "task" | "container">
@@ -18,7 +19,7 @@ type FlowNode = Node<NodeData, "workspace" | "task" | "container">
 const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
   const workspace = data.kind !== "task"
   return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground shadow-sm ${workspace ? "border-border bg-card/85" : "border-primary/25 bg-card"}`}>
-    <Handle type="target" position={Position.Left} isConnectable={false} />
+    <Handle type="target" position={Position.Left} style={canvasHandleStyle} isConnectable={false} />
     <div className={workspace ? "flex items-start justify-between gap-4 px-5 py-4" : "space-y-3 p-4"}>
       <div className="min-w-0"><h2 className={`break-words font-semibold tracking-tight ${workspace ? "text-lg" : "text-base"}`}>{data.title}</h2>
         {data.representation !== "compact" && data.subtitle && <p className="mt-1 text-sm text-muted-foreground">{data.subtitle}</p>}
@@ -26,7 +27,7 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
       </div>
       <Button size="sm" variant="outline" className="nodrag nopan shrink-0" onClick={data.open} aria-label={`Open ${data.title}`}>Open</Button>
     </div>
-    <Handle type="source" position={Position.Right} isConnectable={false} />
+    <Handle type="source" position={Position.Right} style={canvasHandleStyle} isConnectable={false} />
   </article>
 })
 const nodeTypes = { workspace: CanvasRecord, task: CanvasRecord, container: CanvasRecord }
@@ -98,7 +99,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
       ? [node.readiness === "completed_inconsistent" ? "Review completed work" : node.readiness, task.assigneeEmail, formatTaskDue(task.dueAt, task.dueDate, workspace.timezone)].filter(Boolean).join(" · ")
       : `${readiness?.ready.length ?? 0} ready · ${readiness?.waiting.length ?? 0} waiting`
     return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
-      hidden: node.hidden, draggable: false, selectable: true, width: node.width, height: node.height, style: { width: node.width, height: node.height },
+      hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height),
       ariaLabel: `${task?.title ?? workspace.name}${subtitle ? `, ${subtitle}` : ""}`,
       data: { title: task?.title ?? workspace.name, description: task?.description ?? workspace.summary,
         subtitle, representation: node.representation, kind: node.kind, expanded: node.expanded,
@@ -111,12 +112,12 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
     const summaries = new Map(workspaces.map(workspace => [workspace.id, workspace]))
     return [...hierarchy.map(box => {
       const canonical = existing.get(box.id)
-      if (canonical) return { ...canonical, parentId: box.parentId, position: box.position, width: box.width, height: box.height, style: { width: box.width, height: box.height } }
+      if (canonical) return { ...canonical, parentId: box.parentId, position: box.position, ...canvasNodeGeometry(box.width, box.height) }
       const record = box.resourceId ? records.get(box.resourceId) : undefined
       const summary = box.workspaceId ? summaries.get(box.workspaceId) : undefined
       const title = record?.name ?? summary?.name ?? "Workspace"
       return { id: box.id, type: box.kind, position: box.position, parentId: box.parentId,
-        draggable: false, selectable: true, width: box.width, height: box.height, style: { width: box.width, height: box.height }, ariaLabel: `${record?.kind ?? "workspace"} ${title}`,
+        draggable: false, selectable: true, ...canvasNodeGeometry(box.width, box.height), ariaLabel: `${record?.kind ?? "workspace"} ${title}`,
         data: { title, representation: "summary" as const, kind: box.kind, expanded: box.kind === "container",
           open: () => box.workspaceId ? onOpen({ kind: "workspace", workspaceId: box.workspaceId }) : onOpenResource(record!.id) } }
     }), ...projected.filter(node => node.type === "task")]
