@@ -172,6 +172,10 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await member.keyboard.press('Escape')
     await member.goto(`${base}/canvas`)
     await expect(memberSearch).toBeEnabled()
+    // This fresh visit can restore a task-focused camera. Establish visibility again
+    // so culling cannot make the later revocation assertion pass before access changes.
+    await member.getByRole('button', { name: 'Fit View', exact: true }).click()
+    await expect(member.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     await member.evaluate(id => {
       const source = new EventSource(`/api/realtime?workspaceId=${id}`)
       window.__canvasAccessProbe = { source, connected: false, errors: 0 }
@@ -183,11 +187,13 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     const [section] = await db`SELECT id FROM canvas_resources WHERE organization_id=${companyId} AND name=${sectionName}`
     await panel.getByLabel('Company, section or workspace', { exact: true }).selectOption(section.id)
     const grant = panel.locator('section').filter({ has: panel.getByRole('heading', { name: 'Explicit grants', exact: true }) }).locator('div.rounded-lg').filter({ hasText: 'QA member' })
+    await expect(member.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     page.once('dialog', dialog => dialog.accept())
     await grant.getByRole('button', { name: 'Revoke', exact: true }).click()
     await expect.poll(async () => (await member.request.get(`${base}/api/usage?workspaceId=${workspace}`)).status()).toBe(403)
     await expect.poll(() => member.evaluate(() => window.__canvasAccessProbe.errors), { timeout: 15000 }).toBeGreaterThan(0)
     await expect(member.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toHaveCount(0)
+    await expect(memberSearch).toBeDisabled()
     await member.evaluate(() => { window.__canvasAccessProbe.source.close(); delete window.__canvasAccessProbe })
     log({ canvas: { deterministicCreate: true, scopedSearch: true, draftRecovery: true, desktopMobileAccessibility: true, reducedMotion: true, sectionReadOnly: true, legacyReadOnly: true, referenceRoundtrip: true, realtimeRevocation: true } })
   } finally {
