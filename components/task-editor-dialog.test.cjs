@@ -3,7 +3,7 @@ const test = require("node:test")
 const fs = require("node:fs")
 const ts = require("typescript")
 
-const jsx = (type, props) => ({ type, props })
+const jsx = (type, props, key) => ({ type, props, key })
 let state = []
 let stateIndex = 0
 const useState = initial => {
@@ -118,6 +118,20 @@ test("discussion owns its own form while disclosed controls still submit with th
   for (const control of nodes(details).filter(node => ["Input", "select"].includes(node.type))) {
     assert.equal(control.props.form, "task-editor-form")
   }
+})
+
+test("discussion and planning have distinct identities that both reset when switching tasks", () => {
+  state = []
+  const identities = id => {
+    const parts = nodes(render(true, null, { task: { id, draft } }))
+    return [parts.find(node => node.type === "TaskComments").key, parts.find(node => node.type === "details").key]
+  }
+  const first = identities("first-task")
+  const second = identities("second-task")
+  assert.ok(first.every(key => key !== undefined))
+  assert.notEqual(first[0], first[1], "siblings must have distinct React keys")
+  assert.notEqual(first[0], second[0], "switching tasks must reset the comment draft lifecycle")
+  assert.notEqual(first[1], second[1], "switching tasks must reset disclosure state")
 })
 
 test("invalid optional fields reveal themselves while conflict recovery remains outside the disclosure", () => {

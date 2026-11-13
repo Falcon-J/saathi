@@ -644,10 +644,10 @@ export function TaskEditorDialog({
               </fieldset>
               </form>
 
-              <TaskComments taskId={task.id} draftScope={draftScope} key={task.id} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+              <TaskComments taskId={task.id} draftScope={draftScope} key={`comments:${task.id}`} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
 
               <details
-                key={task.id}
+                key={`details:${task.id}`}
                 open={error ? true : undefined}
                 onInvalidCapture={event => { event.currentTarget.open = true }}
                 className="border-t border-border pt-4"

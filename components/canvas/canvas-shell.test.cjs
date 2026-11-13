@@ -153,3 +153,10 @@ test('page and workspace exits still guard a hidden in-memory draft when browser
  ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Current workspace').props.onChange({target:{value:'other'}});assert.equal(ui.store.currentWorkspaceId,'w');
  assert.equal(ui.calls.filter(c=>c==='confirm').length,3);
 });
+
+test('the measured viewport publisher stays stable across ordinary shell renders',()=>{
+ const ui=harness({companies:{resources:[{id:'section',name:'Delivery',parentId:null,workspaceId:null,capabilities:['read']}]}});
+ const first=ui.render().find(n=>n.type==='CanvasFlow').props.onViewportWidthChange;
+ first(360);const second=ui.render().find(n=>n.type==='CanvasFlow').props.onViewportWidthChange;
+ assert.equal(second,first);second(360);assert.equal(ui.render().find(n=>n.type==='CanvasFlow').props.onViewportWidthChange,first);
+});

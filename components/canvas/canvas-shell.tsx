@@ -52,6 +52,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const [readyGroup, setReadyGroup] = useState<"ready" | "waiting" | "completed_inconsistent" | undefined>()
   const [tasksMounted, setTasksMounted] = useState(false)
   const [compactCanvas, setCompactCanvas] = useState(false)
+  const reportCanvasWidth = useCallback((width: number) => setCompactCanvas(width < 640), [])
   const [listOpen, setListOpen] = useState(false)
   const [listReadiness, setListReadiness] = useState<CanvasReadiness | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -198,7 +199,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : <><div role="region" aria-label="Workspace canvas" className={`relative pt-14 ${showWorkArea ? "h-1/4 lg:h-full lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
-          onViewportWidthChange={width => setCompactCanvas(width < 640)}
+          onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
           onOpenGroup={(workspaceId, readiness) => { if (workspaceId !== workspace?.id || graph.loading || !capabilityCeiling.read || !open({ kind: "workspace", workspaceId })) return; stopFollowing(); if (readiness === "completed") { setListReadiness(readiness); setListOpen(true) } else { setReadyGroup(readiness); setTool("ready"); setWorkOpen(true); setWorkMounted(true) } }}
           onManualNavigation={stopFollowing} /></ReactFlowProvider></div>
