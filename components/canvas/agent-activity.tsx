@@ -2,15 +2,22 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { getAgentActivity, reviewAgentRun, type AgentActivityRun } from '@/app/actions/coordination'
-import type { HumanReviewInput } from '@/features/coordination/contracts'
+import { humanReviewInputSchema, type HumanReviewInput } from '@/features/coordination/contracts'
+import { isDraftRecord, readDraft, removeDraft, writeDraft } from '@/lib/draft-storage'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 
 const stateLabels: Record<AgentActivityRun['state'], string> = { queued: 'Queued', running: 'Running', awaiting_review: 'Awaiting review', succeeded: 'Succeeded', failed: 'Failed', cancelled: 'Cancelled' }
+type ReviewDraft = { comments: Record<string, string>; pending: HumanReviewInput | null }
+const isReviewDraft = (value: unknown): value is ReviewDraft => isDraftRecord(value) && isDraftRecord(value.comments)
+  && Object.values(value.comments).every(comment => typeof comment === 'string' && comment.length <= 2000)
+  && (value.pending === null || humanReviewInputSchema.safeParse(value.pending).success)
 
-export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true, actorId = '', onFollowTask, followingTaskId, onFollowingEnded }: { workspaceId: string; refreshSignal?: number; canReview?: boolean; actorId?: string; onFollowTask?: (taskId: string) => void; followingTaskId?: string | null; onFollowingEnded?: () => void }) {
+export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true, actorId = '', draftScope, onFollowTask, followingTaskId, onFollowingEnded }: { workspaceId: string; refreshSignal?: number; canReview?: boolean; actorId?: string; draftScope?: string; onFollowTask?: (taskId: string) => void; followingTaskId?: string | null; onFollowingEnded?: () => void }) {
   const scope = `${actorId}:${workspaceId}`
+  const storageKey = `${draftScope ?? `saathi:draft:${encodeURIComponent(actorId)}:${workspaceId}`}:agent-review`
+  const recovery = useRef<ReviewDraft>({ comments: {}, pending: null })
   const [data, setData] = useState<{ scope: string; runs: AgentActivityRun[]; nextCursor: string | null }>({ scope: '', runs: [], nextCursor: null })
   const [loading, setLoading] = useState(true)
   const [readError, setReadError] = useState<string | null>(null)
@@ -49,8 +56,11 @@ export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true
   }, [workspaceId, scope])
 
   useEffect(() => {
-    setUnknown(null); setComments({}); setReviewError(null); setNotice(null); setSaving(false); writing.current = false
-  }, [scope])
+    const restored = readDraft(storageKey, isReviewDraft)
+    recovery.current = restored?.pending && restored.pending.workspaceId !== workspaceId ? { comments: {}, pending: null } : restored ?? { comments: {}, pending: null }
+    setUnknown(recovery.current.pending ? { scope, input: recovery.current.pending } : null)
+    setComments(recovery.current.comments); setReviewError(null); setNotice(null); setSaving(false); writing.current = false
+  }, [scope, storageKey, workspaceId])
   useEffect(() => {
     void load()
     return invalidateReads
@@ -61,14 +71,25 @@ export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true
       && !data.runs.some(run => run.taskId === followingTaskId && ['queued', 'running', 'awaiting_review'].includes(run.state))) onFollowingEnded?.()
   }, [data, scope, loading, readError, followingTaskId, onFollowingEnded])
 
+  const retain = (draft: ReviewDraft) => {
+    recovery.current = draft
+    if (!draft.pending && Object.values(draft.comments).every(comment => !comment)) { removeDraft(storageKey); return true }
+    writeDraft(storageKey, draft)
+    return JSON.stringify(readDraft(storageKey, isReviewDraft)) === JSON.stringify(draft)
+  }
   const submit = async (input: HumanReviewInput) => {
     if (writing.current) return
+    if (!retain({ comments: recovery.current.comments, pending: input })) {
+      setReviewError('Browser storage is unavailable. Keep this review open and enable storage before submitting.'); return
+    }
     writing.current = true
     setSaving(true); setReviewError(null); setNotice(null)
     try {
       const result = await reviewAgentRun(input)
       if (currentScope.current !== scope) return
       if (result.success && result.run) {
+        const remaining = { ...recovery.current.comments }; delete remaining[input.runId]
+        retain({ comments: remaining, pending: null }); setComments(remaining)
         setUnknown(null)
         setData(previous => ({ ...previous, runs: previous.runs.map(run => run.id === result.run!.id ? { ...run, ...result.run!, task: { ...run.task, canReview: false } } : run) }))
         setNotice(input.decision === 'approve' ? 'Review approved. Task completed.' : 'Run rejected. The task was not completed by this review.')
@@ -76,7 +97,7 @@ export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true
       } else {
         setReviewError(result.error || 'Unable to confirm this review. Refresh before retrying.')
         setUnknown(result.unknownOutcome ? { scope, input } : null)
-        if (!result.unknownOutcome) void load()
+        if (!result.unknownOutcome) { retain({ comments: recovery.current.comments, pending: null }); void load() }
       }
     } catch {
       if (currentScope.current !== scope) return
@@ -109,7 +130,10 @@ export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true
       {run.reviewComment && <p className="whitespace-pre-wrap text-sm">Review: {run.reviewComment}</p>}
       {run.state === 'awaiting_review' && run.task.canReview && canReview && !unresolved && <fieldset disabled={busy} className="space-y-3 border-t border-border pt-3">
         <legend className="sr-only">Review {run.task.title}</legend>
-        <Label htmlFor={`review-comment-${run.id}`}>Review comment</Label><Textarea id={`review-comment-${run.id}`} value={comments[run.id] ?? ''} maxLength={2000} onChange={event => setComments(previous => ({ ...previous, [run.id]: event.target.value }))} />
+        <Label htmlFor={`review-comment-${run.id}`}>Review comment</Label><Textarea id={`review-comment-${run.id}`} value={comments[run.id] ?? ''} maxLength={2000} onChange={event => {
+          const next = { ...recovery.current.comments, [run.id]: event.target.value }; setComments(next)
+          if (!retain({ comments: next, pending: recovery.current.pending })) setReviewError('Browser storage is unavailable. Keep this review open to preserve your comment.')
+        }} />
         <p className="text-sm">Approval completes the task using its current version. Rejection marks this run as failed and leaves the task unchanged.</p>
         <div className="flex flex-wrap gap-2"><Button type="button" disabled={busy} onClick={() => review(run, 'approve')}>Approve and complete task</Button><Button type="button" variant="outline" disabled={busy} onClick={() => review(run, 'reject')}>Reject run</Button></div>
       </fieldset>}

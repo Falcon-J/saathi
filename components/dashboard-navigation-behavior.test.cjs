@@ -15,6 +15,7 @@ let selected
 const component = load('components/dashboard-navigation.tsx', {
   react: { useEffect() {}, useState: initial => { selected ??= initial; return [selected, value => { selected = value }] } },
   'react/jsx-runtime': { jsx, jsxs: jsx },
+  'next/link': { default: 'Link' },
   'lucide-react': Object.fromEntries(['History', 'Home', 'LayoutGrid', 'Settings', 'Users'].map(name => [name, name])),
   '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
   '@/lib/dashboard-navigation': navigation,
@@ -39,7 +40,7 @@ test('mobile navigation keeps labelled keyboard-operable routes and the active v
   const tree = component.DashboardNavigation({ mode: 'mobile', hasWorkspace: true, activeView: 'board' })
   const mobileButtons = buttons(tree)
   assert.deepEqual(mobileButtons.map(button => button.props['aria-label']), ['Overview', 'Board', 'Team'])
-  assert.ok(mobileButtons.every(button => button.props.type === 'button' && button.props.className.includes('focus-visible:ring-2')))
+  assert.ok(mobileButtons.every(button => button.props.type === 'button' && button.props.className.includes('focus-visible:ring-2') && button.props.className.includes('flex-col')))
   assert.equal(mobileButtons.find(button => button.props['aria-current']).props['aria-label'], 'Board')
   assert.equal(buttons(component.DashboardNavigation({ mode: 'mobile', hasWorkspace: false })).length, 0)
 })
@@ -69,4 +70,14 @@ test('task read errors do not replace and unmount quick add owners', () => {
   }
   walk(source)
   assert.equal(owners, 2)
+})
+
+test('Canvas is a primary route on desktop and mobile, including empty accounts', () => {
+  const links = node => !node || typeof node !== 'object' ? [] : [...(node.type === 'Link' ? [node] : []), ...[node.props?.children].flat(Infinity).flatMap(links)]
+  for (const mode of ['rail','mobile']) for (const hasWorkspace of [true,false]) {
+    const link = links(component.DashboardNavigation({ mode, hasWorkspace })).find(item => item.props.href === '/canvas')
+    assert.ok(link)
+    assert.equal(link.props['aria-label'], 'Canvas')
+    assert.ok(link.props.className.includes('focus-visible:ring-2'))
+  }
 })

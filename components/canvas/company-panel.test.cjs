@@ -15,9 +15,9 @@ function harness(options = {}) {
   }
   const browserStorage = { getItem: key => storage.get(key) ?? null, setItem(key, value) { if (options.storageFails) throw new Error('Storage denied'); storage.set(key, value) }, removeItem: key => storage.delete(key) }
   const jsx = (type, props) => ({ type, props })
-  const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
+  const dependencies = { '@/features/canvas/model': require('../../features/canvas/model.ts'), react, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
     '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
-    '@/features/access/actions': { getCanvasResourceAccess: async () => ({ success: false, error: 'Unavailable' }), runCanvasAccessCommand: async command => {
+    '@/features/access/actions': { getCanvasResourceAccess: async id => options.details ? { success: true, details: options.details(id) } : { success: false, error: 'Unavailable' }, runCanvasAccessCommand: async command => {
       calls.push(command)
       assert.deepEqual(JSON.parse([...storage.values()][0]), command, 'exact command must be retained before dispatch')
       return options.mutate ? options.mutate(command) : { success: true, result: { id: command.input.id, version: 1, affectedWorkspaceIds: [], replayed: false } }
@@ -26,12 +26,24 @@ function harness(options = {}) {
   const exports = {}
   const code = ts.transpileModule(fs.readFileSync('components/canvas/company-panel.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
   new Function('require', 'exports', 'sessionStorage', 'window', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, browserStorage, { confirm: () => true })
-  const props = { actorId: 'actor', resources: options.resources ?? [], onChanged: async () => { refreshes++ }, onWorkspace() {}, onInvite() {} }
+  const props = { actorId: 'actor', resources: options.resources ?? [], onChanged: async () => { refreshes++ }, onWorkspace() {}, onInvite() {}, ...options.props }
   return { render() { cursor = 0; tree = exports.CompanyPanel(props); effects.splice(0).forEach(fn => fn()); return nodes(tree) },
     create() { const fields = this.render(); fields.find(node => node.props?.id === 'canvas-company-name').props.onChange({ target: { value: 'Company' } }); return this.render().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }) },
     button(label) { return this.render().find(node => node.type === 'Button' && node.props.children === label) },
     unmount() { slots.forEach(slot => slot?.cleanup?.()) }, calls, storage, get refreshes() { return refreshes }, text() { return JSON.stringify(tree) } }
 }
+
+test('sharing workspace B invites to B even when workspace A is current', async () => {
+  const invites = []
+  const resource = { id: 'resource-b', workspaceId: 'workspace-b', organizationId: 'company', name: 'Workspace B', kind: 'workspace', capabilities: ['read', 'manage'], version: 1 }
+  const ui = harness({ resources: [resource], props: { workspace: { id: 'workspace-a', name: 'Workspace A', members: [] }, onInvite: id => invites.push(id) }, details: () => ({ resource, members: [], groups: [], grants: [] }) })
+  ui.render(); await tick(); ui.render()
+  const invite = ui.render().find(node => node.type === 'Button' && String(node.props.children).includes('invitations'))
+  assert.ok(invite)
+  invite.props.onClick()
+  assert.deepEqual(invites, ['workspace-b'])
+  assert.match(String(invite.props.children), /Workspace B/)
+})
 
 test('editable source links only independently readable same-company destinations using the real retained command', async () => {
   const resource = (id, organizationId, capabilities) => ({ id, name: id, organizationId, capabilities, kind: 'section', parentId: null, mode: 'restricted', version: 1, workspaceId: null })
@@ -83,4 +95,17 @@ test('a definitive conflict clears its command and refreshes current policy befo
   assert.equal(ui.button('Retry original change'), undefined)
   assert.equal(ui.refreshes, 1)
   assert.match(ui.text(), /Resource changed/)
+})
+
+test('same-name sharing destinations include their authorized ancestor path and type', () => {
+  const ui = harness({ resources: [
+    { id: 'a', name: 'Acme', parentId: null, kind: 'organization', capabilities: ['read'] },
+    { id: 'b', name: 'Beta', parentId: null, kind: 'organization', capabilities: ['read'] },
+    { id: 's1', name: 'Delivery', parentId: 'a', kind: 'section', capabilities: ['read'] },
+    { id: 's2', name: 'Delivery', parentId: 'b', kind: 'section', capabilities: ['read'] },
+  ] })
+  const selector = ui.render().find(node => node.props?.id === 'canvas-resource')
+  const labels = nodes(selector).filter(node => node.type === 'option').map(node => JSON.stringify(node.props.children))
+  assert.ok(labels.some(label => label.includes('Acme / Delivery') && label.includes('section')))
+  assert.ok(labels.some(label => label.includes('Beta / Delivery') && label.includes('section')))
 })

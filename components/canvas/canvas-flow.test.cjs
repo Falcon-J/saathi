@@ -13,7 +13,7 @@ const entry = { workspace: workspace('a'), complete: true, graph: { tasks: [task
 
 function harness() {
   const slots = [], effects = [], fits = [], opens = []
-  let cursor = 0, manual = 0
+  let cursor = 0, manual = 0, size = { width: 0, height: 0 }
   const changed = (a, b) => !a || a.length !== b.length || a.some((value, i) => value !== b[i])
   const react = {
     memo: fn => fn,
@@ -25,7 +25,7 @@ function harness() {
   }
   const jsx = (type, props) => ({ type, props })
   const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next-themes': { useTheme: () => ({ resolvedTheme: 'light' }) },
-    '@xyflow/react': { ReactFlow: 'ReactFlow', Background: 'Background', Controls: 'Controls', Handle: 'Handle', Position: { Left: 'left', Right: 'right' } },
+    '@xyflow/react': { ReactFlow: 'ReactFlow', Background: 'Background', Controls: 'Controls', Handle: 'Handle', Position: { Left: 'left', Right: 'right' }, useStore: selector => selector(size) },
     '@xyflow/react/dist/style.css': {}, '@/components/ui/button': { Button: 'Button' },
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/task-time': require('../../lib/task-time.ts'), './company-layout': require('./company-layout.ts'), './node-geometry': require('./node-geometry.ts') }
   const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-flow.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
@@ -34,8 +34,33 @@ function harness() {
   let props = { projection: project(), cameraKey: 'actor:personal', resources: [], workspaces: [workspace('a'), workspace('b')], focus: { kind: 'overview' }, followingAgent: false,
     onOpen: focus => opens.push(focus), onOpenResource() {}, onZoom() {}, onManualNavigation: () => manual++ }
   return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); effects.splice(0).forEach(fn => fn()); return tree.props },
-    initialize() { this.render().onInit({ fitView: options => { fits.push(options); return Promise.resolve(true) }, setViewport: () => Promise.resolve(true) }); fits.length = 0 }, fits, opens, get manual() { return manual } }
+    initialize() { this.render().onInit({ fitView: options => { fits.push(options); return Promise.resolve(true) }, setViewport: () => Promise.resolve(true) }); fits.length = 0 }, resize(width, height) { size = { width, height }; return this.render() }, fits, opens, get manual() { return manual } }
 }
+
+test('viewport resizing reframes the current task while ordinary live reads preserve deliberate framing', () => {
+  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
+  ui.render({ projection: project([entry], focus), focus }); ui.initialize()
+  ui.resize(1280, 640); ui.fits.length = 0
+  ui.resize(360, 500)
+  assert.equal(ui.fits.length, 1)
+  assert.deepEqual(ui.fits[0].nodes, [{ id: taskNodeId('a', 'task') }])
+  ui.fits.length = 0
+  ui.render({ projection: project([entry], focus) })
+  assert.equal(ui.fits.length, 0)
+})
+
+test('a resize waits for authorized layout readiness and does not follow late data after manual navigation', () => {
+  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
+  ui.render({ projection: project([entry], focus), focus, ready: false }); ui.initialize()
+  ui.resize(360, 500)
+  assert.equal(ui.fits.length, 0)
+  ui.render({ ready: true })
+  assert.equal(ui.fits.length, 1)
+  ui.render({ ready: false }); ui.resize(500, 360)
+  ui.render().onMoveStart({ type: 'wheel' })
+  ui.render({ ready: true })
+  assert.equal(ui.fits.length, 1)
+})
 
 test('actual React Flow preserves every connection across immutable refreshes and workspace resizing', () => {
   const ui = harness(), lookup = new Map(), parents = new Map()
@@ -44,7 +69,8 @@ test('actual React Flow preserves every connection across immutable refreshes an
   const graph = { ...entry, graph: { ...entry.graph, tasks: [task, { ...task, id: 'dependent', title: 'Dependent' }], dependencies: [{ workspaceId: 'a', prerequisiteTaskId: task.id, dependentTaskId: 'dependent' }] } }
   const references = [{ id: 'link', canvasResourceId: 'section', targetResourceId: 'resource' }]
   function positions(flow) {
-    adoptUserNodes(flow.nodes, lookup, parents)
+    const initialized = adoptUserNodes(flow.nodes, lookup, parents)
+    assert.equal(initialized.nodesInitialized, true, "Fixed controlled geometry must initialize offscreen nodes so camera fitting can resolve")
     return flow.edges.map(edge => {
       const source = lookup.get(edge.source), target = lookup.get(edge.target)
       const position = getEdgePosition({ id: edge.id, sourceNode: source, targetNode: target, sourceHandle: null, targetHandle: null, connectionMode: ConnectionMode.Strict })

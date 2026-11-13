@@ -6,6 +6,7 @@ import {
   projectCanvas, workspaceNodeId, taskNodeId, dependencyEdgeId, cameraStorageKey,
   createCanvasNavigation, navigateCanvas, reconcileCanvasNavigation, parentCanvasFocus,
   type AuthorizedWorkspaceGraph,
+  canvasBreadcrumbs,
 } from "./model.ts"
 
 const scope = { actorId: "actor", canvasId: "personal" }
@@ -17,6 +18,16 @@ const task = (id: string, workspaceId = "w", done = false): Task => ({ id, works
 const graph = (tasks: Task[] = [], id = "w"): AuthorizedWorkspaceGraph => ({ workspace: workspace(id), complete: true,
   graph: { tasks, dependencies: [], timezone: "UTC", asOf: "2026-11-12T00:00:00Z" } })
 const input = (graphs: AuthorizedWorkspaceGraph[]) => ({ graphs, navigation: createCanvasNavigation(scope), zoom: 1 })
+
+test("company and section focus retain canonical hierarchy and drop revoked resources", () => {
+  const resources = [{ id: 'company', parentId: null, workspaceId: null, name: 'Acme' }, { id: 'section', parentId: 'company', workspaceId: null, name: 'Delivery' }, { id: 'attached', parentId: 'section', workspaceId: 'w', name: 'Workspace' }]
+  const focused = navigateCanvas(createCanvasNavigation(scope), { kind: 'resource', resourceId: 'section' }, 'manual')
+  assert.deepEqual(reconcileCanvasNavigation(focused, scope, [], resources).focus, focused.focus)
+  assert.deepEqual(parentCanvasFocus({ kind: 'workspace', workspaceId: 'w' }, resources), focused.focus)
+  assert.deepEqual(parentCanvasFocus(focused.focus, resources), { kind: 'resource', resourceId: 'company' })
+  assert.deepEqual(canvasBreadcrumbs({ kind: 'task', workspaceId: 'w', taskId: 'a' }, resources, [workspace()], [task('a')]).map(item => item.label), ['Canvas', 'Acme', 'Delivery', 'w', 'a'])
+  assert.deepEqual(reconcileCanvasNavigation(focused, scope, [], []).focus, { kind: 'overview' })
+})
 
 test("empty authorized sets and empty workspace graphs have distinct projections", () => {
   assert.deepEqual(projectCanvas(input([])).nodes, [])

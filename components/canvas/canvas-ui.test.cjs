@@ -38,7 +38,7 @@ function bar(overrides = {}) {
   const react = { useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value }] }, useRef(initial) { return slots[cursor++] ??= { current: initial } },
     useEffect(fn) { cursor++; fn() } }
   const ui = { Command: 'Command', CommandEmpty: 'CommandEmpty', CommandGroup: 'CommandGroup', CommandInput: 'CommandInput', CommandItem: 'CommandItem', CommandList: 'CommandList', CommandSeparator: 'CommandSeparator' }
-  const exports = load('components/canvas/canvas-command-bar.tsx', { ...runtime, react, '@/components/ui/command': ui, '@/components/ui/button': { Button: 'Button' } },
+  const exports = load('components/canvas/canvas-command-bar.tsx', { ...runtime, react, './use-canvas-search': { useCanvasSearch: () => ({ items: [], loading: false }) }, '@/components/ui/command': ui, '@/components/ui/button': { Button: 'Button' } },
     { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener() {} })
   function render() { cursor = 0; tree = exports.CanvasCommandBar(props); return nodes(tree) }
   render()
@@ -105,4 +105,16 @@ test('Enter on a collapsed command bar opens results without executing a hidden 
   assert.equal(prevented, true)
   assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
   assert.deepEqual(ui.calls, [])
+})
+
+test('broad task searches cannot dispatch the unrelated current-workspace action on Enter', () => {
+  const ui = bar({ searchScope: {} })
+  ui.render().find(node => node.type === 'CommandInput').props.onValueChange('Exact task title')
+  assert.equal(ui.action('Open workspace'), undefined)
+  ui.render().find(node => node.type === 'CommandInput').props.onValueChange('open work')
+  assert.ok(ui.action('Open workspace'))
+})
+
+test('canvas search input preserves the server query length boundary', () => {
+  assert.equal(bar().render().find(node => node.type === 'CommandInput').props.maxLength, 120)
 })
