@@ -38,6 +38,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await tx`INSERT INTO tasks(id,workspace_id,title,created_by_user_id) VALUES(${otherTask},${otherWorkspace},${otherTitle},${users[0].id}),(${privateTask},${privateWorkspace},${privateTitle},${users[2].id})`
     })
     await page.goto(`${base}/dashboard`)
+    await expect(page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true })).toHaveCount(1)
     await page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true }).click()
     await expect(page).toHaveURL(`${base}/canvas`)
     await page.getByLabel('Current workspace', { exact: true }).selectOption(workspace)
@@ -77,6 +78,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     page.once('dialog', dialog => dialog.accept())
     await page.reload()
     await expect(search).toBeEnabled()
+    await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
     await search.fill('create')
     await page.getByRole('option', { name: 'Create task', exact: true }).click()
     await expect(page.getByLabel('Task title', { exact: true })).toHaveValue(retainedDraft)
@@ -170,6 +172,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await page.screenshot({ path: `${evidence}/canvas-mobile.png`, fullPage: true })
     await page.getByRole('button', { name: 'Close work area', exact: true }).click()
     await page.goto(`${base}/dashboard`)
+    await expect(page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true })).toHaveCount(1)
     await page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true }).click()
     await expect(page).toHaveURL(`${base}/canvas`)
     await expect(search).toBeEnabled()
