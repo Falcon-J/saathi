@@ -114,3 +114,7 @@ test('broad task searches cannot dispatch the unrelated current-workspace action
   ui.render().find(node => node.type === 'CommandInput').props.onValueChange('open work')
   assert.ok(ui.action('Open workspace'))
 })
+
+test('canvas search input preserves the server query length boundary', () => {
+  assert.equal(bar().render().find(node => node.type === 'CommandInput').props.maxLength, 120)
+})

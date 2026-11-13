@@ -61,3 +61,9 @@ test('exploring a section navigates the canvas instead of opening administration
   assert.deepEqual(result.find(node => node.type === 'CanvasFlow').props.focus, { kind: 'resource', resourceId: 'section' })
   assert.equal(result.filter(node => node.type === 'Dialog').some(node => node.props.open), false)
 })
+
+test('canvas management accessible name includes its visible button label', () => {
+  const button = harness().render().find(node => node.type === 'Button' && node.props['aria-label'] === 'Manage canvas')
+  const label = nodes(button).find(node => node.type === 'span').props.children
+  assert.ok(button.props['aria-label'].toLowerCase().includes(label.toLowerCase()))
+})

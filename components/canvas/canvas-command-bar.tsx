@@ -61,7 +61,7 @@ export function CanvasCommandBar({ scopeName, tasks, selectedTask, canComplete, 
         <CommandSeparator />
         <CommandGroup heading="Tasks">{(searchScope ? remote.items : tasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>
       </CommandList>
-      <CommandInput ref={input} asChild placeholder={busy ? "Saving…" : "Search tasks or commands"}
+      <CommandInput ref={input} maxLength={120} asChild placeholder={busy ? "Saving…" : "Search tasks or commands"}
         value={query} onValueChange={value => { setQuery(value); setOpen(true) }} onFocus={() => setOpen(true)} disabled={disabled || busy}>
         {/* eslint-disable-next-line jsx-a11y/role-has-required-aria-props -- cmdk supplies aria-controls through its supported Input asChild slot. */}
         <input role="combobox" aria-label="Search commands and tasks" aria-expanded={open} {...(!open ? { "aria-activedescendant": undefined } : {})} />
