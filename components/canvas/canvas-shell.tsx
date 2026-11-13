@@ -69,6 +69,9 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const listedTasks = listReadiness ? tasks.filter(task => taskReadiness.get(task.id) === listReadiness) : tasks
   const readinessNames = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
   const focused = currentNavigation.focus
+  const focusedKey = JSON.stringify(focused)
+  const currentBreadcrumb = useRef<HTMLButtonElement | null>(null)
+  useLayoutEffect(() => { currentBreadcrumb.current?.scrollIntoView({ block: "nearest", inline: "end" }) }, [focusedKey, workOpen])
   const selectedTask = focused.kind === "task"
     ? tasks.find(task => task.id === focused.taskId) ?? null : null
   const isOwner = workspace ? account === normalizeEmail(workspace.ownerId) : false
@@ -191,9 +194,9 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
           onOpenGroup={(workspaceId, readiness) => { if (workspaceId === workspace?.id && !graph.loading && capabilityCeiling.read) { stopFollowing(); setListReadiness(readiness); setListOpen(true) } }}
           onManualNavigation={stopFollowing} /></ReactFlowProvider></div>
-          <nav aria-label="Canvas hierarchy" className="absolute left-3 right-3 top-3 flex items-center gap-2 overflow-x-auto">
+          <nav aria-label="Canvas hierarchy" className={`absolute left-3 right-3 top-3 flex items-center gap-2 ${showWorkArea ? "lg:right-[calc(52%+0.75rem)]" : ""}`}>
             <Button size="sm" variant="outline" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}>Back</Button>
-            {canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks).map((item, index, path) => <Button key={JSON.stringify(item.focus)} size="sm" variant="outline" className="max-w-40 shrink-0 truncate" aria-current={index === path.length - 1 ? "location" : undefined} onClick={() => open(item.focus)}>{item.label}</Button>)}
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">{canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks).map((item, index, path) => <Button key={JSON.stringify(item.focus)} size="sm" variant="outline" className="max-w-40 shrink-0 truncate" ref={index === path.length - 1 ? currentBreadcrumb : undefined} aria-current={index === path.length - 1 ? "location" : undefined} onClick={() => open(item.focus)}>{item.label}</Button>)}</div>
             <Button size="sm" variant="outline" aria-label="Open workspace tools" disabled={commandDisabled} onClick={openWorkspace}><List className="size-4" />Tools</Button>
           </nav>
           {graph.loading && <p role="status" className="absolute bottom-2 left-4 rounded bg-card px-3 py-1 text-sm">Refreshing…</p>}
