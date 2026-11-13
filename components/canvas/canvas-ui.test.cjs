@@ -38,7 +38,7 @@ function bar(overrides = {}) {
   const react = { useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value }] }, useRef(initial) { return slots[cursor++] ??= { current: initial } },
     useEffect(fn) { cursor++; fn() } }
   const ui = { Command: 'Command', CommandEmpty: 'CommandEmpty', CommandGroup: 'CommandGroup', CommandInput: 'CommandInput', CommandItem: 'CommandItem', CommandList: 'CommandList', CommandSeparator: 'CommandSeparator' }
-  const exports = load('components/canvas/canvas-command-bar.tsx', { ...runtime, react, '@/components/ui/command': ui, '@/components/ui/button': { Button: 'Button' } },
+  const exports = load('components/canvas/canvas-command-bar.tsx', { ...runtime, react, './use-canvas-search': { useCanvasSearch: () => ({ items: [], loading: false }) }, '@/components/ui/command': ui, '@/components/ui/button': { Button: 'Button' } },
     { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener() {} })
   function render() { cursor = 0; tree = exports.CanvasCommandBar(props); return nodes(tree) }
   render()

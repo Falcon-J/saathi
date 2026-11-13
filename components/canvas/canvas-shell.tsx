@@ -96,7 +96,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     else setWorkOpen(false)
     return true
   }, [canLeave, setNavigation, setWorkOpen, setWorkMounted, setTool, setMutationError, setQuickAdd, store])
-  const openTask = (id: string) => { if (workspace) open({ kind: "task", workspaceId: workspace.id, taskId: id }) }
+  const openTask = (id: string, workspaceId = workspace?.id) => { if (workspaceId && store.workspaces.some(item => item.id === workspaceId)) return open({ kind: "task", workspaceId, taskId: id }) }
   const openWorkspace = () => { if (workspace && open({ kind: "workspace", workspaceId: workspace.id })) { setWorkOpen(true); setWorkMounted(true) } }
   const followTask = (taskId: string) => {
     if (!workspace || !tasks.some(task => task.id === taskId && task.workspaceId === workspace.id)) {
@@ -140,7 +140,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const refreshAll = async () => { await Promise.all([store.refreshWorkspaces(), companies.reload()]); setRevision(value => value + 1) }
   const accessDenied = Boolean(workspace && !capabilityCeiling.read)
   const workspaceUnavailable = Boolean(store.workspaceError || companies.error || graph.error || accessDenied)
-  const commandDisabled = !workspace || !graph.entry || graph.loading || companies.loading || workspaceUnavailable || !capabilityCeiling.read
+  const broadSearch = focused.kind === "overview" || focused.kind === "resource"
+  const commandDisabled = store.loading || companies.loading || Boolean(store.workspaceError || companies.error) || (!broadSearch && (!workspace || !graph.entry || graph.loading || workspaceUnavailable || !capabilityCeiling.read))
   const showWorkArea = workOpen && Boolean(graph.entry && capabilityCeiling.read)
   return <main className="saathi-dashboard relative h-dvh overflow-hidden bg-background text-foreground">
     <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-card/95 px-3 sm:px-5">
@@ -198,8 +199,9 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
       </aside>}
     </div>
     {mutationError && <p role="alert" className="absolute inset-x-4 bottom-36 z-30 mx-auto max-w-3xl rounded-lg border border-destructive/30 bg-card p-3 text-sm">{mutationError}</p>}
-    <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} scopeName={selectedTask ? `${workspace?.name} / ${selectedTask.title}` : workspace?.name ?? "Your canvas"}
-      tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={capabilityCeiling.create ?? false} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()} onWorkspace={openWorkspace} onList={() => { stopFollowing(); setListOpen(true) }} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />
+    <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} scopeName={canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks).map(item => item.label).join(" / ")}
+      searchScope={broadSearch ? focused.kind === "resource" ? { resourceId: focused.resourceId } : {} : undefined} searchRevision={JSON.stringify([actorId, store.realtime.eventRevision, revision, companies.resources, store.workspaces.map(item => item.id)])}
+      tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={!broadSearch && (capabilityCeiling.create ?? false)} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()} onWorkspace={openWorkspace} onList={() => { stopFollowing(); setListOpen(true) }} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />
     <Dialog open={listOpen} onOpenChange={setListOpen}><DialogContent className="max-h-[80dvh] overflow-y-auto"><DialogHeader><DialogTitle>{workspace?.name ?? "Workspace"} tasks</DialogTitle><DialogDescription className="sr-only">Open a task from the current authorized workspace.</DialogDescription></DialogHeader>
       {graph.error ? <p role="alert">{graph.error}</p> : graph.loading && !graph.entry ? <p role="status">Loading tasks…</p> : <ul className="space-y-2">{tasks.map(task => <li key={task.id}><Button variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" onClick={() => { openTask(task.id); setListOpen(false) }}>{task.title}<span className="ml-auto pl-3 text-xs text-muted-foreground">{projection.nodes.find(node => node.recordId === task.id && node.kind === "task")?.readiness?.replaceAll("_", " ")}</span></Button></li>)}</ul>}
       {!graph.loading && !graph.error && tasks.length === 0 && <p>No tasks in this workspace.</p>}
