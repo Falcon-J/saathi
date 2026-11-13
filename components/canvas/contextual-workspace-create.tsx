@@ -60,6 +60,12 @@ export function ContextualWorkspaceCreate({ actorId, target, onCancel, onCreated
       <p className="break-words font-medium">{pending.command.input.name}</p>
       <p className="text-sm">Creation needs confirmation. Retrying uses the original request and cannot create a duplicate.</p>
       <Button disabled={busy} onClick={() => run(pending)}>{busy ? "Creating workspace…" : "Retry workspace creation"}</Button>
+      <Button variant="ghost" disabled={busy} onClick={() => {
+        if (!window.confirm(`Stop recovering “${pending.command.input.name}”? The original request may already have created this workspace. Check its original section before creating another.`)) return
+        try { sessionStorage.removeItem(key) }
+        catch { setError("Unable to clear the recovery request. Enable browser session storage and try again."); return }
+        retained.current = null; setPending(null); setError(null); onCancel()
+      }}>Stop recovering</Button>
     </div> : null}
     {ready ? <div hidden={Boolean(pending)}><WorkspaceCreateForm compact aiEnabled={false} canCancel onCancel={onCancel}
       onCreate={async (name, details) => run({ path: target.path, command: { operation: "workspace.create", input: {

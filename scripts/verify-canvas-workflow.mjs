@@ -382,6 +382,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       for (const [id, label] of [[companyId, companyName], [spaceId, spaceName], [sectionForLink.id, sectionName]]) {
         await page.locator(`.react-flow__node[data-id="container:${id}"]`).getByRole('button', { name: `Open ${label}`, exact: true }).click()
       }
+      log({ canvasImprovementStep: { viewport, step: 'contextual-create' } })
       const name = `Context workspace ${viewport.width} ${randomUUID()}`
       createdWorkspaceNames.push(name)
       await page.getByRole('button', { name: 'Create workspace', exact: true }).click()
@@ -404,12 +405,14 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         for (const task of denseTasks) await tx`INSERT INTO tasks(id,workspace_id,title,status,created_by_user_id) VALUES(${task.id},${createdId},${task.title},${task.status},${users[0].id})`
       })
       await page.getByRole('button', { name: 'Refresh canvas', exact: true }).click()
+      log({ canvasImprovementStep: { viewport, step: 'dense-summary-refresh' } })
       const readySummary = page.getByRole('button', { name: 'Open Ready, 40 tasks', exact: true })
       await expectInsideCanvas(page, readySummary)
       await expectInsideCanvas(page, page.getByRole('button', { name: 'Open Completed, 10 tasks', exact: true }))
       const canvasBox = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
       const groupBox = await page.locator(`.react-flow__node[data-id="workspace:${createdId}"]`).boundingBox()
       assert.ok(groupBox.height <= canvasBox.height + 2, 'Dense workspace must fit inside canvas vertically')
+      log({ canvasImprovementStep: { viewport, step: 'dense-summary-open-list' } })
       await readySummary.click()
       const list = page.getByRole('dialog', { name: 'Ready tasks', exact: true })
       await expect(list.locator('li')).toHaveCount(40)
@@ -424,6 +427,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
       await expect(workArea.getByLabel('Task title', { exact: true })).not.toBeVisible()
       await expect(workArea.getByLabel('Task priority filter', { exact: true })).not.toBeVisible()
+      log({ canvasImprovementStep: { viewport, step: 'compact-toolbar' } })
       const firstTask = workArea.getByRole('button', { name: /^Edit Dense task / }).first()
       const areaBox = await workArea.boundingBox(), firstBox = await firstTask.boundingBox()
       assert.ok(firstBox && firstBox.y + firstBox.height <= areaBox.y + areaBox.height, 'First task action must fit before scrolling')

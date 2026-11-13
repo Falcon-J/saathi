@@ -2,7 +2,8 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { randomUUID } from "node:crypto"
 import { getDb } from "../../lib/db/client.ts"
-import { readWorkspace } from "../../lib/data/workspaces.ts"
+import { readWorkspace, removeWorkspaceMember, transferWorkspaceOwnershipRecord } from "../../lib/data/workspaces.ts"
+import { withTransactionContext } from "../../lib/db/transaction-context.ts"
 import { createCompany, createCanvasContainer, createWorkspaceInCanvas, addOrganizationMember, grantCanvasAccess, revokeCanvasGrant, getWorkspaceAccess } from "./service.ts"
 
 test("contextual workspace creation commits placement and receipts atomically with current authority", { skip: !process.env.DATABASE_TEST_URL }, async t => {
@@ -85,9 +86,17 @@ test("contextual workspace creation commits placement and receipts atomically wi
     await t.test("replay requires current workspace membership and current target permission", async () => {
       const input = await command()
       await createWorkspaceInCanvas(creator, input)
-      await db`DELETE FROM workspace_members WHERE workspace_id=${input.workspaceId} AND user_id=${creator}`
+      await db`INSERT INTO workspace_members(workspace_id,user_id) VALUES (${input.workspaceId},${owner})`
+      await transferWorkspaceOwnershipRecord(creator, input.workspaceId, owner, 1)
+      await removeWorkspaceMember(owner, input.workspaceId, `${creator}@context.test`)
       await assert.rejects(createWorkspaceInCanvas(creator, input), { code: "forbidden" })
-      await db`INSERT INTO workspace_members(workspace_id,user_id) VALUES (${input.workspaceId},${creator})`
+      await db.begin(async tx => withTransactionContext(tx, async () => {
+        await tx`INSERT INTO workspace_members(workspace_id,user_id) VALUES (${input.workspaceId},${creator})`
+        const workspace = await readWorkspace(input.workspaceId, owner, tx)
+        assert.ok(workspace)
+        await transferWorkspaceOwnershipRecord(owner, input.workspaceId, creator, workspace.version)
+      }))
+      assert.equal((await createWorkspaceInCanvas(creator, input)).replayed, true)
       const denied = await command()
       await revokeCanvasGrant(owner, { commandId: randomUUID(), resourceId: section, grantId: grant, expectedVersion: await version(section) })
       await assert.rejects(createWorkspaceInCanvas(creator, input), { code: "forbidden" })
@@ -96,10 +105,14 @@ test("contextual workspace creation commits placement and receipts atomically wi
       assert.equal((await getWorkspaceAccess(creator, input.workspaceId)).allowed, false)
     })
   } finally {
-    await db`DELETE FROM canvas_resources WHERE organization_id=${company}`
-    await db`DELETE FROM canvas_organizations WHERE id=${company}`
-    for (const id of workspaceIds) await db`DELETE FROM workspaces WHERE id=${id}`
-    await db`DELETE FROM auth.users WHERE id IN ${db([owner, creator])}`
-    await db.end()
+    try {
+      await db`DELETE FROM canvas_resources WHERE organization_id=${company}`
+      await db`DELETE FROM canvas_organizations WHERE id=${company}`
+      for (const id of workspaceIds) await db`DELETE FROM workspaces WHERE id=${id}`
+      await db`DELETE FROM activity_events WHERE actor_user_id IN ${db([owner, creator])}`
+      await db`DELETE FROM outbox_events WHERE workspace_id=ANY(${db.array(workspaceIds, 2950)})`
+      await db`DELETE FROM profiles WHERE id IN ${db([owner, creator])}`
+      await db`DELETE FROM auth.users WHERE id IN ${db([owner, creator])}`
+    } finally { await db.end() }
   }
 })

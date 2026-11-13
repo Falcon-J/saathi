@@ -175,7 +175,7 @@ export function projectCanvas(input: {
     const dense = taskCount > 12
     const taskFocus = [navigation.focus, navigation.selection].find((focus): focus is Extract<CanvasFocus, { kind: "task" }> => focus?.kind === "task" && focus.workspaceId === entry.workspace.id)
     return { entry, expanded, dense, taskFocus, width: expanded ? dense ? 420 : 760 : 320,
-      height: expanded ? dense ? taskFocus ? 320 : 416 : 100 + Math.ceil(taskCount / 2) * 240 : 160 }
+      height: expanded ? dense ? taskFocus ? 352 : 448 : 100 + Math.ceil(taskCount / 2) * 240 : 160 }
   })
   let rowY = 0
   for (let index = 0; index < groups.length; index += 2) {
@@ -198,13 +198,13 @@ export function projectCanvas(input: {
           ["completed_inconsistent", projection.completedInconsistencies.length],
           ["completed", graph.tasks.length - projection.ready.length - projection.waiting.length - projection.completedInconsistencies.length]]
         counts.forEach(([readiness, count], index) => nodes.push({ id: readinessNodeId(workspace.id, readiness), kind: "readiness",
-          recordId: workspace.id, workspaceId: workspace.id, parentId: id, position: { x: 24, y: 80 + index * 80 },
+          recordId: workspace.id, workspaceId: workspace.id, parentId: id, position: { x: 24, y: 112 + index * 80 },
           width: 372, height: 64, hidden: !expanded || Boolean(taskFocus), expanded: false, representation: "summary", readiness, count }))
       }
       orderedTasks.forEach((task, taskIndex) => {
         const detail = pointsAtTask(navigation.focus, workspace.id, task.id) || pointsAtTask(navigation.selection, workspace.id, task.id)
         nodes.push({ id: taskNodeId(workspace.id, task.id), kind: "task", recordId: task.id,
-          workspaceId: workspace.id, parentId: id, position: dense ? { x: 24, y: 80 } : { x: 24 + (taskIndex % 2) * 368, y: 80 + Math.floor(taskIndex / 2) * 240 },
+          workspaceId: workspace.id, parentId: id, position: dense ? { x: 24, y: 112 } : { x: 24 + (taskIndex % 2) * 368, y: 80 + Math.floor(taskIndex / 2) * 240 },
           width: dense ? 372 : 344, height: 216, hidden: !expanded || (dense && taskFocus?.taskId !== task.id), expanded: detail,
           representation: detail ? "detail" : input.zoom < 0.55 ? "compact" : "summary",
           readiness: taskReadiness.get(task.id) ?? "completed" })

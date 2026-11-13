@@ -4,7 +4,7 @@ const test = require('node:test')
 const ts = require('typescript')
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
 
-function mount({ saved, storageFails = false, results = [] } = {}) {
+function mount({ saved, storageFails = false, results = [], confirm = () => true } = {}) {
   const slots = [], effects = [], calls = [], completed = []
   let cursor = 0, sequence = 0
   const storage = new Map(saved ? [['saathi:canvas-workspace-create:actor', JSON.stringify(saved)]] : [])
@@ -18,8 +18,8 @@ function mount({ saved, storageFails = false, results = [] } = {}) {
     '@/features/access/actions': { runCanvasAccessCommand: async command => { calls.push(structuredClone(command)); assert.ok(storage.size, 'Request persisted before dispatch'); const next = results.shift(); if (next instanceof Error) throw next; return next ?? { success: true, result: {} } } } }
   const output = {}
   const source = ts.transpileModule(fs.readFileSync('components/canvas/contextual-workspace-create.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
-  new Function('require', 'exports', 'sessionStorage', 'crypto', source)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, output,
-    { getItem: key => storage.get(key), setItem(key, value) { if (storageFails) throw new Error('Storage denied'); storage.set(key, value) }, removeItem: key => storage.delete(key) }, { randomUUID: () => `id-${++sequence}` })
+  new Function('require', 'exports', 'sessionStorage', 'crypto', 'window', source)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, output,
+    { getItem: key => storage.get(key), setItem(key, value) { if (storageFails) throw new Error('Storage denied'); storage.set(key, value) }, removeItem: key => storage.delete(key) }, { randomUUID: () => `id-${++sequence}` }, { confirm })
   const props = { actorId: 'actor', target: { id: 'section', version: 3, path: 'Company / Section' }, onCancel() {}, onCreated: async id => completed.push(id) }
   return { calls, completed, storage, props, render() { cursor = 0; const tree = output.ContextualWorkspaceCreate(props); effects.splice(0).forEach(fn => fn()); return nodes(tree) } }
 }
@@ -72,4 +72,17 @@ test('a committed creation with a failed refresh retains the exact request for r
  ui.props.onCreated=async id=>ui.completed.push(id);
  await ui.render().find(n=>n.type==='Button').props.onClick();
  assert.deepEqual(ui.calls[1],ui.calls[0]); assert.equal(ui.storage.size,0);
+});
+
+test('a forbidden recovered request can be explicitly abandoned without claiming it never committed', async () => {
+ const saved={path:'Original section',command:{operation:'workspace.create',input:{commandId:'original',workspaceId:'original-workspace',parentId:'original-section',expectedParentVersion:2,resourceId:'resource',name:'Original'}}};
+ let accepted=false, cancelled=0;
+ const ui=mount({saved,results:[{success:false,error:'Access denied',code:'forbidden'}],confirm:message=>{assert.match(message,/may already have created/);return accepted}});
+ ui.props.onCancel=()=>cancelled++;ui.render();
+ await ui.render().find(n=>n.type==='Button'&&n.props.children==='Retry workspace creation').props.onClick();
+ assert.equal(ui.storage.size,1);
+ ui.render().find(n=>n.type==='Button'&&n.props.children==='Stop recovering').props.onClick();
+ assert.equal(ui.storage.size,1);assert.equal(cancelled,0);
+ accepted=true;ui.render().find(n=>n.type==='Button'&&n.props.children==='Stop recovering').props.onClick();
+ assert.equal(ui.storage.size,0);assert.equal(cancelled,1);assert.equal(ui.completed.length,0);
 });

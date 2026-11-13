@@ -169,3 +169,22 @@ test('dense readiness blocks open the complete canonical group and retain measur
   actual[0].data.open()
   assert.deepEqual(ui.opens, [focused])
 })
+
+test('focused workspace reframes when refreshed geometry changes and preserves a manual camera', () => {
+  const focus = { kind: 'workspace', workspaceId: 'a' }
+  const empty = { ...entry, graph: { ...entry.graph, tasks: [] } }
+  const dense = { ...entry, workspace: { ...entry.workspace, name: 'A very long workspace title that wraps over multiple lines', summary: 'Workspace goal' }, graph: { ...entry.graph, tasks: Array.from({ length: 50 }, (_, i) => ({ ...task, id: String(i) })) } }
+  const ui = harness()
+  ui.render({ projection: project([empty], focus), focus }); ui.initialize()
+  ui.render({ projection: project([dense], focus), ready: false })
+  assert.equal(ui.fits.length, 0)
+  ui.render({ ready: true })
+  assert.equal(ui.fits.length, 1)
+  assert.deepEqual(ui.fits[0].nodes, [{ id: 'workspace:a' }])
+  const workspace = ui.render().nodes.find(node => node.id === 'workspace:a')
+  assert.equal(workspace.data.subtitle, undefined, 'Readiness rows already carry counts; header must reserve space for its title')
+  assert.equal(workspace.data.description, undefined)
+  ui.render().onMoveStart({ type: 'wheel' })
+  ui.render({ projection: project([empty], focus) })
+  assert.equal(ui.fits.length, 1, 'Refresh cannot take the camera after deliberate manual navigation')
+})
