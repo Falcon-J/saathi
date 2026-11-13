@@ -15,6 +15,7 @@ let selected
 const component = load('components/dashboard-navigation.tsx', {
   react: { useEffect() {}, useState: initial => { selected ??= initial; return [selected, value => { selected = value }] } },
   'react/jsx-runtime': { jsx, jsxs: jsx },
+  'next/link': { default: 'Link' },
   'lucide-react': Object.fromEntries(['History', 'Home', 'LayoutGrid', 'Settings', 'Users'].map(name => [name, name])),
   '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
   '@/lib/dashboard-navigation': navigation,
@@ -69,4 +70,14 @@ test('task read errors do not replace and unmount quick add owners', () => {
   }
   walk(source)
   assert.equal(owners, 2)
+})
+
+test('Canvas is a primary route on desktop and mobile, including empty accounts', () => {
+  const links = node => !node || typeof node !== 'object' ? [] : [...(node.type === 'Link' ? [node] : []), ...[node.props?.children].flat(Infinity).flatMap(links)]
+  for (const mode of ['rail','mobile']) for (const hasWorkspace of [true,false]) {
+    const link = links(component.DashboardNavigation({ mode, hasWorkspace })).find(item => item.props.href === '/canvas')
+    assert.ok(link)
+    assert.equal(link.props['aria-label'], 'Canvas')
+    assert.ok(link.props.className.includes('focus-visible:ring-2'))
+  }
 })
