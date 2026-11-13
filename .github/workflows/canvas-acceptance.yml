@@ -1,0 +1,99 @@
+name: Authenticated canvas desktop and mobile acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/canvas-acceptance.yml
+      - 'components/**'
+      - 'app/**'
+      - 'hooks/**'
+      - 'features/**'
+      - 'lib/**'
+      - 'scripts/verify-canvas-*.mjs'
+      - 'scripts/verify-ready-waiting.mjs'
+      - 'scripts/prepare-nfr-local.mjs'
+      - 'scripts/fixtures/supabase-performance.toml'
+      - package.json
+      - package-lock.json
+
+concurrency:
+  group: saathi-canvas-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  canvas:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_POOL_MAX: '1'
+      SAATHI_QA_CANVAS_ACCESS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - run: npm ci
+      - name: Verify preparation safeguards
+        run: node --test scripts/prepare-nfr-local.test.cjs
+      - name: Prepare exact disposable project
+        run: |
+          mkdir -p .local-test/supabase-acceptance/supabase
+          cp scripts/fixtures/supabase-performance.toml .local-test/supabase-acceptance/supabase/config.toml
+      - name: Start real local Auth and PostgreSQL
+        # Keep gotrue, kong, database and mailpit; never ignore health checks.
+        # Start prints local keys; discard it. Status is captured in memory only.
+        run: |
+          supabase start --workdir .local-test/supabase-acceptance --exclude realtime,storage-api,imgproxy,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > /dev/null 2>&1
+      - name: Start disposable Redis
+        run: |
+          docker run --detach --name saathi-performance-redis --publish 127.0.0.1:56379:6379 --health-cmd 'redis-cli ping' --health-interval 1s --health-timeout 3s --health-retries 30 redis:7-alpine
+          for attempt in $(seq 1 40); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' saathi-performance-redis)" = healthy ]; then exit 0; fi
+            sleep 1
+          done
+          echo 'Disposable Redis did not become healthy' >&2
+          exit 1
+      - name: Migrate real Auth database and build production app
+        run: node scripts/prepare-nfr-local.mjs
+      - name: Verify real OAuth through the MCP runtime
+        run: node --experimental-strip-types scripts/verify-mcp-local.mjs
+        env:
+          SAATHI_QA_SUPABASE_CLI: supabase
+          SAATHI_QA_SUPABASE_PROJECT: saathi-performance-ci
+      - name: Install authenticated browser acceptance dependencies
+        run: npx playwright install --with-deps chrome
+      - name: Verify Ready and Waiting and canvas with real Auth
+        run: npm run verify:canvas:local
+        env:
+          SAATHI_QA_SUPABASE_CLI: supabase
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canvas-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: |
+            .local-test/ready-waiting-*/results.json
+            .local-test/ready-waiting-*/*.png
+            .local-test/mcp-oauth-*/result.json
+      - name: Stop exact disposable services
+        if: always()
+        run: |
+          status=0
+          supabase stop --workdir .local-test/supabase-acceptance --project-id saathi-performance-ci --no-backup || status=1
+          if docker container inspect saathi-performance-redis >/dev/null 2>&1; then
+            docker rm --force saathi-performance-redis || status=1
+          fi
+          exit "$status"

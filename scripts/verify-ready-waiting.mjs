@@ -270,7 +270,7 @@ try {
   if (process.env.SAATHI_QA_CANVAS === 'true') {
     phase = 'canvas-workflow'
     const { verifyCanvasWorkflow } = await import('./verify-canvas-workflow.mjs')
-    await verifyCanvasWorkflow({ page, member, db, workspace, users, base, accessibility, evidence, log })
+    await verifyCanvasWorkflow({ page, member, db, bridge, workspace, users, base, accessibility, evidence, log })
   }
 } catch (error) {
   failed = true

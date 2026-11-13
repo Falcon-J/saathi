@@ -1,27 +1,63 @@
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { expect as baseExpect } from '@playwright/test'
 
 const expect = baseExpect.configure({ timeout: 30_000 })
 
+async function expectInsideCanvas(page, locator) {
+  await expect(locator).toBeVisible()
+  await expect.poll(async () => {
+    const item = await locator.boundingBox()
+    const canvas = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+    const viewport = page.viewportSize()
+    return Boolean(item && canvas && viewport && item.width > 0 && item.height > 0
+      && item.x >= Math.max(0, canvas.x) - 1 && item.y >= Math.max(0, canvas.y) - 1
+      && item.x + item.width <= Math.min(viewport.width, canvas.x + canvas.width) + 1
+      && item.y + item.height <= Math.min(viewport.height, canvas.y + canvas.height) + 1)
+  }).toBe(true)
+}
+
 /** Extends the real-Auth handoff verifier, reusing its server, users and cleanup. */
-export async function verifyCanvasWorkflow({ page, member, db, workspace, users, base, accessibility, evidence, log }) {
+export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace, users, base, accessibility, evidence, log }) {
   const companyName = `Canvas acceptance ${randomUUID()}`
   const sectionName = 'Delivery section'
   const agentRunId = randomUUID(), agentGrantId = randomUUID(), agentClientId = `canvas-browser-${randomUUID()}`
+  const otherWorkspace = randomUUID(), privateWorkspace = randomUUID()
+  const otherWorkspaceName = 'Canvas second workspace'
+  const otherTask = randomUUID(), privateTask = randomUUID()
+  const sharedQuery = `Canvas cross-workspace ${randomUUID()}`
+  const otherTitle = `${sharedQuery} visible`, privateTitle = `${sharedQuery} private`
   let agentTaskId
   let companyId
   try {
     // The preceding Ready/Waiting journey ends at its mobile viewport.
     await page.setViewportSize({ width: 1280, height: 900 })
-    await page.goto(`${base}/canvas`)
+    await db.begin(async tx => {
+      await tx`INSERT INTO workspaces(id,name,owner_user_id) VALUES(${otherWorkspace},${otherWorkspaceName},${users[0].id}),(${privateWorkspace},'Private outsider workspace',${users[2].id})`
+      await tx`INSERT INTO workspace_members(workspace_id,user_id) VALUES(${otherWorkspace},${users[0].id}),(${privateWorkspace},${users[2].id})`
+      await tx`INSERT INTO tasks(id,workspace_id,title,created_by_user_id) VALUES(${otherTask},${otherWorkspace},${otherTitle},${users[0].id}),(${privateTask},${privateWorkspace},${privateTitle},${users[2].id})`
+    })
+    await page.goto(`${base}/dashboard`)
+    await page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true }).click()
+    await expect(page).toHaveURL(`${base}/canvas`)
+    await page.getByLabel('Current workspace', { exact: true }).selectOption(workspace)
     await expect(page.getByRole('region', { name: 'Workspace canvas', exact: true })).toBeVisible()
     const search = page.getByRole('combobox', { name: 'Search commands and tasks', exact: true })
     await expect(search).toBeEnabled()
     await page.keyboard.press('Control+k')
     await expect(search).toBeFocused()
+    await search.fill(sharedQuery)
+    await expect(page.getByRole('option').filter({ hasText: otherTitle })).toBeVisible()
+    await expect(page.getByRole('option').filter({ hasText: privateTitle })).toHaveCount(0)
+    await page.getByRole('option').filter({ hasText: otherTitle }).click()
+    const crossWorkspaceEditor = page.getByRole('dialog', { name: 'Edit task', exact: true })
+    await expect(page.getByLabel('Current workspace', { exact: true })).toHaveValue(otherWorkspace)
+    await expect(crossWorkspaceEditor.getByLabel('Title', { exact: true })).toHaveValue(otherTitle)
+    await crossWorkspaceEditor.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await page.getByLabel('Current workspace', { exact: true }).selectOption(workspace)
+    await expect(search).toBeEnabled()
     await search.fill('Publish handoff')
-    await page.getByRole('option', { name: 'Publish handoff', exact: true }).click()
+    await page.getByRole('option').filter({ hasText: 'Publish handoff' }).click()
     const editor = page.getByRole('dialog', { name: 'Edit task', exact: true })
     await expect(editor.getByLabel('Title', { exact: true })).toHaveValue('Publish handoff')
     await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -80,6 +116,9 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await expect(page.getByRole('button', { name: 'Stop following', exact: true })).toHaveCount(0)
     await expect(run.getByRole('button', { name: 'Follow agent', exact: true })).toBeEnabled()
     await run.getByLabel('Review comment', { exact: true }).fill('Verified in the signed-in canvas')
+    await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
+    await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('agents')
+    await expect(run.getByLabel('Review comment', { exact: true })).toHaveValue('Verified in the signed-in canvas')
     const reviewRequestPending = page.waitForRequest(request => request.method() === 'POST' && Boolean(request.headers()['next-action']) && Boolean(request.postData()?.includes(agentRunId)))
     await run.getByRole('button', { name: 'Approve and complete task', exact: true }).click()
     const reviewRequest = await reviewRequestPending
@@ -108,13 +147,34 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await page.getByRole('button', { name: 'Close work area', exact: true }).click()
     await accessibility(page)
     await page.screenshot({ path: `${evidence}/canvas-desktop.png`, fullPage: true })
-    await page.setViewportSize({ width: 360, height: 800 })
     await page.emulateMedia({ reducedMotion: 'reduce' })
+    const taskNode = page.locator(`.react-flow__node[data-id="task:${workspace}:${agentTaskId}"]`)
+    for (const viewport of [{ width: 360, height: 800 }, { width: 800, height: 360 }, { width: 360, height: 800 }]) {
+      await page.setViewportSize(viewport)
+      await expectInsideCanvas(page, taskNode.getByRole('heading', { name: title, exact: true }))
+      await expectInsideCanvas(page, taskNode.getByRole('button', { name: `Open ${title}`, exact: true }))
+      await expect(search).toBeVisible()
+      await accessibility(page)
+    }
+    await taskNode.getByRole('button', { name: `Open ${title}`, exact: true }).click()
+    await expect(editor.getByLabel('Title', { exact: true })).toHaveValue(title)
+    await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
+    await expect(workArea).toBeVisible()
+    await expect.poll(async () => {
+      const canvas = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+      const pane = await workArea.boundingBox()
+      return Boolean(canvas && pane && canvas.height > 100 && canvas.y + canvas.height <= pane.y + 1)
+    }).toBe(true)
     await accessibility(page)
-    await expect(search).toBeVisible()
     await page.screenshot({ path: `${evidence}/canvas-mobile.png`, fullPage: true })
+    await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+    await page.goto(`${base}/dashboard`)
+    await page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true }).click()
+    await expect(page).toHaveURL(`${base}/canvas`)
+    await expect(search).toBeEnabled()
     await page.setViewportSize({ width: 1280, height: 900 })
-    await page.getByRole('button', { name: 'Company canvas', exact: true }).click()
+    await page.getByRole('button', { name: 'Manage canvas', exact: true }).click()
     const panel = page.getByRole('dialog', { name: 'Company canvas', exact: true })
     await panel.getByLabel('Company name', { exact: true }).fill(companyName)
     await panel.getByRole('button', { name: 'Create company', exact: true }).click()
@@ -150,6 +210,33 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await expect(page.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     await accessibility(page)
     await page.screenshot({ path: `${evidence}/canvas-association.png`, fullPage: true })
+    await page.getByRole('button', { name: `Open ${sectionName}`, exact: true }).click()
+    await expect(panel).not.toBeVisible()
+    const hierarchy = page.getByRole('navigation', { name: 'Canvas hierarchy', exact: true })
+    await expect(hierarchy.getByRole('button', { name: sectionName, exact: true })).toHaveAttribute('aria-current', 'location')
+    await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+    await page.getByLabel('Current workspace', { exact: true }).selectOption(otherWorkspace)
+    await page.getByRole('button', { name: 'Manage canvas', exact: true }).click()
+    await panel.getByLabel('Company, section or workspace', { exact: true }).selectOption(sectionForLink.id)
+    await panel.getByLabel(/Existing workspace members without section access/).check()
+    await panel.getByRole('button', { name: 'Attach workspace', exact: true }).click()
+    let otherAttachment
+    await expect.poll(async () => {
+      const [row] = await db`SELECT id FROM canvas_resources WHERE workspace_id=${otherWorkspace}`
+      otherAttachment = row?.id
+      return Boolean(otherAttachment)
+    }).toBe(true)
+    await panel.getByRole('button', { name: 'Close', exact: true }).click()
+    await page.getByLabel('Current workspace', { exact: true }).selectOption(workspace)
+    await page.getByRole('button', { name: 'Manage canvas', exact: true }).click()
+    await panel.getByLabel('Company, section or workspace', { exact: true }).selectOption(otherAttachment)
+    await panel.getByRole('button', { name: `${otherWorkspaceName} invitations`, exact: true }).click()
+    await expect(panel).not.toBeVisible()
+    await expect(page.getByLabel('Current workspace', { exact: true })).toHaveValue(otherWorkspace)
+    await expect(workArea.getByRole('heading', { name: otherWorkspaceName, exact: true, level: 2 })).toBeVisible()
+    await expect(workArea.getByLabel('Workspace tools', { exact: true })).toHaveValue('team')
+    await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+    await page.getByLabel('Current workspace', { exact: true }).selectOption(workspace)
     await member.goto(`${base}/canvas`)
     const memberSearch = member.getByRole('combobox', { name: 'Search commands and tasks', exact: true })
     await expect(memberSearch).toBeEnabled()
@@ -157,8 +244,16 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await expect(member.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     await memberSearch.fill('create')
     await expect(member.getByRole('option', { name: 'Create task', exact: true })).toHaveCount(0)
+    const hiddenSearchResponse = member.waitForResponse(response => response.request().method() === 'POST'
+      && Boolean(response.request().headers()['next-action']) && Boolean(response.request().postData()?.includes(sharedQuery)))
+    await memberSearch.fill(sharedQuery)
+    const hiddenSearchPayload = await (await hiddenSearchResponse).text()
+    assert.equal(hiddenSearchPayload.includes(otherTitle), false)
+    assert.equal(hiddenSearchPayload.includes(privateTitle), false)
+    await expect(member.getByRole('option').filter({ hasText: otherTitle })).toHaveCount(0)
+    await expect(member.getByRole('option').filter({ hasText: privateTitle })).toHaveCount(0)
     await memberSearch.fill('Publish handoff')
-    await member.getByRole('option', { name: 'Publish handoff', exact: true }).click()
+    await member.getByRole('option').filter({ hasText: 'Publish handoff' }).click()
     const details = member.getByRole('dialog', { name: 'Task details', exact: true })
     await expect(details.getByLabel('Title', { exact: true })).toBeDisabled()
     await expect(details.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0)
@@ -186,7 +281,7 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
       source.onerror = () => { window.__canvasAccessProbe.errors++ }
     }, workspace)
     await expect.poll(() => member.evaluate(() => window.__canvasAccessProbe.connected)).toBe(true)
-    await page.getByRole('button', { name: 'Company canvas', exact: true }).click()
+    await page.getByRole('button', { name: 'Manage canvas', exact: true }).click()
     const [section] = await db`SELECT id FROM canvas_resources WHERE organization_id=${companyId} AND name=${sectionName}`
     await panel.getByLabel('Company, section or workspace', { exact: true }).selectOption(section.id)
     const grant = panel.locator('section').filter({ has: page.getByRole('heading', { name: 'Explicit grants', exact: true }) }).locator('div.rounded-lg').filter({ hasText: 'QA member' })
@@ -196,9 +291,15 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     await expect.poll(async () => (await member.request.get(`${base}/api/usage?workspaceId=${workspace}`)).status()).toBe(403)
     await expect.poll(() => member.evaluate(() => window.__canvasAccessProbe.errors), { timeout: 15000 }).toBeGreaterThan(0)
     await expect(member.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toHaveCount(0)
-    await expect(memberSearch).toBeDisabled()
+    await expect(memberSearch).toBeEnabled()
+    const revokedSearchResponse = member.waitForResponse(response => response.request().method() === 'POST'
+      && Boolean(response.request().headers()['next-action']) && Boolean(response.request().postData()?.includes('Publish handoff')))
+    await memberSearch.fill('Publish handoff')
+    const revokedSearchPayload = await (await revokedSearchResponse).text()
+    assert.equal(revokedSearchPayload.includes('Publish handoff'), false)
+    await expect(member.getByRole('option').filter({ hasText: 'Publish handoff' })).toHaveCount(0)
     await member.evaluate(() => { window.__canvasAccessProbe.source.close(); delete window.__canvasAccessProbe })
-    log({ canvas: { deterministicCreate: true, scopedSearch: true, draftRecovery: true, desktopMobileAccessibility: true, reducedMotion: true, sectionReadOnly: true, legacyReadOnly: true, referenceRoundtrip: true, realtimeRevocation: true } })
+    log({ canvas: { deterministicCreate: true, scopedSearch: true, crossWorkspaceSearch: true, privateSearchExcluded: true, invitationTargetMatchesSelection: true, sectionExploration: true, draftRecovery: true, reviewDraftRemount: true, resizedTaskControlsInsideCanvas: true, mobileCanvasPreserved: true, desktopMobileAccessibility: true, reducedMotion: true, sectionReadOnly: true, legacyReadOnly: true, referenceRoundtrip: true, realtimeRevocation: true } })
   } finally {
     await member.evaluate(() => { window.__canvasAccessProbe?.source.close(); delete window.__canvasAccessProbe }).catch(() => {})
     await db.begin(async tx => {
@@ -218,6 +319,23 @@ export async function verifyCanvasWorkflow({ page, member, db, workspace, users,
     for (const row of owned) {
       await db.begin(async tx => { await tx`DELETE FROM canvas_resources WHERE organization_id=${row.id}` })
       assert.equal((await db`SELECT id FROM canvas_resources WHERE organization_id=${row.id}`).length, 0)
+    }
+    for (const id of [otherWorkspace, privateWorkspace]) {
+      await db.begin(async tx => {
+        await tx`DELETE FROM activity_events WHERE workspace_id=${id}`
+        await tx`DELETE FROM outbox_events WHERE workspace_id=${id}`
+        await tx`DELETE FROM workspaces WHERE id=${id}`
+      })
+      assert.equal((await db`SELECT id FROM workspaces WHERE id=${id}`).length, 0)
+      await bridge.command(['DEL', `stream:${id}`])
+      const hash = createHash('sha256').update(`invite-workspace:${id}`).digest('hex').slice(0, 16)
+      const prefix = `rate:${hash}:`
+      let cursor = '0'
+      do {
+        const scan = await bridge.command(['SCAN', cursor, 'MATCH', `${prefix}*`, 'COUNT', 100])
+        cursor = String(scan[0])
+        for (const key of scan[1]) if (key.startsWith(prefix)) await bridge.command(['DEL', key])
+      } while (cursor !== '0')
     }
   }
 }
