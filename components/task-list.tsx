@@ -50,6 +50,7 @@ interface TaskListProps {
   onEditTask: (taskId: string, updates: TaskUpdate, expectedVersion?: number | string) => Promise<unknown>
   openTaskId?: string | null
   openTaskRequest?: number
+  openTaskReady?: boolean
   commentRefreshEvent?: RealtimeEvent | null
   focusQuickAdd?: number
   draftScope?: string
@@ -70,6 +71,7 @@ export const TaskList = memo(function TaskList({
   onEditTask,
   openTaskId,
   openTaskRequest = 0,
+  openTaskReady = true,
   commentRefreshEvent,
   focusQuickAdd,
   onReviewBoard,
@@ -143,9 +145,10 @@ export const TaskList = memo(function TaskList({
       openedTaskIdRef.current = null
       return
     }
+    if (!openTaskReady) return
     // A record ID is selection; the request distinguishes an explicit repeat Open from a live refresh.
     if (openedTaskIdRef.current === openTaskId && openedTaskRequestRef.current === openTaskRequest) return
-    const task = tasks.find((item) => item.id === openTaskId) ?? (detailTask?.id === openTaskId ? detailTask : null)
+    const task = detailTask?.id === openTaskId ? detailTask : tasks.find((item) => item.id === openTaskId)
     if (!task) return
     openedTaskIdRef.current = openTaskId
     openedTaskRequestRef.current = openTaskRequest
@@ -155,7 +158,7 @@ export const TaskList = memo(function TaskList({
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, openTaskRequest, tasks, detailTask, draftKey, restoredScope])
+  }, [openTaskId, openTaskRequest, openTaskReady, tasks, detailTask, draftKey, restoredScope])
 
   const filteredTasks = useMemo(() => {
     if (paging) return tasks

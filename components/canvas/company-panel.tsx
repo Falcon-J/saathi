@@ -83,7 +83,7 @@ export function CompanyPanel({ actorId, resources, workspace, initialResourceId,
       retained.current = null; setPending(null)
       try { sessionStorage.removeItem(storageKey) } catch { /* Receipt replay remains safe. */ }
       setCompanyName(""); setContainerName(""); setGroupName(""); setConfirmAttach(false)
-      if (["company.create", "container.create", "workspace.attach"].includes(command.operation)) setSelectedId(result.result.id)
+      if (["company.create", "container.create", "workspace.attach"].includes(command.operation)) { setSelectedId(result.result.id); setKind("section") }
       setRevision(value => value + 1)
       try { await onChanged() } catch { setError("Access change saved. Refresh the canvas to see its current state.") }
     } catch { setError("Unable to confirm the access change. Retry the original command to recover its result.") }

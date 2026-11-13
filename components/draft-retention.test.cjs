@@ -119,3 +119,16 @@ test('an explicit new open request reopens the same task while ordinary refreshe
  props.tasks=[{...task,version:6}]
  assert.equal(ui.editor().props.draft.title,'Keep my edit','refreshes cannot replace an active draft')
 })
+
+test('off-page repeat open waits for its matching fresh detail instead of consuming cached fields', () => {
+ storage.clear()
+ const old={id:'task',workspaceId:'w',title:'Off page',description:'Old fields',priority:'medium',completed:false,createdBy:'owner',createdAt:'2026-11-05',updatedAt:'2026-11-05',version:4}
+ const props={tasks:[],detailTask:old,loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',openTaskId:'task',openTaskRequest:1,openTaskReady:true,draftScope:'account-a:w'}
+ const ui=mount('task-list',props)
+ ui.editor().props.onClose();ui.render()
+ props.openTaskRequest=2;props.openTaskReady=false
+ assert.equal(ui.editor().props.task,null,'an unfinished authoritative read cannot reopen cached detail')
+ props.tasks=[old];props.detailTask={...old,description:'Saved fields',version:5};props.openTaskReady=true
+ assert.equal(ui.editor().props.task.version,5)
+ assert.equal(ui.editor().props.draft.description,'Saved fields')
+})
