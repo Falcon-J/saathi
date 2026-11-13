@@ -31,6 +31,7 @@ import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@
 import { ACCESS_CAPABILITIES } from "@/features/access/contracts"
 import { permitsCapability } from "@/lib/capability-ceiling"
 import { canvasUrl, parseCanvasUrl, resolveCanvasUrl, type CanvasLocation } from "@/features/canvas/navigation-url"
+import { installHistoryPositions, readHistoryPosition, historyTraversalDelta, publicHistoryState, type HistoryPosition } from "@/lib/browser-history"
 
 const CanvasFlow = dynamic(() => import("./canvas-flow"), { ssr: false,
   loading: () => <p role="status" className="p-6">Loading canvas…</p> })
@@ -78,6 +79,10 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const focused = currentNavigation.focus
   const breadcrumbs = canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks)
   const locationButton = useRef<HTMLButtonElement | null>(null)
+  const workTools = useRef<HTMLSelectElement | null>(null)
+  const workFocusRequested = useRef(false)
+  const [workFocusRevision, setWorkFocusRevision] = useState(0)
+  const requestWorkFocus = () => { workFocusRequested.current = true; setWorkFocusRevision(value => value + 1) }
   const selectedTask = focused.kind === "task"
     ? tasks.find(task => task.id === focused.taskId) ?? null : null
   const isOwner = workspace ? account === normalizeEmail(workspace.ownerId) : false
@@ -89,24 +94,24 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const canLeaveAll = useCallback(() => !Object.values(dirty.current).some(Boolean) || window.confirm("Leave this page or workspace? Unsaved changes may be lost if browser recovery is unavailable."), [])
   const stopFollowing = useCallback(() => setNavigation(state => state.followingAgent ? { ...state, followingAgent: false } : state), [setNavigation])
   const [pendingLocation, setPendingLocation] = useState<{ location: CanvasLocation | null } | null>(null)
-  const browserNavigation = useRef<{ sessionId: string; index: number; url: string; key: string; pending: boolean; expected: string | null; reverting: boolean; snapshot: Record<string, unknown> } | null>(null)
+  const browserNavigation = useRef<{ position: HistoryPosition; url: string; key: string; pending: boolean; expected: string | null; reverting: boolean } | null>(null)
   const location = useMemo<CanvasLocation>(() => ({ focus: focused, view: workOpen ? tool : null, group: workOpen && tool === "ready" ? readyGroup ?? null : null }), [focused, workOpen, tool, readyGroup])
   const locationKey = canvasUrl(location)
   const historyGuards = useRef({ canLeave, canLeaveAll, hasActiveDraft, workspaceId: store.currentWorkspaceId, focus: focused })
   useLayoutEffect(() => { historyGuards.current = { canLeave, canLeaveAll, hasActiveDraft, workspaceId: store.currentWorkspaceId, focus: focused } }, [canLeave, canLeaveAll, hasActiveDraft, store.currentWorkspaceId, focused])
   useEffect(() => {
     const url = () => window.location.pathname + window.location.search + window.location.hash
-    const sessionId = `${Date.now()}-${Math.random()}`
-    const index = 0
-    const state = { sessionId, index, url: url(), key: "", pending: true, expected: null as string | null, reverting: false, snapshot: { ...window.history.state } }
+    installHistoryPositions(window)
+    const state = { position: readHistoryPosition(window), url: url(), key: "", pending: true, expected: null as string | null, reverting: false }
     browserNavigation.current = state
-    window.history.replaceState({ ...window.history.state, __saathiCanvas: { actorId, sessionId, index } }, "", state.url)
-    state.snapshot = { ...window.history.state }
     const initial = parseCanvasUrl(state.url)
     if (initial?.focus.kind === "overview") { state.pending = false; state.key = canvasUrl(initial) }
     else setPendingLocation({ location: initial })
     const pop = (event: PopStateEvent) => {
       if (state.reverting) { state.reverting = false; return }
+      workFocusRequested.current = false
+      const position = readHistoryPosition(window)
+      const delta = historyTraversalDelta(state.position, position)
       const target = parseCanvasUrl(url())
       const guard = historyGuards.current
       const focus = target?.focus
@@ -117,29 +122,24 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
       const resumesEditor = focus?.kind === "task" && dirtyEditorTask.current === focus.taskId && !changesWorkspace
       const blockedActiveTask = changesTask && !resumesEditor && guard.hasActiveDraft()
       if (blockedEditor || blockedActiveTask) setMutationError("Save or discard the open draft before opening another task.")
-      const allowed = !writing.current && !blockedEditor && !blockedActiveTask && (resumesEditor || (changesPage || changesWorkspace ? guard.canLeaveAll() : guard.canLeave()))
-      const entry = event.state?.__saathiCanvas
-      const nextIndex = entry?.actorId === actorId && entry.sessionId === sessionId && Number.isSafeInteger(entry.index) ? entry.index : null
+      // Pre-instrumentation entries without a native index cannot be reversed safely.
+      // Preserve their contents and allow the native traversal instead of erasing them.
+      const canReverse = delta !== null && delta !== 0
+      const allowed = !canReverse || (!writing.current && !blockedEditor && !blockedActiveTask && (resumesEditor || (changesPage || changesWorkspace ? guard.canLeaveAll() : guard.canLeave())))
       if (!allowed) {
-        if (nextIndex !== null && nextIndex !== state.index) {
-          state.reverting = true
-          window.history.go(state.index - nextIndex)
-        } else {
-          window.history.replaceState(state.snapshot, "", state.url)
-          // Let Next restore its saved route tree as well as the address after a foreign entry.
-          state.reverting = true
-          window.dispatchEvent(new window.PopStateEvent("popstate", { state: state.snapshot }))
-        }
+        event.stopImmediatePropagation()
+        state.reverting = true
+        window.history.go(delta!)
         return
       }
       if (changesPage) { state.pending = true; return }
-      state.index = nextIndex ?? state.index
+      state.position = position
       state.url = url(); state.pending = true
       setNavigation(previous => previous.followingAgent ? { ...previous, followingAgent: false } : previous)
       setPendingLocation({ location: target })
     }
-    window.addEventListener("popstate", pop)
-    return () => { window.removeEventListener("popstate", pop); browserNavigation.current = null }
+    window.addEventListener("popstate", pop, { capture: true })
+    return () => { window.removeEventListener("popstate", pop, { capture: true }); browserNavigation.current = null }
   }, [actorId])
   useEffect(() => {
     const state = browserNavigation.current
@@ -168,8 +168,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     if (restored.view === "tasks") { setTasksMounted(true); if (restored.focus.kind === "task") setOpenTaskRequest(value => value + 1) }
     state.expected = canvasUrl(restored); state.key = state.expected; state.pending = false
     state.url = canvasUrl(restored, state.url)
-    window.history.replaceState({ ...window.history.state, __saathiCanvas: { actorId, sessionId: state.sessionId, index: state.index } }, "", state.url)
-    state.snapshot = { ...window.history.state }
+    window.history.replaceState(publicHistoryState(window.history.state), "", state.url)
+    state.position = readHistoryPosition(window)
     setPendingLocation(null)
   }, [pendingLocation, store, companies.loading, companies.error, companies.resources, graph.entry, graph.loading, graph.error, tasks, actorId, scope, isOwner, capabilityCeiling])
   useEffect(() => {
@@ -183,10 +183,9 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     if (state.key === locationKey) return
     // Reconciliation and agent following replace history; camera changes never enter it.
     const replace = navigation.followingAgent || canvasUrl({ focus: navigation.focus, view: workOpen ? tool : null, group: workOpen && tool === "ready" ? readyGroup ?? null : null }) !== locationKey
-    if (!replace) state.index++
     state.url = canvasUrl(location, state.url); state.key = locationKey
-    window.history[replace ? "replaceState" : "pushState"]({ ...window.history.state, __saathiCanvas: { actorId, sessionId: state.sessionId, index: state.index } }, "", state.url)
-    state.snapshot = { ...window.history.state }
+    window.history[replace ? "replaceState" : "pushState"](publicHistoryState(window.history.state), "", state.url)
+    state.position = readHistoryPosition(window)
   }, [location, locationKey, navigation, actorId, workOpen, tool, readyGroup, store.loading, store.workspaceError, store.workspaces, companies.loading, companies.error, graph.loading, graph.error, graph.entry])
   const dismissPendingLocation = useCallback(() => {
     const state = browserNavigation.current
@@ -212,6 +211,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     const changesWorkspace = (focus.kind === "workspace" || focus.kind === "task") && focus.workspaceId !== store.currentWorkspaceId
     if (!resumesEditor && !(changesWorkspace ? canLeaveAll() : canLeave())) return
     dismissPendingLocation()
+    workFocusRequested.current = false
     if (changesWorkspace && (focus.kind === "workspace" || focus.kind === "task")) {
       dirty.current = { tasks: false, settings: false }; dirtyEditorTask.current = undefined
       setQuickAdd(0); setTasksMounted(false)
@@ -223,7 +223,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     return true
   }, [canLeave, canLeaveAll, hasActiveDraft, dismissPendingLocation, setNavigation, setWorkOpen, setWorkMounted, setTool, setMutationError, setQuickAdd, setOpenTaskRequest, setTasksMounted, store])
   const openTask = (id: string, workspaceId = workspace?.id) => { if (workspaceId && store.workspaces.some(item => item.id === workspaceId)) return open({ kind: "task", workspaceId, taskId: id }) }
-  const openWorkspace = () => { if (workspace && (focused.kind === "workspace" || focused.kind === "task") && focused.workspaceId === workspace.id && open({ kind: "workspace", workspaceId: workspace.id })) { setReadyGroup(undefined); setTool("ready"); setWorkOpen(true); setWorkMounted(true) } }
+  const openWorkspace = () => { if (workspace && (focused.kind === "workspace" || focused.kind === "task") && focused.workspaceId === workspace.id && open({ kind: "workspace", workspaceId: workspace.id })) { setReadyGroup(undefined); setTool("ready"); setWorkOpen(true); setWorkMounted(true); requestWorkFocus() } }
   const followTask = (taskId: string) => {
     if (!workspace || !tasks.some(task => task.id === taskId && task.workspaceId === workspace.id)) {
       void graph.reload()
@@ -267,6 +267,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const createTask = () => {
     if (!workspace || !capabilityCeiling.create || !canLeave()) return
     dismissPendingLocation()
+    workFocusRequested.current = false
     setNavigation(state => navigateCanvas(state, { kind: "workspace", workspaceId: workspace.id }, "manual"))
     setTool("tasks"); setTasksMounted(true); setWorkOpen(true); setWorkMounted(true); setQuickAdd(value => value + 1)
   }
@@ -293,6 +294,12 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const broadSearch = focused.kind === "overview" || focused.kind === "resource"
   const commandDisabled = store.loading || companies.loading || Boolean(store.workspaceError || companies.error) || (!broadSearch && (!workspace || !graph.entry || graph.loading || workspaceUnavailable || !capabilityCeiling.read))
   const showWorkArea = workOpen && Boolean(graph.entry && capabilityCeiling.read)
+  useLayoutEffect(() => {
+    if (workFocusRequested.current && showWorkArea && workTools.current) {
+      workFocusRequested.current = false
+      workTools.current.focus()
+    }
+  }, [workFocusRevision, showWorkArea])
   const dockClearance = navigation.followingAgent
     ? "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+8.25rem)] sm:bottom-32"
     : "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.25rem)] sm:bottom-32"
@@ -333,7 +340,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
-          onOpenGroup={(workspaceId, readiness) => { if (workspaceId !== workspace?.id || graph.loading || !capabilityCeiling.read || !open({ kind: "workspace", workspaceId })) return; stopFollowing(); if (readiness === "completed") { setListReadiness(readiness); setListOpen(true) } else { setReadyGroup(readiness); setTool("ready"); setWorkOpen(true); setWorkMounted(true) } }}
+          onOpenGroup={(workspaceId, readiness) => { if (workspaceId !== workspace?.id || graph.loading || !capabilityCeiling.read || !open({ kind: "workspace", workspaceId })) return; stopFollowing(); if (readiness === "completed") { setListReadiness(readiness); setListOpen(true) } else { setReadyGroup(readiness); setTool("ready"); setWorkOpen(true); setWorkMounted(true); requestWorkFocus() } }}
           onManualNavigation={stopFollowing} /></ReactFlowProvider></div>
 
           {graph.loading && <p role="status" className="absolute bottom-2 left-4 rounded bg-card px-3 py-1 text-sm">Refreshing…</p>}
@@ -343,7 +350,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
           <h2 className="sr-only sm:not-sr-only sm:min-w-0 sm:truncate sm:font-semibold">{selectedTask?.title ?? workspace.name}</h2>
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <select aria-label="Workspace tools" value={tool} className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm" onChange={event => changeTool(event.target.value as Tool)}>
+            <select ref={workTools} aria-label="Workspace tools" value={tool} className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm" onChange={event => changeTool(event.target.value as Tool)}>
               <option value="ready">Ready and Waiting</option><option value="tasks">Task board</option>
               {capabilityCeiling.edit && <option value="prerequisites">Prerequisites</option>}
               <option value="agents">Agent runs</option><option value="team">Team</option><option value="activity">History</option>

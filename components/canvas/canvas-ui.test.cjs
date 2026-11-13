@@ -10,7 +10,7 @@ function load(path, dependencies, browser) {
   new Function('require', 'exports', 'window', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, browser)
   return exports
 }
-const runtime = { 'react/jsx-runtime': { jsx, jsxs: jsx } }
+const runtime = { 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts') }
 
 test('canvas route redirects anonymous accounts before mounting the client surface', async () => {
   const route = load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: async () => null },
@@ -201,7 +201,7 @@ test('company and overview commands never expose an unrelated workspace action',
 });
 
 test('native phone viewport keeps zoom available and opts into content resizing',()=>{
- const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'./globals.css':{}});
+ const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/history-position-provider':{HistoryPositionProvider:'HistoryPositionProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'./globals.css':{}});
  assert.equal(layout.viewport.width,'device-width');assert.equal(layout.viewport.initialScale,1);
  assert.notEqual(layout.viewport.viewportFit,'cover');assert.equal(layout.viewport.interactiveWidget,'resizes-content');
  assert.notEqual(layout.viewport.userScalable,false);assert.equal(layout.viewport.maximumScale,undefined);
@@ -213,4 +213,16 @@ test('selected actionable tasks get one direct Complete action using the same gu
  action.props.onClick();assert.deepEqual(ui.calls,['complete']);assert.equal(ui.render().find(n=>n.type==='CommandList').props.hidden,true);
  for(const overrides of [{busy:true},{disabled:true}]){const blocked=bar(overrides);const button=blocked.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task');assert.equal(button.props.disabled,true);button.props.onClick();assert.deepEqual(blocked.calls,[]);}
  for(const overrides of [{canComplete:false},{selectedTask:null},{selectedTask:{id:'a',title:'Allowed task',completed:true}},{selectedTask:{id:'a',title:'Allowed task',status:'done',completed:false}},{searchScope:{}}])assert.equal(bar(overrides).render().some(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task'),false);
+});
+
+test('signed-out canvas links retain their bounded task destination through sign-in', async () => {
+ const route=load('app/canvas/page.tsx',{...runtime,'@/lib/auth-simple':{getSession:async()=>null},'next/navigation':{redirect:path=>{throw new Error(path)}},'@/components/canvas/canvas-shell':{CanvasShell:'CanvasShell'}});
+ const destination='/canvas?workspace=w&task=t&view=tasks';
+ await assert.rejects(route.default({searchParams:Promise.resolve({workspace:'w',task:'t',view:'tasks'})}), error=>new URL(error.message,'https://saathi.test').searchParams.get('redirect')===destination);
+ await assert.rejects(route.default({searchParams:Promise.resolve({workspace:['w','other'],task:'t',view:'tasks',redirect:'//outside.test'})}), error=>new URL(error.message,'https://saathi.test').searchParams.get('redirect')==='/canvas');
+});
+test('an unavailable canvas account can retry the same valid task link', async () => {
+ const route=load('app/canvas/page.tsx',{...runtime,'@/lib/auth-simple':{getSession:async()=>{throw Error('Unavailable')}},'next/navigation':{redirect(){throw Error('Unexpected')}},'@/components/canvas/canvas-shell':{CanvasShell:'CanvasShell'}});
+ const tree=await route.default({searchParams:Promise.resolve({workspace:'w',task:'t',view:'tasks'})});
+ assert.equal(nodes(tree).find(n=>n.type==='a').props.href,'/canvas?workspace=w&task=t&view=tasks');
 });

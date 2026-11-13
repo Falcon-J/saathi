@@ -2,10 +2,11 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const test = require('node:test')
 const ts = require('typescript')
+const historyModule = require('../../lib/browser-history.ts')
 const shellCode = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
 function harness(options = {}) {
-  const slots = [], effects = [], calls = [], listeners = new Map()
+  const slots = [], effects = [], calls = [], listeners = new Map(), handlers = new Map()
   let cursor = 0, tree
   const changed = (a, b) => !a || a.length !== b.length || a.some((value, i) => value !== b[i])
   const react = {
@@ -21,28 +22,36 @@ function harness(options = {}) {
   const store = { workspaces: [], currentWorkspaceId: null, loading: false, workspaceError: null, realtime: { eventRevision: 0 }, refreshWorkspaces: async () => calls.push('refresh-workspaces'), setCurrentWorkspaceId: id => { store.currentWorkspaceId = id; calls.push(['workspace', id]) }, ...options.store }
   const graph = { entry: null, error: null, loading: false, reload: async () => true, ...options.graph }
   const companies = { resources: [], references: [], error: null, loading: false, reload: async () => calls.push('refresh-companies'), ...options.companies }
-  const entries = [...(options.previousUrl ? [{url:options.previousUrl,state:{__NA:true,tree:['previous']}}] : []), {url:options.url ?? '/canvas',state:{__NA:true,tree:['next']}}]
-  let position=entries.length-1
+  const entries = [{url:options.previousUrl ?? options.url ?? '/canvas',state:{__NA:true,tree:[options.previousUrl?'previous':'next']}}]
+  let position=0, canonicalUrl=options.url??'/canvas'
+  const relative=url=>{const value=new URL(url,'https://saathi.test');return value.pathname+value.search+value.hash}
   const history={
     get state(){return entries[position].state},
     get length(){return entries.length},
-    replaceState(state,unused,url){entries[position]={state,url}},
-    pushState(state,unused,url){entries.splice(++position);entries.push({state,url})},
-    go(delta){const next=position+delta;if(next<0||next>=entries.length)return;position=next;listeners.get('popstate')?.({state:history.state})},
+    replaceState(state,unused,url){entries[position]={state,url:relative(url??entries[position].url)}},
+    pushState(state,unused,url){entries.splice(++position);entries.push({state,url:relative(url)} )},
+    go(delta){const next=position+delta;if(next<0||next>=entries.length)return;position=next;browser.dispatchEvent({type:'popstate',state:history.state})},
     back(){history.go(-1)},forward(){history.go(1)},
   }
-  const browser={history,get location(){return new URL(entries[position].url,'https://saathi.test')}, PopStateEvent:class{constructor(type,options){this.type=type;this.state=options.state}},dispatchEvent(event){listeners.get(event.type)?.(event)},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true }, addEventListener(name,handler){listeners.set(name,handler)},removeEventListener(){}}
+  const browser={history,get location(){return new URL(entries[position].url,'https://saathi.test')},dispatchEvent(event){let stopped=false;event.stopImmediatePropagation=()=>{stopped=true};for(const item of [...(handlers.get(event.type)??[])].sort((a,b)=>Number(b.capture)-Number(a.capture))){if(stopped)break;item.handler(event)}},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true },addEventListener(name,handler,options){listeners.set(name,handler);handlers.set(name,[...(handlers.get(name)??[]),{handler,capture:options?.capture??false}])},removeEventListener(){}}
+  historyModule.installHistoryPositions(browser)
+  // Model installed Next's public history wrapper: marked writes bypass canonical restoration.
+  for(const method of ['pushState','replaceState']){
+    const original=history[method].bind(history)
+    history[method]=(data,title,url)=>{if(!data?.__NA&&!data?._N){calls.push(['public-history',data,url]);canonicalUrl=url;data={...data,__NA:true,tree:history.state.tree}}original(data,title,url)}
+  }
+  if(options.previousUrl)history.pushState({__NA:true,tree:['next']},'',options.url??'/canvas')
   const jsx = (type, props) => ({ type, props })
   const deps = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
     'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map'].map(key => [key, key])),
     '@/hooks/use-workspaces': { useWorkspaces: () => store }, '@/hooks/use-canvas-graph': { useCanvasGraph: () => graph }, './use-canvas-resources': { useCanvasResources: () => companies },
-    '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts'), '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
+    '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts'), '@/lib/browser-history':historyModule, '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
   }
   for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem', 'DropdownMenuSeparator'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
   new Function('require', 'exports', 'window', shellCode)(name => { assert.ok(name in deps, name); return deps[name] }, exports, browser)
-  return { render() { cursor = 0; tree = exports.CanvasShell({ actorId: 'actor', email: 'actor@example.test' }); effects.splice(0).forEach(fn => fn()); return nodes(tree) }, text() { return JSON.stringify(tree) }, url:()=>entries[position].url, history, store, graph, companies, calls, listeners }
+  return { render() { cursor = 0; tree = exports.CanvasShell({ actorId: 'actor', email: 'actor@example.test' });for(const node of nodes(tree)){if(node.props?.ref)node.props.ref.current={focus:()=>calls.push(['focus',node.props['aria-label']])}} effects.splice(0).forEach(fn => fn()); return nodes(tree) }, text() { return JSON.stringify(tree) }, url:()=>entries[position].url, canonicalUrl:()=>canonicalUrl, entries, history, store, graph, companies, calls, listeners }
 }
 
 test('company loading cannot masquerade as an empty account', () => {
@@ -132,6 +141,50 @@ test('cancelled page Back restores the current URL and saved Next tree for a ret
  assert.equal(ui.url(),original);assert.deepEqual(ui.history.state.tree,['next'])
  assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
  ui.history.back();ui.render();assert.equal(ui.url(),original)
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(false,false)
+ ui.history.back();ui.render();assert.equal(ui.url(),'/dashboard');assert.equal(ui.entries[0].url,'/dashboard')
+})
+test('foreign Forward cancellation retains destination and later accepts the same entry',()=>{
+ const ui=harness({url:'/canvas?workspace=w&view=tasks',confirm:()=>false,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render()
+ const original=ui.url()
+ ui.history.pushState({__NA:true,tree:['dashboard']},'', '/dashboard')
+ ui.history.back();ui.render();ui.render()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
+ ui.history.forward();ui.render();assert.equal(ui.url(),original);assert.equal(ui.entries[1].url,'/dashboard')
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(false,false)
+ ui.history.forward();ui.render();assert.equal(ui.url(),'/dashboard')
+})
+test('unmarked pre-instrumentation destinations follow native history without erasing either entry',()=>{
+ const ui=harness({previousUrl:'/dashboard',url:'/canvas?workspace=w&view=tasks',confirm:()=>false,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render()
+ delete ui.entries[0].state.__saathiHistoryPosition
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
+ const destination=JSON.stringify(ui.entries[0]), current=JSON.stringify(ui.entries[1])
+ ui.history.back();ui.render()
+ assert.equal(ui.url(),'/dashboard');assert.equal(JSON.stringify(ui.entries[0]),destination);assert.equal(JSON.stringify(ui.entries[1]),current)
+ assert.equal(ui.calls.includes('confirm'),false)
+})
+test('public task history updates Next canonical URL before server revalidation',()=>{
+ const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'});ui.render()
+ const destination=ui.url();assert.equal(ui.canonicalUrl(),destination)
+ for(const call of ui.calls.filter(call=>Array.isArray(call)&&call[0]==='public-history')){
+   assert.equal(call[1].__NA,undefined);assert.equal(call[1]._N,undefined);assert.equal(call[1].__PRIVATE_NEXTJS_INTERNALS_TREE,undefined)
+ }
+ ui.history.replaceState({__NA:true,tree:['revalidated']},'',ui.canonicalUrl())
+ assert.equal(ui.url(),destination);assert.match(destination,/task=t/)
+})
+test('explicit Work and readiness focus the selector without background or task focus theft',()=>{
+ const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();ui.render()
+ assert.equal(ui.calls.filter(call=>Array.isArray(call)&&call[0]==='focus'&&call[1]==='Workspace tools').length,1)
+ ui.graph.entry=historyGraph();ui.render();assert.equal(ui.calls.filter(call=>Array.isArray(call)&&call[0]==='focus'&&call[1]==='Workspace tools').length,1)
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpenGroup('w','waiting');ui.render()
+ assert.equal(ui.calls.filter(call=>Array.isArray(call)&&call[0]==='focus'&&call[1]==='Workspace tools').length,2)
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'});ui.render()
+ assert.equal(ui.calls.filter(call=>Array.isArray(call)&&call[0]==='focus'&&call[1]==='Workspace tools').length,2)
 })
 test('camera movement and measured width never add navigation entries',()=>{
  const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})

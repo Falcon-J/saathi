@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { HistoryPositionProvider } from "@/components/history-position-provider"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
+        <HistoryPositionProvider />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

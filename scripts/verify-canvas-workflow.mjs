@@ -104,7 +104,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await selectWorkspace(page, workspace)
     await expect(page.getByRole('region', { name: 'Workspace canvas', exact: true })).toBeVisible()
     log({ canvasStage: 'overview-cross-workspace-search' })
-    await page.getByRole('navigation', { name: 'Canvas hierarchy', exact: true }).getByRole('button', { name: 'Canvas', exact: true }).click()
+    await navigateCanvas(page, 'Canvas')
     const search = page.getByRole('combobox', { name: 'Search commands and tasks', exact: true })
     await expect(search).toBeEnabled()
     await page.keyboard.press('Control+k')
@@ -474,6 +474,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await editor.getByRole('button', { name: 'Save changes', exact: true }).click()
         await expect(editor).not.toBeVisible()
         await current(title)
+        await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspace && url.searchParams.get('task') === agentTaskId && url.searchParams.get('view') === 'tasks')
         await expect.poll(async () => {
           const [row] = await db`SELECT description,status,version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
           return row && { description: row.description, status: row.status, version: row.version }
@@ -500,6 +501,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
           return row && { status: row.status, version: row.version }
         }).toEqual({ status: 'done', version: beforeEdit.version + 3 })
         await current(title)
+        await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspace && url.searchParams.get('task') === agentTaskId)
         await accessibility(page)
         await page.screenshot({ path: `${evidence}/canvas-hierarchy-${viewport.width}.png`, fullPage: true })
       })
@@ -625,6 +627,60 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     }
     const [afterHistory] = await db`SELECT version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
     assert.equal(afterHistory.version, beforeHistory.version, 'History navigation must not mutate the task')
+    const sharedTaskUrl = base + '/canvas?workspace=' + workspace + '&task=' + agentTaskId + '&view=tasks'
+    for (const user of [users[0], users[2]]) {
+      const guestContext = await page.context().browser().newContext({ viewport: { width: 360, height: 800 } })
+      try {
+        const guest = await guestContext.newPage(), guestErrors = []
+        guest.on('pageerror', () => guestErrors.push(true))
+        await guest.goto(sharedTaskUrl)
+        await expect(guest).toHaveURL(url => url.pathname === '/login' && url.searchParams.get('redirect') === sharedTaskUrl.slice(base.length))
+        await guest.getByLabel('Email', { exact: true }).fill(user.email)
+        await guest.getByLabel('Password', { exact: true }).fill(user.password)
+        await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
+        if (user === users[0]) await expect(guest.getByRole('dialog', { name: 'Edit task', exact: true }).getByLabel('Title', { exact: true })).toHaveValue(title)
+        else {
+          await expect(guest.getByRole('alert')).toBeVisible()
+          await expect(guest.getByText(title, { exact: true })).toHaveCount(0)
+          await expect(guest.getByRole('dialog', { name: /task/i })).toHaveCount(0)
+        }
+        assert.equal(guestErrors.length, 0, 'Shared-link sign-in must not throw browser exceptions')
+      } finally { await guestContext.close() }
+    }
+    log({ canvasSharedSignIn: { authorizedTaskRestored: true, unauthorizedTaskHidden: true } })
+    await page.setViewportSize({ width: 360, height: 800 })
+    await selectWorkspace(page, workspace)
+    await openWorkspaceTools(page)
+    await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
+    await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspace && url.searchParams.get('view') === 'tasks')
+    const boundaryCanvasUrl = page.url(), boundaryMarker = randomUUID()
+    await canvasHeaderAction(page, 'Open dashboard')
+    await expect(page).toHaveURL(base + '/dashboard')
+    await page.evaluate(marker => window.history.replaceState({ qaCanvasBoundary: marker }, '', window.location.href), boundaryMarker)
+    await page.goBack()
+    await expect(page).toHaveURL(boundaryCanvasUrl)
+    await expect(workArea).toBeVisible()
+    await page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true }).click()
+    const boundaryDraft = workArea.getByLabel('Task title', { exact: true })
+    await boundaryDraft.fill('Keep the page-boundary draft')
+    await workArea.getByRole('button', { name: 'Close new task', exact: true }).click()
+    page.once('dialog', dialog => dialog.dismiss())
+    await page.goForward()
+    await expect(page).toHaveURL(boundaryCanvasUrl)
+    await expect(locationControl(page)).toBeVisible()
+    await page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true }).click()
+    await expect(boundaryDraft).toHaveValue('Keep the page-boundary draft')
+    await boundaryDraft.fill('')
+    await workArea.getByRole('button', { name: 'Close new task', exact: true }).click()
+    await page.goForward()
+    await expect(page).toHaveURL(base + '/dashboard')
+    assert.equal(await page.evaluate(() => window.history.state?.qaCanvasBoundary), boundaryMarker, 'Cancelled traversal must preserve the original dashboard entry')
+    await page.goBack()
+    await expect(page).toHaveURL(boundaryCanvasUrl)
+    await expect(workArea).toBeVisible()
+    await page.getByRole('button', { name: 'Show canvas', exact: true }).click()
+    log({ canvasPageBoundary: { cancelledForwardRetainedDraft: true, originalDashboardEntryPreserved: true, returnToCanvas: true } })
+
 
     // Verify the three density/context improvements with real Auth and database writes.
     for (const viewport of [{ width: 1280, height: 900 }, { width: 360, height: 800 }]) {
