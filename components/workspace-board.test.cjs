@@ -5,7 +5,7 @@ const ts = require('typescript')
 
 test('Board inline edits use the loaded version and preserve an editor version', async () => {
   const writes = [], notices = []
-  let reloads = 0
+  let reloads = 0, canvasReloads = 0, canvasUnavailable = false
   const jsx = (type, props) => ({ type, props })
   const dependencies = {
     react: { useEffect() {}, useRef: current => ({ current }), useState: value => [value, () => {}] },
@@ -25,7 +25,7 @@ test('Board inline edits use the loaded version and preserve an editor version',
     assert.ok(name in dependencies, `Unexpected dependency ${name}`)
     return dependencies[name]
   }, exports)
-  const tree = exports.WorkspaceBoard({ workspace: { id: 'workspace', members: [] }, openTaskRequest: 7, compactToolbar: true })
+  const tree = exports.WorkspaceBoard({ workspace: { id: 'workspace', members: [] }, openTaskRequest: 7, compactToolbar: true, onChanged: async () => { canvasReloads++; if (canvasUnavailable) throw new Error('Canvas unavailable') } })
   const list = tree.props.children.find(node => node?.type === 'TaskList')
   assert.equal(list.props.openTaskRequest, 7)
   assert.equal(list.props.compactToolbar, true)
@@ -35,11 +35,16 @@ test('Board inline edits use the loaded version and preserve an editor version',
     ['task', { assigneeEmail: 'member@example.test' }, 5],
     ['task', { title: 'Captured draft' }, 2],
   ])
+  assert.equal(canvasReloads, 2, 'successful task writes must refresh the canvas before resolving')
   const missing = await list.props.onEditTask('missing', { title: 'Unavailable' })
   assert.match(missing.error, /Task unavailable/)
   assert.equal(writes.length, 2)
   assert.equal(reloads, 3)
   assert.equal(notices.length, 1)
-  await list.props.onEditTask('off-page', { title: 'Restored draft' }, 3)
+  assert.equal(canvasReloads, 2, 'rejected writes must not announce a change')
+  canvasUnavailable = true
+  const committed = await list.props.onEditTask('off-page', { title: 'Restored draft' }, 3)
+  assert.equal(committed.success, true, 'a failed canvas refresh cannot reject a committed edit')
+  assert.equal(canvasReloads, 3)
   assert.deepEqual(writes.at(-1), ['off-page', { title: 'Restored draft' }, 3])
 })

@@ -564,7 +564,7 @@ export function TaskEditorDialog({
 
   return (
     <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && requestClose()}>
-      <DialogContent onOpenAutoFocus={event => { event.preventDefault(); headingRef.current?.focus() }} className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
+      <DialogContent onOpenAutoFocus={event => { event.preventDefault(); headingRef.current?.focus() }} className="saathi-mobile-controls flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl max-sm:bottom-0 max-sm:left-0 max-sm:top-auto max-sm:max-h-[calc(100dvh-0.5rem)] max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:animate-none! max-sm:rounded-b-none max-sm:rounded-t-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
         <DialogHeader className="border-b border-border bg-secondary/35 px-5 py-5 pr-12 sm:px-6">
           <div className="flex items-start gap-3 text-left">
             <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -612,8 +612,8 @@ export function TaskEditorDialog({
                 </div>
               </section>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-4 min-[360px]:grid-cols-2">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="task-edit-status">Status</Label>
                     <select
                       id="task-edit-status"
@@ -627,7 +627,7 @@ export function TaskEditorDialog({
                       <option value="done">Done</option>
                     </select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="task-edit-assignee">Assignee</Label>
                     <select
                       id="task-edit-assignee"
@@ -694,9 +694,9 @@ export function TaskEditorDialog({
 
             </div>
 
-            <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">
-              <Button type="button" variant="outline" onClick={requestClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
-              {canEdit && <Button type="submit" form="task-editor-form" disabled={isSaving || reviewLoading || Boolean(latestTask)}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
+            <DialogFooter className="flex-row border-t border-border bg-secondary/45 px-5 py-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+              <Button type="button" variant="outline" className="max-sm:min-h-11 max-sm:min-w-11 max-sm:flex-1" onClick={requestClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
+              {canEdit && <Button type="submit" form="task-editor-form" className="max-sm:min-h-11 max-sm:min-w-11 max-sm:flex-1" disabled={isSaving || reviewLoading || Boolean(latestTask)}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
             </DialogFooter>
           </div>
         )}

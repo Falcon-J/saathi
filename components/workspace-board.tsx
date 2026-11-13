@@ -23,11 +23,12 @@ type BoardProps = {
   openTaskRequest?: number
   commentRefreshEvent: RealtimeEvent | null
   focusQuickAdd: number
+  onChanged?: () => Promise<unknown>
   onDirtyChange?: (dirty: boolean) => void
   draftScope?: string
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
 }
-export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, openTaskId, openTaskRequest = 0, commentRefreshEvent, focusQuickAdd, onAddTask, onDirtyChange, draftScope, capabilityCeiling, compactToolbar = false }: BoardProps) {
+export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, openTaskId, openTaskRequest = 0, commentRefreshEvent, focusQuickAdd, onAddTask, onChanged, onDirtyChange, draftScope, capabilityCeiling, compactToolbar = false }: BoardProps) {
   const board = useTaskBoard(workspace.id, refreshSignal)
   const detailKey = JSON.stringify([workspace.id, openTaskId, openTaskRequest])
   const [detail, setDetail] = useState<{ key: string; task: Task } | null>(null)
@@ -62,7 +63,8 @@ export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, ope
       const result = await work()
       const message = getMutationError(result)
       if (message) notifyError("Task not updated", message)
-      await board.reload()
+      // Refresh both views together; a projection outage cannot reject a committed write.
+      await Promise.all([board.reload(), !message && onChanged ? Promise.resolve().then(onChanged).catch(() => undefined) : undefined])
       return result
     } catch {
       const result = { error: "Unable to confirm the change. Refresh tasks before retrying." }

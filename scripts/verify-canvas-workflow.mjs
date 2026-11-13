@@ -4,6 +4,46 @@ import { expect as baseExpect } from '@playwright/test'
 
 const expect = baseExpect.configure({ timeout: 30_000 })
 
+const isPhone = page => page.viewportSize().width < 640
+const canvasHierarchy = page => page.getByRole('navigation', { name: 'Canvas hierarchy', exact: true })
+
+async function navigateCanvas(page, label) {
+  const hierarchy = canvasHierarchy(page)
+  if (!isPhone(page)) return hierarchy.getByRole('button', { name: label, exact: true }).click()
+  await hierarchy.getByRole('button', { name: /^Canvas location:/ }).click()
+  const locations = page.getByRole('menu', { name: 'Canvas locations', exact: true })
+  // The menu item itself owns the stable label; avoid matching a path's ancestors.
+  const destination = locations.locator(`[role="menuitem"][data-canvas-label=${JSON.stringify(label)}]`)
+  await expect(destination).toHaveCount(1)
+  await destination.click()
+}
+
+async function expectCurrentCanvas(page, label) {
+  const current = isPhone(page)
+    ? canvasHierarchy(page).getByRole('button', { name: /^Canvas location:/ })
+    : canvasHierarchy(page).getByRole('button', { name: label, exact: true })
+  await expect(current).toHaveAttribute('aria-current', 'location')
+  if (isPhone(page)) await expect(current).toHaveText(label)
+}
+
+async function canvasHeaderAction(page, name) {
+  if (!isPhone(page)) return page.getByRole('button', { name, exact: true }).click()
+  await page.getByRole('button', { name: 'Canvas menu', exact: true }).click()
+  await page.getByRole('menuitem', { name, exact: true }).click()
+}
+
+async function expectTouchControl(locator) {
+  await expect(locator).toBeVisible()
+  await expect.poll(async () => {
+    const box = await locator.boundingBox()
+    return Boolean(box && box.width >= 44 && box.height >= 44)
+  }).toBe(true)
+}
+
+async function expectNoHorizontalOverflow(page) {
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+}
+
 async function expectInsideCanvas(page, locator, container) {
   await expect(locator).toBeVisible()
   await expect.poll(async () => {
@@ -45,6 +85,10 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await expect(page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true })).toHaveCount(1)
     await page.getByRole('navigation', { name: 'Workspace navigation', exact: true }).getByRole('link', { name: 'Canvas', exact: true }).click()
     await expect(page).toHaveURL(`${base}/canvas`)
+    const viewportMetadata = await page.locator('meta[name="viewport"]').getAttribute('content')
+    assert.doesNotMatch(viewportMetadata, /viewport-fit=cover/)
+    assert.match(viewportMetadata, /interactive-widget=resizes-content/)
+    assert.doesNotMatch(viewportMetadata, /user-scalable=no|maximum-scale=1(?:[,\s]|$)/)
     await page.getByLabel('Current workspace', { exact: true }).selectOption(workspace)
     await expect(page.getByRole('region', { name: 'Workspace canvas', exact: true })).toBeVisible()
     log({ canvasStage: 'overview-cross-workspace-search' })
@@ -125,7 +169,13 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await run.getByRole('button', { name: 'Follow agent', exact: true }).click()
     await expect(run.getByRole('button', { name: 'Following agent', exact: true })).toBeDisabled()
     await expect(workArea.getByRole('heading', { name: title, exact: true, level: 2 })).toBeVisible()
+    await page.setViewportSize({ width: 360, height: 800 })
+    await expectTouchControl(page.getByRole('button', { name: 'Stop following', exact: true }))
+    const followingDock = await page.getByRole('region', { name: 'Canvas commands', exact: true }).boundingBox()
+    assert.ok(followingDock && followingDock.height <= 132 && followingDock.y + followingDock.height <= 800, 'Phone following controls must fit inside their reserved dock')
+    await expectNoHorizontalOverflow(page)
     await page.getByRole('button', { name: 'Stop following', exact: true }).click()
+    await page.setViewportSize({ width: 1280, height: 900 })
     await expect(run.getByRole('button', { name: 'Follow agent', exact: true })).toBeEnabled()
     await run.getByRole('button', { name: 'Follow agent', exact: true }).click()
     await page.getByRole('button', { name: 'Fit View', exact: true }).click()
@@ -266,7 +316,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
           throw new Error(`Canvas hierarchy journey ${viewport.width}x${viewport.height}: ${step}: ${error instanceof Error ? error.message : "Unknown browser assertion"}`, { cause: error })
         }
       }
-      const current = label => expect(hierarchy.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-current', 'location')
+      const current = label => expectCurrentCanvas(page, label)
       const openCard = async (id, label, activation = 'button') => {
         const card = page.locator(`.react-flow__node[data-id="${id}"]`)
         const heading = card.getByRole('heading', { name: label, exact: true })
@@ -293,7 +343,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       const openJourneyTask = async completed => {
         if (viewport.width >= 640) return openCard(`task:${workspace}:${agentTaskId}`, title)
         log({ canvasJourney: { viewport, step: completed ? 'completed-summary-to-task' : 'ready-summary-to-task', state: 'started' } })
-        await hierarchy.getByRole('button', { name: journeyWorkspace.name, exact: true }).click()
+        await navigateCanvas(page, journeyWorkspace.name)
         if (completed) {
           await page.getByRole('button', { name: /^Open Completed, \d+ tasks$/ }).click()
           const completedList = page.getByRole('dialog', { name: 'Completed tasks', exact: true })
@@ -305,7 +355,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         }
       }
       await phase('overview', async () => {
-        await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+        await navigateCanvas(page, 'Canvas')
         await page.getByRole('button', { name: 'Fit View', exact: true }).click()
         await current('Canvas')
         await expect(workArea).not.toBeVisible()
@@ -327,6 +377,24 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await openCard(`workspace:${workspace}`, journeyWorkspace.name, 'heading')
         await expect(page.getByLabel('Current workspace', { exact: true })).toHaveValue(workspace)
       })
+      if (viewport.width < 640) await phase('touch-create-and-draft-recovery', async () => {
+        const newTask = page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true })
+        await expectTouchControl(newTask)
+        await newTask.click()
+        const taskTitle = workArea.getByLabel('Task title', { exact: true })
+        const draft = `Phone draft ${randomUUID()}`
+        await taskTitle.fill(draft)
+        await expect.poll(() => page.evaluate(value => Object.values(sessionStorage).some(raw => raw.includes(value)), draft)).toBe(true)
+        page.once('dialog', dialog => dialog.dismiss())
+        await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+        await expect(taskTitle).toHaveValue(draft)
+        page.once('dialog', dialog => dialog.accept())
+        await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+        await newTask.click()
+        await expect(taskTitle).toHaveValue(draft)
+        await taskTitle.fill('')
+        await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+      })
       if (viewport.width === 1280) await phase('exclude-task-from-board', async () => {
         await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
         await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
@@ -346,6 +414,35 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await phase('task-open', async () => {
         await openJourneyTask(true)
         await expect(editor.getByLabel('Title', { exact: true })).toHaveValue(title)
+        if (viewport.width < 640) {
+          const titleInput = editor.getByLabel('Title', { exact: true })
+          await expectTouchControl(editor.getByRole('button', { name: 'Save changes', exact: true }))
+          await expectTouchControl(editor.getByRole('button', { name: 'Cancel', exact: true }))
+          const bounds = await editor.boundingBox()
+          assert.ok(bounds && bounds.x <= 1 && bounds.width >= viewport.width - 2, 'Phone editor must span the viewport width')
+          const save = await editor.getByRole('button', { name: 'Save changes', exact: true }).boundingBox()
+          const cancel = await editor.getByRole('button', { name: 'Cancel', exact: true }).boundingBox()
+          assert.ok(Math.abs(save.y - cancel.y) <= 1, 'Phone editor actions must share a row')
+          const status = await editor.getByLabel('Status', { exact: true }).boundingBox()
+          const assignee = await editor.getByLabel('Assignee', { exact: true }).boundingBox()
+          assert.ok(status && assignee && Math.abs(status.y - assignee.y) <= 1, 'Status and assignee must share a row at 360px')
+          assert.ok(await titleInput.evaluate(input => parseFloat(getComputedStyle(input).fontSize)) >= 16, 'Phone fields must avoid focus zoom')
+          const keyboardDraft = `${title.slice(0, 170)} phone draft`
+          await titleInput.fill(keyboardDraft)
+          await titleInput.focus()
+          // A smaller browser viewport models available space; this is not a native OS keyboard test.
+          await page.setViewportSize({ width: viewport.width, height: 480 })
+          await expect(titleInput).toBeFocused()
+          await expect(titleInput).toBeInViewport()
+          await expectNoHorizontalOverflow(page)
+          await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
+          const discard = page.getByRole('alertdialog', { name: 'Discard unsaved changes?', exact: true })
+          await expect(discard).toBeVisible()
+          await discard.getByRole('button', { name: 'Cancel', exact: true }).click()
+          await expect(titleInput).toHaveValue(keyboardDraft)
+          await page.setViewportSize(viewport)
+          await titleInput.fill(title)
+        }
         await accessibility(page)
       })
       const [beforeEdit] = await db`SELECT version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
@@ -388,7 +485,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       })
       for (const [kind, label] of [['workspace', journeyWorkspace.name], ['section', sectionName], ['space', spaceName], ['company', companyName], ['canvas', 'Canvas']]) {
         await phase(`return-${kind}`, async () => {
-          await hierarchy.getByRole('button', { name: label, exact: true }).click()
+          await navigateCanvas(page, label)
           await current(label)
           await expect(workArea).not.toBeVisible()
         })
@@ -400,14 +497,67 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await workArea.getByRole('textbox', { name: 'Search tasks', exact: true }).fill('')
         await expect(workArea.getByText(/^Showing [1-9]\d* matching tasks?(?: so far)?$/)).toBeVisible()
         await page.getByRole('button', { name: 'Close work area', exact: true }).click()
-        await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+        await navigateCanvas(page, 'Canvas')
         await current('Canvas')
       })
+    }
+    // Resize the same authenticated hierarchy rather than repeating database journeys.
+    for (const viewport of [{ width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 600, height: 360 }, { width: 390, height: 500 }]) {
+      await page.setViewportSize(viewport)
+      await navigateCanvas(page, 'Canvas')
+      await expectTouchControl(page.getByRole('button', { name: 'Create workspace', exact: true }))
+      const picker = page.getByLabel('Current workspace', { exact: true })
+      await expectTouchControl(picker)
+      assert.ok(await picker.evaluate(input => parseFloat(getComputedStyle(input).fontSize)) >= 16, 'Phone workspace picker must use a 16px font')
+      const menuTrigger = page.getByRole('button', { name: 'Canvas menu', exact: true })
+      await expectTouchControl(menuTrigger)
+      await menuTrigger.click()
+      await expectTouchControl(page.getByRole('menuitem', { name: 'Refresh canvas', exact: true }))
+      await expectTouchControl(page.getByRole('menuitem', { name: 'Manage canvas', exact: true }))
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('button', { name: 'Open workspace tools', exact: true })).not.toBeVisible()
+      await search.fill('task list')
+      await expect(page.getByRole('option', { name: 'Task list', exact: true })).toHaveCount(0)
+      await expect(page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true })).toHaveCount(0)
+      await search.fill('')
+      await page.keyboard.press('Escape')
+      for (const [id, label] of [[companyId, companyName], [spaceId, spaceName], [sectionForLink.id, sectionName]]) {
+        await page.locator(`.react-flow__node[data-id="container:${id}"]`).getByRole('button', { name: `Open ${label}`, exact: true }).click()
+        await expectCurrentCanvas(page, label)
+      }
+      await page.locator(`.react-flow__node[data-id="workspace:${workspace}"]`).getByRole('button', { name: `Open ${journeyWorkspace.name}`, exact: true }).click()
+      await expectCurrentCanvas(page, journeyWorkspace.name)
+      await expectTouchControl(hierarchy.getByRole('button', { name: /^Canvas location:/ }))
+      await hierarchy.getByRole('button', { name: /^Canvas location:/ }).click()
+      const locations = page.getByRole('menu', { name: 'Canvas locations', exact: true })
+      const locationItems = locations.getByRole('menuitem')
+      for (const item of await locationItems.all()) {
+        await expectTouchControl(item)
+        assert.ok(JSON.parse(await item.getAttribute('data-canvas-focus')), 'Location must expose a canonical focus')
+      }
+      const workspaceLocation = locations.locator(`[data-canvas-label=${JSON.stringify(journeyWorkspace.name)}]`)
+      await expect(workspaceLocation).toHaveText(`Canvas / ${companyName} / ${spaceName} / ${sectionName} / ${journeyWorkspace.name}`)
+      await page.keyboard.press('Escape')
+      await expectTouchControl(page.getByRole('button', { name: 'Open workspace tools', exact: true }))
+      await expectTouchControl(hierarchy.getByRole('button', { name: 'Back', exact: true }))
+      const dock = page.getByRole('region', { name: 'Canvas commands', exact: true })
+      await expectTouchControl(dock.getByRole('button', { name: 'New task', exact: true }))
+      const searchBox = await search.boundingBox(), dockBox = await dock.boundingBox()
+      assert.ok(searchBox && searchBox.height >= 48, 'Phone search row must be at least 48px')
+      assert.ok(dockBox && dockBox.height <= 70, 'Closed phone commands must use one compact row')
+      const flowBox = await page.locator('.react-flow').boundingBox()
+      assert.ok(flowBox && flowBox.y + flowBox.height <= dockBox.y + 1, 'Phone canvas must reserve the command dock')
+      await search.fill('task list')
+      await expect(page.getByRole('option', { name: 'Task list', exact: true })).toBeVisible()
+      await search.fill('')
+      await page.keyboard.press('Escape')
+      await expectNoHorizontalOverflow(page)
+      log({ canvasPhoneGeometry: { viewport, touchControls: true, fullPathLocations: true, compactDock: true, noHorizontalOverflow: true } })
     }
     // Verify the three density/context improvements with real Auth and database writes.
     for (const viewport of [{ width: 1280, height: 900 }, { width: 360, height: 800 }]) {
       await page.setViewportSize(viewport)
-      await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+      await navigateCanvas(page, 'Canvas')
       for (const [id, label] of [[companyId, companyName], [spaceId, spaceName], [sectionForLink.id, sectionName]]) {
         await page.locator(`.react-flow__node[data-id="container:${id}"]`).getByRole('button', { name: `Open ${label}`, exact: true }).click()
       }
@@ -428,12 +578,12 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       }).toBe(true)
       createdWorkspaces.push(createdId)
       await expect(page.getByLabel('Current workspace', { exact: true })).toHaveValue(createdId)
-      await expect(hierarchy.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'location')
+      await expectCurrentCanvas(page, name)
       const denseTasks = Array.from({ length: 50 }, (_, index) => ({ id: randomUUID(), title: `Dense task ${String(index).padStart(2, '0')}`, status: index < 40 ? 'todo' : 'done' }))
       await db.begin(async tx => {
         for (const task of denseTasks) await tx`INSERT INTO tasks(id,workspace_id,title,status,created_by_user_id) VALUES(${task.id},${createdId},${task.title},${task.status},${users[0].id})`
       })
-      await page.getByRole('button', { name: 'Refresh canvas', exact: true }).click()
+      await canvasHeaderAction(page, 'Refresh canvas')
       log({ canvasImprovementStep: { viewport, step: 'dense-summary-refresh' } })
       const readySummary = page.getByRole('button', { name: 'Open Ready, 40 tasks', exact: true })
       await expectInsideCanvas(page, readySummary)
@@ -476,10 +626,22 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await accessibility(page)
       await page.screenshot({ path: `${evidence}/canvas-dense-toolbar-${viewport.width}.png`, fullPage: true })
       await page.getByRole('button', { name: 'Close work area', exact: true }).click()
-      await hierarchy.getByRole('button', { name, exact: true }).click()
+      await navigateCanvas(page, name)
       await expectInsideCanvas(page, readySummary)
       await page.screenshot({ path: `${evidence}/canvas-dense-summary-${viewport.width}.png`, fullPage: true })
       log({ canvasImprovements: { viewport, contextualCreation: true, taskCount: 50, readyCount: 40, completedCount: 10, firstTaskVisible: true, editorTitleOffset: titleBox.y - dialogBox.y, denseGroupHeight: groupBox.height, canvasHeight: canvasBox.height } })
+      if (viewport.width < 640) {
+        // Create by tapping the visible action, without entering a command query.
+        await page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true }).click()
+        const phoneTaskTitle = `Phone created task ${randomUUID()}`
+        await workArea.getByLabel('Task title', { exact: true }).fill(phoneTaskTitle)
+        await expectTouchControl(workArea.getByRole('button', { name: 'Add', exact: true }))
+        await workArea.getByRole('button', { name: 'Add', exact: true }).click()
+        await expect.poll(async () => (await db`SELECT id FROM tasks WHERE workspace_id=${createdId} AND title=${phoneTaskTitle}`).length).toBe(1)
+        await expect(workArea.getByLabel('Task title', { exact: true })).toHaveValue('')
+        await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+        log({ canvasPhoneDirectCreate: { viewport, persistedTask: true } })
+      }
     }
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.getByLabel('Current workspace', { exact: true }).selectOption(otherWorkspace)
@@ -528,7 +690,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await member.keyboard.press('Escape')
     await expect(details).not.toBeVisible()
     log({ canvasStage: 'read-only-ready-waiting-inspection' })
-    await member.getByRole('navigation', { name: 'Canvas hierarchy', exact: true }).getByRole('button', { name: 'Ready Waiting acceptance', exact: true }).click()
+    await navigateCanvas(member, 'Ready Waiting acceptance')
     await member.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
     const memberWork = member.getByRole('complementary', { name: 'Workspace work area', exact: true })
     await expect(memberWork.getByLabel('Workspace tools', { exact: true })).toHaveValue('ready')

@@ -22,12 +22,12 @@ function harness(options = {}) {
   const companies = { resources: [], references: [], error: null, loading: false, reload: async () => calls.push('refresh-companies'), ...options.companies }
   const jsx = (type, props) => ({ type, props })
   const deps = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
-    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'List', 'Plus', 'RefreshCw', 'X'].map(key => [key, key])),
+    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X'].map(key => [key, key])),
     '@/hooks/use-workspaces': { useWorkspaces: () => store }, '@/hooks/use-canvas-graph': { useCanvasGraph: () => graph }, './use-canvas-resources': { useCanvasResources: () => companies },
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
   }
-  for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
+  for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
   const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
   new Function('require', 'exports', 'window', code)(name => { assert.ok(name in deps, name); return deps[name] }, exports, { confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true }, addEventListener(name, handler) { listeners.set(name, handler) }, removeEventListener() {} })
@@ -159,4 +159,22 @@ test('the measured viewport publisher stays stable across ordinary shell renders
  const first=ui.render().find(n=>n.type==='CanvasFlow').props.onViewportWidthChange;
  first(360);const second=ui.render().find(n=>n.type==='CanvasFlow').props.onViewportWidthChange;
  assert.equal(second,first);second(360);assert.equal(ui.render().find(n=>n.type==='CanvasFlow').props.onViewportWidthChange,first);
+});
+
+test('phone utility menu uses the existing guarded management and refresh actions',async()=>{
+ const ui=harness();const tree=ui.render();
+ assert.ok(tree.some(n=>n.type==='Button'&&n.props['aria-label']==='Canvas menu'));
+ await tree.find(n=>n.type==='DropdownMenuItem'&&n.props.children?.includes('Refresh canvas')).props.onSelect();
+ assert.ok(ui.calls.includes('refresh-workspaces'));
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props.children?.includes('Manage canvas')).props.onSelect();
+ assert.equal(ui.render().filter(n=>n.type==='Dialog').at(-1).props.open,true);
+});
+test('phone locations expose authorized full paths and canonical navigation',()=>{
+ const company={id:'co',kind:'organization',name:'Acme',parentId:null,workspaceId:null,capabilities:['read']};const section={id:'sec',kind:'section',name:'Payments',parentId:'co',workspaceId:null,capabilities:['read']};
+ const ui=harness({companies:{resources:[company,section]}});ui.render().find(n=>n.type==='CanvasFlow').props.onOpenResource('sec');
+ const tree=ui.render(), current=tree.find(n=>n.type==='Button'&&n.props['aria-label']==='Canvas location: Payments');
+ assert.equal(current.props['aria-current'],'location');
+ const parent=tree.find(n=>n.type==='DropdownMenuItem'&&n.props['data-canvas-label']==='Acme');
+ assert.equal(parent.props.children,'Canvas / Acme');parent.props.onSelect();
+ assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'resource',resourceId:'co'});
 });
