@@ -137,8 +137,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const draftScope = workspace ? `saathi:draft:${encodeURIComponent(account)}:${workspace.id}` : undefined
   const refreshAll = async () => { await Promise.all([store.refreshWorkspaces(), companies.reload()]); setRevision(value => value + 1) }
   const accessDenied = Boolean(workspace && !capabilityCeiling.read)
-  const workspaceUnavailable = Boolean(store.workspaceError || graph.error || accessDenied)
-  const commandDisabled = !workspace || !graph.entry || graph.loading || workspaceUnavailable || !capabilityCeiling.read
+  const workspaceUnavailable = Boolean(store.workspaceError || companies.error || graph.error || accessDenied)
+  const commandDisabled = !workspace || !graph.entry || graph.loading || companies.loading || workspaceUnavailable || !capabilityCeiling.read
   const showWorkArea = workOpen && Boolean(graph.entry && capabilityCeiling.read)
   return <main className="saathi-dashboard relative h-dvh overflow-hidden bg-background text-foreground">
     <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-card/95 px-3 sm:px-5">
@@ -150,6 +150,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     <div className="absolute inset-x-0 bottom-36 top-16">
       {store.loading ? <p role="status" className="p-6">Loading workspaces…</p>
         : store.workspaceError ? <div role="alert" className="m-6 space-y-3"><p>{store.workspaceError}</p><Button onClick={() => void store.refreshWorkspaces()}>Try again</Button></div>
+        : companies.loading ? <p role="status" className="p-6">Loading companies…</p>
+        : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={() => setCreateOpen(true)}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : <><div role="region" aria-label="Workspace canvas" className={`h-full ${showWorkArea ? "hidden lg:block lg:pr-[52%]" : ""}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
