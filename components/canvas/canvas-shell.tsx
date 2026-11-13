@@ -4,7 +4,7 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ReactFlowProvider } from "@xyflow/react"
-import { ArrowLeft, Building2, ChevronDown, List, MoreHorizontal, Plus, RefreshCw, X } from "lucide-react"
+import { ArrowLeft, Building2, ChevronDown, List, Map as MapIcon, MoreHorizontal, Plus, RefreshCw } from "lucide-react"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { useCanvasGraph } from "@/hooks/use-canvas-graph"
 import { WorkspaceBoard } from "@/components/workspace-board"
@@ -14,7 +14,7 @@ import { MemberManager } from "@/components/member-manager"
 import { WorkspaceSettings } from "@/components/workspace-settings"
 import { ActivityHistory } from "@/components/activity-history"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CanvasCommandBar } from "./canvas-command-bar"
 import { ContextualWorkspaceCreate, type WorkspaceCreationTarget } from "./contextual-workspace-create"
@@ -75,9 +75,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const readinessNames = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
   const focused = currentNavigation.focus
   const breadcrumbs = canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks)
-  const focusedKey = JSON.stringify(focused)
-  const currentBreadcrumb = useRef<HTMLButtonElement | null>(null)
-  useLayoutEffect(() => { const current = currentBreadcrumb.current; if (current?.getClientRects().length) current.scrollIntoView({ block: "nearest", inline: "end" }) }, [focusedKey, workOpen])
+  const locationButton = useRef<HTMLButtonElement | null>(null)
   const selectedTask = focused.kind === "task"
     ? tasks.find(task => task.id === focused.taskId) ?? null : null
   const isOwner = workspace ? account === normalizeEmail(workspace.ownerId) : false
@@ -188,23 +186,30 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     ? "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+8.25rem)] sm:bottom-28"
     : "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.25rem)] sm:bottom-28"
   return <main className="saathi-dashboard relative h-dvh overflow-hidden bg-background text-foreground">
-    <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-card/95 px-3 sm:px-5">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
-        <Button asChild variant="ghost" size="icon" className="size-11 sm:size-9"><Link href="/dashboard" aria-label="Open dashboard" onClick={event => { if (!canLeaveAll()) event.preventDefault() }}><ArrowLeft className="size-4" /></Link></Button>
-        <h1 className="sr-only text-lg font-semibold tracking-tight sm:not-sr-only">Canvas</h1>
-        {store.workspaces.length > 0 && <select aria-label="Current workspace" value={workspace?.id ?? ""} onChange={event => changeWorkspace(event.target.value)} disabled={saving} className="min-h-11 min-w-0 w-full flex-1 rounded-lg border border-border bg-background px-2 py-2 text-base sm:min-h-0 sm:w-auto sm:max-w-[40vw] sm:flex-initial sm:text-sm">{store.workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button variant="ghost" size="icon" className="hidden size-9 sm:inline-flex" aria-label="Refresh canvas" disabled={store.loading || saving} onClick={() => void refreshAll()}><RefreshCw className="size-4" /></Button>
-        <Button variant="outline" size="sm" className="hidden sm:inline-flex" aria-label="Manage canvas" onClick={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" /><span>Manage</span></Button>
-        <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-11 sm:hidden" aria-label="Canvas menu"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" aria-label="Canvas menu">
-            <DropdownMenuItem className="min-h-11" disabled={store.loading || saving} onSelect={() => { void refreshAll() }}><RefreshCw className="size-4" />Refresh canvas</DropdownMenuItem>
-            <DropdownMenuItem className="min-h-11" onSelect={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" />Manage canvas</DropdownMenuItem>
+    <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-16 items-center gap-2 border-b border-border bg-card/95 px-3 sm:px-5">
+      <h1 className="sr-only">Canvas</h1>
+      <nav aria-label="Canvas hierarchy" className="flex min-w-0 flex-1 items-center gap-2">
+        <Button size="sm" variant="ghost" className="size-11 shrink-0 px-0 sm:w-auto sm:px-3" aria-label="Back" title="Back" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}><ArrowLeft className="size-4" /><span className="hidden sm:inline">Back</span></Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button ref={locationButton} variant="ghost" className="h-11 min-w-0 flex-1 justify-between gap-2 px-2 text-base font-semibold sm:flex-initial sm:max-w-xl" aria-label={"Canvas location: " + (breadcrumbs.at(-1)?.label ?? "Canvas")} aria-current="location" data-workspace-id={workspace?.id} title={breadcrumbs.map(item => item.label).join(" / ")}><span className="truncate">{breadcrumbs.at(-1)?.label ?? "Canvas"}</span><ChevronDown className="size-4 shrink-0 text-muted-foreground" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="start" aria-labelledby={undefined} aria-label="Canvas locations" className="w-[min(28rem,calc(100vw-1.5rem))]">
+            {breadcrumbs.map((item, index) => <DropdownMenuItem key={JSON.stringify(item.focus)} data-canvas-label={item.label} data-canvas-focus={JSON.stringify(item.focus)} aria-current={index === breadcrumbs.length - 1 ? "location" : undefined} className="block min-h-11 whitespace-normal break-words py-3" onSelect={() => { open(item.focus) }}>{breadcrumbs.slice(0, index + 1).map(ancestor => ancestor.label).join(" / ")}</DropdownMenuItem>)}
+            {store.workspaces.length > 0 && <DropdownMenuSeparator />}
+            {store.workspaces.map(item => <DropdownMenuItem key={item.id} data-workspace-id={item.id} className="block min-h-11 whitespace-normal break-words py-3" disabled={saving} onSelect={() => changeWorkspace(item.id)}>{item.name}</DropdownMenuItem>)}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" className="size-11 px-0 sm:h-9 sm:w-auto sm:px-3" aria-label="Create workspace" onClick={beginCreateWorkspace}><Plus className="size-4" /><span className="hidden sm:inline">Workspace</span></Button>
-      </div>
+      </nav>
+      {showWorkArea && <Button variant="outline" size="sm" className="size-11 shrink-0 px-0 sm:w-auto sm:px-3" aria-label="Show canvas" title="Show canvas" onClick={() => { if (canLeave()) { stopFollowing(); setWorkOpen(false); locationButton.current?.focus() } }}><MapIcon className="size-4" /><span className="hidden sm:inline">Canvas</span></Button>}
+      <Button size="sm" variant="outline" className={"min-h-11 shrink-0 disabled:opacity-100 " + (broadSearch || showWorkArea ? "hidden" : "")} aria-label="Open workspace tools" disabled={commandDisabled || broadSearch} onClick={openWorkspace}><List className="size-4" /><span className="hidden sm:inline">Work</span></Button>
+      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Canvas menu"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end" aria-labelledby={undefined} aria-label="Canvas menu">
+          <DropdownMenuItem className="min-h-11" disabled={store.loading || saving} onSelect={() => { void refreshAll() }}><RefreshCw className="size-4" />Refresh canvas</DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" aria-label="Manage canvas" onSelect={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" />Manage canvas</DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" aria-label="Create workspace" onSelect={beginCreateWorkspace}><Plus className="size-4" />Create workspace</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild className="min-h-11"><Link href="/dashboard" aria-label="Open dashboard" onClick={event => { if (!canLeaveAll()) event.preventDefault() }}><ArrowLeft className="size-4" />Dashboard</Link></DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
     <div className={`absolute inset-x-0 top-16 ${dockClearance}`}>
       {store.loading ? <p role="status" className="p-6">Loading workspaces…</p>
@@ -213,21 +218,13 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
         : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={beginCreateWorkspace}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
-        : <><div role="region" aria-label="Workspace canvas" className={`relative pt-14 ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
+        : <><div role="region" aria-label="Workspace canvas" className={`relative ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
           onOpenGroup={(workspaceId, readiness) => { if (workspaceId !== workspace?.id || graph.loading || !capabilityCeiling.read || !open({ kind: "workspace", workspaceId })) return; stopFollowing(); if (readiness === "completed") { setListReadiness(readiness); setListOpen(true) } else { setReadyGroup(readiness); setTool("ready"); setWorkOpen(true); setWorkMounted(true) } }}
           onManualNavigation={stopFollowing} /></ReactFlowProvider></div>
-          <nav aria-label="Canvas hierarchy" className={`absolute left-3 right-3 top-3 flex items-center gap-2 ${showWorkArea ? "hidden lg:flex lg:right-[calc(52%+0.75rem)]" : ""}`}>
-            <Button size="sm" variant="outline" className="min-h-11 sm:min-h-0" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}>Back</Button>
-            <div className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto sm:flex">{breadcrumbs.map((item, index, path) => <Button key={JSON.stringify(item.focus)} size="sm" variant="outline" className="max-w-40 shrink-0 truncate" ref={index === path.length - 1 ? currentBreadcrumb : undefined} aria-current={index === path.length - 1 ? "location" : undefined} onClick={() => open(item.focus)}>{item.label}</Button>)}</div>
-            <div className="min-w-0 flex-1 sm:hidden"><DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-11 w-full min-w-0 justify-between gap-2" aria-label={`Canvas location: ${breadcrumbs.at(-1)?.label ?? "Canvas"}`} aria-current="location" title={breadcrumbs.map(item => item.label).join(" / ")}><span className="truncate">{breadcrumbs.at(-1)?.label ?? "Canvas"}</span><ChevronDown className="size-4 shrink-0" /></Button></DropdownMenuTrigger>
-              <DropdownMenuContent align="center" aria-labelledby={undefined} aria-label="Canvas locations" className="max-w-[calc(100vw-1.5rem)]">{breadcrumbs.map((item, index) => <DropdownMenuItem key={JSON.stringify(item.focus)} data-canvas-label={item.label} data-canvas-focus={JSON.stringify(item.focus)} aria-current={index === breadcrumbs.length - 1 ? "location" : undefined} className="block min-h-11 whitespace-normal break-words py-3" onSelect={() => { open(item.focus) }}>{breadcrumbs.slice(0, index + 1).map(ancestor => ancestor.label).join(" / ")}</DropdownMenuItem>)}</DropdownMenuContent>
-            </DropdownMenu></div>
-            <Button size="sm" variant="outline" className={`min-h-11 disabled:opacity-100 sm:min-h-0 ${broadSearch ? "hidden sm:inline-flex" : ""}`} aria-label="Open workspace tools" disabled={commandDisabled || broadSearch} onClick={openWorkspace}><List className="size-4" />Tools</Button>
-          </nav>
+
           {graph.loading && <p role="status" className="absolute bottom-2 left-4 rounded bg-card px-3 py-1 text-sm">Refreshing…</p>}
 
         </>}
@@ -241,7 +238,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
               <option value="agents">Agent runs</option><option value="team">Team</option><option value="activity">History</option>
               {isOwner && capabilityCeiling.manage && <option value="settings">Settings</option>}
             </select>
-            <Button size="icon" variant="ghost" aria-label="Show canvas" onClick={() => { if (canLeave()) { stopFollowing(); setWorkOpen(false) } }}><X className="size-4" /></Button>
+            
           </div>
         </div>
         {tool === "ready" && <div className="p-4"><NextWorkView compact focusGroup={readyGroup} onShowAll={() => setReadyGroup(undefined)} workspace={workspace} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} connected={store.realtime.isConnected} onOpenTask={openTask} onChanged={graph.reload} /></div>}

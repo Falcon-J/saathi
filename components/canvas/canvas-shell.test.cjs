@@ -22,12 +22,12 @@ function harness(options = {}) {
   const companies = { resources: [], references: [], error: null, loading: false, reload: async () => calls.push('refresh-companies'), ...options.companies }
   const jsx = (type, props) => ({ type, props })
   const deps = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
-    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X'].map(key => [key, key])),
+    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map'].map(key => [key, key])),
     '@/hooks/use-workspaces': { useWorkspaces: () => store }, '@/hooks/use-canvas-graph': { useCanvasGraph: () => graph }, './use-canvas-resources': { useCanvasResources: () => companies },
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
   }
-  for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
+  for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem', 'DropdownMenuSeparator'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
   const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
   new Function('require', 'exports', 'window', code)(name => { assert.ok(name in deps, name); return deps[name] }, exports, { confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true }, addEventListener(name, handler) { listeners.set(name, handler) }, removeEventListener() {} })
@@ -63,8 +63,8 @@ test('exploring a section navigates the canvas instead of opening administration
 })
 
 test('canvas management accessible name includes its visible button label', () => {
-  const button = harness().render().find(node => node.type === 'Button' && node.props['aria-label'] === 'Manage canvas')
-  const label = nodes(button).find(node => node.type === 'span').props.children
+  const button = harness().render().find(node => node.type === 'DropdownMenuItem' && node.props['aria-label'] === 'Manage canvas')
+  const label = 'Manage canvas'
   assert.ok(button.props['aria-label'].toLowerCase().includes(label.toLowerCase()))
 })
 
@@ -86,7 +86,7 @@ test('workspace creation captures the selected section and keeps its destination
  const section={id:'section',name:'Delivery',kind:'section',parentId:null,workspaceId:null,version:3,capabilities:['read','manage','create']};
  const ui=harness({companies:{resources:[section]}});
  ui.render().find(n=>n.type==='CanvasFlow').props.onOpenResource('section');
- ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Create workspace').props.onClick();
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['aria-label']==='Create workspace').props.onSelect();
  const target=ui.render().find(n=>n.type==='ContextualWorkspaceCreate').props.target;
  assert.deepEqual(target,{id:'section',version:3,path:'Delivery'});
  section.version=4; section.name='Renamed';
@@ -95,7 +95,7 @@ test('workspace creation captures the selected section and keeps its destination
 test('read-only sections cannot silently create unattached workspaces',()=>{
  const ui=harness({companies:{resources:[{id:'section',name:'Delivery',kind:'section',parentId:null,workspaceId:null,version:1,capabilities:['read']}]}});
  ui.render().find(n=>n.type==='CanvasFlow').props.onOpenResource('section');
- ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Create workspace').props.onClick();
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['aria-label']==='Create workspace').props.onSelect();
  assert.equal(ui.render().filter(n=>n.type==='Dialog').some(n=>n.props.open),false);
  assert.match(ui.text(),/need create and manage access/);
 });
@@ -118,7 +118,7 @@ test('read-only workspace tools land on Ready and Waiting with the actual worksp
 test('workspace picker focuses its selected workspace and avoids mounting an unused board',()=>{
  const workspace={id:'w',name:'Delivery',ownerId:'actor@example.test',members:[]};
  const ui=harness({store:{workspaces:[workspace],currentWorkspaceId:'w'},graph:{entry:{workspace,complete:true,graph:{tasks:[],dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}}}});
- ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Current workspace').props.onChange({target:{value:'w'}});
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['data-workspace-id']==='w').props.onSelect();
  const result=ui.render();assert.deepEqual(result.find(n=>n.type==='CanvasFlow').props.focus,{kind:'workspace',workspaceId:'w'});
  assert.equal(result.some(n=>n.type==='WorkspaceBoard'),false);
  result.find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();
@@ -150,7 +150,7 @@ test('page and workspace exits still guard a hidden in-memory draft when browser
  ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'ready'}});
  accepted=false;let prevented=false;
  ui.render().find(n=>n.type==='Link'&&n.props['aria-label']==='Open dashboard').props.onClick({preventDefault(){prevented=true}});assert.equal(prevented,true);
- ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Current workspace').props.onChange({target:{value:'other'}});assert.equal(ui.store.currentWorkspaceId,'w');
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['data-workspace-id']==='other').props.onSelect();assert.equal(ui.store.currentWorkspaceId,'w');
  assert.equal(ui.calls.filter(c=>c==='confirm').length,3);
 });
 
@@ -193,4 +193,13 @@ test('work focus preserves the canvas and task draft when returning to the map',
  back.props.onClick();const map=ui.render();
  assert.ok(map.some(n=>n.type==='CanvasFlow'));assert.ok(map.some(n=>n.type==='WorkspaceBoard'),'hidden draft stays mounted');
  assert.equal(map.find(n=>n.type==='CanvasFlow').props.focus.kind,'workspace');
+});
+
+test('one canonical location control replaces competing workspace and breadcrumb pickers',()=>{
+ const workspace={id:'w',name:'Delivery',ownerId:'actor@example.test',members:[]};
+ const tree=harness({store:{workspaces:[workspace],currentWorkspaceId:'w'}}).render();
+ assert.equal(tree.filter(n=>n.type==='Button'&&n.props['aria-label']?.startsWith('Canvas location:')).length,1);
+ assert.equal(tree.some(n=>n.type==='select'&&n.props['aria-label']==='Current workspace'),false);
+ assert.ok(tree.some(n=>n.type==='DropdownMenuItem'&&n.props['data-workspace-id']==='w'));
+ assert.equal(tree.filter(n=>n.type==='nav'&&n.props['aria-label']==='Canvas hierarchy').length,1);
 });
