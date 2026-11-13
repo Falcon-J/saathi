@@ -8,12 +8,13 @@ async function expectInsideCanvas(page, locator, container) {
   await expect(locator).toBeVisible()
   await expect.poll(async () => {
     const item = await locator.boundingBox()
-    const canvas = await (container ?? page.getByRole('region', { name: 'Workspace canvas', exact: true })).boundingBox()
+    const canvas = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+    const card = container ? await container.boundingBox() : canvas
     const viewport = page.viewportSize()
-    return Boolean(item && canvas && viewport && item.width > 0 && item.height > 0
-      && item.x >= Math.max(0, canvas.x) - 1 && item.y >= Math.max(0, canvas.y) - 1
-      && item.x + item.width <= Math.min(viewport.width, canvas.x + canvas.width) + 1
-      && item.y + item.height <= Math.min(viewport.height, canvas.y + canvas.height) + 1)
+    return Boolean(item && canvas && card && viewport && item.width > 0 && item.height > 0
+      && item.x >= Math.max(0, canvas.x, card.x) - 1 && item.y >= Math.max(0, canvas.y, card.y) - 1
+      && item.x + item.width <= Math.min(viewport.width, canvas.x + canvas.width, card.x + card.width) + 1
+      && item.y + item.height <= Math.min(viewport.height, canvas.y + canvas.height, card.y + card.height) + 1)
   }).toBe(true)
 }
 
