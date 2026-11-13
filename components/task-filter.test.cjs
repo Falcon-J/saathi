@@ -36,6 +36,15 @@ test("compact filters keep search visible and disclose counted filters with a cl
   assert.deepEqual(changes, [["status", "all"], ["priority", "all"], ["assignee", null]])
 })
 
+test("compact filters place the new task action beside the filters disclosure", () => {
+ const action=jsx('Button',{children:'New task'})
+ const tree=moduleExports.TaskFilter({compactToolbar:true,toolbarAction:action,searchQuery:'',selectedAssignee:null,selectedStatus:'all',selectedPriority:'all',members:[]})
+ const row=nodes(tree).find(n=>Array.isArray(n.props?.children)&&n.props.children.includes(action))
+ assert.ok(row,'new task shares the compact filters row')
+ assert.ok(nodes(row).some(n=>n.type==='details'))
+ assert.equal(nodes(row).some(n=>n.type==='Input'),false,'search retains its own full-width row')
+})
+
 test("Board filters expose accessible controls and forward controlled changes", () => {
   const changes = []
   const tree = moduleExports.TaskFilter({

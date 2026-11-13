@@ -12,7 +12,7 @@ const storage = new Map()
 global.sessionStorage = { getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key) }
 modules.storage = load('lib/draft-storage.ts',{})
 const jsx=(type,props)=>({type,props})
-const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children)]
+const nodes=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(nodes):[n,...nodes(n.props?.children),...nodes(n.props?.toolbarAction)]
 function mount(component, props, actions={}) {
  const slots=[];let cursor=0, changed=false, effects=[]
  const react={memo:c=>c,useMemo:f=>f(),useState(initial){const i=cursor++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return[slots[i],value=>{const next=typeof value==='function'?value(slots[i]):value;if(next!==slots[i]){slots[i]=next;changed=true}}]},useRef(value){const i=cursor++;if(!(i in slots))slots[i]={current:value};return slots[i]},useEffect(fn,deps){const i=cursor++;if(!slots[i]||deps.some((v,j)=>v!==slots[i][j])){slots[i]=deps;effects.push(fn)}}}
@@ -33,6 +33,7 @@ test('compact toolbar keeps quick add mounted while toggling and opens for focus
  const props={tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,focusQuickAdd:0}
  const ui=mount('task-list',props)
  let rows=ui.render(),region=rows.find(n=>n.props?.['aria-label']==='New task form')
+ assert.ok(rows.find(n=>n.type==='TaskFilter').props.toolbarAction,'creation action belongs to the compact filter row')
  assert.ok(region);assert.equal(region.props.hidden,true)
  assert.ok(nodes(region).some(n=>n.type==='TaskQuickAdd'),'collapsed drafts stay mounted')
  assert.equal(nodes(region).find(n=>n.type==='TaskQuickAdd').props.focusRequest,undefined,'hidden inputs cannot consume focus requests')

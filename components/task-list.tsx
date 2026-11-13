@@ -372,7 +372,6 @@ export const TaskList = memo(function TaskList({
   return (
     <div className="@container space-y-4 p-4 sm:p-5">
       {permitsCapability(capabilityCeiling, "create") && <>
-        {compactToolbar && <Button variant="outline" size="sm" aria-expanded={quickAddOpen} onClick={() => setQuickAddOpen(value => !value)}>New task</Button>}
         <div aria-label="New task form" hidden={compactToolbar && !quickAddOpen}>
           <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={compactToolbar && !quickAddOpen ? undefined : focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
         </div>
@@ -380,6 +379,7 @@ export const TaskList = memo(function TaskList({
 
       <TaskFilter
         compactToolbar={compactToolbar}
+        toolbarAction={compactToolbar && permitsCapability(capabilityCeiling, "create") ? <Button variant="outline" size="sm" aria-expanded={quickAddOpen} onClick={() => setQuickAddOpen(value => !value)}>New task</Button> : undefined}
         onClearFilters={() => {
           if (paging) paging.changeFilters({ status: "all", priority: undefined, assigneeEmail: undefined })
           else { setSelectedStatus("all"); setSelectedPriority("all"); setSelectedAssignee(null) }

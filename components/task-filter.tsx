@@ -1,4 +1,5 @@
 "use client"
+import type { ReactNode } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { X, Search } from "lucide-react"
@@ -7,6 +8,7 @@ import type { Member } from "@/app/actions/workspaces"
 interface TaskFilterProps {
   compactToolbar?: boolean
   onClearFilters?: () => void
+  toolbarAction?: ReactNode
   onSearchChange: (query: string) => void
   onFilterByAssignee: (memberId: string | null) => void
   onFilterByStatus: (status: "all" | "active" | "completed") => void
@@ -30,6 +32,7 @@ export function TaskFilter({
   selectedPriority,
   compactToolbar = false,
   onClearFilters,
+  toolbarAction,
 }: TaskFilterProps) {
   const activeCount = Number(selectedStatus !== "all") + Number(selectedPriority !== "all") + Number(Boolean(selectedAssignee))
   const filters = (
@@ -106,8 +109,9 @@ export function TaskFilter({
       </div>
 
       {compactToolbar ? (
-        <div className="flex items-start gap-2">
-          <details className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start gap-2">
+          {toolbarAction}
+          <details className="min-w-0 flex-1 open:basis-full">
             <summary aria-label={activeCount ? `Filters, ${activeCount} active` : "Filters"} className="cursor-pointer rounded-[var(--saathi-radius-control)] py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
               Filters{activeCount > 0 && <span className="ml-2 text-muted-foreground">{activeCount}</span>}
             </summary>
