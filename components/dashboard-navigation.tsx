@@ -23,10 +23,10 @@ export function DashboardNavigation({ mode, hasWorkspace, activeView = "overview
   const actions = { overview: onOpenOverview, board: onOpenBoard, team: onOpenTeam }
   return (
     <nav aria-label="Workspace navigation" className={cn(compact ? "flex gap-1 border-b border-border bg-card px-2 py-2" : "flex w-full flex-col gap-1")}>
-      <Link href="/canvas" aria-label="Canvas" className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", compact ? "flex-1 justify-center text-xs" : "w-full justify-start text-sm")}><LayoutGrid className="size-5" aria-hidden="true" />Canvas</Link>
+      <Link href="/canvas" aria-label="Canvas" className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", compact ? "min-w-0 flex-1 flex-col justify-center gap-1 px-2 text-xs" : "w-full justify-start text-sm")}><LayoutGrid className="size-5" aria-hidden="true" />Canvas</Link>
       {hasWorkspace && dashboardNavigationItems.map(({ view, label, Icon }) => (
         <button key={view} type="button" onClick={actions[view]} aria-current={activeView === view ? "location" : undefined} aria-label={label}
-          className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", compact ? "flex-1 justify-center text-xs" : "w-full justify-start text-sm", activeView === view ? "bg-accent text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
+          className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", compact ? "min-w-0 flex-1 flex-col justify-center gap-1 px-2 text-xs" : "w-full justify-start text-sm", activeView === view ? "bg-accent text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
           <Icon className="size-5" aria-hidden="true" />{label}
         </button>
       ))}

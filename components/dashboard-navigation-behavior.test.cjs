@@ -40,7 +40,7 @@ test('mobile navigation keeps labelled keyboard-operable routes and the active v
   const tree = component.DashboardNavigation({ mode: 'mobile', hasWorkspace: true, activeView: 'board' })
   const mobileButtons = buttons(tree)
   assert.deepEqual(mobileButtons.map(button => button.props['aria-label']), ['Overview', 'Board', 'Team'])
-  assert.ok(mobileButtons.every(button => button.props.type === 'button' && button.props.className.includes('focus-visible:ring-2')))
+  assert.ok(mobileButtons.every(button => button.props.type === 'button' && button.props.className.includes('focus-visible:ring-2') && button.props.className.includes('flex-col')))
   assert.equal(mobileButtons.find(button => button.props['aria-current']).props['aria-label'], 'Board')
   assert.equal(buttons(component.DashboardNavigation({ mode: 'mobile', hasWorkspace: false })).length, 0)
 })
