@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
-import { Background, Controls, Handle, Position, ReactFlow, type Node, type NodeProps, type Viewport, type ReactFlowInstance } from "@xyflow/react"
+import { Background, Controls, Handle, Position, ReactFlow, useStore, type Node, type NodeProps, type Viewport, type ReactFlowInstance } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Button } from "@/components/ui/button"
 import { taskNodeId, workspaceNodeId, type CanvasFocus, type CanvasProjection, type CanvasRepresentation } from "@/features/canvas/model"
@@ -38,15 +38,15 @@ const ariaLabels = {
   "edge.a11yDescription.default": "Task prerequisite or canvas association. The connection name identifies its purpose.",
 }
 
-function readCamera(key: string): Viewport | null {
+function readCamera(key: string): (Viewport & { canvasWidth?: number; canvasHeight?: number }) | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) ?? "null")
     return parsed && [parsed.x, parsed.y, parsed.zoom].every(Number.isFinite) && parsed.zoom >= 0.15 && parsed.zoom <= 2
-      ? { x: parsed.x, y: parsed.y, zoom: parsed.zoom } : null
+      ? { x: parsed.x, y: parsed.y, zoom: parsed.zoom, canvasWidth: parsed.canvasWidth, canvasHeight: parsed.canvasHeight } : null
   } catch { return null }
 }
 
-export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent }: {
+export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
@@ -58,10 +58,16 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
   onOpenResource: (id: string) => void
   focus: CanvasFocus
   followingAgent: boolean
+  ready?: boolean
 }) {
   const { resolvedTheme } = useTheme()
   const [initialCamera] = useState(() => readCamera(cameraKey))
   const flow = useRef<ReactFlowInstance<FlowNode> | null>(null)
+  const [initialized, setInitialized] = useState(false)
+  const canvasWidth = useStore(state => state.width)
+  const canvasHeight = useStore(state => state.height)
+  const previousSize = useRef<{ width: number; height: number } | null>(null)
+  const pendingResize = useRef(false)
   const restoredCamera = useRef(false)
   const manualCamera = useRef(false)
   const resourceKey = resources.map(resource => resource.id).join("|")
@@ -90,6 +96,19 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
     // Instant camera changes also respect reduced-motion preferences.
     void flow.current?.fitView({ nodes: id ? [{ id }] : undefined, padding: 0.15, maxZoom: 1.2, duration: 0 })
   }, [focusKey, focusReady, followingAgent])
+  useEffect(() => {
+    if (!initialized || canvasWidth <= 0 || canvasHeight <= 0) return
+    const previous = previousSize.current
+    if (!previous) pendingResize.current = initialCamera?.canvasWidth !== canvasWidth || initialCamera?.canvasHeight !== canvasHeight
+    else if (previous.width !== canvasWidth || previous.height !== canvasHeight) pendingResize.current = true
+    previousSize.current = { width: canvasWidth, height: canvasHeight }
+    if (!pendingResize.current || !ready || !focusReady) return
+    pendingResize.current = false
+    const current: CanvasFocus = JSON.parse(focusKey)
+    const id = current.kind === "task" ? taskNodeId(current.workspaceId, current.taskId)
+      : current.kind === "workspace" ? workspaceNodeId(current.workspaceId) : null
+    void flow.current?.fitView({ nodes: id ? [{ id }] : undefined, padding: 0.15, maxZoom: 1.2, duration: 0 })
+  }, [canvasWidth, canvasHeight, initialized, initialCamera, ready, focusReady, focusKey])
   const nodes = useMemo<FlowNode[]>(() => {
     const projected: FlowNode[] = projection.nodes.map(node => {
     const workspace = projection.records.workspaces.get(node.kind === "workspace" ? node.id : node.parentId!)!
@@ -124,6 +143,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
   }, [projection, onOpen, resources, onOpenResource, workspaces])
   const initialize = useCallback((instance: ReactFlowInstance<FlowNode>) => {
     flow.current = instance
+    setInitialized(true)
     const camera = initialCamera
     restoredCamera.current = Boolean(camera)
     if (camera) void instance.setViewport(camera, { duration: 0 })
@@ -131,13 +151,13 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
   }, [initialCamera])
   const finishMove = useCallback((_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
     onZoom(viewport.zoom)
-    try { localStorage.setItem(cameraKey, JSON.stringify(viewport)) } catch { /* Camera preferences are optional. */ }
-  }, [cameraKey, onZoom])
+    try { localStorage.setItem(cameraKey, JSON.stringify({ ...viewport, canvasWidth, canvasHeight })) } catch { /* Camera preferences are optional. */ }
+  }, [cameraKey, onZoom, canvasWidth, canvasHeight])
   return <ReactFlow<FlowNode> nodes={nodes} edges={[...projection.edges, ...projectCanvasReferences(resources, references)]} nodeTypes={nodeTypes} defaultEdgeOptions={edgeOptions}
-    onPointerDownCapture={() => { manualCamera.current = true; pendingFocus.current = null; onManualNavigation() }}
-    onKeyDownCapture={() => { manualCamera.current = true; pendingFocus.current = null; onManualNavigation() }}
+    onPointerDownCapture={() => { manualCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() }}
+    onKeyDownCapture={() => { manualCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() }}
     onInit={initialize} onMove={(_event, viewport) => onZoom(viewport.zoom)} onMoveEnd={finishMove}
-    onMoveStart={event => { if (event) { manualCamera.current = true; pendingFocus.current = null; onManualNavigation() } }}
+    onMoveStart={event => { if (event) { manualCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() } }}
     nodesDraggable={false} nodesConnectable={false} deleteKeyCode={null} minZoom={0.15} maxZoom={2}
     defaultViewport={initialCamera ?? undefined} fitView={!initialCamera}
     nodesFocusable edgesFocusable disableKeyboardA11y={false} colorMode={resolvedTheme === "dark" ? "dark" : "light"} onlyRenderVisibleElements
