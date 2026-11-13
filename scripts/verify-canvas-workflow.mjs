@@ -741,6 +741,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await accessibility(page)
       await page.screenshot({ path: `${evidence}/canvas-compact-editor-${viewport.width}.png`, fullPage: true })
       await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await navigateCanvas(page, name)
       await openWorkspaceTools(page)
       await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('ready')
       await expect(workArea.getByLabel('Workspace tools', { exact: true })).toHaveValue('ready')
