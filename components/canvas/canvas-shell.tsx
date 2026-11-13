@@ -96,7 +96,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     if (focus.kind === "task") { setOpenTaskRequest(value => value + 1); setWorkOpen(true); setWorkMounted(true); setTool("tasks") }
     else setWorkOpen(false)
     return true
-  }, [canLeave, setNavigation, setWorkOpen, setWorkMounted, setTool, setMutationError, setQuickAdd, store])
+  }, [canLeave, setNavigation, setWorkOpen, setWorkMounted, setTool, setMutationError, setQuickAdd, setOpenTaskRequest, store])
   const openTask = (id: string, workspaceId = workspace?.id) => { if (workspaceId && store.workspaces.some(item => item.id === workspaceId)) return open({ kind: "task", workspaceId, taskId: id }) }
   const openWorkspace = () => { if (workspace && open({ kind: "workspace", workspaceId: workspace.id })) { setWorkOpen(true); setWorkMounted(true) } }
   const followTask = (taskId: string) => {
