@@ -201,7 +201,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     <Dialog open={companyOpen} onOpenChange={setCompanyOpen}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Company canvas</DialogTitle><DialogDescription className="sr-only">Manage companies, sections and their explicit access grants.</DialogDescription></DialogHeader>
       {companies.error ? <div role="alert" className="space-y-3"><p>{companies.error}</p><Button onClick={() => void companies.reload()}>Try again</Button></div> : companies.loading ? <p role="status">Loading companies…</p>
         : <CompanyPanel key={actorId} actorId={actorId} resources={companies.resources} workspace={workspace} initialResourceId={companyResourceId} refreshSignal={store.realtime.eventRevision + revision} onChanged={refreshAll}
-          onWorkspace={id => { setCompanyOpen(false); changeWorkspace(id) }} onInvite={() => { if (workspace && canLeave()) { setCompanyOpen(false); setTool("team"); setWorkMounted(true); setWorkOpen(true) } }} />}
+          onWorkspace={id => { setCompanyOpen(false); changeWorkspace(id) }} onInvite={id => { if (store.workspaces.some(item => item.id === id) && canLeave()) { if (workspace?.id !== id) { dirty.current = { tasks: false, settings: false }; setQuickAdd(0); store.setCurrentWorkspaceId(id) } setNavigation(state => navigateCanvas(state, { kind: "workspace", workspaceId: id }, "manual")); setCompanyOpen(false); setTool("team"); setWorkMounted(true); setWorkOpen(true) } }} />}
     </DialogContent></Dialog>
   </main>
 }
