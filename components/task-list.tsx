@@ -7,10 +7,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { TaskQuickAdd } from "@/components/task-quick-add"
-import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
+import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, MoreHorizontal, SquarePen } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { useTaskPermissions } from "@/hooks/usePermissions"
 import type { Member } from "@/app/actions/workspaces"
@@ -356,6 +357,7 @@ export const TaskList = memo(function TaskList({
     <TaskListItem
       key={task.id}
       task={task}
+      compact={compactToolbar}
       capabilityCeiling={capabilityCeiling}
       members={members}
       currentUserEmail={currentUserEmail}
@@ -409,7 +411,7 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {/* Board */}
-      <div className="grid grid-cols-1 gap-4 @lg:grid-cols-2 @3xl:grid-cols-3" aria-label="Task board">
+      <div className={compactToolbar ? "space-y-5" : "grid grid-cols-1 gap-4 @lg:grid-cols-2 @3xl:grid-cols-3"} aria-label="Task board">
         {loading ? (
           <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-8 text-center @lg:col-span-2 @3xl:col-span-3">
             <div className="flex items-center justify-center gap-2">
@@ -419,7 +421,9 @@ export const TaskList = memo(function TaskList({
           </Card>
         ) : (
           <>
+            {compactToolbar && filteredTasks.length === 0 && <p role="status" className="py-6 text-center text-sm text-muted-foreground">{paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : tasks.length === 0 && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet." : "No tasks match these filters."}</p>}
             <TaskColumn
+              compact={compactToolbar}
               title="To do"
               count={todoTasks.length}
               emptyMessage={(paging ? paging.aggregates?.total === 0 : tasks.length === 0) && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet. Add one above." : paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : "No tasks match these filters."}
@@ -427,6 +431,7 @@ export const TaskList = memo(function TaskList({
               {todoTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
+              compact={compactToolbar}
               title="In progress"
               count={inProgressTasks.length}
               emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : paging ? "No in-progress tasks match these filters." : "Tasks you are actively working on will appear here."}
@@ -434,6 +439,7 @@ export const TaskList = memo(function TaskList({
               {inProgressTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
+              compact={compactToolbar}
               title="Done"
               count={completedTasks.length}
               emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
@@ -484,21 +490,24 @@ function TaskColumn({
   count,
   emptyMessage,
   children,
+  compact = false,
 }: {
+  compact?: boolean
   title: string
   count: number
   emptyMessage: string
   children: ReactNode
 }) {
+  if (compact && count === 0) return null
   return (
-    <section className="min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
-      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+    <section className={compact ? "min-w-0" : "min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3"} aria-label={`${title} tasks`}>
+      <div className={compact ? "mb-2 flex items-center justify-between px-1" : "mb-4 flex items-center justify-between border-b border-border pb-3"}>
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
         <Badge variant="outline" className="border-border bg-card text-muted-foreground">
           {count}
         </Badge>
       </div>
-      <div className="space-y-3">
+      <div className={compact ? "divide-y divide-border overflow-hidden rounded-xl border border-border bg-card" : "space-y-3"}>
         {count > 0 ? children : (
           <div className="px-3 py-8 text-center text-sm text-muted-foreground">
             {emptyMessage}
@@ -724,6 +733,7 @@ export function TaskEditorDialog({
 }
 
 interface TaskListItemProps {
+  compact?: boolean
   capabilityCeiling?: CapabilityCeiling
   task: Task
   members: Member[]
@@ -738,6 +748,7 @@ interface TaskListItemProps {
 }
 
 const TaskListItem = memo(function TaskListItem({
+  compact = false,
   task,
   members,
   currentUserEmail,
@@ -755,6 +766,30 @@ const TaskListItem = memo(function TaskListItem({
     { id: task.workspaceId, ownerId: workspaceOwnerId },
     task,
   )
+
+  if (compact) {
+    const owner = members.find(member => member.email.toLowerCase() === task.assigneeEmail?.toLowerCase())
+    const due = formatTaskDue(task.dueAt, task.dueDate, timeZone)
+    return <Card data-task-row={task.id} className="rounded-none border-0 bg-card p-0 shadow-none">
+      <div className="flex items-start gap-2 px-2 py-2">
+        <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground" aria-label={task.completed ? "Reopen " + task.title : "Complete " + task.title} aria-pressed={task.completed} disabled={operatingTaskId === task.id || !(taskPermissions.canToggle && permitsCapability(capabilityCeiling, "edit"))} onClick={() => onToggleTask(task.id)}>
+          {operatingTaskId === task.id ? <Loader2 className="size-5 animate-spin" /> : task.completed ? <CheckCircle2 className="size-5 text-[var(--saathi-success)]" /> : <Circle className="size-5" />}
+        </Button>
+        <div className="min-w-0 flex-1">
+          <button type="button" className={"line-clamp-2 min-h-11 w-full break-words text-left text-sm font-medium leading-5 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring " + (task.completed ? "text-muted-foreground line-through" : "text-foreground")} aria-label={(taskPermissions.canEdit && permitsCapability(capabilityCeiling, "edit") ? "Edit " : "Open ") + task.title} title={task.title} onClick={() => onStartEdit(task)}>{task.title}</button>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pb-1 text-xs text-muted-foreground">
+            <span className="max-w-40 truncate" title={task.assigneeEmail ?? undefined}>{task.assigneeEmail ? owner?.username || task.assigneeEmail : "Unassigned"}</span>
+            {due && <span>Due {due}</span>}
+            {task.priority === "high" && <span className="inline-flex items-center gap-1 text-[var(--saathi-danger)]"><Flag className="size-3" aria-hidden="true" />High</span>}
+          </div>
+        </div>
+        {taskPermissions.canDelete && permitsCapability(capabilityCeiling, "delete") && <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground" aria-label={"Task actions for " + task.title} disabled={operatingTaskId === task.id}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" aria-labelledby={undefined} aria-label={"Actions for " + task.title}><DropdownMenuItem variant="destructive" className="min-h-11" onSelect={() => onConfirmDelete(task.id)}>Delete task</DropdownMenuItem></DropdownMenuContent>
+        </DropdownMenu>}
+      </div>
+    </Card>
+  }
 
   return (
     <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">

@@ -11,12 +11,13 @@ const useState = initial => {
   if (!(index in state)) state[index] = initial
   return [state[index], value => { state[index] = typeof value === "function" ? value(state[index]) : value }]
 }
-const names = ["AlertCircle", "Calendar", "CheckCircle2", "Circle", "Clock", "Edit2", "Flag", "Loader2", "SquarePen", "Trash2", "Users"]
+const names = ["AlertCircle", "Calendar", "CheckCircle2", "Circle", "Clock", "Edit2", "Flag", "Loader2", "SquarePen", "MoreHorizontal", "Trash2", "Users"]
 const dependencies = {
   "@/lib/capability-ceiling": require("../lib/capability-ceiling.ts"),
   react: { memo: component => component, useState, useMemo: callback => callback(), useRef: current => ({ current }), useEffect() {} },
   "react/jsx-runtime": { jsx, jsxs: jsx },
   "lucide-react": Object.fromEntries(names.map(name => [name, name])),
+  "@/components/ui/dropdown-menu": Object.fromEntries(["DropdownMenu","DropdownMenuContent","DropdownMenuItem","DropdownMenuTrigger"].map(name=>[name,name])),
   "@/components/ui/button": { Button: "Button" },
   "@/components/ui/input": { Input: "Input" },
   "@/components/ui/card": { Card: "Card" },
