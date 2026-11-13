@@ -86,6 +86,28 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
   let agentTaskId
   let companyId
   try {
+    await page.addInitScript(() => {
+      const events = []
+      window.__qaCanvasHistoryEvents = events
+      const record = value => { events.push(value); if (events.length > 80) events.shift() }
+      const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window), wrappers = new WeakMap()
+      window.addEventListener = function (type, listener, options) {
+        if (type !== 'popstate' || typeof listener !== 'function') return add(type, listener, options)
+        let wrapped = wrappers.get(listener)
+        if (!wrapped) {
+          const source = listener.toString(), kind = source.includes('Save or discard the open draft') ? 'canvas' : source.includes('state.session') || source.includes('current.session') ? 'tracker' : 'other'
+          wrapped = function (event) {
+            record({ kind, phase: 'before', path: location.pathname + location.search, position: history.state?.__saathiHistoryPosition })
+            try { return listener.call(this, event) } finally { record({ kind, phase: 'after', path: location.pathname + location.search, stopped: event.cancelBubble }) }
+          }
+          wrappers.set(listener, wrapped)
+        }
+        return add(type, wrapped, options)
+      }
+      window.removeEventListener = function (type, listener, options) { return remove(type, type === 'popstate' && typeof listener === 'function' ? wrappers.get(listener) ?? listener : listener, options) }
+      const confirm = window.confirm.bind(window)
+      window.confirm = message => { record({ kind: 'confirm', phase: 'before', message }); const result = confirm(message); record({ kind: 'confirm', phase: 'after', result }); return result }
+    })
     // The preceding Ready/Waiting journey ends at its mobile viewport.
     await page.setViewportSize({ width: 1280, height: 900 })
     await db.begin(async tx => {
@@ -654,7 +676,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await openWorkspaceTools(page)
     await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
     await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspace && url.searchParams.get('view') === 'tasks')
-    const boundaryState = async step => log({ canvasBoundaryStep: { step, ...await page.evaluate(() => ({ path: location.pathname + location.search, position: history.state?.__saathiHistoryPosition, nativeIndex: window.navigation?.currentEntry?.index, stateKeys: Object.keys(history.state ?? {}) })) } })
+    const boundaryState = async step => log({ canvasBoundaryStep: { step, ...await page.evaluate(() => ({ path: location.pathname + location.search, position: history.state?.__saathiHistoryPosition, nativeIndex: window.navigation?.currentEntry?.index, stateKeys: Object.keys(history.state ?? {}), events: window.__qaCanvasHistoryEvents, hiddenDraftRetained: Object.values(sessionStorage).some(value => value.includes("Keep the page-boundary draft")) })) } })
     const boundaryCanvasUrl = page.url(), boundaryMarker = randomUUID()
     await boundaryState('before-dashboard')
     await canvasHeaderAction(page, 'Open dashboard')
