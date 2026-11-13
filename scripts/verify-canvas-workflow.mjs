@@ -273,7 +273,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
           await expect(button).toBeFocused()
           await page.keyboard.press('Enter')
         } else await (activation === 'heading' ? heading : button).click()
-        await current(label)
+        // A modal task editor removes background navigation from the accessibility tree.
+        if (!id.startsWith("task:")) await current(label)
         await expect(panel).not.toBeVisible()
       }
       await phase('overview', async () => {
@@ -324,6 +325,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await editor.getByLabel('Status', { exact: true }).selectOption('in-progress')
         await editor.getByRole('button', { name: 'Save changes', exact: true }).click()
         await expect(editor).not.toBeVisible()
+        await current(title)
         await expect.poll(async () => {
           const [row] = await db`SELECT description,status,version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
           return row && { description: row.description, status: row.status, version: row.version }
