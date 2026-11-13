@@ -1,16 +1,16 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { installHistoryPositions, publicHistoryState, readHistoryPosition, historyTraversalDelta } from "./browser-history.ts"
+import { installHistoryPositions, subscribeHistoryTraversal, publicHistoryState, readHistoryPosition, historyTraversalDelta } from "./browser-history.ts"
 
 function browser() {
   const entries = [{ state: { __NA: true, custom: "kept" }, url: "/dashboard" }]
   let index = 0
-  const listeners: (() => void)[] = []
-  const window = { location: { href: "https://saathi.test/dashboard" }, addEventListener(_name: string, fn: () => void) { listeners.push(fn) }, history: {
+  const listeners: ((event: PopStateEvent) => void)[] = []
+  const window = { location: { href: "https://saathi.test/dashboard" }, addEventListener(_name: string, fn: (event: PopStateEvent) => void) { listeners.push(fn) }, history: {
     get state(): unknown { return entries[index].state },
     replaceState(state: typeof entries[number]["state"], _title: string, url?: string | URL | null) { entries[index] = { state, url: String(url ?? entries[index].url) } },
     pushState(state: typeof entries[number]["state"], _title: string, url?: string | URL | null) { entries.splice(++index); entries.push({ state, url: String(url) }) },
-    go(delta: number) { index += delta; listeners.forEach(fn => fn()) },
+    go(delta: number) { index += delta; const event = { cancelBubble: false } as PopStateEvent; listeners.forEach(fn => fn(event)) },
   } }
   return { window: window as unknown as Window, entries, listeners }
 }
@@ -39,4 +39,22 @@ test("public writes retain unrelated metadata without Next internal markers", ()
   assert.deepEqual(publicHistoryState({ __NA: true, _N: true, __N: true, __PRIVATE_NEXTJS_INTERNALS_TREE: ["tree"], custom: "kept" }), { custom: "kept" })
   assert.equal(historyTraversalDelta({ session: "a", index: 1, nativeIndex: null }, { session: null, index: null, nativeIndex: null }), null)
   assert.equal(historyTraversalDelta({ session: null, index: null, nativeIndex: 3 }, { session: null, index: null, nativeIndex: 1 }), 2)
+})
+test("traversal subscriptions see updated positions, clean up and reconnect without native listener churn", () => {
+  const ui = browser(), w = ui.window
+  installHistoryPositions(w)
+  const initial = readHistoryPosition(w)
+  w.history.pushState({}, "", "/canvas")
+  const observed: number[] = []
+  const callback = () => { observed.push(historyTraversalDelta(readHistoryPosition(w), initial)!) }
+  const unsubscribe = subscribeHistoryTraversal(w, callback)
+  w.history.go(-1)
+  assert.deepEqual(observed, [0])
+  unsubscribe(); w.history.go(1)
+  assert.deepEqual(observed, [0])
+  const disconnect = subscribeHistoryTraversal(w, callback)
+  w.history.go(-1)
+  assert.deepEqual(observed, [0, 0])
+  disconnect()
+  assert.equal(ui.listeners.length, 1)
 })

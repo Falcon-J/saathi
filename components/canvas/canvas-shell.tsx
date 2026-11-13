@@ -31,7 +31,7 @@ import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@
 import { ACCESS_CAPABILITIES } from "@/features/access/contracts"
 import { permitsCapability } from "@/lib/capability-ceiling"
 import { canvasUrl, parseCanvasUrl, resolveCanvasUrl, type CanvasLocation } from "@/features/canvas/navigation-url"
-import { installHistoryPositions, readHistoryPosition, historyTraversalDelta, publicHistoryState, type HistoryPosition } from "@/lib/browser-history"
+import { installHistoryPositions, subscribeHistoryTraversal, readHistoryPosition, historyTraversalDelta, publicHistoryState, type HistoryPosition } from "@/lib/browser-history"
 
 const CanvasFlow = dynamic(() => import("./canvas-flow"), { ssr: false,
   loading: () => <p role="status" className="p-6">Loading canvas…</p> })
@@ -138,8 +138,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
       setNavigation(previous => previous.followingAgent ? { ...previous, followingAgent: false } : previous)
       setPendingLocation({ location: target })
     }
-    window.addEventListener("popstate", pop, { capture: true })
-    return () => { window.removeEventListener("popstate", pop, { capture: true }); browserNavigation.current = null }
+    const unsubscribe = subscribeHistoryTraversal(window, pop)
+    return () => { unsubscribe(); browserNavigation.current = null }
   }, [actorId])
   useEffect(() => {
     const state = browserNavigation.current

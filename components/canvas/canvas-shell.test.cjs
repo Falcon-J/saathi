@@ -8,13 +8,14 @@ const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tre
 function harness(options = {}) {
   const slots = [], effects = [], calls = [], listeners = new Map(), handlers = new Map()
   let cursor = 0, tree
+  const unmount=()=>slots.forEach(slot=>slot?.cleanup?.())
   const changed = (a, b) => !a || a.length !== b.length || a.some((value, i) => value !== b[i])
   const react = {
     useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value }] },
     useRef(initial) { return slots[cursor++] ??= { current: initial } },
     useMemo(fn, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) slots[i] = { deps, value: fn() }; return slots[i].value },
     useCallback(fn, deps) { return this.useMemo(() => fn, deps) },
-    useEffect(fn, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) { slots[i] = { deps }; effects.push(fn) } },
+    useEffect(fn, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) { slots[i]?.cleanup?.(); slots[i] = { deps }; effects.push(()=>{slots[i].cleanup=fn()}) } },
   }
   react.useLayoutEffect = react.useEffect
   // Hook functions are destructured by compiled React components.
@@ -33,8 +34,9 @@ function harness(options = {}) {
     go(delta){const next=position+delta;if(next<0||next>=entries.length)return;position=next;browser.dispatchEvent({type:'popstate',state:history.state})},
     back(){history.go(-1)},forward(){history.go(1)},
   }
-  const browser={history,get location(){return new URL(entries[position].url,'https://saathi.test')},dispatchEvent(event){let stopped=false;event.stopImmediatePropagation=()=>{stopped=true};for(const item of [...(handlers.get(event.type)??[])].sort((a,b)=>Number(b.capture)-Number(a.capture))){if(stopped)break;item.handler(event)}},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true },addEventListener(name,handler,options){listeners.set(name,handler);handlers.set(name,[...(handlers.get(name)??[]),{handler,capture:options?.capture??false}])},removeEventListener(){}}
+  const browser={history,get location(){return new URL(entries[position].url,'https://saathi.test')},dispatchEvent(event){let stopped=false;event.stopImmediatePropagation=()=>{stopped=true;event.cancelBubble=true};for(const item of [...(handlers.get(event.type)??[])]){if(stopped)break;if(handlers.get(event.type)?.includes(item))item.handler(event)}},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true },addEventListener(name,handler,options){listeners.set(name,handler);handlers.set(name,[...(handlers.get(name)??[]),{handler,capture:options?.capture??false}])},removeEventListener(name,handler,options){handlers.set(name,(handlers.get(name)??[]).filter(item=>item.handler!==handler||item.capture!==(options?.capture??false)))}}
   historyModule.installHistoryPositions(browser)
+  if(options.nextUnmountsCanvas)browser.addEventListener('popstate',()=>{if(browser.location.pathname==='/dashboard'){calls.push('next-unmount');unmount()}})
   // Model installed Next's public history wrapper: marked writes bypass canonical restoration.
   for(const method of ['pushState','replaceState']){
     const original=history[method].bind(history)
@@ -154,6 +156,23 @@ test('foreign Forward cancellation retains destination and later accepts the sam
  ui.history.forward();ui.render();assert.equal(ui.url(),original);assert.equal(ui.entries[1].url,'/dashboard')
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(false,false)
  ui.history.forward();ui.render();assert.equal(ui.url(),'/dashboard')
+})
+test('root dispatcher guards foreign Back before an earlier Next listener synchronously unmounts Shell',()=>{
+ const ui=harness({nextUnmountsCanvas:true,previousUrl:'/dashboard',url:'/canvas?workspace=w&view=tasks',confirm:()=>false,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
+ const current=ui.url();ui.history.back();assert.equal(ui.url(),current);assert.equal(ui.calls.includes('next-unmount'),false)
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(false,false)
+ ui.history.back();assert.equal(ui.url(),'/dashboard');assert.equal(ui.calls.includes('next-unmount'),true)
+})
+test('root dispatcher guards foreign Forward before synchronous Next unmount',()=>{
+ const ui=harness({nextUnmountsCanvas:true,url:'/canvas?workspace=w&view=tasks',confirm:()=>false,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render()
+ const current=ui.url();ui.history.pushState({__NA:true,tree:['dashboard']},'', '/dashboard');ui.history.back();ui.render();ui.render()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
+ ui.history.forward();assert.equal(ui.url(),current);assert.equal(ui.calls.includes('next-unmount'),false)
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(false,false)
+ ui.history.forward();assert.equal(ui.url(),'/dashboard');assert.equal(ui.calls.includes('next-unmount'),true)
 })
 test('unmarked pre-instrumentation destinations follow native history without erasing either entry',()=>{
  const ui=harness({previousUrl:'/dashboard',url:'/canvas?workspace=w&view=tasks',confirm:()=>false,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})

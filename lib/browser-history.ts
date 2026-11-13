@@ -1,5 +1,6 @@
 const positionKey = "__saathiHistoryPosition"
 const installedKey = Symbol.for("saathi.browser-history.positions")
+type HistoryDispatcher = { subscribers: Set<(event: PopStateEvent) => void> }
 export type HistoryPosition = { session: string | null; index: number | null; nativeIndex: number | null }
 
 /** Only application metadata enters Next's public native-history integration. */
@@ -29,7 +30,8 @@ export function historyTraversalDelta(accepted: HistoryPosition, destination: Hi
 export function installHistoryPositions(browser: Window): void {
   const windowState = browser as unknown as Record<symbol, unknown>
   if (windowState[installedKey]) return
-  windowState[installedKey] = true
+  const dispatcher: HistoryDispatcher = { subscribers: new Set() }
+  windowState[installedKey] = dispatcher
   const history = browser.history
   const push = history.pushState.bind(history), replace = history.replaceState.bind(history)
   const initial = readHistoryPosition(browser)
@@ -44,9 +46,22 @@ export function installHistoryPositions(browser: Window): void {
     index = next
   }
   history.replaceState = (state, title, url) => { replace(mark(state, index), title, url) }
-  browser.addEventListener("popstate", () => {
+  browser.addEventListener("popstate", event => {
     const current = readHistoryPosition(browser)
     if (current.session && current.index !== null) { session = current.session; index = current.index }
     else { session = `${Date.now()}-${Math.random()}`; index = 0 }
+    // Root registration precedes Next. Dispatch guards here: a later native
+    // listener can synchronously unmount a page and remove its own listener.
+    for (const subscriber of [...dispatcher.subscribers]) {
+      if (dispatcher.subscribers.has(subscriber)) subscriber(event)
+      if (event.cancelBubble) break
+    }
   }, { capture: true })
+}
+
+export function subscribeHistoryTraversal(browser: Window, subscriber: (event: PopStateEvent) => void): () => void {
+  installHistoryPositions(browser)
+  const dispatcher = (browser as unknown as Record<symbol, HistoryDispatcher>)[installedKey]
+  dispatcher.subscribers.add(subscriber)
+  return () => { dispatcher.subscribers.delete(subscriber) }
 }

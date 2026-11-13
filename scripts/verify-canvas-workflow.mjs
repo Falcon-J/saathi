@@ -86,29 +86,6 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
   let agentTaskId
   let companyId
   try {
-    await page.addInitScript(() => {
-      const events = []
-      window.__qaCanvasHistoryEvents = events
-      const record = value => { events.push(value); if (events.length > 80) events.shift() }
-      const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window), wrappers = new WeakMap()
-      window.addEventListener = function (type, listener, options) {
-        if (type !== 'popstate' || typeof listener !== 'function') return add(type, listener, options)
-        let wrapped = wrappers.get(listener)
-        if (!wrapped) {
-          const source = listener.toString(), kind = source.includes('stopImmediatePropagation') ? 'canvas' : source.includes('state.session') || source.includes('current.session') ? 'tracker' : 'other'
-          record({ kind, phase: 'registered', capture: typeof options === 'boolean' ? options : Boolean(options?.capture), source: source.slice(0, 240) })
-          wrapped = function (event) {
-            record({ kind, phase: 'before', path: location.pathname + location.search, position: history.state?.__saathiHistoryPosition })
-            try { return listener.call(this, event) } finally { record({ kind, phase: 'after', path: location.pathname + location.search, stopped: event.cancelBubble }) }
-          }
-          wrappers.set(listener, wrapped)
-        }
-        return add(type, wrapped, options)
-      }
-      window.removeEventListener = function (type, listener, options) { if (type === 'popstate' && typeof listener === 'function') record({ kind: listener.toString().includes('stopImmediatePropagation') ? 'canvas' : 'other', phase: 'removed' }); return remove(type, type === 'popstate' && typeof listener === 'function' ? wrappers.get(listener) ?? listener : listener, options) }
-      const confirm = window.confirm.bind(window)
-      window.confirm = message => { record({ kind: 'confirm', phase: 'before', message }); const result = confirm(message); record({ kind: 'confirm', phase: 'after', result }); return result }
-    })
     // The preceding Ready/Waiting journey ends at its mobile viewport.
     await page.setViewportSize({ width: 1280, height: 900 })
     await db.begin(async tx => {
@@ -677,35 +654,29 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await openWorkspaceTools(page)
     await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
     await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspace && url.searchParams.get('view') === 'tasks')
-    const boundaryState = async step => log({ canvasBoundaryStep: { step, ...await page.evaluate(() => ({ path: location.pathname + location.search, position: history.state?.__saathiHistoryPosition, nativeIndex: window.navigation?.currentEntry?.index, stateKeys: Object.keys(history.state ?? {}), events: window.__qaCanvasHistoryEvents, hiddenDraftRetained: Object.values(sessionStorage).some(value => value.includes("Keep the page-boundary draft")) })) } })
     const boundaryCanvasUrl = page.url(), boundaryMarker = randomUUID()
-    await boundaryState('before-dashboard')
     await canvasHeaderAction(page, 'Open dashboard')
     await expect(page).toHaveURL(base + '/dashboard')
-    await boundaryState('dashboard')
+    await expect(page.getByRole('navigation', { name: 'Workspace navigation', exact: true })).toBeVisible()
     await page.evaluate(marker => window.history.replaceState({ qaCanvasBoundary: marker }, '', window.location.href), boundaryMarker)
-    await boundaryState('dashboard-marked')
     await page.goBack()
-    await boundaryState('initial-back')
     await expect(page).toHaveURL(boundaryCanvasUrl)
     await expect(workArea).toBeVisible()
     await page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true }).click()
     const boundaryDraft = workArea.getByLabel('Task title', { exact: true })
     await boundaryDraft.fill('Keep the page-boundary draft')
     await workArea.getByRole('button', { name: 'Close new task', exact: true }).click()
-    await boundaryState('before-cancel-forward')
-    page.once('dialog', dialog => dialog.dismiss())
+    let boundaryPrompt
+    page.once('dialog', dialog => { boundaryPrompt = dialog.type(); return dialog.dismiss() })
     await page.goForward()
-    await boundaryState('after-cancel-forward')
     await expect(page).toHaveURL(boundaryCanvasUrl)
+    assert.equal(boundaryPrompt, 'confirm', 'Leaving a hidden draft across pages must ask before traversing')
     await expect(locationControl(page)).toBeVisible()
     await page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: 'New task', exact: true }).click()
     await expect(boundaryDraft).toHaveValue('Keep the page-boundary draft')
     await boundaryDraft.fill('')
     await workArea.getByRole('button', { name: 'Close new task', exact: true }).click()
-    await boundaryState('before-accepted-forward')
     await page.goForward()
-    await boundaryState('after-accepted-forward')
     await expect(page).toHaveURL(base + '/dashboard')
     assert.equal(await page.evaluate(() => window.history.state?.qaCanvasBoundary), boundaryMarker, 'Cancelled traversal must preserve the original dashboard entry')
     await page.goBack()
