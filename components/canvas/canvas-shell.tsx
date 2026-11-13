@@ -356,7 +356,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
               <option value="agents">Agent runs</option><option value="team">Team</option><option value="activity">History</option>
               {isOwner && capabilityCeiling.manage && <option value="settings">Settings</option>}
             </select>
-            
+
           </div>
         </div>
         {tool === "ready" && <div className="p-4"><NextWorkView compact focusGroup={readyGroup} onShowAll={() => setReadyGroup(undefined)} workspace={workspace} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} connected={store.realtime.isConnected} onOpenTask={openTask} onChanged={graph.reload} /></div>}
