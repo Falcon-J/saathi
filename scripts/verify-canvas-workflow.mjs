@@ -95,7 +95,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         if (type !== 'popstate' || typeof listener !== 'function') return add(type, listener, options)
         let wrapped = wrappers.get(listener)
         if (!wrapped) {
-          const source = listener.toString(), kind = source.includes('Save or discard the open draft') ? 'canvas' : source.includes('state.session') || source.includes('current.session') ? 'tracker' : 'other'
+          const source = listener.toString(), kind = source.includes('stopImmediatePropagation') ? 'canvas' : source.includes('state.session') || source.includes('current.session') ? 'tracker' : 'other'
+          record({ kind, phase: 'registered', capture: typeof options === 'boolean' ? options : Boolean(options?.capture), source: source.slice(0, 240) })
           wrapped = function (event) {
             record({ kind, phase: 'before', path: location.pathname + location.search, position: history.state?.__saathiHistoryPosition })
             try { return listener.call(this, event) } finally { record({ kind, phase: 'after', path: location.pathname + location.search, stopped: event.cancelBubble }) }
@@ -104,7 +105,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         }
         return add(type, wrapped, options)
       }
-      window.removeEventListener = function (type, listener, options) { return remove(type, type === 'popstate' && typeof listener === 'function' ? wrappers.get(listener) ?? listener : listener, options) }
+      window.removeEventListener = function (type, listener, options) { if (type === 'popstate' && typeof listener === 'function') record({ kind: listener.toString().includes('stopImmediatePropagation') ? 'canvas' : 'other', phase: 'removed' }); return remove(type, type === 'popstate' && typeof listener === 'function' ? wrappers.get(listener) ?? listener : listener, options) }
       const confirm = window.confirm.bind(window)
       window.confirm = message => { record({ kind: 'confirm', phase: 'before', message }); const result = confirm(message); record({ kind: 'confirm', phase: 'after', result }); return result }
     })
