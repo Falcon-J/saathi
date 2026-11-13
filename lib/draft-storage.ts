@@ -22,7 +22,7 @@ export function removeDraft(key: string | undefined): void {
 }
 
 export function clearWorkspaceDrafts(scope: string): void {
-  for (const suffix of [':settings', ':quick-add', ':task-editor']) removeDraft(scope + suffix)
+  for (const suffix of [':settings', ':quick-add', ':task-editor', ':agent-review']) removeDraft(scope + suffix)
 }
 
 export function isDraftRecord(value: unknown): value is Record<string, unknown> {
