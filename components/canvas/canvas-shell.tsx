@@ -213,13 +213,13 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
         : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={beginCreateWorkspace}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
-        : <><div role="region" aria-label="Workspace canvas" className={`relative pt-14 ${showWorkArea ? "h-1/4 lg:h-full lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
+        : <><div role="region" aria-label="Workspace canvas" className={`relative pt-14 ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
           onOpenGroup={(workspaceId, readiness) => { if (workspaceId !== workspace?.id || graph.loading || !capabilityCeiling.read || !open({ kind: "workspace", workspaceId })) return; stopFollowing(); if (readiness === "completed") { setListReadiness(readiness); setListOpen(true) } else { setReadyGroup(readiness); setTool("ready"); setWorkOpen(true); setWorkMounted(true) } }}
           onManualNavigation={stopFollowing} /></ReactFlowProvider></div>
-          <nav aria-label="Canvas hierarchy" className={`absolute left-3 right-3 top-3 flex items-center gap-2 ${showWorkArea ? "lg:right-[calc(52%+0.75rem)]" : ""}`}>
+          <nav aria-label="Canvas hierarchy" className={`absolute left-3 right-3 top-3 flex items-center gap-2 ${showWorkArea ? "hidden lg:flex lg:right-[calc(52%+0.75rem)]" : ""}`}>
             <Button size="sm" variant="outline" className="min-h-11 sm:min-h-0" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}>Back</Button>
             <div className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto sm:flex">{breadcrumbs.map((item, index, path) => <Button key={JSON.stringify(item.focus)} size="sm" variant="outline" className="max-w-40 shrink-0 truncate" ref={index === path.length - 1 ? currentBreadcrumb : undefined} aria-current={index === path.length - 1 ? "location" : undefined} onClick={() => open(item.focus)}>{item.label}</Button>)}</div>
             <div className="min-w-0 flex-1 sm:hidden"><DropdownMenu>
@@ -231,7 +231,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
           {graph.loading && <p role="status" className="absolute bottom-2 left-4 rounded bg-card px-3 py-1 text-sm">Refreshing…</p>}
 
         </>}
-      {workspace && graph.entry && capabilityCeiling.read && !workspaceUnavailable && workMounted && <aside aria-label="Workspace work area" className={`saathi-mobile-controls ${workOpen ? "" : "hidden"} absolute bottom-0 top-1/4 right-0 z-10 w-full overflow-y-auto border-t border-border bg-background lg:top-0 lg:w-[52%] lg:border-l lg:border-t-0`}>
+      {workspace && graph.entry && capabilityCeiling.read && !workspaceUnavailable && workMounted && <aside aria-label="Workspace work area" className={`saathi-mobile-controls ${workOpen ? "" : "hidden"} absolute bottom-0 top-0 right-0 z-10 w-full overflow-y-auto border-t border-border bg-background lg:top-0 lg:w-[52%] lg:border-l lg:border-t-0`}>
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
           <h2 className="sr-only sm:not-sr-only sm:min-w-0 sm:truncate sm:font-semibold">{selectedTask?.title ?? workspace.name}</h2>
           <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -241,7 +241,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
               <option value="agents">Agent runs</option><option value="team">Team</option><option value="activity">History</option>
               {isOwner && capabilityCeiling.manage && <option value="settings">Settings</option>}
             </select>
-            <Button size="icon" variant="ghost" aria-label="Close work area" onClick={() => { if (canLeave()) { stopFollowing(); setWorkOpen(false) } }}><X className="size-4" /></Button>
+            <Button size="icon" variant="ghost" aria-label="Show canvas" onClick={() => { if (canLeave()) { stopFollowing(); setWorkOpen(false) } }}><X className="size-4" /></Button>
           </div>
         </div>
         {tool === "ready" && <div className="p-4"><NextWorkView compact focusGroup={readyGroup} onShowAll={() => setReadyGroup(undefined)} workspace={workspace} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} connected={store.realtime.isConnected} onOpenTask={openTask} onChanged={graph.reload} /></div>}

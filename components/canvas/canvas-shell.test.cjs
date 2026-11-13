@@ -178,3 +178,19 @@ test('phone locations expose authorized full paths and canonical navigation',()=
  assert.equal(parent.props.children,'Canvas / Acme');parent.props.onSelect();
  assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'resource',resourceId:'co'});
 });
+
+test('work focus preserves the canvas and task draft when returning to the map',()=>{
+ const workspace={id:'w',name:'Delivery',ownerId:'actor@example.test',members:[]};
+ const ui=harness({store:{workspaces:[workspace],currentWorkspaceId:'w'},graph:{entry:{workspace,complete:true,graph:{tasks:[],dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}}}});
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();
+ ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'tasks'}});
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true);
+ const work=ui.render(),back=work.find(n=>n.type==='Button'&&n.props['aria-label']==='Show canvas');
+ assert.ok(back,'the working surface must provide a clear return to the canvas');
+ assert.ok(work.some(n=>n.type==='CanvasFlow'),'canvas must stay mounted during work');
+ const pane=work.find(n=>n.type==='aside');assert.ok(pane.props.className.split(' ').includes('top-0'));
+ back.props.onClick();const map=ui.render();
+ assert.ok(map.some(n=>n.type==='CanvasFlow'));assert.ok(map.some(n=>n.type==='WorkspaceBoard'),'hidden draft stays mounted');
+ assert.equal(map.find(n=>n.type==='CanvasFlow').props.focus.kind,'workspace');
+});
