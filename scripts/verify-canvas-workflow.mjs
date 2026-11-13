@@ -119,6 +119,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await expect(run.getByRole('button', { name: 'Follow agent', exact: true })).toBeEnabled()
     await run.getByLabel('Review comment', { exact: true }).fill('Verified in the signed-in canvas')
     await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
+    await expect(editor.getByLabel('Title', { exact: true })).toHaveValue(title)
+    await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
     await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('agents')
     await expect(run.getByLabel('Review comment', { exact: true })).toHaveValue('Verified in the signed-in canvas')
     const reviewRequestPending = page.waitForRequest(request => request.method() === 'POST' && Boolean(request.headers()['next-action']) && Boolean(request.postData()?.includes(agentRunId)))
