@@ -53,6 +53,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const [companyOpen, setCompanyOpen] = useState(false)
   const [companyResourceId, setCompanyResourceId] = useState<string | null>(null)
   const [quickAdd, setQuickAdd] = useState(0)
+  const [openTaskRequest, setOpenTaskRequest] = useState(0)
   const [mutationError, setMutationError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const writing = useRef(false)
@@ -92,7 +93,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
       store.setCurrentWorkspaceId(focus.workspaceId)
     }
     setNavigation(state => navigateCanvas(state, focus, "manual"))
-    if (focus.kind === "task") { setWorkOpen(true); setWorkMounted(true); setTool("tasks") }
+    if (focus.kind === "task") { setOpenTaskRequest(value => value + 1); setWorkOpen(true); setWorkMounted(true); setTool("tasks") }
     else setWorkOpen(false)
     return true
   }, [canLeave, setNavigation, setWorkOpen, setWorkMounted, setTool, setMutationError, setQuickAdd, store])
@@ -150,7 +151,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
       </div>
       <div className="flex items-center gap-1"><Button variant="ghost" size="icon" className="size-9" aria-label="Refresh canvas" disabled={store.loading || saving} onClick={() => void refreshAll()}><RefreshCw className="size-4" /></Button><Button variant="outline" size="sm" className="size-9 px-0 sm:h-9 sm:w-auto sm:px-3" aria-label="Manage canvas" onClick={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" /><span className="hidden sm:inline">Manage</span></Button><Button variant="outline" size="sm" className="size-9 px-0 sm:h-9 sm:w-auto sm:px-3" aria-label="Create workspace" onClick={() => { if (canLeave()) setCreateOpen(true) }}><Plus className="size-4" /><span className="hidden sm:inline">Workspace</span></Button></div>
     </header>
-    <div className="absolute inset-x-0 bottom-36 top-16">
+    <div className="absolute inset-x-0 bottom-28 top-16">
       {store.loading ? <p role="status" className="p-6">Loading workspaces…</p>
         : store.workspaceError ? <div role="alert" className="m-6 space-y-3"><p>{store.workspaceError}</p><Button onClick={() => void store.refreshWorkspaces()}>Try again</Button></div>
         : companies.loading ? <p role="status" className="p-6">Loading companies…</p>
@@ -165,7 +166,6 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
             <Button size="sm" variant="outline" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}>Back</Button>
             {canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks).map((item, index, path) => <Button key={JSON.stringify(item.focus)} size="sm" variant="outline" className="max-w-40 shrink-0 truncate" aria-current={index === path.length - 1 ? "location" : undefined} onClick={() => open(item.focus)}>{item.label}</Button>)}
             <Button size="sm" variant="outline" aria-label="Open workspace tools" disabled={commandDisabled} onClick={openWorkspace}><List className="size-4" />Tools</Button>
-            <Button size="sm" variant="outline" aria-label="Open keyboard task list" onClick={() => setListOpen(true)}>Tasks</Button>
           </nav>
           {graph.loading && <p role="status" className="absolute bottom-2 left-4 rounded bg-card px-3 py-1 text-sm">Refreshing…</p>}
 
@@ -184,7 +184,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
           </div>
         </div>
         <div hidden={tool !== "tasks"}><WorkspaceBoard key={workspace.id} workspace={workspace} currentUserEmail={email}
-          refreshSignal={store.realtime.eventRevision + revision} openTaskId={tool === "tasks" ? selectedTask?.id ?? null : null} commentRefreshEvent={store.realtime.lastEvent} capabilityCeiling={capabilityCeiling}
+          refreshSignal={store.realtime.eventRevision + revision} openTaskRequest={openTaskRequest} openTaskId={tool === "tasks" ? selectedTask?.id ?? null : null} commentRefreshEvent={store.realtime.lastEvent} capabilityCeiling={capabilityCeiling}
           focusQuickAdd={quickAdd} draftScope={draftScope} onDirtyChange={value => { dirty.current.tasks = value }}
           onAddTask={async (...args) => { const result = await store.addTask(...args); if (!getMutationError(result)) setRevision(value => value + 1); return result }} /></div>
         {tool === "prerequisites" && capabilityCeiling.edit && <div className="p-4"><NextWorkView workspace={workspace} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} connected={store.realtime.isConnected} onOpenTask={openTask} onChanged={graph.reload} /></div>}
@@ -198,7 +198,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
           onFollowTask={followTask} onFollowingEnded={stopFollowing} followingTaskId={navigation.followingAgent && navigation.focus.kind === "task" ? navigation.focus.taskId : null} /></div>}
       </aside>}
     </div>
-    {mutationError && <p role="alert" className="absolute inset-x-4 bottom-36 z-30 mx-auto max-w-3xl rounded-lg border border-destructive/30 bg-card p-3 text-sm">{mutationError}</p>}
+    {mutationError && <p role="alert" className="absolute inset-x-4 bottom-28 z-30 mx-auto max-w-3xl rounded-lg border border-destructive/30 bg-card p-3 text-sm">{mutationError}</p>}
     <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} scopeName={canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks).map(item => item.label).join(" / ")}
       searchScope={broadSearch ? focused.kind === "resource" ? { resourceId: focused.resourceId } : {} : undefined} searchRevision={JSON.stringify([actorId, store.realtime.eventRevision, revision, companies.resources, store.workspaces.map(item => item.id)])}
       tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={!broadSearch && (capabilityCeiling.create ?? false)} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()} onWorkspace={openWorkspace} onList={() => { stopFollowing(); setListOpen(true) }} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />

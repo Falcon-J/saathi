@@ -138,3 +138,10 @@ test('explicit follow centers the actual task immediately and stopping does not 
   ui.render({ followingAgent: false })
   assert.equal(ui.fits.length, 1)
 })
+
+test('the full card opens its canonical record without relying on a scaled-down button', () => {
+  const ui = harness()
+  const flow = ui.render()
+  flow.onNodeClick({}, flow.nodes.find(node => node.id === 'workspace:b'))
+  assert.deepEqual(ui.opens, [{ kind: 'workspace', workspaceId: 'b' }])
+})

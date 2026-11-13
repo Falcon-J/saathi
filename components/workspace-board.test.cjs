@@ -25,8 +25,9 @@ test('Board inline edits use the loaded version and preserve an editor version',
     assert.ok(name in dependencies, `Unexpected dependency ${name}`)
     return dependencies[name]
   }, exports)
-  const tree = exports.WorkspaceBoard({ workspace: { id: 'workspace', members: [] } })
+  const tree = exports.WorkspaceBoard({ workspace: { id: 'workspace', members: [] }, openTaskRequest: 7 })
   const list = tree.props.children.find(node => node?.type === 'TaskList')
+  assert.equal(list.props.openTaskRequest, 7)
   await list.props.onEditTask('task', { assigneeEmail: 'member@example.test' })
   await list.props.onEditTask('task', { title: 'Captured draft' }, 2)
   assert.deepEqual(writes, [

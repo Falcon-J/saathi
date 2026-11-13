@@ -49,6 +49,7 @@ interface TaskListProps {
   onDeleteTask: (id: string) => Promise<unknown>
   onEditTask: (taskId: string, updates: TaskUpdate, expectedVersion?: number | string) => Promise<unknown>
   openTaskId?: string | null
+  openTaskRequest?: number
   commentRefreshEvent?: RealtimeEvent | null
   focusQuickAdd?: number
   draftScope?: string
@@ -68,6 +69,7 @@ export const TaskList = memo(function TaskList({
   onDeleteTask,
   onEditTask,
   openTaskId,
+  openTaskRequest = 0,
   commentRefreshEvent,
   focusQuickAdd,
   onReviewBoard,
@@ -96,6 +98,7 @@ export const TaskList = memo(function TaskList({
   const selectedStatus = paging ? paging.filters.status ?? "all" : localSelectedStatus
   const selectedPriority = paging ? paging.filters.priority ?? "all" : localSelectedPriority
   const openedTaskIdRef = useRef<string | null>(null)
+  const openedTaskRequestRef = useRef(openTaskRequest)
   const [latestTask, setLatestTask] = useState<Task | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
   const reviewRequest = useRef(0)
@@ -121,9 +124,10 @@ export const TaskList = memo(function TaskList({
       setEditingTask(retained.task)
       setEditingDraft(retained.draft)
       openedTaskIdRef.current = openTaskId ?? retained.task.id
+      openedTaskRequestRef.current = openTaskRequest
     }
     setRestoredScope(draftKey)
-  }, [draftKey, restoredScope, openTaskId])
+  }, [draftKey, restoredScope, openTaskId, openTaskRequest])
   const originalDraft = editingTask ? toTaskEditorDraft(editingTask) : null
   const editorDirty = Boolean(editingDraft && originalDraft && (Object.keys(originalDraft) as (keyof TaskEditorDraft)[]).some(key => originalDraft[key] !== editingDraft[key]))
   useEffect(() => {
@@ -139,17 +143,19 @@ export const TaskList = memo(function TaskList({
       openedTaskIdRef.current = null
       return
     }
-    if (openedTaskIdRef.current === openTaskId) return
+    // A record ID is selection; the request distinguishes an explicit repeat Open from a live refresh.
+    if (openedTaskIdRef.current === openTaskId && openedTaskRequestRef.current === openTaskRequest) return
     const task = tasks.find((item) => item.id === openTaskId) ?? (detailTask?.id === openTaskId ? detailTask : null)
     if (!task) return
     openedTaskIdRef.current = openTaskId
+    openedTaskRequestRef.current = openTaskRequest
     reviewRequest.current++
     setLatestTask(null)
     setReviewLoading(false)
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, tasks, detailTask, draftKey, restoredScope])
+  }, [openTaskId, openTaskRequest, tasks, detailTask, draftKey, restoredScope])
 
   const filteredTasks = useMemo(() => {
     if (paging) return tasks
@@ -352,7 +358,7 @@ export const TaskList = memo(function TaskList({
   )
 
   return (
-    <div className="space-y-4 p-4 sm:p-5">
+    <div className="@container space-y-4 p-4 sm:p-5">
       {permitsCapability(capabilityCeiling, "create") && <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />}
 
       <TaskFilter
@@ -382,9 +388,9 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {/* Board */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Task board">
+      <div className="grid grid-cols-1 gap-4 @lg:grid-cols-2 @3xl:grid-cols-3" aria-label="Task board">
         {loading ? (
-          <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-8 text-center md:col-span-2 xl:col-span-3">
+          <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-8 text-center @lg:col-span-2 @3xl:col-span-3">
             <div className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               <p className="text-muted-foreground">Loading tasks...</p>
@@ -464,7 +470,7 @@ function TaskColumn({
   children: ReactNode
 }) {
   return (
-    <section className="min-h-72 min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
+    <section className="min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
       <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
         <Badge variant="outline" className="border-border bg-card text-muted-foreground">

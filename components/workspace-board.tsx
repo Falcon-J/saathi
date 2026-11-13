@@ -19,13 +19,14 @@ type BoardProps = {
   currentUserEmail: string
   refreshSignal: number
   openTaskId: string | null
+  openTaskRequest?: number
   commentRefreshEvent: RealtimeEvent | null
   focusQuickAdd: number
   onDirtyChange?: (dirty: boolean) => void
   draftScope?: string
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
 }
-export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, openTaskId, commentRefreshEvent, focusQuickAdd, onAddTask, onDirtyChange, draftScope, capabilityCeiling }: BoardProps) {
+export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, openTaskId, openTaskRequest = 0, commentRefreshEvent, focusQuickAdd, onAddTask, onDirtyChange, draftScope, capabilityCeiling }: BoardProps) {
   const board = useTaskBoard(workspace.id, refreshSignal)
   const [detailTask, setDetailTask] = useState<Task | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
@@ -50,7 +51,7 @@ export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, ope
     }
     void read()
     return () => { cancelled = true }
-  }, [workspace.id, openTaskId, detailRetry])
+  }, [workspace.id, openTaskId, openTaskRequest, detailRetry])
 
   const knownTask = (id: string) => board.tasks.find(task => task.id === id) ?? (detailRef.current?.id === id ? detailRef.current : null)
   const completeWrite = async (work: () => Promise<unknown>) => {
@@ -71,7 +72,7 @@ export function WorkspaceBoard({ workspace, currentUserEmail, refreshSignal, ope
     {board.error && <div role="alert" className="m-4 rounded-lg border border-border p-4"><p>{board.error}</p><Button variant="outline" className="mt-2" onClick={() => void board.reload()}>Try again</Button></div>}
     {detailLoading && <p role="status" className="px-4 pt-3 text-sm text-muted-foreground">Opening task…</p>}
     {detailError && <div role="alert" className="p-4"><p>{detailError}</p><Button variant="outline" onClick={() => setDetailRetry(value => value + 1)}>Try opening task again</Button></div>}
-    <TaskList capabilityCeiling={capabilityCeiling} draftScope={draftScope} onDirtyChange={onDirtyChange} tasks={board.tasks} loading={board.loading} members={workspace.members} currentUserEmail={currentUserEmail} workspaceOwnerId={workspace.ownerId} timeZone={workspace.timezone} openTaskId={openTaskId} detailTask={detailTask} commentRefreshEvent={commentRefreshEvent} focusQuickAdd={focusQuickAdd}
+    <TaskList capabilityCeiling={capabilityCeiling} draftScope={draftScope} onDirtyChange={onDirtyChange} tasks={board.tasks} loading={board.loading} members={workspace.members} currentUserEmail={currentUserEmail} workspaceOwnerId={workspace.ownerId} timeZone={workspace.timezone} openTaskId={openTaskId} openTaskRequest={openTaskRequest} detailTask={detailTask} commentRefreshEvent={commentRefreshEvent} focusQuickAdd={focusQuickAdd}
       paging={board} onReviewBoard={async () => { if (!await board.reload()) throw new Error("Tasks unavailable") }}
       onAddTask={async (...args) => { const result = await onAddTask(...args); if (!getMutationError(result)) await board.reload(); return result }}
       onToggleTask={id => completeWrite(() => { const task = knownTask(id); return task ? toggleTask(id, task.version ?? task.updatedAt) : Promise.resolve({ error: "Task unavailable. Refresh tasks." }) })}

@@ -25,7 +25,7 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
         {data.representation !== "compact" && data.subtitle && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{data.subtitle}</p>}
         {data.representation === "detail" && data.description && <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{data.description}</p>}
       </div>
-      <Button size="sm" variant="outline" className={`nodrag nopan shrink-0 ${workspace ? "" : "mt-auto self-start"}`} onClick={data.open} aria-label={`Open ${data.title}`}>Open</Button>
+      <Button size="sm" variant="outline" className={`nodrag nopan shrink-0 ${workspace ? "" : "mt-auto self-start"}`} onClick={event => { event.stopPropagation(); data.open() }} aria-label={`Open ${data.title}`}>Open</Button>
     </div>
     <Handle type="source" position={Position.Right} style={canvasHandleStyle} isConnectable={false} />
   </article>
@@ -155,6 +155,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
     try { localStorage.setItem(cameraKey, JSON.stringify({ ...viewport, canvasWidth, canvasHeight })) } catch { /* Camera preferences are optional. */ }
   }, [cameraKey, onZoom, canvasWidth, canvasHeight])
   return <ReactFlow<FlowNode> nodes={nodes} edges={[...projection.edges, ...projectCanvasReferences(resources, references)]} nodeTypes={nodeTypes} defaultEdgeOptions={edgeOptions}
+    onNodeClick={(_event, node) => node.data.open()}
     onPointerDownCapture={() => { manualCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() }}
     onKeyDownCapture={() => { manualCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() }}
     onInit={initialize} onMove={(_event, viewport) => onZoom(viewport.zoom)} onMoveEnd={finishMove}

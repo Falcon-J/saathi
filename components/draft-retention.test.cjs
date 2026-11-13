@@ -102,3 +102,20 @@ test('invalid settings baseline and task snapshots cannot enter component state'
  assert.equal(board.editor().props.task,null)
  assert.equal(storage.has('a:w:task-editor'),false)
 })
+
+test('an explicit new open request reopens the same task while ordinary refreshes preserve dismissal', () => {
+ storage.clear()
+ const task={id:'task',workspaceId:'w',title:'Open again',priority:'medium',completed:false,createdBy:'owner',createdAt:'2026-11-05',updatedAt:'2026-11-05',version:4}
+ const props={tasks:[task],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',openTaskId:'task',openTaskRequest:1,draftScope:'account-a:w'}
+ const ui=mount('task-list',props)
+ assert.equal(ui.editor().props.task.id,'task')
+ ui.editor().props.onClose()
+ assert.equal(ui.editor().props.task,null)
+ props.tasks=[{...task,version:5}]
+ assert.equal(ui.editor().props.task,null,'live data must not reopen a dismissed editor')
+ props.openTaskRequest=2
+ assert.equal(ui.editor().props.task.version,5,'an explicit repeat request opens the current record')
+ ui.editor().props.onDraftChange({title:'Keep my edit'})
+ props.tasks=[{...task,version:6}]
+ assert.equal(ui.editor().props.draft.title,'Keep my edit','refreshes cannot replace an active draft')
+})
