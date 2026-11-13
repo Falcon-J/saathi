@@ -43,6 +43,7 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
     window.addEventListener("pointerdown", dismiss)
     return () => window.removeEventListener("pointerdown", dismiss)
   }, [])
+  const completionAvailable = Boolean(!searchScope && selectedTask && canComplete && !selectedTask.completed && selectedTask.status !== "done")
   const matchesAction = (value: string) => !searchScope || value.includes(query.trim().toLowerCase())
   const run = (work: () => void) => { if (disabled || busy) return; setOpen(false); setQuery(""); work() }
   return <section ref={root} aria-label="Canvas commands" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5">
@@ -58,7 +59,7 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
           {canCreate && matchesAction("create add new task") && <CommandItem value="create add new task" disabled={disabled || busy} onSelect={() => run(onCreate)}>Create task</CommandItem>}
           {!searchScope && matchesAction("open workspace") && <CommandItem value="open workspace" disabled={disabled || busy} onSelect={() => run(onWorkspace)}>Open workspace</CommandItem>}
           {!searchScope && <CommandItem value="task list show all" disabled={disabled || busy} onSelect={() => run(onList)}>Task list</CommandItem>}
-          {selectedTask && matchesAction(`complete ${selectedTask.title.toLowerCase()}`) && canComplete && !selectedTask.completed && selectedTask.status !== "done" && <CommandItem value={`complete ${selectedTask.title}`} disabled={disabled || busy} onSelect={() => run(onComplete)}>Complete {selectedTask.title}</CommandItem>}
+          {completionAvailable && selectedTask && matchesAction(`complete ${selectedTask.title.toLowerCase()}`) && canComplete && !selectedTask.completed && selectedTask.status !== "done" && <CommandItem value={`complete ${selectedTask.title}`} disabled={disabled || busy} onSelect={() => run(onComplete)}>Complete {selectedTask.title}</CommandItem>}
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Tasks">{(searchScope ? remote.items : tasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>
@@ -71,7 +72,7 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
         <input role="combobox" aria-label="Search commands and tasks" aria-expanded={open} {...(!open ? { "aria-activedescendant": undefined } : {})} />
       </CommandInput>
       </div>
-      {canCreate && !searchScope && <Button aria-label="New task" size="sm" className="mr-1 min-h-11 min-w-11 shrink-0" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(onCreate)}>New task</Button>}
+      {(completionAvailable || (canCreate && !searchScope)) && <Button aria-label={completionAvailable ? "Complete " + selectedTask?.title : "New task"} title={completionAvailable ? selectedTask?.title : undefined} size="sm" className="mr-1 min-h-11 min-w-11 shrink-0" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(completionAvailable ? onComplete : onCreate)}>{completionAvailable ? "Complete" : "New task"}</Button>}
       </div>
     </Command>
   </section>

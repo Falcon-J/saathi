@@ -120,7 +120,7 @@ test('canvas search input preserves the server query length boundary', () => {
 })
 
 test('direct new task uses the guarded create action and closes search results', () => {
-  const ui = bar()
+  const ui = bar({ selectedTask: null })
   ui.render().find(node => node.type === 'CommandInput').props.onValueChange('draft')
   const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
   assert.ok(create)
@@ -131,7 +131,7 @@ test('direct new task uses the guarded create action and closes search results',
 })
 
 test('collapsed search leaves Enter available to activate the direct new task button', () => {
-  const ui = bar()
+  const ui = bar({ selectedTask: null })
   ui.render().find(node => node.type === 'Command').props.onKeyDown({ key: 'Escape', stopPropagation() {} })
   let prevented = false
   ui.render().find(node => node.type === 'Command').props.onKeyDownCapture({ key: 'Enter', target: { closest: selector => selector === 'button' }, preventDefault() { prevented = true }, stopPropagation() {} })
@@ -146,7 +146,7 @@ test('collapsed search leaves Enter available to activate the direct new task bu
 })
 
 test('Escape from the direct new task button dismisses open results', () => {
-  const ui = bar()
+  const ui = bar({ selectedTask: null })
   assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
   const event = { key: 'Escape', stopped: false, stopPropagation() { this.stopped = true } }
   ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task').props.onKeyDown(event)
@@ -157,10 +157,10 @@ test('Escape from the direct new task button dismisses open results', () => {
 
 test('direct new task respects creation permission, search scope and admission guards', () => {
   for (const overrides of [{ canCreate: false }, { searchScope: {} }, { searchScope: { resourceId: 'company' } }]) {
-    assert.equal(bar(overrides).render().some(node => node.type === 'Button' && node.props['aria-label'] === 'New task'), false)
+    assert.equal(bar({ selectedTask: null, ...overrides }).render().some(node => node.type === 'Button' && node.props['aria-label'] === 'New task'), false)
   }
   for (const overrides of [{ disabled: true }, { busy: true }]) {
-    const ui = bar(overrides)
+    const ui = bar({ selectedTask: null, ...overrides })
     const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
     assert.ok(create)
     assert.equal(create.props.disabled, true)
@@ -205,4 +205,12 @@ test('native phone viewport keeps zoom available and opts into content resizing'
  assert.equal(layout.viewport.width,'device-width');assert.equal(layout.viewport.initialScale,1);
  assert.notEqual(layout.viewport.viewportFit,'cover');assert.equal(layout.viewport.interactiveWidget,'resizes-content');
  assert.notEqual(layout.viewport.userScalable,false);assert.equal(layout.viewport.maximumScale,undefined);
+});
+
+test('selected actionable tasks get one direct Complete action using the same guarded command',()=>{
+ const ui=bar();const action=ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task');
+ assert.ok(action);assert.equal(ui.render().some(n=>n.type==='Button'&&n.props['aria-label']==='New task'),false);
+ action.props.onClick();assert.deepEqual(ui.calls,['complete']);assert.equal(ui.render().find(n=>n.type==='CommandList').props.hidden,true);
+ for(const overrides of [{busy:true},{disabled:true}]){const blocked=bar(overrides);const button=blocked.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task');assert.equal(button.props.disabled,true);button.props.onClick();assert.deepEqual(blocked.calls,[]);}
+ for(const overrides of [{canComplete:false},{selectedTask:null},{selectedTask:{id:'a',title:'Allowed task',completed:true}},{selectedTask:{id:'a',title:'Allowed task',status:'done',completed:false}},{searchScope:{}}])assert.equal(bar(overrides).render().some(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task'),false);
 });
