@@ -197,7 +197,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
           <nav aria-label="Canvas hierarchy" className={`absolute left-3 right-3 top-3 flex items-center gap-2 ${showWorkArea ? "lg:right-[calc(52%+0.75rem)]" : ""}`}>
             <Button size="sm" variant="outline" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}>Back</Button>
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">{canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks).map((item, index, path) => <Button key={JSON.stringify(item.focus)} size="sm" variant="outline" className="max-w-40 shrink-0 truncate" ref={index === path.length - 1 ? currentBreadcrumb : undefined} aria-current={index === path.length - 1 ? "location" : undefined} onClick={() => open(item.focus)}>{item.label}</Button>)}</div>
-            <Button size="sm" variant="outline" aria-label="Open workspace tools" disabled={commandDisabled} onClick={openWorkspace}><List className="size-4" />Tools</Button>
+            <Button size="sm" variant="outline" className="disabled:opacity-100" aria-label="Open workspace tools" disabled={commandDisabled} onClick={openWorkspace}><List className="size-4" />Tools</Button>
           </nav>
           {graph.loading && <p role="status" className="absolute bottom-2 left-4 rounded bg-card px-3 py-1 text-sm">Refreshing…</p>}
 

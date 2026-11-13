@@ -98,3 +98,8 @@ test('read-only sections cannot silently create unattached workspaces',()=>{
  assert.equal(ui.render().filter(n=>n.type==='Dialog').some(n=>n.props.open),false);
  assert.match(ui.text(),/need create and manage access/);
 });
+
+test('workspace tools keep readable contrast while graph refresh disables the control',()=>{
+ const button=harness({companies:{resources:[{id:'section',name:'Delivery',parentId:null,workspaceId:null,capabilities:['read']}]}}).render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools');
+ assert.match(button.props.className,/disabled:opacity-100/);
+});
