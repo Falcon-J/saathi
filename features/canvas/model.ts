@@ -4,7 +4,8 @@ import type { Task } from "../../lib/task-contract.ts"
 import { deriveNextWork, type NextWorkResult, type TaskDependency } from "../../lib/next-work.ts"
 
 export type CanvasScope = Readonly<{ actorId: string; canvasId: string }>
-export type CanvasFocus = { kind: "overview" } | { kind: "workspace"; workspaceId: string }
+export type CanvasResourcePath = Readonly<{ id: string; name: string; parentId: string | null; workspaceId?: string | null }>
+export type CanvasFocus = { kind: "overview" } | { kind: "resource"; resourceId: string } | { kind: "workspace"; workspaceId: string }
   | { kind: "task"; workspaceId: string; taskId: string }
 export type CanvasNavigation = {
   scope: CanvasScope
@@ -69,31 +70,66 @@ export function navigateCanvas(state: CanvasNavigation, focus: CanvasFocus, sour
   return { ...state, focus: { ...focus }, selection: null, followingAgent: source === "agent" }
 }
 
-export function parentCanvasFocus(focus: CanvasFocus): CanvasFocus {
-  return focus.kind === "task" ? { kind: "workspace", workspaceId: focus.workspaceId } : { kind: "overview" }
+export function resourcePath(id: string, resources: readonly CanvasResourcePath[]): CanvasResourcePath[] {
+  const records = new Map(resources.map(record => [record.id, record]))
+  const path: CanvasResourcePath[] = [], seen = new Set<string>()
+  let record = records.get(id)
+  while (record && !seen.has(record.id)) {
+    seen.add(record.id); path.unshift(record)
+    record = record.parentId ? records.get(record.parentId) : undefined
+  }
+  return path
 }
 
-function focusExists(focus: CanvasFocus, graphs: readonly AuthorizedWorkspaceGraph[]): boolean {
+export function parentCanvasFocus(focus: CanvasFocus, resources: readonly CanvasResourcePath[] = []): CanvasFocus {
+  if (focus.kind === "task") return { kind: "workspace", workspaceId: focus.workspaceId }
+  const record = focus.kind === "resource" ? resources.find(record => record.id === focus.resourceId)
+    : focus.kind === "workspace" ? resources.find(record => record.workspaceId === focus.workspaceId) : undefined
+  return record?.parentId && resources.some(parent => parent.id === record.parentId)
+    ? { kind: "resource", resourceId: record.parentId } : { kind: "overview" }
+}
+
+export function canvasBreadcrumbs(focus: CanvasFocus, resources: readonly CanvasResourcePath[],
+  workspaces: readonly Pick<Workspace, "id" | "name">[], tasks: readonly Pick<Task, "id" | "title">[]) {
+  const result: { label: string; focus: CanvasFocus }[] = [{ label: "Canvas", focus: { kind: "overview" } }]
+  const resource = focus.kind === "resource" ? resources.find(record => record.id === focus.resourceId)
+    : focus.kind !== "overview" ? resources.find(record => record.workspaceId === focus.workspaceId) : undefined
+  for (const record of resource ? resourcePath(resource.id, resources) : []) {
+    if (!record.workspaceId) result.push({ label: record.name, focus: { kind: "resource", resourceId: record.id } })
+  }
+  if (focus.kind === "workspace" || focus.kind === "task") {
+    const workspace = workspaces.find(record => record.id === focus.workspaceId)
+    if (workspace) result.push({ label: workspace.name, focus: { kind: "workspace", workspaceId: workspace.id } })
+    if (focus.kind === "task") {
+      const task = tasks.find(record => record.id === focus.taskId)
+      if (task) result.push({ label: task.title, focus })
+    }
+  }
+  return result
+}
+
+function focusExists(focus: CanvasFocus, graphs: readonly AuthorizedWorkspaceGraph[], resources: readonly CanvasResourcePath[]): boolean {
   if (focus.kind === "overview") return true
+  if (focus.kind === "resource") return resources.some(record => record.id === focus.resourceId)
   const entry = graphs.find(entry => entry.workspace.id === focus.workspaceId)
   return Boolean(entry && (focus.kind === "workspace" || entry.graph.tasks.some(task => task.id === focus.taskId)))
 }
 
 /** Call with the current authenticated scope, including after identity or authorization changes. */
 export function reconcileCanvasNavigation(
-  state: CanvasNavigation, scope: CanvasScope, graphs: readonly AuthorizedWorkspaceGraph[],
+  state: CanvasNavigation, scope: CanvasScope, graphs: readonly AuthorizedWorkspaceGraph[], resources: readonly CanvasResourcePath[] = [],
 ): CanvasNavigation {
   cameraStorageKey(scope)
   if (state.scope.actorId !== scope.actorId || state.scope.canvasId !== scope.canvasId) return createCanvasNavigation(scope)
-  const validFocus = focusExists(state.focus, graphs)
-  const validSelection = !state.selection || focusExists(state.selection, graphs)
+  const validFocus = focusExists(state.focus, graphs, resources)
+  const validSelection = !state.selection || focusExists(state.selection, graphs, resources)
   return { ...state, scope: { ...scope }, focus: validFocus ? { ...state.focus } : { kind: "overview" },
     selection: validSelection && state.selection ? { ...state.selection } : null,
     followingAgent: validFocus && validSelection && state.followingAgent }
 }
 
 const pointsAtWorkspace = (focus: CanvasFocus | null, workspaceId: string) =>
-  Boolean(focus && focus.kind !== "overview" && focus.workspaceId === workspaceId)
+  Boolean(focus && (focus.kind === "workspace" || focus.kind === "task") && focus.workspaceId === workspaceId)
 const pointsAtTask = (focus: CanvasFocus | null, workspaceId: string, taskId: string) =>
   Boolean(focus?.kind === "task" && focus.workspaceId === workspaceId && focus.taskId === taskId)
 
@@ -102,6 +138,7 @@ const pointsAtTask = (focus: CanvasFocus | null, workspaceId: string, taskId: st
  */
 export function projectCanvas(input: {
   graphs: readonly AuthorizedWorkspaceGraph[]
+  resources?: readonly CanvasResourcePath[]
   navigation: CanvasNavigation
   zoom: number
 }): CanvasProjection {
@@ -126,7 +163,7 @@ export function projectCanvas(input: {
     for (const task of graph.tasks) tasks.set(taskNodeId(workspace.id, task.id), task)
     for (const edge of graph.dependencies) dependencies.set(dependencyEdgeId(workspace.id, edge.prerequisiteTaskId, edge.dependentTaskId), edge)
   }
-  const navigation = reconcileCanvasNavigation(input.navigation, input.navigation.scope, ordered)
+  const navigation = reconcileCanvasNavigation(input.navigation, input.navigation.scope, ordered, input.resources)
   const nodes: CanvasNode[] = []
   const edges: CanvasEdge[] = []
   // A fixed two-column grouping with row height derived from content avoids overlapping groups.

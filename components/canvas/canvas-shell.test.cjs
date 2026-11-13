@@ -53,3 +53,11 @@ test('failed company reads expose recovery in the main canvas rather than an emp
 })
 
 module.exports = { harness, nodes }
+
+test('exploring a section navigates the canvas instead of opening administration', () => {
+  const ui = harness({ companies: { resources: [{ id: 'section', name: 'Delivery', parentId: null, workspaceId: null, capabilities: ['read'] }] } })
+  ui.render().find(node => node.type === 'CanvasFlow').props.onOpenResource('section')
+  const result = ui.render()
+  assert.deepEqual(result.find(node => node.type === 'CanvasFlow').props.focus, { kind: 'resource', resourceId: 'section' })
+  assert.equal(result.filter(node => node.type === 'Dialog').some(node => node.props.open), false)
+})

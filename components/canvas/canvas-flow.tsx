@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { taskNodeId, workspaceNodeId, type CanvasFocus, type CanvasProjection, type CanvasRepresentation } from "@/features/canvas/model"
 import { formatTaskDue } from "@/lib/task-time"
 import type { AuthorizedCanvasResource } from "@/features/access/service"
-import { layoutCompanyResources, projectCanvasReferences } from "./company-layout"
+import { containerNodeId, layoutCompanyResources, projectCanvasReferences } from "./company-layout"
 import type { CanvasReference } from "@/features/access/contracts"
 import type { Workspace } from "@/lib/data/workspaces"
 import { canvasHandleStyle, canvasNodeGeometry } from "./node-geometry"
@@ -80,9 +80,9 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
   const previousFocus = useRef(focusKey)
   const previousFollowing = useRef(followingAgent)
   const pendingFocus = useRef<string | null>(null)
-  const focusReady = focus.kind === "overview" || (focus.kind === "workspace"
+  const focusReady = focus.kind === "overview" || (focus.kind === "resource" ? resources.some(record => record.id === focus.resourceId) : (focus.kind === "workspace"
     ? projection.records.workspaces.has(workspaceNodeId(focus.workspaceId))
-    : projection.records.tasks.has(taskNodeId(focus.workspaceId, focus.taskId)))
+    : projection.records.tasks.has(taskNodeId(focus.workspaceId, focus.taskId))))
   useEffect(() => {
     if (previousFocus.current !== focusKey || (followingAgent && !previousFollowing.current)) pendingFocus.current = focusKey
     else if (previousFollowing.current && !followingAgent) pendingFocus.current = null
@@ -92,7 +92,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
     pendingFocus.current = null
     const focus: CanvasFocus = JSON.parse(focusKey)
     const id = focus.kind === "task" ? taskNodeId(focus.workspaceId, focus.taskId)
-      : focus.kind === "workspace" ? workspaceNodeId(focus.workspaceId) : null
+      : focus.kind === "workspace" ? workspaceNodeId(focus.workspaceId) : focus.kind === "resource" ? containerNodeId(focus.resourceId) : null
     // Instant camera changes also respect reduced-motion preferences.
     void flow.current?.fitView({ nodes: id ? [{ id }] : undefined, padding: 0.15, maxZoom: 1.2, duration: 0 })
   }, [focusKey, focusReady, followingAgent])
@@ -106,7 +106,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
     pendingResize.current = false
     const current: CanvasFocus = JSON.parse(focusKey)
     const id = current.kind === "task" ? taskNodeId(current.workspaceId, current.taskId)
-      : current.kind === "workspace" ? workspaceNodeId(current.workspaceId) : null
+      : current.kind === "workspace" ? workspaceNodeId(current.workspaceId) : current.kind === "resource" ? containerNodeId(current.resourceId) : null
     void flow.current?.fitView({ nodes: id ? [{ id }] : undefined, padding: 0.15, maxZoom: 1.2, duration: 0 })
   }, [canvasWidth, canvasHeight, initialized, initialCamera, ready, focusReady, focusKey])
   const nodes = useMemo<FlowNode[]>(() => {
