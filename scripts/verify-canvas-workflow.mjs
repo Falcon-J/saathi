@@ -11,9 +11,13 @@ async function selectWorkspace(page, id) {
   await expect(locationControl(page)).toHaveAttribute('data-workspace-id', id)
 }
 async function openWorkspaceTools(page) {
-  const show = page.getByRole('button', { name: 'Show canvas', exact: true })
-  if (await show.isVisible()) return
-  await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
+  const area = page.getByRole('complementary', { name: 'Workspace work area', exact: true })
+  const open = page.getByRole('button', { name: 'Open workspace tools', exact: true })
+  // Modal closing removes aria-hidden from background controls asynchronously.
+  await expect.poll(async () => await area.isVisible() || await open.isVisible()).toBe(true)
+  if (await area.isVisible()) return
+  await open.click()
+  await expect(area).toBeVisible()
 }
 async function filterTasks(area, value) {
   const input = area.getByRole('textbox', { name: 'Filter tasks', exact: true })
