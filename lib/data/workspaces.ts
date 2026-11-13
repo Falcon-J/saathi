@@ -88,8 +88,8 @@ export async function listWorkspaces(userId: string, archived = false): Promise<
   })
 }
 
-export async function createWorkspaceRecord(userId: string, input: WorkspaceInput): Promise<Workspace> {
-  const data = validateWorkspace(input), id = randomUUID()
+export async function createWorkspaceRecord(userId: string, input: WorkspaceInput, options?: { id: string }): Promise<Workspace> {
+  const data = validateWorkspace(input), id = options ? z.uuid().parse(options.id) : randomUUID()
   const plan = z.array(z.object({ title: z.string().trim().min(1).max(200), bucket: z.enum(["today", "next"]).optional(),
     dueDate: z.string().refine(value => !Number.isNaN(Date.parse(value))).optional(),
     estimatedMinutes: z.number().int().min(1).max(1440).optional() }).strict()).max(20).safeParse(input.tasks ?? [])

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { WorkspacePlan } from "@/lib/workspace-intent"
 
 type WorkspaceCreateFormProps = {
+  compact?: boolean
   aiEnabled: boolean
   canCancel: boolean
   onCancel: () => void
@@ -17,7 +18,7 @@ type WorkspaceCreateFormProps = {
   onApprove: (plan: WorkspacePlan) => Promise<{ error?: string } | void>
 }
 
-export function WorkspaceCreateForm({ aiEnabled, canCancel, onCancel, onCreate, onSuggest, onApprove }: WorkspaceCreateFormProps) {
+export function WorkspaceCreateForm({ compact = false, aiEnabled, canCancel, onCancel, onCreate, onSuggest, onApprove }: WorkspaceCreateFormProps) {
   const [name, setName] = useState("")
   const [goal, setGoal] = useState("")
   const [targetDate, setTargetDate] = useState("")
@@ -58,14 +59,14 @@ export function WorkspaceCreateForm({ aiEnabled, canCancel, onCancel, onCreate, 
   }
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-10">
-      <div className="mb-8 max-w-2xl">
+    <section className={compact ? "" : "mx-auto max-w-5xl px-4 py-10"}>
+      {!compact && <div className="mb-8 max-w-2xl">
         <p className="saathi-label text-primary">Start with intention</p>
         <h2 className="mt-3 text-3xl font-bold tracking-tight">{draft ? "Review your plan" : "Turn your intention into a workspace"}</h2>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">{draft ? "Edit or remove suggested tasks. Nothing is saved until you create the workspace." : "Give your idea a home. Set it up in minutes and start turning plans into progress with your team."}</p>
-      </div>
+      </div>}
       <div className={aiEnabled ? "grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]" : "grid gap-5"}>
-        <form onSubmit={submit} className="space-y-5 rounded-[var(--saathi-radius-container)] border border-border bg-card p-5 text-left shadow-sm sm:p-6">
+        <form onSubmit={submit} className={compact ? "space-y-4 text-left" : "space-y-5 rounded-[var(--saathi-radius-container)] border border-border bg-card p-5 text-left shadow-sm sm:p-6"}>
           <div className="space-y-2"><label htmlFor="workspace-name" className="text-sm font-medium">Workspace name</label><Input id="workspace-name" required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} disabled={Boolean(busy)} placeholder="Customer onboarding" /></div>
           <div className="space-y-2"><label htmlFor="workspace-goal" className="text-sm font-medium">Goal {draft ? "" : "(optional)"}</label><Textarea id="workspace-goal" required={Boolean(draft)} maxLength={240} value={goal} onChange={(event) => setGoal(event.target.value)} disabled={Boolean(busy)} placeholder="What do you want to achieve together?" /></div>
           <div className="space-y-2"><label htmlFor="workspace-target" className="text-sm font-medium">Target date (optional)</label><Input id="workspace-target" type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} disabled={Boolean(busy)} /></div>
@@ -85,7 +86,7 @@ export function WorkspaceCreateForm({ aiEnabled, canCancel, onCancel, onCreate, 
           <div className="mt-6 space-y-3 text-sm text-muted-foreground"><p className="rounded-lg border border-border bg-card/80 p-3">Launch a new product</p><p className="rounded-lg border border-border bg-card/80 p-3">Plan a marketing campaign</p><p className="rounded-lg border border-border bg-card/80 p-3">Organize an internal event</p></div>
         </aside>}
       </div>
-        <Button asChild variant="ghost" size="sm" className="mt-6 text-muted-foreground"><Link href="/guide"><CircleHelp className="size-4" />See how Saathi works</Link></Button>
+        {!compact && <Button asChild variant="ghost" size="sm" className="mt-6 text-muted-foreground"><Link href="/guide"><CircleHelp className="size-4" />See how Saathi works</Link></Button>}
      </section>
   )
 }

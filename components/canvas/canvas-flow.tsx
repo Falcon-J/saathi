@@ -5,7 +5,7 @@ import { useTheme } from "next-themes"
 import { Background, Controls, Handle, Position, ReactFlow, useStore, type Node, type NodeProps, type Viewport, type ReactFlowInstance } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Button } from "@/components/ui/button"
-import { taskNodeId, workspaceNodeId, type CanvasFocus, type CanvasProjection, type CanvasRepresentation } from "@/features/canvas/model"
+import { taskNodeId, workspaceNodeId, type CanvasFocus, type CanvasProjection, type CanvasReadiness, type CanvasRepresentation } from "@/features/canvas/model"
 import { formatTaskDue } from "@/lib/task-time"
 import type { AuthorizedCanvasResource } from "@/features/access/service"
 import { containerNodeId, layoutCompanyResources, projectCanvasReferences } from "./company-layout"
@@ -13,10 +13,15 @@ import type { CanvasReference } from "@/features/access/contracts"
 import type { Workspace } from "@/lib/data/workspaces"
 import { canvasHandleStyle, canvasNodeGeometry } from "./node-geometry"
 
-type NodeData = { title: string; subtitle?: string; description?: string; representation: CanvasRepresentation; kind: "workspace" | "task" | "container"; expanded: boolean; open: () => void }
-type FlowNode = Node<NodeData, "workspace" | "task" | "container">
+type NodeData = { title: string; subtitle?: string; description?: string; count?: number; representation: CanvasRepresentation; kind: "workspace" | "task" | "container" | "readiness"; expanded: boolean; open: () => void }
+type FlowNode = Node<NodeData, "workspace" | "task" | "container" | "readiness">
+
+const readinessLabels: Record<CanvasReadiness, string> = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
 
 const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
+  if (data.kind === "readiness") return <Button variant="outline" className="nodrag nopan h-full w-full justify-between rounded-2xl px-5 text-base" onClick={event => { event.stopPropagation(); data.open() }} aria-label={`Open ${data.title}, ${data.count} tasks`}>
+    <span>{data.title}</span><span className="tabular-nums">{data.count}</span>
+  </Button>
   const workspace = data.kind !== "task"
   return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground shadow-sm ${workspace ? "border-border bg-card/85" : "border-primary/25 bg-card"}`}>
     <Handle type="target" position={Position.Left} style={canvasHandleStyle} isConnectable={false} />
@@ -30,7 +35,7 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
     <Handle type="source" position={Position.Right} style={canvasHandleStyle} isConnectable={false} />
   </article>
 })
-const nodeTypes = { workspace: CanvasRecord, task: CanvasRecord, container: CanvasRecord }
+const nodeTypes = { workspace: CanvasRecord, task: CanvasRecord, container: CanvasRecord, readiness: CanvasRecord }
 const edgeOptions = { type: "smoothstep", style: { stroke: "var(--primary)", strokeWidth: 1.5 } }
 const ariaLabels = {
   "node.a11yDescription.default": "Press Enter or Space to select this node. Tab to Open to inspect it.",
@@ -46,10 +51,11 @@ function readCamera(key: string): (Viewport & { canvasWidth?: number; canvasHeig
   } catch { return null }
 }
 
-export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true }: {
+export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
+  onOpenGroup: (workspaceId: string, readiness: CanvasReadiness) => void
   onZoom: (zoom: number) => void
   onManualNavigation: () => void
   resources: AuthorizedCanvasResource[]
@@ -115,6 +121,13 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
     const workspace = projection.records.workspaces.get(node.kind === "workspace" ? node.id : node.parentId!)!
     const task = node.kind === "task" ? projection.records.tasks.get(node.id)! : null
     const readiness = projection.readiness.get(node.workspaceId)
+    if (node.kind === "readiness") {
+      const title = readinessLabels[node.readiness!]
+      return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
+        hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height),
+        ariaLabel: `${title}, ${node.count} tasks`, data: { title, count: node.count, representation: node.representation,
+          kind: node.kind, expanded: false, open: () => onOpenGroup(node.workspaceId, node.readiness!) } }
+    }
     const subtitle = task
       ? [node.readiness === "completed_inconsistent" ? "Review completed work" : node.readiness, task.assigneeEmail ? assigneeNames.get(task.assigneeEmail.toLowerCase()) ?? task.assigneeEmail : null, formatTaskDue(task.dueAt, task.dueDate, workspace.timezone)].filter(Boolean).join(" · ")
       : `${readiness?.ready.length ?? 0} ready · ${readiness?.waiting.length ?? 0} waiting`
@@ -140,8 +153,8 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onZoom, onMa
         draggable: false, selectable: true, ...canvasNodeGeometry(box.width, box.height), ariaLabel: `${record?.kind ?? "workspace"} ${title}`,
         data: { title, representation: "summary" as const, kind: box.kind, expanded: box.kind === "container",
           open: () => box.workspaceId ? onOpen({ kind: "workspace", workspaceId: box.workspaceId }) : onOpenResource(record!.id) } }
-    }), ...projected.filter(node => node.type === "task")]
-  }, [projection, onOpen, resources, onOpenResource, workspaces])
+    }), ...projected.filter(node => node.type === "task" || node.type === "readiness")]
+  }, [projection, onOpen, onOpenGroup, resources, onOpenResource, workspaces])
   const initialize = useCallback((instance: ReactFlowInstance<FlowNode>) => {
     flow.current = instance
     setInitialized(true)

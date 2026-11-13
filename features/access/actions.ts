@@ -4,7 +4,7 @@ import { getVerifiedActor } from "../../lib/auth-simple"
 import { afterDomainCommit } from "../../lib/post-commit"
 import { consumeDistributedRateLimit, RateLimitExceeded } from "../../lib/rate-limit"
 import { getRateLimits } from "../../lib/env"
-import { AccessPolicyError, getAuthorizedCanvasView, createCompany, createCanvasContainer, attachWorkspace,
+import { AccessPolicyError, getAuthorizedCanvasView, createCompany, createCanvasContainer, attachWorkspace, createWorkspaceInCanvas,
   addOrganizationMember, createCanvasGroup, setCanvasGroupMembership, grantCanvasAccess, revokeCanvasGrant,
   setCanvasResourcePolicy, createCanvasReference,
   getCanvasAccessDetails, getWorkspaceAccess, filterVisibleAccessMutationResult, type WorkspaceAccess, type CanvasAccessDetails, type AccessMutationResult, type AuthorizedCanvasView } from "./service"
@@ -13,6 +13,7 @@ export type CanvasAccessCommand =
   | { operation: "company.create"; input: Parameters<typeof createCompany>[1] }
   | { operation: "container.create"; input: Parameters<typeof createCanvasContainer>[1] }
   | { operation: "workspace.attach"; input: Parameters<typeof attachWorkspace>[1] }
+  | { operation: "workspace.create"; input: Parameters<typeof createWorkspaceInCanvas>[1] }
   | { operation: "member.add"; input: Parameters<typeof addOrganizationMember>[1] }
   | { operation: "group.create"; input: Parameters<typeof createCanvasGroup>[1] }
   | { operation: "group.member"; input: Parameters<typeof setCanvasGroupMembership>[1] }
@@ -63,6 +64,7 @@ export async function runCanvasAccessCommand(command: CanvasAccessCommand): Prom
       case "company.create": result = await createCompany(actor.id, command.input); break
       case "container.create": result = await createCanvasContainer(actor.id, command.input); break
       case "workspace.attach": result = await attachWorkspace(actor.id, command.input); break
+      case "workspace.create": result = await createWorkspaceInCanvas(actor.id, command.input); break
       case "member.add": result = await addOrganizationMember(actor.id, command.input); break
       case "group.create": result = await createCanvasGroup(actor.id, command.input); break
       case "group.member": result = await setCanvasGroupMembership(actor.id, command.input); break

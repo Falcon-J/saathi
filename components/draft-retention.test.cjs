@@ -28,6 +28,30 @@ function mount(component, props, actions={}) {
  return ui
 }
 const workspace={id:'w',name:'Original',summary:'Original goal',targetAt:null,timezone:'UTC',version:1}
+
+test('compact toolbar keeps quick add mounted while toggling and opens for focus requests', () => {
+ const props={tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,focusQuickAdd:0}
+ const ui=mount('task-list',props)
+ let rows=ui.render(),region=rows.find(n=>n.props?.['aria-label']==='New task form')
+ assert.ok(region);assert.equal(region.props.hidden,true)
+ assert.ok(nodes(region).some(n=>n.type==='TaskQuickAdd'),'collapsed drafts stay mounted')
+ assert.equal(nodes(region).find(n=>n.type==='TaskQuickAdd').props.focusRequest,undefined,'hidden inputs cannot consume focus requests')
+ rows.find(n=>n.type==='Button'&&n.props.children==='New task').props.onClick()
+ assert.equal(ui.render().find(n=>n.props?.['aria-label']==='New task form').props.hidden,false)
+ ui.render().find(n=>n.type==='Button'&&n.props.children==='New task').props.onClick()
+ props.focusQuickAdd=1
+ assert.equal(ui.render().find(n=>n.props?.['aria-label']==='New task form').props.hidden,false)
+})
+
+test('compact toolbar reveals a restored quick-add draft or pending reconciliation', () => {
+ const ui=mount('task-list',{tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true})
+ let rows=ui.render()
+ assert.equal(rows.find(n=>n.props?.['aria-label']==='New task form').props.hidden,true)
+ rows.find(n=>n.type==='TaskQuickAdd').props.onDirtyChange(true)
+ rows=ui.render()
+ assert.equal(rows.find(n=>n.props?.['aria-label']==='New task form').props.hidden,false,'retained edits and reconciliation must be visible')
+ assert.ok(rows.find(n=>n.type==='TaskQuickAdd'),'revealing recovery keeps the same quick-add component mounted')
+})
 test('settings remount restores dirty fields with their old baseline, then success clears storage',async()=>{
  storage.clear();const scope='account-a:workspace-w',writes=[]
  let ui=mount('workspace-settings',{workspace,draftScope:scope,onSaved:async()=>{}})

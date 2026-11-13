@@ -6,6 +6,15 @@ const ts = require("typescript")
 const jsx = (type, props) => ({ type, props })
 const moduleExports = {}
 const formattedZones = []
+
+test('clearing compact board filters resets them atomically without clearing search', () => {
+  const calls=[]
+  const tree=moduleExports.TaskList({ tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,
+    paging:{filters:{search:'Keep search',status:'active',priority:'high',assigneeEmail:'person'},changeFilters:changes=>calls.push(changes)},
+  })
+  nodes(tree).find(n=>n.type==='TaskFilter').props.onClearFilters()
+  assert.deepEqual(calls,[{status:'all',priority:undefined,assigneeEmail:undefined}])
+})
 const react = {
   memo: component => component,
   useState: initial => [initial, () => {}],

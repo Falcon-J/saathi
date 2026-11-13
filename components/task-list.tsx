@@ -35,6 +35,7 @@ export interface BoardPaging {
 }
 
 interface TaskListProps {
+  compactToolbar?: boolean
   capabilityCeiling?: CapabilityCeiling
   paging?: BoardPaging
   detailTask?: Task | null
@@ -80,6 +81,7 @@ export const TaskList = memo(function TaskList({
   onDirtyChange,
   draftScope,
   capabilityCeiling,
+  compactToolbar = false,
 }: TaskListProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const editorPermissions = useTaskPermissions(
@@ -107,6 +109,13 @@ export const TaskList = memo(function TaskList({
   const [quickAddDirty, setQuickAddDirty] = useState(false)
   const draftKey = draftScope ? `${draftScope}:task-editor` : undefined
   const [restoredScope, setRestoredScope] = useState<string | null>(null)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
+  useEffect(() => {
+    if (focusQuickAdd) setQuickAddOpen(true)
+  }, [focusQuickAdd])
+  useEffect(() => {
+    if (quickAddDirty) setQuickAddOpen(true)
+  }, [quickAddDirty])
   useEffect(() => {
     if (!draftKey || restoredScope === draftKey) return
     const retained = readDraft(draftKey, (value): value is { task: Task; draft: TaskEditorDraft } => {
@@ -362,9 +371,19 @@ export const TaskList = memo(function TaskList({
 
   return (
     <div className="@container space-y-4 p-4 sm:p-5">
-      {permitsCapability(capabilityCeiling, "create") && <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />}
+      {permitsCapability(capabilityCeiling, "create") && <>
+        {compactToolbar && <Button variant="outline" size="sm" aria-expanded={quickAddOpen} onClick={() => setQuickAddOpen(value => !value)}>New task</Button>}
+        <div aria-label="New task form" hidden={compactToolbar && !quickAddOpen}>
+          <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={compactToolbar && !quickAddOpen ? undefined : focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
+        </div>
+      </>}
 
       <TaskFilter
+        compactToolbar={compactToolbar}
+        onClearFilters={() => {
+          if (paging) paging.changeFilters({ status: "all", priority: undefined, assigneeEmail: undefined })
+          else { setSelectedStatus("all"); setSelectedPriority("all"); setSelectedAssignee(null) }
+        }}
         searchQuery={searchQuery}
         onSearchChange={value => paging ? paging.changeFilters({ search: value }) : setSearchQuery(value)}
         selectedAssignee={selectedAssignee}
@@ -552,7 +571,7 @@ export function TaskEditorDialog({
             </div>
             <div>
               <DialogTitle className="text-xl">{canEdit ? "Edit task" : "Task details"}</DialogTitle>
-              <DialogDescription className="mt-1 leading-5">
+              <DialogDescription className="sr-only">
                 {canEdit ? "Update the details that help your team understand and move this work." : canComment ? "Review the task and discuss the work with your team below." : "Review the retained task details and discussion."}
               </DialogDescription>
             </div>
@@ -564,11 +583,7 @@ export function TaskEditorDialog({
             <div className="min-h-0 flex-1 overflow-y-auto">
               <form id="task-editor-form" className="space-y-6 px-5 py-5 sm:px-6" onSubmit={onSubmit}>
               <fieldset disabled={!canEdit || isSaving} className="space-y-6">
-              <section aria-labelledby="task-details-heading" className="space-y-4">
-                <div>
-                  <h3 id="task-details-heading" className="text-sm font-semibold">Task details</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">Keep the title specific and add only the context needed to act.</p>
-                </div>
+              <section aria-label="Task details" className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="task-edit-title">Title</Label>
                   <Input
@@ -600,7 +615,6 @@ export function TaskEditorDialog({
               <section aria-labelledby="task-planning-heading" className="space-y-4 border-t border-border pt-5">
                 <div>
                   <h3 id="task-planning-heading" className="text-sm font-semibold">Planning &amp; ownership</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">Status, priority, timing, and the person responsible.</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
