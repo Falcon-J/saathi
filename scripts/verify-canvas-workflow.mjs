@@ -280,6 +280,14 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
         await page.getByRole('button', { name: 'Fit View', exact: true }).click()
         await current('Canvas')
+        await expect(workArea).not.toBeVisible()
+        await expect(search).toHaveAttribute('aria-expanded', 'false')
+        const canvas = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+        const dock = await page.getByRole('region', { name: 'Canvas commands', exact: true }).boundingBox()
+        assert.ok(canvas && dock, 'Full-map canvas and closed command dock must have bounds')
+        const gap = dock.y - (canvas.y + canvas.height)
+        log({ canvasDockSpace: { viewport, canvasBottom: canvas.y + canvas.height, dockTop: dock.y, gap } })
+        assert.ok(gap >= 0 && gap <= 32, `Canvas-to-dock gap must be 0–32px; got ${gap}px`)
       })
       await phase('company-open-keyboard', () => openCard(`container:${companyId}`, companyName, 'keyboard'))
       await phase('space-open', () => openCard(`container:${spaceId}`, spaceName))
@@ -293,6 +301,15 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('tasks')
         await workArea.getByRole('textbox', { name: 'Search tasks', exact: true }).fill(`excluded-${agentRunId}`)
         await expect(workArea.getByText('Showing 0 matching tasks', { exact: true })).toBeVisible()
+        const boardSpace = await workArea.locator('[aria-label="Task board"]').evaluate(grid => {
+          const sections = [...grid.children].filter(child => child.tagName === 'SECTION').map(section => section.getBoundingClientRect())
+          const template = getComputedStyle(grid).gridTemplateColumns
+          return { columns: template.split(' ').length, template, minColumnWidth: Math.min(...sections.map(section => section.width)), emptySectionHeights: sections.map(section => section.height) }
+        })
+        log({ canvasBoardSpace: { viewport, ...boardSpace } })
+        assert.equal(boardSpace.emptySectionHeights.length, 3)
+        assert.ok(boardSpace.minColumnWidth >= 240, `Task columns must be at least 240px wide; got ${boardSpace.minColumnWidth}px`)
+        assert.ok(boardSpace.emptySectionHeights.every(height => height < 288), 'Empty task sections must be shorter than 288px')
         await page.getByRole('button', { name: 'Close work area', exact: true }).click()
       })
       await phase('task-open', async () => {
