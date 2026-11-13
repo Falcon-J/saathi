@@ -49,6 +49,13 @@ const card = (p, name, title) => section(p, name).locator('article').filter({ ha
 async function login(user) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); contexts.push(context)
   const p = await context.newPage(); p.setDefaultTimeout(30000)
+  const recordBrowserError = value => {
+    let detail = String(value)
+    for (const secret of secrets.filter(Boolean)) detail = detail.replaceAll(secret, "[redacted]")
+    log({ browserError: detail.slice(0, 3000) })
+  }
+  p.on("pageerror", error => recordBrowserError(error.stack || error.message))
+  p.on("console", message => { if (message.type() === "error" && /Minified React|Maximum update|TypeError|ReferenceError|Cannot read/.test(message.text())) recordBrowserError(message.text()) })
   p.on('request', request => {
     const action = actionNames[request.headers()['next-action']]
     if (!action) return
