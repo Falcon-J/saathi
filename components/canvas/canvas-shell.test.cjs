@@ -27,7 +27,7 @@ function harness(options = {}) {
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
   }
-  for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
+  for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
   const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
   new Function('require', 'exports', 'window', code)(name => { assert.ok(name in deps, name); return deps[name] }, exports, { confirm: () => true, addEventListener() {}, removeEventListener() {} })
@@ -67,3 +67,39 @@ test('canvas management accessible name includes its visible button label', () =
   const label = nodes(button).find(node => node.type === 'span').props.children
   assert.ok(button.props['aria-label'].toLowerCase().includes(label.toLowerCase()))
 })
+
+ test('readiness summary opens only the matching authorized tasks', () => {
+ const workspace={id:'w',name:'Delivery',ownerId:'actor@example.test',members:[]};
+ const task=(id,completed)=>({id,workspaceId:'w',title:id,completed,status:completed?'done':'todo',createdAt:'2026-11-13T00:00:00Z',updatedAt:'2026-11-13T00:00:00Z'});
+ const ui=harness({store:{workspaces:[workspace],currentWorkspaceId:'w'},graph:{entry:{workspace,complete:true,graph:{tasks:[task('ready-task',false),task('done-task',true)],dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}}}});
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpenGroup('w','ready');
+ const result=ui.render();
+ assert.equal(result.filter(n=>n.type==='Dialog')[0].props.open,true);
+ const titles=result.filter(n=>n.type==='Button').map(n=>n.props.children?.[0]);
+ assert.ok(titles.includes('ready-task')); assert.ok(!titles.includes('done-task'));
+ result.find(n=>n.type==='CanvasCommandBar').props.onList();
+ assert.ok(ui.render().filter(n=>n.type==='Button').some(n=>n.props.children?.[0]==='done-task'));
+ });
+
+test('workspace creation captures the selected section and keeps its destination stable', () => {
+ const section={id:'section',name:'Delivery',kind:'section',parentId:null,workspaceId:null,version:3,capabilities:['read','manage','create']};
+ const ui=harness({companies:{resources:[section]}});
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpenResource('section');
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Create workspace').props.onClick();
+ const target=ui.render().find(n=>n.type==='ContextualWorkspaceCreate').props.target;
+ assert.deepEqual(target,{id:'section',version:3,path:'Delivery'});
+ section.version=4; section.name='Renamed';
+ assert.deepEqual(ui.render().find(n=>n.type==='ContextualWorkspaceCreate').props.target,target);
+});
+test('read-only sections cannot silently create unattached workspaces',()=>{
+ const ui=harness({companies:{resources:[{id:'section',name:'Delivery',kind:'section',parentId:null,workspaceId:null,version:1,capabilities:['read']}]}});
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpenResource('section');
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Create workspace').props.onClick();
+ assert.equal(ui.render().filter(n=>n.type==='Dialog').some(n=>n.props.open),false);
+ assert.match(ui.text(),/need create and manage access/);
+});
+
+test('workspace tools keep readable contrast while graph refresh disables the control',()=>{
+ const button=harness({companies:{resources:[{id:'section',name:'Delivery',parentId:null,workspaceId:null,capabilities:['read']}]}}).render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools');
+ assert.match(button.props.className,/disabled:opacity-100/);
+});

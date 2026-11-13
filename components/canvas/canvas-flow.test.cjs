@@ -145,3 +145,46 @@ test('the full card opens its canonical record without relying on a scaled-down 
   flow.onNodeClick({}, flow.nodes.find(node => node.id === 'workspace:b'))
   assert.deepEqual(ui.opens, [{ kind: 'workspace', workspaceId: 'b' }])
 })
+
+test('dense readiness blocks open the complete canonical group and retain measured focused geometry', () => {
+  const ui = harness(), groups = []
+  const graph = { ...entry, graph: { ...entry.graph, tasks: Array.from({ length: 100 }, (_, index) => ({ ...task, id: String(index), title: `Task ${index}` })) } }
+  const focus = { kind: 'workspace', workspaceId: 'a' }
+  const flow = ui.render({ projection: project([graph], focus), focus, onOpenGroup: (...args) => groups.push(args) })
+  const visible = flow.nodes.filter(node => !node.hidden)
+  const ready = visible.find(node => node.type === 'readiness' && node.data.title === 'Ready')
+  assert.ok(ready, 'dense workspace must show readiness blocks instead of a giant task grid')
+  assert.equal(ready.data.count, 100)
+  assert.match(ready.ariaLabel, /Ready.*100/)
+  flow.onNodeClick({}, ready)
+  assert.deepEqual(groups, [['a', 'ready']])
+  assert.equal(visible.filter(node => node.type === 'task').length, 0)
+  assert.deepEqual(ready.measured, { width: ready.width, height: ready.height })
+  const focused = { kind: 'task', workspaceId: 'a', taskId: '99' }
+  const detail = ui.render({ projection: project([graph], focused), focus: focused })
+  const actual = detail.nodes.filter(node => node.type === 'task' && !node.hidden)
+  assert.equal(actual.length, 1)
+  assert.equal(actual[0].data.title, 'Task 99')
+  assert.deepEqual(actual[0].measured, { width: actual[0].width, height: actual[0].height })
+  actual[0].data.open()
+  assert.deepEqual(ui.opens, [focused])
+})
+
+test('focused workspace reframes when refreshed geometry changes and preserves a manual camera', () => {
+  const focus = { kind: 'workspace', workspaceId: 'a' }
+  const empty = { ...entry, graph: { ...entry.graph, tasks: [] } }
+  const dense = { ...entry, workspace: { ...entry.workspace, name: 'A very long workspace title that wraps over multiple lines', summary: 'Workspace goal' }, graph: { ...entry.graph, tasks: Array.from({ length: 50 }, (_, i) => ({ ...task, id: String(i) })) } }
+  const ui = harness()
+  ui.render({ projection: project([empty], focus), focus }); ui.initialize()
+  ui.render({ projection: project([dense], focus), ready: false })
+  assert.equal(ui.fits.length, 0)
+  ui.render({ ready: true })
+  assert.equal(ui.fits.length, 1)
+  assert.deepEqual(ui.fits[0].nodes, [{ id: 'workspace:a' }])
+  const workspace = ui.render().nodes.find(node => node.id === 'workspace:a')
+  assert.equal(workspace.data.subtitle, undefined, 'Readiness rows already carry counts; header must reserve space for its title')
+  assert.equal(workspace.data.description, undefined)
+  ui.render().onMoveStart({ type: 'wheel' })
+  ui.render({ projection: project([empty], focus) })
+  assert.equal(ui.fits.length, 1, 'Refresh cannot take the camera after deliberate manual navigation')
+})

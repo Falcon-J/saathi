@@ -21,6 +21,30 @@ new Function("require", "exports", source)(name => {
 
 const nodes = node => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
 
+test("compact filters keep search visible and disclose counted filters with a clear action", () => {
+  const changes = []
+  const tree = moduleExports.TaskFilter({ compactToolbar: true, searchQuery: "plans", selectedAssignee: "person", selectedStatus: "active", selectedPriority: "high", members: [],
+    onSearchChange: value => changes.push(["search", value]), onFilterByAssignee: value => changes.push(["assignee", value]),
+    onFilterByStatus: value => changes.push(["status", value]), onFilterByPriority: value => changes.push(["priority", value]),
+  })
+  const parts = nodes(tree), disclosure = parts.find(node => node.type === "details")
+  assert.ok(disclosure, "filters start in a native closed disclosure")
+  assert.equal(disclosure.props.open, undefined)
+  assert.ok(parts.some(node => node.type === "Input" && !nodes(disclosure).includes(node)))
+  assert.equal(nodes(disclosure).find(node => node.type === "summary").props["aria-label"], "Filters, 3 active")
+  parts.find(node => node.type === "Button" && node.props.children === "Clear filters").props.onClick()
+  assert.deepEqual(changes, [["status", "all"], ["priority", "all"], ["assignee", null]])
+})
+
+test("compact filters place the new task action beside the filters disclosure", () => {
+ const action=jsx('Button',{children:'New task'})
+ const tree=moduleExports.TaskFilter({compactToolbar:true,toolbarAction:action,searchQuery:'',selectedAssignee:null,selectedStatus:'all',selectedPriority:'all',members:[]})
+ const row=nodes(tree).find(n=>Array.isArray(n.props?.children)&&n.props.children.includes(action))
+ assert.ok(row,'new task shares the compact filters row')
+ assert.ok(nodes(row).some(n=>n.type==='details'))
+ assert.equal(nodes(row).some(n=>n.type==='Input'),false,'search retains its own full-width row')
+})
+
 test("Board filters expose accessible controls and forward controlled changes", () => {
   const changes = []
   const tree = moduleExports.TaskFilter({

@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto"
 import { z } from "zod"
 import { getDb, type Transaction } from "../../lib/db/client.ts"
+import { withTransactionContext } from "../../lib/db/transaction-context.ts"
+import { createWorkspaceRecord, readWorkspace, validateWorkspace } from "../../lib/data/workspaces.ts"
 import { ACCESS_CAPABILITIES, capabilitySetSchema, type AccessCapability } from "./contracts.ts"
 import { createAccessResolver } from "./policy.ts"
 import { loadAccessSnapshot } from "./repository.ts"
@@ -14,6 +16,9 @@ const companySchema = z.object({ ...command, id: uuid, name }).strict()
 const containerSchema = z.object({ ...command, id: uuid, parentId: uuid, kind: z.enum(["space", "section"]), name, mode: z.enum(["inherit", "restricted"]) }).strict()
 const attachSchema = z.object({ ...command, resourceId: uuid, workspaceId: uuid, parentId: uuid, mode: z.enum(["inherit", "restricted"]), expectedWorkspaceVersion: version,
   confirmMembershipRestriction: z.literal(true) }).strict()
+const contextualWorkspaceSchema = z.object({ ...command, resourceId: uuid, workspaceId: uuid, parentId: uuid,
+  expectedParentVersion: version, name, summary: z.string().trim().max(240).optional(), targetAt: z.string().nullable().optional(), timezone: z.string().optional() }).strict()
+export type CreateWorkspaceInCanvasInput = z.input<typeof contextualWorkspaceSchema>
 const memberSchema = z.object({ ...command, organizationId: uuid, userId: uuid }).strict()
 const groupSchema = z.object({ ...command, id: uuid, organizationId: uuid, name }).strict()
 const groupMemberSchema = z.object({ ...command, organizationId: uuid, groupId: uuid, userId: uuid, active: z.boolean(), expectedVersion: version }).strict()
@@ -47,11 +52,13 @@ async function resourceOrganization(resourceId: string, actorId: string): Promis
   if (!row) throw new AccessPolicyError("Canvas resource unavailable or access denied")
   return row.organization_id
 }
-async function requireCapabilities(tx: Transaction, actorId: string, ids: string[], capability: AccessCapability) {
+async function requireCapabilities(tx: Transaction, actorId: string, ids: string[], capability: AccessCapability | AccessCapability[]) {
   const snapshot = await loadAccessSnapshot(actorId, { resourceIds: ids }, tx)
   const resolve = createAccessResolver(snapshot.graph, new Date(snapshot.asOf))
-  for (const id of ids) if (!resolve(id, { kind: "user", userId: actorId }).capabilities.includes(capability)) {
-    throw new AccessPolicyError("Canvas resource unavailable or access denied")
+  const required = typeof capability === "string" ? [capability] : capability
+  for (const id of ids) {
+    const capabilities = resolve(id, { kind: "user", userId: actorId }).capabilities
+    if (!required.every(value => capabilities.includes(value))) throw new AccessPolicyError("Canvas resource unavailable or access denied")
   }
   return snapshot
 }
@@ -79,7 +86,7 @@ async function publishWorkspaceChanges(tx: Transaction, actorId: string, workspa
 }
 
 async function execute(actorId: string, input: { commandId: string }, options: {
-  organizationId: string; resourceId: string; operation: string; affectedResourceId?: string; workspaceId?: string
+  organizationId: string; resourceId: string; operation: string; affectedResourceId?: string; workspaceId?: string; createdWorkspaceId?: string
   authorize: (tx: Transaction) => Promise<void>
   write: (tx: Transaction) => Promise<{ id: string; version: number }>
 }): Promise<AccessMutationResult> {
@@ -102,8 +109,9 @@ async function execute(actorId: string, input: { commandId: string }, options: {
       return { ...receipt.result, replayed: true } as AccessMutationResult
     }
     const written = await options.write(tx)
-    const affectedWorkspaceIds = affected.map(row => row.id as string)
-    await publishWorkspaceChanges(tx, actorId, affectedWorkspaceIds, options.operation)
+    const existingWorkspaceIds = affected.map(row => row.id as string)
+    const affectedWorkspaceIds = [...existingWorkspaceIds, ...(options.createdWorkspaceId ? [options.createdWorkspaceId] : [])]
+    await publishWorkspaceChanges(tx, actorId, existingWorkspaceIds, options.operation)
     await tx`INSERT INTO canvas_access_events(id,organization_id,actor_user_id,resource_id,operation,metadata)
       VALUES (gen_random_uuid(),${options.organizationId},${actorId},${options.resourceId},${options.operation},${tx.json({ commandId: input.commandId, entityId: written.id })})`
     const result: AccessMutationResult = { ...written, affectedWorkspaceIds, replayed: false }
@@ -169,6 +177,36 @@ export async function attachWorkspace(actorId: string, value: z.input<typeof att
       // Stored explicit grant, not an implicit owner/admin bypass.
       await tx`INSERT INTO canvas_resource_grants(id,organization_id,resource_id,user_id,capabilities,created_by_user_id)
         VALUES (gen_random_uuid(),${organizationId},${input.resourceId},${actorId},${tx.array([...ACCESS_CAPABILITIES])},${actorId})`
+      return { id: input.resourceId, version: 1 }
+    } })
+}
+
+/** Create and canonically place a workspace in one receipt-bearing transaction.
+ * Inheritance preserves the parent's capability ceiling without granting new authority.
+ */
+export async function createWorkspaceInCanvas(actorId: string, value: CreateWorkspaceInCanvasInput): Promise<AccessMutationResult> {
+  const input = parse(contextualWorkspaceSchema, value)
+  try { validateWorkspace(input) }
+  catch (error) { throw new AccessPolicyError(error instanceof Error ? error.message : "Invalid workspace details", "validation") }
+  const organizationId = await resourceOrganization(input.parentId, actorId)
+  return execute(actorId, input, { organizationId, resourceId: input.resourceId, operation: "canvas-workspace-created",
+    workspaceId: input.workspaceId, createdWorkspaceId: input.workspaceId,
+    authorize: async tx => {
+      await requireCapabilities(tx, actorId, [input.parentId], ["manage", "create"])
+      const parent = await currentResource(tx, input.parentId)
+      if (parent.kind !== "space" && parent.kind !== "section") throw new AccessPolicyError("Choose a space or section for this workspace", "validation")
+      const [receipt] = await tx`SELECT command_id FROM canvas_access_commands WHERE actor_user_id=${actorId} AND command_id=${input.commandId}`
+      if (receipt) {
+        // Receipts confirm historical commits only while the new workspace is still visible.
+        const workspace = await readWorkspace(input.workspaceId, actorId, tx)
+        const [placement] = await tx`SELECT id FROM canvas_resources WHERE id=${input.resourceId} AND workspace_id=${input.workspaceId} AND parent_id=${input.parentId}`
+        if (!workspace || !placement) throw new AccessPolicyError("Workspace unavailable or access denied")
+      } else if (parent.version !== input.expectedParentVersion) throw new AccessPolicyError("Canvas resource changed. Refresh before saving.", "conflict")
+    },
+    write: async tx => {
+      await withTransactionContext(tx, () => createWorkspaceRecord(actorId, input, { id: input.workspaceId }))
+      await tx`INSERT INTO canvas_resources(id,organization_id,parent_id,kind,workspace_id,policy_mode,created_by_user_id)
+        VALUES (${input.resourceId},${organizationId},${input.parentId},'workspace',${input.workspaceId},'inherit',${actorId})`
       return { id: input.resourceId, version: 1 }
     } })
 }

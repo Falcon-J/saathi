@@ -29,6 +29,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
   const otherTask = randomUUID(), privateTask = randomUUID()
   const sharedQuery = `Canvas cross-workspace ${randomUUID()}`
   const otherTitle = `${sharedQuery} visible`, privateTitle = `${sharedQuery} private`
+  const createdWorkspaceNames = []
+  const createdWorkspaces = []
   let agentTaskId
   let companyId
   try {
@@ -373,6 +375,76 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await current('Canvas')
       })
     }
+    // Verify the three density/context improvements with real Auth and database writes.
+    for (const viewport of [{ width: 1280, height: 900 }, { width: 360, height: 800 }]) {
+      await page.setViewportSize(viewport)
+      await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+      for (const [id, label] of [[companyId, companyName], [spaceId, spaceName], [sectionForLink.id, sectionName]]) {
+        await page.locator(`.react-flow__node[data-id="container:${id}"]`).getByRole('button', { name: `Open ${label}`, exact: true }).click()
+      }
+      log({ canvasImprovementStep: { viewport, step: 'contextual-create' } })
+      const name = `Context workspace ${viewport.width} ${randomUUID()}`
+      createdWorkspaceNames.push(name)
+      await page.getByRole('button', { name: 'Create workspace', exact: true }).click()
+      const createDialog = page.getByRole('dialog', { name: 'Create workspace', exact: true })
+      await expect(createDialog).toContainText(`Location: ${companyName} / ${spaceName} / ${sectionName}`)
+      await createDialog.getByLabel('Workspace name', { exact: true }).fill(name)
+      await createDialog.getByRole('button', { name: 'Create workspace', exact: true }).click()
+      await expect(createDialog).not.toBeVisible()
+      let createdId
+      await expect.poll(async () => {
+        const [row] = await db`SELECT w.id FROM workspaces w JOIN canvas_resources r ON r.workspace_id=w.id WHERE w.name=${name} AND w.owner_user_id=${users[0].id} AND r.parent_id=${sectionForLink.id}`
+        createdId = row?.id
+        return Boolean(createdId)
+      }).toBe(true)
+      createdWorkspaces.push(createdId)
+      await expect(page.getByLabel('Current workspace', { exact: true })).toHaveValue(createdId)
+      await expect(hierarchy.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'location')
+      const denseTasks = Array.from({ length: 50 }, (_, index) => ({ id: randomUUID(), title: `Dense task ${String(index).padStart(2, '0')}`, status: index < 40 ? 'todo' : 'done' }))
+      await db.begin(async tx => {
+        for (const task of denseTasks) await tx`INSERT INTO tasks(id,workspace_id,title,status,created_by_user_id) VALUES(${task.id},${createdId},${task.title},${task.status},${users[0].id})`
+      })
+      await page.getByRole('button', { name: 'Refresh canvas', exact: true }).click()
+      log({ canvasImprovementStep: { viewport, step: 'dense-summary-refresh' } })
+      const readySummary = page.getByRole('button', { name: 'Open Ready, 40 tasks', exact: true })
+      await expectInsideCanvas(page, readySummary)
+      await expectInsideCanvas(page, page.getByRole('button', { name: 'Open Completed, 10 tasks', exact: true }))
+      const canvasBox = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+      const groupBox = await page.locator(`.react-flow__node[data-id="workspace:${createdId}"]`).boundingBox()
+      assert.ok(groupBox.height <= canvasBox.height + 2, 'Dense workspace must fit inside canvas vertically')
+      log({ canvasImprovementStep: { viewport, step: 'dense-summary-open-list' } })
+      await readySummary.click()
+      const list = page.getByRole('dialog', { name: 'Ready tasks', exact: true })
+      await expect(list.locator('li')).toHaveCount(40)
+      await expect(list).not.toContainText(denseTasks[40].title)
+      await list.getByRole('button').filter({ hasText: denseTasks[0].title }).click()
+      await expect(editor.getByLabel('Title', { exact: true })).toHaveValue(denseTasks[0].title)
+      const dialogBox = await editor.boundingBox(), titleBox = await editor.getByLabel('Title', { exact: true }).boundingBox()
+      assert.ok(titleBox.y - dialogBox.y < 180, 'Task title must be near the top of the editor')
+      await accessibility(page)
+      await page.screenshot({ path: `${evidence}/canvas-compact-editor-${viewport.width}.png`, fullPage: true })
+      await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
+      await expect(workArea.getByLabel('Task title', { exact: true })).not.toBeVisible()
+      await expect(workArea.getByLabel('Task priority filter', { exact: true })).not.toBeVisible()
+      log({ canvasImprovementStep: { viewport, step: 'compact-toolbar' } })
+      const firstTask = workArea.getByRole('button', { name: /^Edit Dense task / }).first()
+      const areaBox = await workArea.boundingBox(), firstBox = await firstTask.boundingBox()
+      assert.ok(firstBox && firstBox.y + firstBox.height <= areaBox.y + areaBox.height, 'First task action must fit before scrolling')
+      await workArea.locator('summary').filter({ hasText: 'Filters' }).click()
+      await workArea.getByLabel('Task priority filter', { exact: true }).selectOption('high')
+      await expect(workArea.getByRole('button', { name: 'Clear filters', exact: true })).toBeVisible()
+      await workArea.getByRole('button', { name: 'Clear filters', exact: true }).click()
+      await expect(workArea.getByLabel('Task priority filter', { exact: true })).toHaveValue('all')
+      await workArea.locator('summary').filter({ hasText: 'Filters' }).click()
+      await accessibility(page)
+      await page.screenshot({ path: `${evidence}/canvas-dense-toolbar-${viewport.width}.png`, fullPage: true })
+      await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+      await hierarchy.getByRole('button', { name, exact: true }).click()
+      await expectInsideCanvas(page, readySummary)
+      await page.screenshot({ path: `${evidence}/canvas-dense-summary-${viewport.width}.png`, fullPage: true })
+      log({ canvasImprovements: { viewport, contextualCreation: true, taskCount: 50, readyCount: 40, completedCount: 10, firstTaskVisible: true, editorTitleOffset: titleBox.y - dialogBox.y, denseGroupHeight: groupBox.height, canvasHeight: canvasBox.height } })
+    }
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.getByLabel('Current workspace', { exact: true }).selectOption(otherWorkspace)
     await page.getByRole('button', { name: 'Manage canvas', exact: true }).click()
@@ -479,7 +551,12 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await db.begin(async tx => { await tx`DELETE FROM canvas_resources WHERE organization_id=${row.id}` })
       assert.equal((await db`SELECT id FROM canvas_resources WHERE organization_id=${row.id}`).length, 0)
     }
-    for (const id of [otherWorkspace, privateWorkspace]) {
+    // Recover IDs even when the UI assertion failed immediately after creation.
+    for (const name of createdWorkspaceNames) {
+      const rows = await db`SELECT id FROM workspaces WHERE name=${name} AND owner_user_id=${users[0].id}`
+      for (const row of rows) if (!createdWorkspaces.includes(row.id)) createdWorkspaces.push(row.id)
+    }
+    for (const id of [otherWorkspace, privateWorkspace, ...createdWorkspaces]) {
       await db.begin(async tx => {
         await tx`DELETE FROM activity_events WHERE workspace_id=${id}`
         await tx`DELETE FROM outbox_events WHERE workspace_id=${id}`

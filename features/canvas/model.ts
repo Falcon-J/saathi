@@ -22,7 +22,7 @@ export type CanvasRepresentation = "compact" | "summary" | "detail"
 export type CanvasReadiness = "ready" | "waiting" | "completed_inconsistent" | "completed"
 export type CanvasNode = {
   id: string
-  kind: "workspace" | "task"
+  kind: "workspace" | "task" | "readiness"
   recordId: string
   workspaceId: string
   parentId?: string
@@ -33,6 +33,7 @@ export type CanvasNode = {
   expanded: boolean
   representation: CanvasRepresentation
   readiness?: CanvasReadiness
+  count?: number
 }
 export type CanvasEdge = { id: string; source: string; target: string; workspaceId: string; hidden: boolean }
 export type CanvasProjection = {
@@ -51,6 +52,7 @@ const textOrder = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
 const keyPart = (value: string) => encodeURIComponent(value)
 export const workspaceNodeId = (workspaceId: string) => `workspace:${keyPart(workspaceId)}`
 export const taskNodeId = (workspaceId: string, taskId: string) => `task:${keyPart(workspaceId)}:${keyPart(taskId)}`
+export const readinessNodeId = (workspaceId: string, readiness: CanvasReadiness) => `readiness:${keyPart(workspaceId)}:${readiness}`
 export const dependencyEdgeId = (workspaceId: string, prerequisiteTaskId: string, dependentTaskId: string) =>
   `dependency:${keyPart(workspaceId)}:${keyPart(prerequisiteTaskId)}:${keyPart(dependentTaskId)}`
 
@@ -170,14 +172,16 @@ export function projectCanvas(input: {
   const groups = ordered.map(entry => {
     const expanded = pointsAtWorkspace(navigation.focus, entry.workspace.id) || pointsAtWorkspace(navigation.selection, entry.workspace.id)
     const taskCount = entry.graph.tasks.length
-    return { entry, expanded, width: expanded ? 760 : 320,
-      height: expanded ? 100 + Math.ceil(taskCount / 2) * 240 : 160 }
+    const dense = taskCount > 12
+    const taskFocus = [navigation.focus, navigation.selection].find((focus): focus is Extract<CanvasFocus, { kind: "task" }> => focus?.kind === "task" && focus.workspaceId === entry.workspace.id)
+    return { entry, expanded, dense, taskFocus, width: expanded ? dense ? 420 : 760 : 320,
+      height: expanded ? dense ? taskFocus ? 352 : 448 : 100 + Math.ceil(taskCount / 2) * 240 : 160 }
   })
   let rowY = 0
   for (let index = 0; index < groups.length; index += 2) {
     const row = groups.slice(index, index + 2)
     let columnX = 0
-    for (const { entry, expanded, width, height } of row) {
+    for (const { entry, expanded, dense, taskFocus, width, height } of row) {
       const { workspace, graph } = entry
       const id = workspaceNodeId(workspace.id)
       const projection = readiness.get(workspace.id)!
@@ -189,11 +193,19 @@ export function projectCanvas(input: {
         position: { x: columnX, y: rowY }, width, height, hidden: false, expanded,
         representation: expanded ? "detail" : input.zoom < 0.55 ? "compact" : "summary" })
       const orderedTasks = [...graph.tasks].sort((a, b) => textOrder(a.id, b.id))
+      if (dense) {
+        const counts: [CanvasReadiness, number][] = [["ready", projection.ready.length], ["waiting", projection.waiting.length],
+          ["completed_inconsistent", projection.completedInconsistencies.length],
+          ["completed", graph.tasks.length - projection.ready.length - projection.waiting.length - projection.completedInconsistencies.length]]
+        counts.forEach(([readiness, count], index) => nodes.push({ id: readinessNodeId(workspace.id, readiness), kind: "readiness",
+          recordId: workspace.id, workspaceId: workspace.id, parentId: id, position: { x: 24, y: 112 + index * 80 },
+          width: 372, height: 64, hidden: !expanded || Boolean(taskFocus), expanded: false, representation: "summary", readiness, count }))
+      }
       orderedTasks.forEach((task, taskIndex) => {
         const detail = pointsAtTask(navigation.focus, workspace.id, task.id) || pointsAtTask(navigation.selection, workspace.id, task.id)
         nodes.push({ id: taskNodeId(workspace.id, task.id), kind: "task", recordId: task.id,
-          workspaceId: workspace.id, parentId: id, position: { x: 24 + (taskIndex % 2) * 368, y: 80 + Math.floor(taskIndex / 2) * 240 },
-          width: 344, height: 216, hidden: !expanded, expanded: detail,
+          workspaceId: workspace.id, parentId: id, position: dense ? { x: 24, y: 112 } : { x: 24 + (taskIndex % 2) * 368, y: 80 + Math.floor(taskIndex / 2) * 240 },
+          width: dense ? 372 : 344, height: 216, hidden: !expanded || (dense && taskFocus?.taskId !== task.id), expanded: detail,
           representation: detail ? "detail" : input.zoom < 0.55 ? "compact" : "summary",
           readiness: taskReadiness.get(task.id) ?? "completed" })
       })
@@ -201,7 +213,7 @@ export function projectCanvas(input: {
         dependencyEdgeId(workspace.id, a.prerequisiteTaskId, a.dependentTaskId),
         dependencyEdgeId(workspace.id, b.prerequisiteTaskId, b.dependentTaskId)))) {
         edges.push({ id: dependencyEdgeId(workspace.id, edge.prerequisiteTaskId, edge.dependentTaskId), workspaceId: workspace.id,
-          source: taskNodeId(workspace.id, edge.prerequisiteTaskId), target: taskNodeId(workspace.id, edge.dependentTaskId), hidden: !expanded })
+          source: taskNodeId(workspace.id, edge.prerequisiteTaskId), target: taskNodeId(workspace.id, edge.dependentTaskId), hidden: !expanded || dense })
       }
       columnX += width + 120
     }

@@ -129,6 +129,6 @@ export async function getCanvasAccessDetails(actorId: string, resourceId: string
   }) as CanvasAccessDetails
 }
 
-export { createCompany, createCanvasContainer, attachWorkspace, addOrganizationMember, createCanvasGroup,
+export { createCompany, createCanvasContainer, attachWorkspace, createWorkspaceInCanvas, addOrganizationMember, createCanvasGroup,
   setCanvasGroupMembership, grantCanvasAccess, revokeCanvasGrant, setCanvasResourcePolicy, createCanvasReference } from "./mutations.ts"
-export type { AccessMutationResult } from "./mutations.ts"
+export type { AccessMutationResult, CreateWorkspaceInCanvasInput } from "./mutations.ts"

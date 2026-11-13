@@ -19,6 +19,59 @@ const graph = (tasks: Task[] = [], id = "w"): AuthorizedWorkspaceGraph => ({ wor
   graph: { tasks, dependencies: [], timezone: "UTC", asOf: "2026-11-12T00:00:00Z" } })
 const input = (graphs: AuthorizedWorkspaceGraph[]) => ({ graphs, navigation: createCanvasNavigation(scope), zoom: 1 })
 
+for (const count of [50, 100]) test(`dense workspace with ${count} tasks has bounded readiness groups and canonical focus`, () => {
+  const entry = graph(Array.from({ length: count }, (_, i) => task(String(i), "w", i >= count - 2)))
+  entry.graph.dependencies = [
+    { workspaceId: "w", prerequisiteTaskId: "0", dependentTaskId: "1" },
+    { workspaceId: "w", prerequisiteTaskId: "0", dependentTaskId: String(count - 1) },
+  ]
+  const navigation = navigateCanvas(createCanvasNavigation(scope), { kind: "workspace", workspaceId: "w" }, "manual")
+  const result = projectCanvas({ graphs: [entry], navigation, zoom: 1 })
+  const groups = result.nodes.filter(node => node.kind === "readiness")
+  assert.deepEqual(groups.map(node => [node.readiness, node.count]), [["ready", count - 3], ["waiting", 1], ["completed_inconsistent", 1], ["completed", 1]])
+  assert.equal(new Set(groups.map(node => node.position.x)).size, 1)
+  assert.ok(groups[0].position.y >= 112, "Two-line workspace titles must fit above readiness rows")
+  assert.ok(result.nodes[0].height <= 500)
+  assert.ok(result.nodes[0].width <= 450)
+  assert.equal(result.records.tasks.size, count)
+  assert.equal(result.nodes.filter(node => node.kind === "task" && !node.hidden).length, 0)
+  assert.ok(result.edges.every(edge => edge.hidden))
+  const focused = projectCanvas({ graphs: [entry], navigation: navigateCanvas(navigation, { kind: "task", workspaceId: "w", taskId: String(count - 1) }, "agent"), zoom: 1 })
+  const visibleTasks = focused.nodes.filter(node => node.kind === "task" && !node.hidden)
+  assert.equal(visibleTasks.length, 1)
+  assert.equal(visibleTasks[0].recordId, String(count - 1))
+  assert.equal(visibleTasks[0].representation, "detail")
+  assert.ok(visibleTasks[0].position.y >= 112, "Focused tasks must also clear the workspace header")
+  assert.ok(visibleTasks[0].position.y + visibleTasks[0].height <= focused.nodes[0].height)
+  assert.ok(focused.nodes[0].height <= 500)
+  assert.ok(focused.nodes.filter(node => node.kind === "readiness").every(node => node.hidden))
+  assert.equal(focused.records.tasks.get(visibleTasks[0].id), entry.graph.tasks[count - 1])
+  assert.equal(focused.records.dependencies.size, 2)
+  assert.ok(focused.edges.every(edge => edge.hidden))
+})
+
+test("dense task selection cannot expose overlapping siblings or retain revoked counts", () => {
+  const entry = graph(Array.from({ length: 50 }, (_, index) => task(String(index))))
+  const navigation = { ...navigateCanvas(createCanvasNavigation(scope), { kind: "task", workspaceId: "w", taskId: "49" }, "agent"),
+    selection: { kind: "task" as const, workspaceId: "w", taskId: "0" } }
+  const result = projectCanvas({ graphs: [entry], navigation, zoom: 0.2 })
+  assert.deepEqual(result.nodes.filter(node => node.kind === "task" && !node.hidden).map(node => node.recordId), ["49"])
+  const revoked = projectCanvas({ graphs: [], navigation, zoom: 1 })
+  assert.equal(revoked.nodes.length, 0)
+  assert.equal(revoked.records.tasks.size, 0)
+  assert.equal(revoked.readiness.size, 0)
+})
+
+test("small workspaces retain individual task cards and visible dependency edges", () => {
+  const entry = graph(Array.from({ length: 12 }, (_, index) => task(String(index))))
+  entry.graph.dependencies = [{ workspaceId: "w", prerequisiteTaskId: "0", dependentTaskId: "1" }]
+  const navigation = navigateCanvas(createCanvasNavigation(scope), { kind: "workspace", workspaceId: "w" }, "manual")
+  const result = projectCanvas({ graphs: [entry], navigation, zoom: 1 })
+  assert.equal(result.nodes.filter(node => node.kind === "readiness").length, 0)
+  assert.equal(result.nodes.filter(node => node.kind === "task" && !node.hidden).length, 12)
+  assert.equal(result.edges[0].hidden, false)
+})
+
 test("company and section focus retain canonical hierarchy and drop revoked resources", () => {
   const resources = [{ id: 'company', parentId: null, workspaceId: null, name: 'Acme' }, { id: 'section', parentId: 'company', workspaceId: null, name: 'Delivery' }, { id: 'attached', parentId: 'section', workspaceId: 'w', name: 'Workspace' }]
   const focused = navigateCanvas(createCanvasNavigation(scope), { kind: 'resource', resourceId: 'section' }, 'manual')

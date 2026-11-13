@@ -1,10 +1,14 @@
 "use client"
+import type { ReactNode } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { X, Search } from "lucide-react"
 import type { Member } from "@/app/actions/workspaces"
 
 interface TaskFilterProps {
+  compactToolbar?: boolean
+  onClearFilters?: () => void
+  toolbarAction?: ReactNode
   onSearchChange: (query: string) => void
   onFilterByAssignee: (memberId: string | null) => void
   onFilterByStatus: (status: "all" | "active" | "completed") => void
@@ -26,32 +30,12 @@ export function TaskFilter({
   selectedAssignee,
   selectedStatus,
   selectedPriority,
+  compactToolbar = false,
+  onClearFilters,
+  toolbarAction,
 }: TaskFilterProps) {
-  return (
-    <div className="space-y-3">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          aria-label="Search tasks"
-          placeholder="Search tasks..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="border-border bg-card pl-10 text-foreground placeholder:text-muted-foreground"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => onSearchChange("")}
-            aria-label="Clear task search"
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Filters */}
+  const activeCount = Number(selectedStatus !== "all") + Number(selectedPriority !== "all") + Number(Boolean(selectedAssignee))
+  const filters = (
       <div className="flex flex-wrap gap-2">
         {/* Status Filter */}
         <div className="flex gap-1">
@@ -100,6 +84,45 @@ export function TaskFilter({
           ))}
         </select>
       </div>
+  )
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          aria-label="Search tasks"
+          placeholder="Search tasks..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="border-border bg-card pl-10 text-foreground placeholder:text-muted-foreground"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => onSearchChange("")}
+            aria-label="Clear task search"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {compactToolbar ? (
+        <div className="flex flex-wrap items-start gap-2">
+          {toolbarAction}
+          <details className="min-w-0 flex-1 open:basis-full">
+            <summary aria-label={activeCount ? `Filters, ${activeCount} active` : "Filters"} className="cursor-pointer rounded-[var(--saathi-radius-control)] py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+              Filters{activeCount > 0 && <span className="ml-2 text-muted-foreground">{activeCount}</span>}
+            </summary>
+            <div className="pt-2">{filters}</div>
+          </details>
+          {activeCount > 0 && <Button variant="ghost" size="sm" onClick={() => {
+            if (onClearFilters) onClearFilters()
+            else { onFilterByStatus("all"); onFilterByPriority("all"); onFilterByAssignee(null) }
+          }}>Clear filters</Button>}
+        </div>
+      ) : filters}
     </div>
   )
 }
