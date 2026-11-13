@@ -87,14 +87,26 @@ async function edit(p, title, changes) {
   await expect(dialog).not.toBeVisible()
 }
 async function accessibility(p) {
+  // Contrast is meaningful after finite UI transitions finish; decorative loops must not block verification.
+  await p.evaluate(async () => {
+    const finite = document.getAnimations().filter(animation => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+    await Promise.all(finite.map(animation => animation.finished.catch(() => {})))
+  })
   assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Horizontal page overflow')
   const proxy = '[role="region"]:has(> [data-slot="toast-viewport"]) > span[aria-hidden="true"][tabindex="0"]'
-  for (const sentinel of await p.locator(proxy).all()) {
+  const dialogs = p.getByRole('dialog').or(p.getByRole('alertdialog'))
+  if (await dialogs.count() > 0) {
+    const modal = dialogs.last()
+    for (const key of ['Tab', 'Shift+Tab']) {
+      await p.keyboard.press(key)
+      assert.ok(await modal.evaluate(element => element.contains(document.activeElement)), 'Keyboard focus must remain inside the modal dialog')
+    }
+  } else for (const sentinel of await p.locator(proxy).all()) {
     await sentinel.evaluate(element => element.focus())
     assert.equal(await p.evaluate(selector => document.activeElement.matches(selector), proxy), false)
   }
   const results = await new AxeBuilder({ page: p }).exclude(proxy).analyze()
-  assert.deepEqual(results.violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => ({ id: v.id, targets: v.nodes.map(n => n.target) })), [])
+  assert.deepEqual(results.violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => ({ id: v.id, targets: v.nodes.map(n => n.target), details: v.nodes.map(n => n.failureSummary) })), [])
 }
 try {
   assert.ok(Number(process.versions.node.split('.')[0]) >= 22, 'Node.js 22 or later is required for the Supabase SDK')

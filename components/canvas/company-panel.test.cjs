@@ -109,3 +109,19 @@ test('same-name sharing destinations include their authorized ancestor path and 
   assert.ok(labels.some(label => label.includes('Acme / Delivery') && label.includes('section')))
   assert.ok(labels.some(label => label.includes('Beta / Delivery') && label.includes('section')))
 })
+
+test('creating a Space resets the next container to Section when the new Space is selected', async () => {
+ const resource={id:'company',name:'Company',organizationId:'company',parentId:null,kind:'organization',mode:'inherit',capabilities:['read','manage'],version:1,workspaceId:null}
+ const resources=[resource]
+ const ui=harness({resources,details:()=>({resource,members:[],groups:[],grants:[]}),mutate:async command=>{
+  resources.push({...resource,id:command.input.id,parentId:'company',kind:'space',name:command.input.name})
+  return {success:true,result:{id:command.input.id,version:1}}
+ }})
+ ui.render();await tick();ui.render()
+ ui.render().find(node=>node.props?.['aria-label']==='Container type').props.onChange({target:{value:'space'}})
+ ui.render().find(node=>node.props?.id==='canvas-section-name').props.onChange({target:{value:'Product'}})
+ ui.render().find(node=>node.type==='form'&&nodes(node).some(child=>child.props?.id==='canvas-section-name')).props.onSubmit({preventDefault(){}})
+ await tick();ui.render();await tick()
+ assert.equal(ui.render().find(node=>node.props?.['aria-label']==='Container type').props.value,'section')
+ assert.ok(ui.render().some(node=>node.type==='Button'&&[node.props.children].flat().join('')==='Create section'))
+})
