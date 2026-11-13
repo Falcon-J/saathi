@@ -1,3 +1,5 @@
+import { listWorkspaces } from "../../lib/data/workspaces"
+import { connectionWorkspaceNames } from "../../components/mcp/workspace-scope"
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '../../lib/auth-simple'
@@ -30,6 +32,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const { after } = await searchParams
   let page
   try { page = await listMcpConnections(session.id, after) } catch { return <main className="mx-auto max-w-3xl space-y-4 p-8"><h1 className="text-2xl font-semibold">Connections unavailable</h1><Link href="/connections" className="underline">Reload connections</Link></main> }
+  const authorizedWorkspaces = await listWorkspaces(session.id).catch(() => null)
   const provider = await (async () => {
     try { const client = await createClient({ readOnly: true }); return await client.auth.oauth.listGrants() }
     catch { return { data: null, error: true } }
@@ -50,7 +53,10 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       return <section key={connection.id} className="space-y-3 rounded-xl border border-border p-5">
         <h2 className="break-all text-lg font-semibold">{names.get(connection.clientId) || connection.clientId}</h2>
         <p>{connection.revokedAt ? 'Application access revoked' : expired ? 'Application access expired' : 'Application access active'}</p>
-        <p className="text-sm">{connection.workspaceIds === null ? 'All currently authorized workspaces, including future workspaces' : `${connection.workspaceIds.length} selected workspaces`}</p>
+        {connection.workspaceIds === null ? <p className="text-sm">All currently authorized workspaces, including future workspaces</p>
+          : <details><summary className="cursor-pointer text-sm">{connection.workspaceIds.length} selected workspaces</summary>
+            {authorizedWorkspaces ? <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{connectionWorkspaceNames(connection.workspaceIds, authorizedWorkspaces).map((name, index) => <li key={index}>{name}</li>)}</ul> : <p role="alert">Workspace names unavailable. Reload connections.</p>}
+          </details>}
         {connection.expiresAt && <p className="text-sm">Expires {new Date(connection.expiresAt).toLocaleString('en-IN', { timeZone: 'UTC' })} UTC</p>}
         <details><summary className="cursor-pointer text-sm">Permissions</summary><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{connection.capabilities.map(capability => { const [area, permission] = capability.split(':'); const verbs: Record<string, string> = { read: 'Read', write: 'Create and edit', delete: 'Delete', archive: 'Archive', transfer: 'Transfer ownership of', revoke: 'Revoke' }; return <li key={capability}>{permissionLabels[capability] ?? `${verbs[permission] ?? permission} ${area.replaceAll('_', ' ')}`}</li> })}</ul></details>
         <McpDisconnectForm clientId={connection.clientId} cleanupOnly={inactive} />

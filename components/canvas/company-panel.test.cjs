@@ -15,7 +15,7 @@ function harness(options = {}) {
   }
   const browserStorage = { getItem: key => storage.get(key) ?? null, setItem(key, value) { if (options.storageFails) throw new Error('Storage denied'); storage.set(key, value) }, removeItem: key => storage.delete(key) }
   const jsx = (type, props) => ({ type, props })
-  const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
+  const dependencies = { '@/features/canvas/model': require('../../features/canvas/model.ts'), react, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
     '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/features/access/actions': { getCanvasResourceAccess: async id => options.details ? { success: true, details: options.details(id) } : { success: false, error: 'Unavailable' }, runCanvasAccessCommand: async command => {
       calls.push(command)
@@ -95,4 +95,17 @@ test('a definitive conflict clears its command and refreshes current policy befo
   assert.equal(ui.button('Retry original change'), undefined)
   assert.equal(ui.refreshes, 1)
   assert.match(ui.text(), /Resource changed/)
+})
+
+test('same-name sharing destinations include their authorized ancestor path and type', () => {
+  const ui = harness({ resources: [
+    { id: 'a', name: 'Acme', parentId: null, kind: 'organization', capabilities: ['read'] },
+    { id: 'b', name: 'Beta', parentId: null, kind: 'organization', capabilities: ['read'] },
+    { id: 's1', name: 'Delivery', parentId: 'a', kind: 'section', capabilities: ['read'] },
+    { id: 's2', name: 'Delivery', parentId: 'b', kind: 'section', capabilities: ['read'] },
+  ] })
+  const selector = ui.render().find(node => node.props?.id === 'canvas-resource')
+  const labels = nodes(selector).filter(node => node.type === 'option').map(node => JSON.stringify(node.props.children))
+  assert.ok(labels.some(label => label.includes('Acme / Delivery') && label.includes('section')))
+  assert.ok(labels.some(label => label.includes('Beta / Delivery') && label.includes('section')))
 })
