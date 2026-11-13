@@ -105,9 +105,10 @@ test('canvas board leaves task creation to the persistent command action',()=>{
 
 test('compact canvas rows prioritize titles and owners instead of repeated edit forms',()=>{
  const tasks=Array.from({length:3},(_,i)=>({id:'compact-'+i,workspaceId:'workspace',title:'Action '+i,description:'Details belong in the task sheet',status:'todo',completed:false,createdBy:'owner',assigneeEmail:'member@example.test',priority:'medium'}));
- const props={tasks,loading:false,members:[{id:'m',email:'member@example.test',username:'Maya'}],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true};
+ const opened=[];const props={onOpenTask:id=>opened.push(id),tasks,loading:false,members:[{id:'m',email:'member@example.test',username:'Maya'}],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true};
  const rendered=nodes(moduleExports.TaskList(props));
  assert.equal(rendered.filter(n=>n.props?.['data-task-row']).length,3);
+ rendered.find(n=>n.type==='button'&&n.props['aria-label']==='Edit Action 0').props.onClick();assert.deepEqual(opened,['compact-0'],'row selection must update the canonical canvas task');
  assert.equal(rendered.some(n=>n.type==='select'&&n.props['aria-label']?.startsWith('Change status')),false);
  assert.equal(rendered.some(n=>n.type==='select'&&n.props['aria-label']?.startsWith('Assign ')),false);
  assert.equal(rendered.some(n=>n.props?.children==='Details belong in the task sheet'),false);

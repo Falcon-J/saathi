@@ -351,3 +351,14 @@ test('Board reports combined editor and quick-add dirty state without false rese
 test("revoked edit permission preserves a dirty draft until explicit discard", () => {
  state=[];let closes=0;const draw=()=>render(false,null,{onClose:()=>closes++});nodes(draw()).find(n=>n.type==="Dialog").props.onOpenChange(false);assert.equal(closes,0);const confirm=nodes(draw()).find(n=>n.type==="ConfirmDialog");assert.equal(confirm.props.open,true);confirm.props.onConfirm();assert.equal(closes,1);
 })
+test('hidden canonical task sheets retain drafts and report the actual editor task',()=>{
+ const original={id:'task',draft:{...draft,title:'Original title'},version:4};
+ state=[original,draft,null,null,null,'',null,'all','all'];stateIndex=0;
+ const reports=[],oldEffect=dependencies.react.useEffect;dependencies.react.useEffect=fn=>fn();
+ try {
+  const parts=nodes(moduleExports.TaskList({tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,active:false,onOpenTask(){},openTaskId:null,onDirtyChange:(...values)=>reports.push(values)}));
+  const editor=parts.find(n=>n.type===moduleExports.TaskEditorDialog);
+  assert.equal(editor.props.task,null,'a portal must be dismissed when the work surface is hidden');
+  assert.deepEqual(reports.at(-1),[true,false,'task'],'hidden editor draft is retained, with its task identity');
+ } finally {dependencies.react.useEffect=oldEffect}
+});

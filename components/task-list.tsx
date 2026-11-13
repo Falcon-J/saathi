@@ -36,6 +36,7 @@ export interface BoardPaging {
 }
 
 interface TaskListProps {
+  active?: boolean
   compactToolbar?: boolean
   capabilityCeiling?: CapabilityCeiling
   paging?: BoardPaging
@@ -56,7 +57,8 @@ interface TaskListProps {
   commentRefreshEvent?: RealtimeEvent | null
   focusQuickAdd?: number
   draftScope?: string
-  onDirtyChange?: (dirty: boolean) => void
+  onDirtyChange?: (dirty: boolean, activeDirty?: boolean, editorDraftTaskId?: string) => void
+  onOpenTask?: (taskId: string) => void
   onReviewBoard?: () => Promise<void>
 }
 
@@ -80,10 +82,13 @@ export const TaskList = memo(function TaskList({
   paging,
   detailTask,
   onDirtyChange,
+  onOpenTask,
   draftScope,
   capabilityCeiling,
   compactToolbar = false,
+  active = true,
 }: TaskListProps) {
+  const boardHeading = useRef<HTMLHeadingElement>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const editorPermissions = useTaskPermissions(
     currentUserEmail,
@@ -93,6 +98,7 @@ export const TaskList = memo(function TaskList({
   const [editingDraft, setEditingDraft] = useState<TaskEditorDraft | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  useEffect(() => { if (!active) setDeleteConfirm(null) }, [active])
   const [operatingTaskId, setOperatingTaskId] = useState<string | null>(null)
   const [localSearchQuery, setSearchQuery] = useState("")
   const [localSelectedAssignee, setSelectedAssignee] = useState<string | null>(null)
@@ -142,12 +148,13 @@ export const TaskList = memo(function TaskList({
   }, [draftKey, restoredScope, openTaskId, openTaskRequest])
   const originalDraft = editingTask ? toTaskEditorDraft(editingTask) : null
   const editorDirty = Boolean(editingDraft && originalDraft && (Object.keys(originalDraft) as (keyof TaskEditorDraft)[]).some(key => originalDraft[key] !== editingDraft[key]))
+  const editorPresented = active && Boolean(editingTask && (!onOpenTask || editingTask.id === openTaskId || editorDirty))
   useEffect(() => {
     if (!draftKey || restoredScope !== draftKey) return
     if (editorDirty && editingTask && editingDraft) writeDraft(draftKey, { task: editingTask, draft: editingDraft })
     else removeDraft(draftKey)
   }, [draftKey, restoredScope, editorDirty, editingTask, editingDraft])
-  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId)) }, [quickAddDirty, editorDirty, operatingTaskId, onDirtyChange])
+  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId), (editorDirty && editorPresented) || Boolean(operatingTaskId) || (quickAddDirty && (!compactToolbar || quickAddOpen)), editorDirty ? editingTask?.id : undefined) }, [quickAddDirty, quickAddOpen, compactToolbar, editorDirty, editorPresented, editingTask?.id, operatingTaskId, onDirtyChange])
 
   useEffect(() => {
     if (draftKey && restoredScope !== draftKey) return
@@ -156,19 +163,25 @@ export const TaskList = memo(function TaskList({
       return
     }
     if (!openTaskReady) return
+    if (editorDirty && editingTask?.id !== openTaskId) {
+      openedTaskIdRef.current = null
+      setEditError("Save or discard your retained task draft before opening another task.")
+      return
+    }
     // A record ID is selection; the request distinguishes an explicit repeat Open from a live refresh.
     if (openedTaskIdRef.current === openTaskId && openedTaskRequestRef.current === openTaskRequest) return
     const task = detailTask?.id === openTaskId ? detailTask : tasks.find((item) => item.id === openTaskId)
     if (!task) return
     openedTaskIdRef.current = openTaskId
     openedTaskRequestRef.current = openTaskRequest
+    if (editorDirty && editingTask?.id === openTaskId) return
     reviewRequest.current++
     setLatestTask(null)
     setReviewLoading(false)
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, openTaskRequest, openTaskReady, tasks, detailTask, draftKey, restoredScope])
+  }, [openTaskId, openTaskRequest, openTaskReady, tasks, detailTask, draftKey, restoredScope, editorDirty, editingTask?.id])
 
   const filteredTasks = useMemo(() => {
     if (paging) return tasks
@@ -358,6 +371,7 @@ export const TaskList = memo(function TaskList({
       key={task.id}
       task={task}
       compact={compactToolbar}
+      active={active}
       capabilityCeiling={capabilityCeiling}
       members={members}
       currentUserEmail={currentUserEmail}
@@ -366,15 +380,17 @@ export const TaskList = memo(function TaskList({
       operatingTaskId={operatingTaskId}
       onToggleTask={handleToggleTask}
       onEditTask={handleEditTask}
-      onStartEdit={openEditor}
+      onStartEdit={onOpenTask ? task => onOpenTask(task.id) : openEditor}
       onConfirmDelete={setDeleteConfirm}
     />
   )
 
   return (
     <div className={compactToolbar ? "@container space-y-3 p-3 sm:p-4" : "@container space-y-4 p-4 sm:p-5"}>
+      {compactToolbar && <h2 ref={boardHeading} tabIndex={-1} className="sr-only">Tasks</h2>}
       {permitsCapability(capabilityCeiling, "create") && <>
         <div aria-label="New task form" hidden={compactToolbar && !quickAddOpen}>
+          {compactToolbar && <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="min-h-11" aria-label="Close new task" onClick={() => { setQuickAddOpen(false); boardHeading.current?.focus() }}>Close</Button></div>}
           <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={compactToolbar && !quickAddOpen ? undefined : focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
         </div>
       </>}
@@ -454,7 +470,7 @@ export const TaskList = memo(function TaskList({
 
       {/* Delete Confirmation */}
       <ConfirmDialog
-        open={!!deleteConfirm}
+        open={active && !!deleteConfirm}
         title="Delete Task"
         description="Are you sure you want to delete this task? This action cannot be undone."
         actionLabel="Delete"
@@ -464,8 +480,8 @@ export const TaskList = memo(function TaskList({
       />
       <TaskEditorDialog
         draftScope={draftScope}
-        task={editingTask}
-        draft={editingDraft}
+        task={editorPresented ? editingTask : null}
+        draft={editorPresented ? editingDraft : null}
         canEdit={(editorPermissions.canEdit && permitsCapability(capabilityCeiling, "edit"))}
         canComment={permitsCapability(capabilityCeiling, "comment")}
         error={editError}
@@ -556,6 +572,7 @@ export function TaskEditorDialog({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   const [discardConfirm, setDiscardConfirm] = useState(false)
+  useEffect(() => { setDiscardConfirm(false) }, [task?.id])
   const headingRef = useRef<HTMLHeadingElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const requestClose = () => {
@@ -733,6 +750,7 @@ export function TaskEditorDialog({
 }
 
 interface TaskListItemProps {
+  active?: boolean
   compact?: boolean
   capabilityCeiling?: CapabilityCeiling
   task: Task
@@ -749,6 +767,7 @@ interface TaskListItemProps {
 
 const TaskListItem = memo(function TaskListItem({
   compact = false,
+  active = true,
   task,
   members,
   currentUserEmail,
@@ -776,14 +795,14 @@ const TaskListItem = memo(function TaskListItem({
           {operatingTaskId === task.id ? <Loader2 className="size-5 animate-spin" /> : task.completed ? <CheckCircle2 className="size-5 text-[var(--saathi-success)]" /> : <Circle className="size-5" />}
         </Button>
         <div className="min-w-0 flex-1">
-          <button type="button" className={"line-clamp-2 min-h-11 w-full break-words text-left text-sm font-medium leading-5 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring " + (task.completed ? "text-muted-foreground line-through" : "text-foreground")} aria-label={(taskPermissions.canEdit && permitsCapability(capabilityCeiling, "edit") ? "Edit " : "Open ") + task.title} title={task.title} onClick={() => onStartEdit(task)}>{task.title}</button>
+          <button type="button" className={"line-clamp-2 min-h-11 w-full break-words text-left text-base font-medium leading-6 sm:text-sm sm:leading-5 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring " + (task.completed ? "text-muted-foreground line-through" : "text-foreground")} aria-label={(taskPermissions.canEdit && permitsCapability(capabilityCeiling, "edit") ? "Edit " : "Open ") + task.title} title={task.title} onClick={() => onStartEdit(task)}>{task.title}</button>
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pb-1 text-xs text-muted-foreground">
             <span className="max-w-40 truncate" title={task.assigneeEmail ?? undefined}>{task.assigneeEmail ? owner?.username || task.assigneeEmail : "Unassigned"}</span>
             {due && <span>Due {due}</span>}
             {task.priority === "high" && <span className="inline-flex items-center gap-1 text-[var(--saathi-danger)]"><Flag className="size-3" aria-hidden="true" />High</span>}
           </div>
         </div>
-        {taskPermissions.canDelete && permitsCapability(capabilityCeiling, "delete") && <DropdownMenu>
+        {active && taskPermissions.canDelete && permitsCapability(capabilityCeiling, "delete") && <DropdownMenu>
           <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground" aria-label={"Task actions for " + task.title} disabled={operatingTaskId === task.id}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" aria-labelledby={undefined} aria-label={"Actions for " + task.title}><DropdownMenuItem variant="destructive" className="min-h-11" onSelect={() => onConfirmDelete(task.id)}>Delete task</DropdownMenuItem></DropdownMenuContent>
         </DropdownMenu>}

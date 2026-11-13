@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const test = require('node:test')
 const ts = require('typescript')
+const shellCode = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
 function harness(options = {}) {
   const slots = [], effects = [], calls = [], listeners = new Map()
@@ -20,18 +21,28 @@ function harness(options = {}) {
   const store = { workspaces: [], currentWorkspaceId: null, loading: false, workspaceError: null, realtime: { eventRevision: 0 }, refreshWorkspaces: async () => calls.push('refresh-workspaces'), setCurrentWorkspaceId: id => { store.currentWorkspaceId = id; calls.push(['workspace', id]) }, ...options.store }
   const graph = { entry: null, error: null, loading: false, reload: async () => true, ...options.graph }
   const companies = { resources: [], references: [], error: null, loading: false, reload: async () => calls.push('refresh-companies'), ...options.companies }
+  const entries = [...(options.previousUrl ? [{url:options.previousUrl,state:{__NA:true,tree:['previous']}}] : []), {url:options.url ?? '/canvas',state:{__NA:true,tree:['next']}}]
+  let position=entries.length-1
+  const history={
+    get state(){return entries[position].state},
+    get length(){return entries.length},
+    replaceState(state,unused,url){entries[position]={state,url}},
+    pushState(state,unused,url){entries.splice(++position);entries.push({state,url})},
+    go(delta){const next=position+delta;if(next<0||next>=entries.length)return;position=next;listeners.get('popstate')?.({state:history.state})},
+    back(){history.go(-1)},forward(){history.go(1)},
+  }
+  const browser={history,get location(){return new URL(entries[position].url,'https://saathi.test')}, PopStateEvent:class{constructor(type,options){this.type=type;this.state=options.state}},dispatchEvent(event){listeners.get(event.type)?.(event)},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true }, addEventListener(name,handler){listeners.set(name,handler)},removeEventListener(){}}
   const jsx = (type, props) => ({ type, props })
   const deps = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
     'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map'].map(key => [key, key])),
     '@/hooks/use-workspaces': { useWorkspaces: () => store }, '@/hooks/use-canvas-graph': { useCanvasGraph: () => graph }, './use-canvas-resources': { useCanvasResources: () => companies },
-    '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
+    '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts'), '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
   }
   for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem', 'DropdownMenuSeparator'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
-  const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
-  new Function('require', 'exports', 'window', code)(name => { assert.ok(name in deps, name); return deps[name] }, exports, { confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true }, addEventListener(name, handler) { listeners.set(name, handler) }, removeEventListener() {} })
-  return { render() { cursor = 0; tree = exports.CanvasShell({ actorId: 'actor', email: 'actor@example.test' }); effects.splice(0).forEach(fn => fn()); return nodes(tree) }, text() { return JSON.stringify(tree) }, store, graph, companies, calls, listeners }
+  new Function('require', 'exports', 'window', shellCode)(name => { assert.ok(name in deps, name); return deps[name] }, exports, browser)
+  return { render() { cursor = 0; tree = exports.CanvasShell({ actorId: 'actor', email: 'actor@example.test' }); effects.splice(0).forEach(fn => fn()); return nodes(tree) }, text() { return JSON.stringify(tree) }, url:()=>entries[position].url, history, store, graph, companies, calls, listeners }
 }
 
 test('company loading cannot masquerade as an empty account', () => {
@@ -53,6 +64,97 @@ test('failed company reads expose recovery in the main canvas rather than an emp
 })
 
 module.exports = { harness, nodes }
+
+const historyWorkspace = (id = 'w') => ({id,name:id,ownerId:'actor@example.test',members:[]})
+const historyGraph = (id = 'w', ids = ['t']) => ({workspace:historyWorkspace(id),complete:true,graph:{tasks:ids.map(taskId=>({id:taskId,workspaceId:id,title:taskId,createdBy:'actor@example.test',completed:false,status:'todo',createdAt:'2026-11-13T00:00:00Z',updatedAt:'2026-11-13T00:00:00Z'})),dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}})
+test('initial task URL waits for lists and current graph without overwriting the deep link',()=>{
+ const ui=harness({url:'/canvas?workspace=w&task=t&view=tasks',store:{loading:true,currentWorkspaceId:'old'},graph:{loading:true}})
+ ui.render();ui.render();assert.match(ui.url(),/task=t/)
+ ui.store.loading=false;ui.store.workspaces=[historyWorkspace()];ui.render()
+ assert.equal(ui.store.currentWorkspaceId,'w');assert.match(ui.url(),/task=t/)
+ ui.render();assert.match(ui.url(),/task=t/)
+ ui.graph.loading=false;ui.graph.entry=historyGraph();ui.render()
+ const tree=ui.render();assert.deepEqual(tree.find(n=>n.type==='CanvasFlow').props.focus,{kind:'task',workspaceId:'w',taskId:'t'})
+ assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.openTaskId,'t')
+ assert.equal(tree.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
+ assert.equal(ui.history.state.__NA,true);assert.deepEqual(ui.history.state.tree,['next'])
+})
+test('Back and Forward restore work focus while dirty cancellation retains draft and history position',()=>{
+ let allow=false
+ const ui=harness({confirm:()=>allow,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();ui.render()
+ const readyUrl=ui.url()
+ ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'tasks'}});ui.render()
+ const taskUrl=ui.url()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true)
+ ui.history.back();ui.render();assert.equal(ui.url(),taskUrl)
+ assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
+ ui.history.back();ui.render();assert.equal(ui.url(),taskUrl)
+ allow=true;ui.history.back();ui.render();ui.render();assert.equal(ui.url(),readyUrl)
+ ui.history.forward();ui.render();ui.render();assert.equal(ui.url(),taskUrl)
+ assert.equal(ui.history.state.__NA,true)
+})
+test('missing URL task recovers generically without private labels',()=>{
+ const ui=harness({url:'/canvas?workspace=w&task=revoked&view=tasks',store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render()
+ assert.equal(ui.url(),'/canvas');assert.match(ui.text(),/location is unavailable/)
+ assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'overview'})
+})
+test('browser workspace transitions protect retained drafts and wait for the destination graph',()=>{
+ let allow=false
+ const ui=harness({confirm:()=>allow,store:{workspaces:[historyWorkspace('w'),historyWorkspace('z')],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['data-workspace-id']==='z').props.onSelect();ui.render()
+ assert.match(ui.url(),/workspace=w/)
+ ui.graph.entry=historyGraph('z');ui.render();assert.match(ui.url(),/workspace=z/)
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();ui.render()
+ ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'tasks'}});ui.render()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
+ const original=ui.url();ui.history.go(-3);ui.render();assert.equal(ui.url(),original);assert.equal(ui.store.currentWorkspaceId,'z')
+ allow=true;ui.history.go(-3);ui.render();assert.equal(ui.store.currentWorkspaceId,'w');assert.match(ui.url(),/workspace=w/)
+ ui.render();assert.match(ui.url(),/workspace=w/)
+ ui.graph.entry=historyGraph();ui.render();ui.render()
+ assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'workspace',workspaceId:'w'})
+})
+test('manual resource navigation supersedes a still loading deep link',()=>{
+ const ui=harness({url:'/canvas?workspace=w&task=t&view=tasks',store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},companies:{resources:[{id:'section',name:'Delivery',parentId:null}]},graph:{loading:true}})
+ ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpenResource('section');ui.render()
+ ui.store.loading=false;ui.render();ui.render()
+ assert.equal(ui.url(),'/canvas?resource=section')
+ assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'resource',resourceId:'section'})
+})
+test('cancelled page Back restores the current URL and saved Next tree for a retained draft',()=>{
+ const ui=harness({previousUrl:'/dashboard',url:'/canvas?workspace=w&view=tasks',confirm:()=>false,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
+ const original=ui.url();ui.history.back();ui.render()
+ assert.equal(ui.url(),original);assert.deepEqual(ui.history.state.tree,['next'])
+ assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
+ ui.history.back();ui.render();assert.equal(ui.url(),original)
+})
+test('camera movement and measured width never add navigation entries',()=>{
+ const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ const flow=ui.render().find(n=>n.type==='CanvasFlow')
+ const count=ui.history.length
+ flow.props.onZoom(0.3);ui.render();flow.props.onViewportWidthChange(390);ui.render();flow.props.onManualNavigation();ui.render()
+ assert.equal(ui.history.length,count);assert.equal(ui.url(),'/canvas')
+})
+test('hidden dirty task editor blocks a different task but resumes its own canonical task',()=>{
+ const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph('w',['t','other'])}})
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'other'});ui.render()
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'});ui.render()
+ ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false,'t')
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Show canvas').props.onClick();ui.render()
+ assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.active,false)
+ const retained=ui.url()
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'other'});ui.render()
+ assert.equal(ui.url(),retained);assert.match(ui.text(),/Save or discard/)
+ ui.history.go(-2);ui.render();assert.equal(ui.url(),retained)
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'});ui.render()
+ assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.active,true)
+ assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.openTaskId,'t')
+})
 
 test('exploring a section navigates the canvas instead of opening administration', () => {
   const ui = harness({ companies: { resources: [{ id: 'section', name: 'Delivery', parentId: null, workspaceId: null, capabilities: ['read'] }] } })
