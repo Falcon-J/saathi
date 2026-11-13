@@ -425,12 +425,12 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         const boardSpace = await workArea.locator('[aria-label="Task board"]').evaluate(grid => {
           const sections = [...grid.children].filter(child => child.tagName === 'SECTION').map(section => section.getBoundingClientRect())
           const template = getComputedStyle(grid).gridTemplateColumns
-          return { columns: template.split(' ').length, template, minColumnWidth: Math.min(...sections.map(section => section.width)), emptySectionHeights: sections.map(section => section.height) }
+          return { columns: template.split(' ').length, template, minColumnWidth: Math.min(...sections.map(section => section.width)), emptySectionHeights: sections.map(section => section.height), height: grid.getBoundingClientRect().height }
         })
         log({ canvasBoardSpace: { viewport, ...boardSpace } })
-        assert.equal(boardSpace.emptySectionHeights.length, 3)
-        assert.ok(boardSpace.minColumnWidth >= 240, `Task columns must be at least 240px wide; got ${boardSpace.minColumnWidth}px`)
-        assert.ok(boardSpace.emptySectionHeights.every(height => height < 288), 'Empty task sections must be shorter than 288px')
+        assert.equal(boardSpace.emptySectionHeights.length, 0, 'Compact empty results must not render empty status columns')
+        assert.ok(boardSpace.height < 144, 'Compact empty results must not waste a full working surface')
+        await expect(workArea.getByText('No tasks match these filters.', { exact: true })).toBeVisible()
         await page.getByRole('button', { name: 'Show canvas', exact: true }).click()
       })
       await phase('task-open', async () => {
