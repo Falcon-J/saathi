@@ -42,6 +42,7 @@ export function CanvasCommandBar({ scopeName, tasks, selectedTask, canComplete, 
     window.addEventListener("pointerdown", dismiss)
     return () => window.removeEventListener("pointerdown", dismiss)
   }, [])
+  const matchesAction = (value: string) => !searchScope || value.includes(query.trim().toLowerCase())
   const run = (work: () => void) => { if (disabled || busy) return; setOpen(false); setQuery(""); work() }
   return <section ref={root} aria-label="Canvas commands" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5">
     <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2"><p role="status" className="truncate text-sm font-medium" aria-label="Command scope">{scopeName}</p><div className="flex shrink-0 items-center gap-1">{followingAgent && onStopFollowing && <Button size="sm" variant="ghost" onClick={onStopFollowing}>Stop following</Button>}<Button size="sm" variant="ghost" onClick={onList}>Task list</Button></div></div>
@@ -53,9 +54,9 @@ export function CanvasCommandBar({ scopeName, tasks, selectedTask, canComplete, 
         {remote.loading && <p role="status" className="p-3 text-sm">Searching…</p>}
         {remote.error && <div role="alert" className="p-3 text-sm">{remote.error}<Button size="sm" variant="ghost" onClick={remote.retry}>Try again</Button></div>}
         <CommandGroup heading="Actions">
-          {canCreate && <CommandItem value="create add new task" disabled={disabled || busy} onSelect={() => run(onCreate)}>Create task</CommandItem>}
-          <CommandItem value="open workspace" disabled={disabled || busy} onSelect={() => run(onWorkspace)}>Open workspace</CommandItem>
-          {selectedTask && canComplete && !selectedTask.completed && selectedTask.status !== "done" && <CommandItem value={`complete ${selectedTask.title}`} disabled={disabled || busy} onSelect={() => run(onComplete)}>Complete {selectedTask.title}</CommandItem>}
+          {canCreate && matchesAction("create add new task") && <CommandItem value="create add new task" disabled={disabled || busy} onSelect={() => run(onCreate)}>Create task</CommandItem>}
+          {matchesAction("open workspace") && <CommandItem value="open workspace" disabled={disabled || busy} onSelect={() => run(onWorkspace)}>Open workspace</CommandItem>}
+          {selectedTask && matchesAction(`complete ${selectedTask.title.toLowerCase()}`) && canComplete && !selectedTask.completed && selectedTask.status !== "done" && <CommandItem value={`complete ${selectedTask.title}`} disabled={disabled || busy} onSelect={() => run(onComplete)}>Complete {selectedTask.title}</CommandItem>}
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Tasks">{(searchScope ? remote.items : tasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>

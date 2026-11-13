@@ -106,3 +106,11 @@ test('Enter on a collapsed command bar opens results without executing a hidden 
   assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
   assert.deepEqual(ui.calls, [])
 })
+
+test('broad task searches cannot dispatch the unrelated current-workspace action on Enter', () => {
+  const ui = bar({ searchScope: {} })
+  ui.render().find(node => node.type === 'CommandInput').props.onValueChange('Exact task title')
+  assert.equal(ui.action('Open workspace'), undefined)
+  ui.render().find(node => node.type === 'CommandInput').props.onValueChange('open work')
+  assert.ok(ui.action('Open workspace'))
+})
