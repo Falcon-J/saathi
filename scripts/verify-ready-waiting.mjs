@@ -94,11 +94,12 @@ async function accessibility(p) {
   })
   assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Horizontal page overflow')
   const proxy = '[role="region"]:has(> [data-slot="toast-viewport"]) > span[aria-hidden="true"][tabindex="0"]'
-  const modalOpen = await p.getByRole('dialog').or(p.getByRole('alertdialog')).count() > 0
-  if (modalOpen) {
+  const dialogs = p.getByRole('dialog').or(p.getByRole('alertdialog'))
+  if (await dialogs.count() > 0) {
+    const modal = dialogs.last()
     for (const key of ['Tab', 'Shift+Tab']) {
       await p.keyboard.press(key)
-      assert.ok(await p.evaluate(() => Boolean(document.activeElement?.closest('[role=dialog][aria-modal=true], [role=alertdialog][aria-modal=true]'))), 'Keyboard focus must remain inside the modal dialog')
+      assert.ok(await modal.evaluate(element => element.contains(document.activeElement)), 'Keyboard focus must remain inside the modal dialog')
     }
   } else for (const sentinel of await p.locator(proxy).all()) {
     await sentinel.evaluate(element => element.focus())

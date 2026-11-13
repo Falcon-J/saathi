@@ -8,13 +8,13 @@ const helper = source.statements.find(node => ts.isFunctionDeclaration(node) && 
 async function run({ modal=false, escaped=false, proxyRedirects=true, violations=[] }={}) {
  const previous = { document: global.document, innerWidth: global.innerWidth }
  const calls=[], state={ waited:false }
- const inside = { closest: () => ({}), matches: () => false }
+ const inside = { closest: selector => selector.includes('aria-modal') ? null : ({}), matches: () => false }
  const proxy = { closest: () => null, matches: () => true }
  const finite = { effect: { getComputedTiming: () => ({endTime:200}) }, get finished(){state.waited=true; return Promise.resolve()} }
  const infinite = { effect: { getComputedTiming: () => ({endTime:Infinity}) }, get finished(){throw Error('Do not await infinite decoration')} }
  global.innerWidth=360
  global.document={documentElement:{scrollWidth:360},activeElement:inside,getAnimations:()=>[finite,infinite]}
- const role={ count:async()=>modal?1:0,or(){return this} }
+ const role={ count:async()=>modal?1:0,or(){return this},last(){return this},evaluate:async fn=>fn({contains:element=>element===inside}) }
  const page={ evaluate:async(fn,arg)=>fn(arg),getByRole:()=>role,
   locator:()=>({all:async()=>[{evaluate:async fn=>{calls.push('forced-background-focus');fn({focus(){global.document.activeElement=proxyRedirects?inside:proxy}})}}]}),
   keyboard:{press:async key=>{calls.push(key);global.document.activeElement=escaped?proxy:inside}} }
