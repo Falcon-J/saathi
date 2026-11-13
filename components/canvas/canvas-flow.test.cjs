@@ -69,7 +69,8 @@ test('actual React Flow preserves every connection across immutable refreshes an
   const graph = { ...entry, graph: { ...entry.graph, tasks: [task, { ...task, id: 'dependent', title: 'Dependent' }], dependencies: [{ workspaceId: 'a', prerequisiteTaskId: task.id, dependentTaskId: 'dependent' }] } }
   const references = [{ id: 'link', canvasResourceId: 'section', targetResourceId: 'resource' }]
   function positions(flow) {
-    adoptUserNodes(flow.nodes, lookup, parents)
+    const initialized = adoptUserNodes(flow.nodes, lookup, parents)
+    assert.equal(initialized.nodesInitialized, true, "Fixed controlled geometry must initialize offscreen nodes so camera fitting can resolve")
     return flow.edges.map(edge => {
       const source = lookup.get(edge.source), target = lookup.get(edge.target)
       const position = getEdgePosition({ id: edge.id, sourceNode: source, targetNode: target, sourceHandle: null, targetHandle: null, connectionMode: ConnectionMode.Strict })
