@@ -4,11 +4,11 @@ import { expect as baseExpect } from '@playwright/test'
 
 const expect = baseExpect.configure({ timeout: 30_000 })
 
-async function expectInsideCanvas(page, locator) {
+async function expectInsideCanvas(page, locator, container) {
   await expect(locator).toBeVisible()
   await expect.poll(async () => {
     const item = await locator.boundingBox()
-    const canvas = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+    const canvas = await (container ?? page.getByRole('region', { name: 'Workspace canvas', exact: true })).boundingBox()
     const viewport = page.viewportSize()
     return Boolean(item && canvas && viewport && item.width > 0 && item.height > 0
       && item.x >= Math.max(0, canvas.x) - 1 && item.y >= Math.max(0, canvas.y) - 1
@@ -65,10 +65,12 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await expect(search).toBeVisible()
     await search.fill('create')
     await page.getByRole('option', { name: 'Create task', exact: true }).click()
-    const title = `Canvas task ${randomUUID()}`
+    const title = `Canvas task ${randomUUID()} ${"Long task title with useful context ".repeat(5)}`.slice(0, 190)
     await page.getByLabel('Task title', { exact: true }).fill(title)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await expect.poll(async () => (await db`SELECT id FROM tasks WHERE workspace_id=${workspace} AND title=${title}`).length).toBe(1)
+    // A long, assigned and described record must keep its action inside the fixed card.
+    await db`UPDATE tasks SET description=${"Detailed task context. ".repeat(40)},assignee_user_id=${users[0].id} WHERE workspace_id=${workspace} AND title=${title}`
     const retainedDraft = `Canvas retained draft ${randomUUID()}`
     await page.getByLabel('Task title', { exact: true }).fill(retainedDraft)
     await expect.poll(() => page.evaluate(value => Object.values(sessionStorage).some(raw => raw.includes(value)), retainedDraft)).toBe(true)
@@ -155,8 +157,10 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     const taskNode = page.locator(`.react-flow__node[data-id="task:${workspace}:${agentTaskId}"]`)
     for (const viewport of [{ width: 360, height: 800 }, { width: 800, height: 360 }, { width: 360, height: 800 }]) {
       await page.setViewportSize(viewport)
-      await expectInsideCanvas(page, taskNode.getByRole('heading', { name: title, exact: true }))
-      await expectInsideCanvas(page, taskNode.getByRole('button', { name: `Open ${title}`, exact: true }))
+      await expectInsideCanvas(page, taskNode.getByRole('heading', { name: title, exact: true }), taskNode)
+      await expectInsideCanvas(page, taskNode.getByRole('button', { name: `Open ${title}`, exact: true }), taskNode)
+      await expect(taskNode).toContainText("QA owner")
+      await expect(taskNode).not.toContainText(users[0].email)
       await expect(search).toBeVisible()
       await accessibility(page)
     }
