@@ -183,8 +183,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const commandDisabled = store.loading || companies.loading || Boolean(store.workspaceError || companies.error) || (!broadSearch && (!workspace || !graph.entry || graph.loading || workspaceUnavailable || !capabilityCeiling.read))
   const showWorkArea = workOpen && Boolean(graph.entry && capabilityCeiling.read)
   const dockClearance = navigation.followingAgent
-    ? "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+8.25rem)] sm:bottom-28"
-    : "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.25rem)] sm:bottom-28"
+    ? "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+8.25rem)] sm:bottom-32"
+    : "bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.25rem)] sm:bottom-32"
   return <main className="saathi-dashboard relative h-dvh overflow-hidden bg-background text-foreground">
     <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-16 items-center gap-2 border-b border-border bg-card/95 px-3 sm:px-5">
       <h1 className="sr-only">Canvas</h1>

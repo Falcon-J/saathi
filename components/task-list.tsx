@@ -370,7 +370,7 @@ export const TaskList = memo(function TaskList({
   )
 
   return (
-    <div className="@container space-y-4 p-4 sm:p-5">
+    <div className={compactToolbar ? "@container space-y-3 p-3 sm:p-4" : "@container space-y-4 p-4 sm:p-5"}>
       {permitsCapability(capabilityCeiling, "create") && <>
         <div aria-label="New task form" hidden={compactToolbar && !quickAddOpen}>
           <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={compactToolbar && !quickAddOpen ? undefined : focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
@@ -379,7 +379,6 @@ export const TaskList = memo(function TaskList({
 
       <TaskFilter
         compactToolbar={compactToolbar}
-        toolbarAction={compactToolbar && permitsCapability(capabilityCeiling, "create") ? <Button variant="outline" size="sm" aria-expanded={quickAddOpen} onClick={() => setQuickAddOpen(value => !value)}>New task</Button> : undefined}
         onClearFilters={() => {
           if (paging) paging.changeFilters({ status: "all", priority: undefined, assigneeEmail: undefined })
           else { setSelectedStatus("all"); setSelectedPriority("all"); setSelectedAssignee(null) }
@@ -397,7 +396,7 @@ export const TaskList = memo(function TaskList({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="text-sm text-muted-foreground">
-          {paging && <span className="mr-3 text-xs">Workspace totals</span>}
+          {paging && <span className={compactToolbar ? "sr-only" : "mr-3 text-xs"}>Workspace totals</span>}
           <span className="font-medium text-foreground">{paging ? paging.aggregates?.open ?? "…" : tasks.length - completedCount}</span> open
           <span className="mx-2 text-border">/</span>
           <span className="font-medium text-primary">{paging ? paging.aggregates?.done ?? "…" : completedCount}</span> done

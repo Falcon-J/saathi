@@ -96,3 +96,8 @@ test("paged Board distinguishes workspace totals and says when empty columns hav
   assert.ok(formattedZones.includes("Asia/Kolkata"))
   assert.ok(rendered.some(node => node.type === "select" && node.props["aria-label"] === "Change status for Current page task"))
 })
+
+test('canvas board leaves task creation to the persistent command action',()=>{
+ const tree=moduleExports.TaskList({tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true});
+ assert.equal(nodes(tree).find(n=>n.type==='TaskFilter').props.toolbarAction,undefined);
+});

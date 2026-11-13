@@ -71,7 +71,7 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
         <input role="combobox" aria-label="Search commands and tasks" aria-expanded={open} {...(!open ? { "aria-activedescendant": undefined } : {})} />
       </CommandInput>
       </div>
-      {canCreate && !searchScope && <Button aria-label="New task" size="sm" className="mr-1 min-h-11 min-w-11 shrink-0 sm:hidden" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(onCreate)}>New task</Button>}
+      {canCreate && !searchScope && <Button aria-label="New task" size="sm" className="mr-1 min-h-11 min-w-11 shrink-0" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(onCreate)}>New task</Button>}
       </div>
     </Command>
   </section>
