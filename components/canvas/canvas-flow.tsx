@@ -23,12 +23,13 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
     <span>{data.title}</span><span className="tabular-nums">{data.count}</span>
   </Button>
   const workspace = data.kind !== "task"
-  return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground shadow-sm ${workspace ? "border-border bg-card/85" : "border-primary/25 bg-card"}`}>
+  const container = data.kind === "container"
+  return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground ${container ? "border-dashed border-border bg-muted/10" : workspace ? "border-border bg-card/95 shadow-sm" : "border-primary/25 bg-card shadow-sm"}`}>
     <Handle type="target" position={Position.Left} style={canvasHandleStyle} isConnectable={false} />
-    <div className={workspace ? "flex items-start justify-between gap-4 px-5 py-4" : "flex h-full flex-col gap-3 p-4"}>
+    <div className={workspace ? "flex h-28 items-start justify-between gap-4 overflow-hidden px-5 py-4" : "flex h-full flex-col gap-3 p-4"}>
       <div className={workspace ? "min-w-0" : "min-h-0 flex-1 overflow-hidden"}><h2 title={data.title} className={`line-clamp-2 break-words font-semibold tracking-tight ${workspace ? "text-lg" : "text-base"}`}>{data.title}</h2>
         {data.representation !== "compact" && data.subtitle && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{data.subtitle}</p>}
-        {data.representation === "detail" && data.description && <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{data.description}</p>}
+        {!workspace && data.representation === "detail" && data.description && <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{data.description}</p>}
       </div>
       <Button size="sm" variant="outline" className={`nodrag nopan shrink-0 ${workspace ? "" : "mt-auto self-start"}`} onClick={event => { event.stopPropagation(); data.open() }} aria-label={`Open ${data.title}`}>Open</Button>
     </div>
@@ -51,12 +52,13 @@ function readCamera(key: string): (Viewport & { canvasWidth?: number; canvasHeig
   } catch { return null }
 }
 
-export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true }: {
+export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
   onOpenGroup: (workspaceId: string, readiness: CanvasReadiness) => void
   onZoom: (zoom: number) => void
+  onViewportWidthChange: (width: number) => void
   onManualNavigation: () => void
   resources: AuthorizedCanvasResource[]
   references?: CanvasReference[]
@@ -72,6 +74,9 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
   const [initialized, setInitialized] = useState(false)
   const canvasWidth = useStore(state => state.width)
   const canvasHeight = useStore(state => state.height)
+  useEffect(() => {
+    if (canvasWidth > 0) onViewportWidthChange(canvasWidth)
+  }, [canvasWidth, onViewportWidthChange])
   const previousSize = useRef<{ width: number; height: number } | null>(null)
   const pendingResize = useRef(false)
   const restoredCamera = useRef(false)
@@ -198,6 +203,6 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     defaultViewport={initialCamera ?? undefined} fitView={!initialCamera}
     nodesFocusable edgesFocusable disableKeyboardA11y={false} colorMode={resolvedTheme === "dark" ? "dark" : "light"} onlyRenderVisibleElements
     ariaLabelConfig={ariaLabels} proOptions={{ hideAttribution: false }}>
-    <Background gap={24} size={1} /><Controls showInteractive={false} />
+    <Background gap={24} size={1} />{canvasHeight >= 180 && <Controls showInteractive={false} />}
   </ReactFlow>
 }

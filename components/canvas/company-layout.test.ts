@@ -30,6 +30,7 @@ test("canonical company layout keeps stable workspace identity and parent-relati
   assert.equal(workspace.id, selected.nodeId)
   assert.equal(workspace.parentId, section.id)
   assert.equal(workspace.height, 1300)
+  assert.ok(workspace.position.y >= 112, "Children must clear a bounded two-line container header")
   assert.ok(section.height > workspace.height)
   assert.deepEqual(result, layoutCompanyResources([...resources].reverse(), selected))
 })

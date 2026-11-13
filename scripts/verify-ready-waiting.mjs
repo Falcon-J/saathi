@@ -49,6 +49,13 @@ const card = (p, name, title) => section(p, name).locator('article').filter({ ha
 async function login(user) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); contexts.push(context)
   const p = await context.newPage(); p.setDefaultTimeout(30000)
+  const recordBrowserError = value => {
+    let detail = String(value)
+    for (const secret of secrets.filter(Boolean)) detail = detail.replaceAll(secret, "[redacted]")
+    log({ browserError: detail.slice(0, 3000) })
+  }
+  p.on("pageerror", error => recordBrowserError(error.stack || error.message))
+  p.on("console", message => { if (message.type() === "error" && /Minified React|Maximum update|TypeError|ReferenceError|Cannot read/.test(message.text())) recordBrowserError(message.text()) })
   p.on('request', request => {
     const action = actionNames[request.headers()['next-action']]
     if (!action) return
@@ -82,7 +89,13 @@ async function edit(p, title, changes) {
   await nav(p, 'Board')
   await p.getByRole('button', { name: `Edit ${title}`, exact: true }).click()
   const dialog = p.getByRole('dialog', { name: 'Edit task', exact: true })
-  for (const [label, value] of Object.entries(changes)) await dialog.getByLabel(label, { exact: true }).selectOption(value)
+  for (const [label, value] of Object.entries(changes)) {
+    const field = dialog.getByLabel(label, { exact: true })
+    if (['Priority', 'Due date', 'Estimate (minutes)'].includes(label) && !await field.isVisible()) {
+      await dialog.locator('summary').filter({ hasText: 'More details' }).click()
+    }
+    await field.selectOption(value)
+  }
   await dialog.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(dialog).not.toBeVisible()
 }
@@ -178,8 +191,10 @@ try {
     await page.getByRole('button', { name: 'Add prerequisite', exact: true }).click()
     await expect(page.getByRole('button', { name: `Remove ${title} prerequisite`, exact: true })).toBeVisible()
   }
-  await expect(card(page, 'Waiting', titles[2])).toContainText(users[1].email)
-  await expect(card(page, 'Waiting', titles[2])).toContainText(users[0].email)
+  await expect(card(page, 'Waiting', titles[2])).toContainText(`QA ${users[1].role}`)
+  await expect(card(page, 'Waiting', titles[2])).not.toContainText(users[1].email)
+  await expect(card(page, 'Waiting', titles[2])).toContainText(`QA ${users[0].role}`)
+  await expect(card(page, 'Waiting', titles[2])).not.toContainText(users[0].email)
   await card(page, 'Waiting', titles[2]).getByRole('button', { name: titles[0], exact: true }).click()
   await expect(page.getByRole('dialog').getByLabel('Title', { exact: true })).toHaveValue(titles[0])
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()

@@ -32,10 +32,31 @@ function harness() {
   const exports = {}
   new Function('require', 'exports', 'localStorage', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, { getItem: () => null, setItem() {} })
   let props = { projection: project(), cameraKey: 'actor:personal', resources: [], workspaces: [workspace('a'), workspace('b')], focus: { kind: 'overview' }, followingAgent: false,
-    onOpen: focus => opens.push(focus), onOpenResource() {}, onZoom() {}, onManualNavigation: () => manual++ }
+    onOpen: focus => opens.push(focus), onOpenResource() {}, onZoom() {}, onViewportWidthChange() {}, onManualNavigation: () => manual++ }
   return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); effects.splice(0).forEach(fn => fn()); return tree.props },
     initialize() { this.render().onInit({ fitView: options => { fits.push(options); return Promise.resolve(true) }, setViewport: () => Promise.resolve(true) }); fits.length = 0 }, resize(width, height) { size = { width, height }; return this.render() }, fits, opens, get manual() { return manual } }
 }
+
+test('responsive projection receives measured viewport width independently of zoom and camera moves', () => {
+  const ui = harness(), widths = []
+  ui.render({ onViewportWidthChange: width => widths.push(width) })
+  assert.deepEqual(widths, [])
+  const flow = ui.resize(360, 500)
+  assert.deepEqual(widths, [360])
+  flow.onMove(null, { x: 0, y: 0, zoom: 0.3 })
+  ui.resize(360, 300)
+  assert.deepEqual(widths, [360])
+  ui.resize(1280, 500)
+  assert.deepEqual(widths, [360, 1280])
+})
+
+test('short context strips reserve their height for the map and restore controls when expanded', () => {
+  const ui = harness()
+  const controls = flow => flow.children.filter(Boolean).some(child => child.type === 'Controls')
+  assert.equal(controls(ui.resize(360, 100)), false)
+  assert.equal(controls(ui.resize(360, 568)), true)
+  assert.equal(controls(ui.resize(360, 100)), false)
+})
 
 test('viewport resizing reframes the current task while ordinary live reads preserve deliberate framing', () => {
   const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }

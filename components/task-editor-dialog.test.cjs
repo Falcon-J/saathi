@@ -3,7 +3,7 @@ const test = require("node:test")
 const fs = require("node:fs")
 const ts = require("typescript")
 
-const jsx = (type, props) => ({ type, props })
+const jsx = (type, props, key) => ({ type, props, key })
 let state = []
 let stateIndex = 0
 const useState = initial => {
@@ -71,6 +71,81 @@ test("read-only task details keep fields disabled and omit the save action", () 
   const parts = nodes(render(false, null))
   assert.equal(parts.find(node => node.type === "fieldset").props.disabled, true)
   assert.equal(parts.some(node => node.type === "Button" && text(node) === "Save changes"), false)
+})
+
+test("opening the task editor focuses its heading without requesting a text keyboard", () => {
+  state = []
+  const parts = nodes(render(true, null))
+  const heading = parts.find(node => node.type === "DialogTitle")
+  const content = parts.find(node => node.type === "DialogContent")
+  let focused = 0
+  let prevented = 0
+  assert.equal(heading.props.tabIndex, -1)
+  heading.props.ref.current = { focus: () => focused++ }
+  content.props.onOpenAutoFocus({ preventDefault: () => prevented++ })
+  assert.equal(prevented, 1)
+  assert.equal(focused, 1)
+  assert.equal(parts.some(node => node.props?.autoFocus), false)
+})
+
+test("optional planning stays mounted behind a closed disclosure after discussion", () => {
+  state = []
+  const changes = []
+  const parts = nodes(render(true, null, { onDraftChange: value => changes.push(value) }))
+  const details = parts.find(node => node.type === "details")
+  assert.ok(details)
+  assert.equal(Boolean(details.props.open), false)
+  assert.equal(text(nodes(details).find(node => node.type === "summary")), "More details")
+  assert.ok(parts.indexOf(parts.find(node => node.type === "TaskComments")) < parts.indexOf(details))
+  const optional = nodes(details)
+  for (const id of ["task-edit-priority", "task-edit-due-date", "task-edit-due-time", "task-edit-estimate"]) {
+    assert.ok(optional.some(node => node.props?.id === id), `${id} must retain its mounted value`)
+  }
+  for (const id of ["task-edit-status", "task-edit-assignee"]) {
+    assert.ok(parts.some(node => node.props?.id === id))
+    assert.equal(optional.some(node => node.props?.id === id), false)
+  }
+  optional.find(node => node.props?.id === "task-edit-estimate").props.onChange({ target: { value: "45" } })
+  assert.deepEqual(changes, [{ estimatedMinutes: "45" }])
+})
+
+test("discussion owns its own form while disclosed controls still submit with the editor", () => {
+  state = []
+  const parts = nodes(render(true, null, { canComment: true }))
+  const form = parts.find(node => node.type === "form" && node.props.id === "task-editor-form")
+  assert.equal(nodes(form).some(node => node.type === "TaskComments"), false)
+  const details = parts.find(node => node.type === "details")
+  for (const control of nodes(details).filter(node => ["Input", "select"].includes(node.type))) {
+    assert.equal(control.props.form, "task-editor-form")
+  }
+})
+
+test("discussion and planning have distinct identities that both reset when switching tasks", () => {
+  state = []
+  const identities = id => {
+    const parts = nodes(render(true, null, { task: { id, draft } }))
+    return [parts.find(node => node.type === "TaskComments").key, parts.find(node => node.type === "details").key]
+  }
+  const first = identities("first-task")
+  const second = identities("second-task")
+  assert.ok(first.every(key => key !== undefined))
+  assert.notEqual(first[0], first[1], "siblings must have distinct React keys")
+  assert.notEqual(first[0], second[0], "switching tasks must reset the comment draft lifecycle")
+  assert.notEqual(first[1], second[1], "switching tasks must reset disclosure state")
+})
+
+test("invalid optional fields reveal themselves while conflict recovery remains outside the disclosure", () => {
+  state = []
+  const parts = nodes(render(true, "Estimate must be at most 1440 minutes", { latestTask: { draft } }))
+  const details = parts.find(node => node.type === "details")
+  assert.ok(details)
+  assert.equal(details.props.open, true)
+  const element = { open: false }
+  details.props.onInvalidCapture({ currentTarget: element })
+  assert.equal(element.open, true)
+  assert.equal(nodes(details).some(node => node.props?.role === "alert"), false)
+  assert.equal(nodes(details).some(node => node.props?.["aria-label"] === "Latest saved task"), false)
+  assert.ok(parts.some(node => node.props?.["aria-label"] === "Latest saved task"))
 })
 
 for (const trigger of ["Cancel", "dialog dismissal"]) {
