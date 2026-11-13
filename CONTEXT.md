@@ -140,6 +140,8 @@ Provider transport metadata currently groups some provider429 and malformed JSON
 - MCP identity uses a dedicated OAuth audience and allowlisted client. Revocable application capabilities and workspace restrictions are separate from provider identity scopes and are checked on every dispatch and retry.
 - Agent runs use finite task leases and fencing tokens. Progress and evidence remain advisory until a signed-in human with current task permissions reviews them. External clients cannot invoke approval.
 - Canvas, command bar and MCP reuse authoritative domain operations. Layout and camera state never change task status or permissions. Historical command responses carry a replay marker and current visibility checks.
+- Canvas locations use bounded ID selectors in /canvas URLs: resource, or workspace with optional task; view opens an authorized work area and group narrows Ready/Waiting. URLs contain no draft content or camera state and grant no access. Initial and browser-history restoration wait for current authorized lists and the matching graph; unknown or revoked locations recover generically.
+- Mobile work fills the working surface while keeping the canvas/camera mounted. Hidden creation and editor drafts remain protected at page/workspace boundaries; another task cannot replace an unresolved editor draft. Task sheets and secondary overlays are shown only for the current working view.
 
 See [ADR 0002](docs/adr/0002-shared-commands-and-canvas-access.md) for the accepted architecture.
 

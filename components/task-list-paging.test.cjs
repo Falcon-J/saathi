@@ -23,12 +23,13 @@ const react = {
   useEffect() {},
 }
 const components = ["Button", "Card", "Badge", "Textarea", "TaskQuickAdd", "TaskFilter", "ConfirmDialog", "Dialog", "DialogContent", "DialogDescription", "DialogFooter", "DialogHeader", "DialogTitle", "Label", "TaskComments"]
-const icons = ["CheckCircle2", "Circle", "Trash2", "Loader2", "Users", "Edit2", "Calendar", "Flag", "Clock", "AlertCircle", "SquarePen"]
+const icons = ["CheckCircle2", "Circle", "Trash2", "Loader2", "Users", "Edit2", "Calendar", "Flag", "Clock", "AlertCircle", "SquarePen", "MoreHorizontal"]
 const dependencies = {
   "@/lib/capability-ceiling": require("../lib/capability-ceiling.ts"),
   react,
   "react/jsx-runtime": { jsx, jsxs: jsx },
   "lucide-react": Object.fromEntries(icons.map(icon => [icon, icon])),
+  "@/components/ui/dropdown-menu": Object.fromEntries(["DropdownMenu","DropdownMenuContent","DropdownMenuItem","DropdownMenuTrigger"].map(name=>[name,name])),
   "@/components/ui/button": { Button: "Button" },
   "@/components/ui/card": { Card: "Card" },
   "@/components/ui/badge": { Badge: "Badge" },
@@ -96,3 +97,24 @@ test("paged Board distinguishes workspace totals and says when empty columns hav
   assert.ok(formattedZones.includes("Asia/Kolkata"))
   assert.ok(rendered.some(node => node.type === "select" && node.props["aria-label"] === "Change status for Current page task"))
 })
+
+test('canvas board leaves task creation to the persistent command action',()=>{
+ const tree=moduleExports.TaskList({tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true});
+ assert.equal(nodes(tree).find(n=>n.type==='TaskFilter').props.toolbarAction,undefined);
+});
+
+test('compact canvas rows prioritize titles and owners instead of repeated edit forms',()=>{
+ const tasks=Array.from({length:3},(_,i)=>({id:'compact-'+i,workspaceId:'workspace',title:'Action '+i,description:'Details belong in the task sheet',status:'todo',completed:false,createdBy:'owner',assigneeEmail:'member@example.test',priority:'medium'}));
+ const opened=[];const props={onOpenTask:id=>opened.push(id),tasks,loading:false,members:[{id:'m',email:'member@example.test',username:'Maya'}],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true};
+ const rendered=nodes(moduleExports.TaskList(props));
+ assert.equal(rendered.filter(n=>n.props?.['data-task-row']).length,3);
+ rendered.find(n=>n.type==='button'&&n.props['aria-label']==='Edit Action 0').props.onClick();assert.deepEqual(opened,['compact-0'],'row selection must update the canonical canvas task');
+ assert.equal(rendered.some(n=>n.type==='select'&&n.props['aria-label']?.startsWith('Change status')),false);
+ assert.equal(rendered.some(n=>n.type==='select'&&n.props['aria-label']?.startsWith('Assign ')),false);
+ assert.equal(rendered.some(n=>n.props?.children==='Details belong in the task sheet'),false);
+ assert.ok(rendered.some(n=>n.props?.children==='Maya'));
+ assert.ok(rendered.some(n=>n.type==='DropdownMenuItem'&&n.props.children==='Delete task'));
+ const readOnly=nodes(moduleExports.TaskList({...props,capabilityCeiling:{read:true,edit:false,delete:false,create:false,comment:false,manage:false}}));
+ assert.ok(readOnly.filter(n=>n.type==='Button'&&n.props['aria-label']?.startsWith('Complete ')).every(n=>n.props.disabled));
+ assert.equal(readOnly.some(n=>n.type==='DropdownMenuItem'&&n.props.children==='Delete task'),false);
+});

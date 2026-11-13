@@ -21,7 +21,7 @@ new Function("require", "exports", source)(name => {
 
 const nodes = node => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
 
-test("compact filters keep search visible and disclose counted filters with a clear action", () => {
+test("compact filters disclose a separately named local search and counted filters", () => {
   const changes = []
   const tree = moduleExports.TaskFilter({ compactToolbar: true, searchQuery: "plans", selectedAssignee: "person", selectedStatus: "active", selectedPriority: "high", members: [],
     onSearchChange: value => changes.push(["search", value]), onFilterByAssignee: value => changes.push(["assignee", value]),
@@ -30,20 +30,19 @@ test("compact filters keep search visible and disclose counted filters with a cl
   const parts = nodes(tree), disclosure = parts.find(node => node.type === "details")
   assert.ok(disclosure, "filters start in a native closed disclosure")
   assert.equal(disclosure.props.open, undefined)
-  assert.ok(parts.some(node => node.type === "Input" && !nodes(disclosure).includes(node)))
+  assert.ok(nodes(disclosure).some(node => node.type === "Input" && node.props["aria-label"] === "Filter tasks"))
   assert.equal(nodes(disclosure).find(node => node.type === "summary").props["aria-label"], "Filters, 3 active")
   parts.find(node => node.type === "Button" && node.props.children === "Clear filters").props.onClick()
   assert.deepEqual(changes, [["status", "all"], ["priority", "all"], ["assignee", null]])
 })
 
-test("compact filters place the new task action beside the filters disclosure", () => {
- const action=jsx('Button',{children:'New task'})
- const tree=moduleExports.TaskFilter({compactToolbar:true,toolbarAction:action,searchQuery:'',selectedAssignee:null,selectedStatus:'all',selectedPriority:'all',members:[]})
- const row=nodes(tree).find(n=>Array.isArray(n.props?.children)&&n.props.children.includes(action))
- assert.ok(row,'new task shares the compact filters row')
- assert.ok(nodes(row).some(n=>n.type==='details'))
- assert.equal(nodes(row).some(n=>n.type==='Input'),false,'search retains its own full-width row')
-})
+test("closed compact filters retain the applied query visibly without a second primary action", () => {
+ const tree=moduleExports.TaskFilter({compactToolbar:true,searchQuery:'Release',selectedAssignee:null,selectedStatus:'all',selectedPriority:'all',members:[]});
+ const parts=nodes(tree), summary=parts.find(n=>n.type==='summary');
+ assert.ok(nodes(summary).some(n=>n.props?.children==='Release'));
+ assert.equal(parts.filter(n=>n.type==='Input').length,1);
+ assert.equal(parts.some(n=>n.type==='Button'&&n.props.children==='New task'),false);
+});
 
 test("Board filters expose accessible controls and forward controlled changes", () => {
   const changes = []

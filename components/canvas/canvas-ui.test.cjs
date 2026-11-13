@@ -10,21 +10,21 @@ function load(path, dependencies, browser) {
   new Function('require', 'exports', 'window', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, browser)
   return exports
 }
-const runtime = { 'react/jsx-runtime': { jsx, jsxs: jsx } }
+const runtime = { 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts') }
 
 test('canvas route redirects anonymous accounts before mounting the client surface', async () => {
   const route = load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: async () => null },
     'next/navigation': { redirect: path => { throw new Error(`redirect:${path}`) } }, '@/components/canvas/canvas-shell': { CanvasShell: 'CanvasShell' } })
-  await assert.rejects(route.default(), /redirect:\/login/)
+  await assert.rejects(route.default({}), /redirect:\/login/)
 })
 
 test('canvas route distinguishes unavailable identity from an authenticated client', async () => {
   const make = read => load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: read },
     'next/navigation': { redirect() { throw new Error('Unexpected redirect') } }, '@/components/canvas/canvas-shell': { CanvasShell: 'CanvasShell' } })
-  const unavailable = await make(async () => { throw new Error('Identity offline') }).default()
+  const unavailable = await make(async () => { throw new Error('Identity offline') }).default({})
   assert.equal(nodes(unavailable).some(node => node.type === 'CanvasShell'), false)
   assert.equal(nodes(unavailable).some(node => node.props?.role === 'alert'), true)
-  const authenticated = await make(async () => ({ email: 'member@example.test', id: 'stable-actor' })).default()
+  const authenticated = await make(async () => ({ email: 'member@example.test', id: 'stable-actor' })).default({})
   assert.equal(authenticated.type, 'CanvasShell')
   assert.equal(authenticated.props.email, 'member@example.test')
   assert.equal(authenticated.props.actorId, 'stable-actor')
@@ -120,7 +120,7 @@ test('canvas search input preserves the server query length boundary', () => {
 })
 
 test('direct new task uses the guarded create action and closes search results', () => {
-  const ui = bar()
+  const ui = bar({ selectedTask: null })
   ui.render().find(node => node.type === 'CommandInput').props.onValueChange('draft')
   const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
   assert.ok(create)
@@ -131,7 +131,7 @@ test('direct new task uses the guarded create action and closes search results',
 })
 
 test('collapsed search leaves Enter available to activate the direct new task button', () => {
-  const ui = bar()
+  const ui = bar({ selectedTask: null })
   ui.render().find(node => node.type === 'Command').props.onKeyDown({ key: 'Escape', stopPropagation() {} })
   let prevented = false
   ui.render().find(node => node.type === 'Command').props.onKeyDownCapture({ key: 'Enter', target: { closest: selector => selector === 'button' }, preventDefault() { prevented = true }, stopPropagation() {} })
@@ -146,7 +146,7 @@ test('collapsed search leaves Enter available to activate the direct new task bu
 })
 
 test('Escape from the direct new task button dismisses open results', () => {
-  const ui = bar()
+  const ui = bar({ selectedTask: null })
   assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
   const event = { key: 'Escape', stopped: false, stopPropagation() { this.stopped = true } }
   ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task').props.onKeyDown(event)
@@ -157,10 +157,10 @@ test('Escape from the direct new task button dismisses open results', () => {
 
 test('direct new task respects creation permission, search scope and admission guards', () => {
   for (const overrides of [{ canCreate: false }, { searchScope: {} }, { searchScope: { resourceId: 'company' } }]) {
-    assert.equal(bar(overrides).render().some(node => node.type === 'Button' && node.props['aria-label'] === 'New task'), false)
+    assert.equal(bar({ selectedTask: null, ...overrides }).render().some(node => node.type === 'Button' && node.props['aria-label'] === 'New task'), false)
   }
   for (const overrides of [{ disabled: true }, { busy: true }]) {
-    const ui = bar(overrides)
+    const ui = bar({ selectedTask: null, ...overrides })
     const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
     assert.ok(create)
     assert.equal(create.props.disabled, true)
@@ -201,8 +201,28 @@ test('company and overview commands never expose an unrelated workspace action',
 });
 
 test('native phone viewport keeps zoom available and opts into content resizing',()=>{
- const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'./globals.css':{}});
+ const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/history-position-provider':{HistoryPositionProvider:'HistoryPositionProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'./globals.css':{}});
  assert.equal(layout.viewport.width,'device-width');assert.equal(layout.viewport.initialScale,1);
  assert.notEqual(layout.viewport.viewportFit,'cover');assert.equal(layout.viewport.interactiveWidget,'resizes-content');
  assert.notEqual(layout.viewport.userScalable,false);assert.equal(layout.viewport.maximumScale,undefined);
+});
+
+test('selected actionable tasks get one direct Complete action using the same guarded command',()=>{
+ const ui=bar();const action=ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task');
+ assert.ok(action);assert.equal(ui.render().some(n=>n.type==='Button'&&n.props['aria-label']==='New task'),false);
+ action.props.onClick();assert.deepEqual(ui.calls,['complete']);assert.equal(ui.render().find(n=>n.type==='CommandList').props.hidden,true);
+ for(const overrides of [{busy:true},{disabled:true}]){const blocked=bar(overrides);const button=blocked.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task');assert.equal(button.props.disabled,true);button.props.onClick();assert.deepEqual(blocked.calls,[]);}
+ for(const overrides of [{canComplete:false},{selectedTask:null},{selectedTask:{id:'a',title:'Allowed task',completed:true}},{selectedTask:{id:'a',title:'Allowed task',status:'done',completed:false}},{searchScope:{}}])assert.equal(bar(overrides).render().some(n=>n.type==='Button'&&n.props['aria-label']==='Complete Allowed task'),false);
+});
+
+test('signed-out canvas links retain their bounded task destination through sign-in', async () => {
+ const route=load('app/canvas/page.tsx',{...runtime,'@/lib/auth-simple':{getSession:async()=>null},'next/navigation':{redirect:path=>{throw new Error(path)}},'@/components/canvas/canvas-shell':{CanvasShell:'CanvasShell'}});
+ const destination='/canvas?workspace=w&task=t&view=tasks';
+ await assert.rejects(route.default({searchParams:Promise.resolve({workspace:'w',task:'t',view:'tasks'})}), error=>new URL(error.message,'https://saathi.test').searchParams.get('redirect')===destination);
+ await assert.rejects(route.default({searchParams:Promise.resolve({workspace:['w','other'],task:'t',view:'tasks',redirect:'//outside.test'})}), error=>new URL(error.message,'https://saathi.test').searchParams.get('redirect')==='/canvas');
+});
+test('an unavailable canvas account can retry the same valid task link', async () => {
+ const route=load('app/canvas/page.tsx',{...runtime,'@/lib/auth-simple':{getSession:async()=>{throw Error('Unavailable')}},'next/navigation':{redirect(){throw Error('Unexpected')}},'@/components/canvas/canvas-shell':{CanvasShell:'CanvasShell'}});
+ const tree=await route.default({searchParams:Promise.resolve({workspace:'w',task:'t',view:'tasks'})});
+ assert.equal(nodes(tree).find(n=>n.type==='a').props.href,'/canvas?workspace=w&task=t&view=tasks');
 });

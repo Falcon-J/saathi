@@ -11,7 +11,7 @@ function collect(directory) {
 }
 const files = collect("features").sort()
 if (!database) files.push("hooks/use-canvas-graph.test.cjs", "hooks/useRealtime-access.test.cjs", ...collect("components/canvas"), ...collect("components/mcp"),
-  "lib/db/platform-schema.test.ts", "lib/db/transaction-context.test.ts", "lib/capability-ceiling.test.ts", "app/api/users/route.test.cjs", "app/actions/coordination.test.cjs", "scripts/verify-mcp-local.test.cjs", "scripts/local-canvas-access-fixtures.test.mjs")
+  "lib/browser-history.test.ts", "lib/db/platform-schema.test.ts", "lib/db/transaction-context.test.ts", "lib/capability-ceiling.test.ts", "app/api/users/route.test.cjs", "app/actions/coordination.test.cjs", "scripts/verify-mcp-local.test.cjs", "scripts/local-canvas-access-fixtures.test.mjs")
 if (database && !process.env.DATABASE_TEST_URL) throw new Error("DATABASE_TEST_URL is required for platform database tests")
 // Separate processes keep SQL pools and test dependency overrides isolated.
 for (const file of files) {

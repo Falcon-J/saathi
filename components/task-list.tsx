@@ -7,10 +7,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { TaskQuickAdd } from "@/components/task-quick-add"
-import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, SquarePen } from "lucide-react"
+import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, MoreHorizontal, SquarePen } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { useTaskPermissions } from "@/hooks/usePermissions"
 import type { Member } from "@/app/actions/workspaces"
@@ -35,6 +36,7 @@ export interface BoardPaging {
 }
 
 interface TaskListProps {
+  active?: boolean
   compactToolbar?: boolean
   capabilityCeiling?: CapabilityCeiling
   paging?: BoardPaging
@@ -55,7 +57,8 @@ interface TaskListProps {
   commentRefreshEvent?: RealtimeEvent | null
   focusQuickAdd?: number
   draftScope?: string
-  onDirtyChange?: (dirty: boolean) => void
+  onDirtyChange?: (dirty: boolean, activeDirty?: boolean, editorDraftTaskId?: string) => void
+  onOpenTask?: (taskId: string) => void
   onReviewBoard?: () => Promise<void>
 }
 
@@ -79,10 +82,13 @@ export const TaskList = memo(function TaskList({
   paging,
   detailTask,
   onDirtyChange,
+  onOpenTask,
   draftScope,
   capabilityCeiling,
   compactToolbar = false,
+  active = true,
 }: TaskListProps) {
+  const boardHeading = useRef<HTMLHeadingElement>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const editorPermissions = useTaskPermissions(
     currentUserEmail,
@@ -92,6 +98,7 @@ export const TaskList = memo(function TaskList({
   const [editingDraft, setEditingDraft] = useState<TaskEditorDraft | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  useEffect(() => { if (!active) setDeleteConfirm(null) }, [active])
   const [operatingTaskId, setOperatingTaskId] = useState<string | null>(null)
   const [localSearchQuery, setSearchQuery] = useState("")
   const [localSelectedAssignee, setSelectedAssignee] = useState<string | null>(null)
@@ -141,12 +148,13 @@ export const TaskList = memo(function TaskList({
   }, [draftKey, restoredScope, openTaskId, openTaskRequest])
   const originalDraft = editingTask ? toTaskEditorDraft(editingTask) : null
   const editorDirty = Boolean(editingDraft && originalDraft && (Object.keys(originalDraft) as (keyof TaskEditorDraft)[]).some(key => originalDraft[key] !== editingDraft[key]))
+  const editorPresented = active && Boolean(editingTask && (!onOpenTask || editingTask.id === openTaskId || editorDirty))
   useEffect(() => {
     if (!draftKey || restoredScope !== draftKey) return
     if (editorDirty && editingTask && editingDraft) writeDraft(draftKey, { task: editingTask, draft: editingDraft })
     else removeDraft(draftKey)
   }, [draftKey, restoredScope, editorDirty, editingTask, editingDraft])
-  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId)) }, [quickAddDirty, editorDirty, operatingTaskId, onDirtyChange])
+  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId), (editorDirty && editorPresented) || Boolean(operatingTaskId) || (quickAddDirty && (!compactToolbar || quickAddOpen)), editorDirty ? editingTask?.id : undefined) }, [quickAddDirty, quickAddOpen, compactToolbar, editorDirty, editorPresented, editingTask?.id, operatingTaskId, onDirtyChange])
 
   useEffect(() => {
     if (draftKey && restoredScope !== draftKey) return
@@ -155,19 +163,25 @@ export const TaskList = memo(function TaskList({
       return
     }
     if (!openTaskReady) return
+    if (editorDirty && editingTask?.id !== openTaskId) {
+      openedTaskIdRef.current = null
+      setEditError("Save or discard your retained task draft before opening another task.")
+      return
+    }
     // A record ID is selection; the request distinguishes an explicit repeat Open from a live refresh.
     if (openedTaskIdRef.current === openTaskId && openedTaskRequestRef.current === openTaskRequest) return
     const task = detailTask?.id === openTaskId ? detailTask : tasks.find((item) => item.id === openTaskId)
     if (!task) return
     openedTaskIdRef.current = openTaskId
     openedTaskRequestRef.current = openTaskRequest
+    if (editorDirty && editingTask?.id === openTaskId) return
     reviewRequest.current++
     setLatestTask(null)
     setReviewLoading(false)
     setEditingTask(task)
     setEditingDraft(toTaskEditorDraft(task))
     setEditError(null)
-  }, [openTaskId, openTaskRequest, openTaskReady, tasks, detailTask, draftKey, restoredScope])
+  }, [openTaskId, openTaskRequest, openTaskReady, tasks, detailTask, draftKey, restoredScope, editorDirty, editingTask?.id])
 
   const filteredTasks = useMemo(() => {
     if (paging) return tasks
@@ -356,6 +370,8 @@ export const TaskList = memo(function TaskList({
     <TaskListItem
       key={task.id}
       task={task}
+      compact={compactToolbar}
+      active={active}
       capabilityCeiling={capabilityCeiling}
       members={members}
       currentUserEmail={currentUserEmail}
@@ -364,22 +380,23 @@ export const TaskList = memo(function TaskList({
       operatingTaskId={operatingTaskId}
       onToggleTask={handleToggleTask}
       onEditTask={handleEditTask}
-      onStartEdit={openEditor}
+      onStartEdit={onOpenTask ? task => onOpenTask(task.id) : openEditor}
       onConfirmDelete={setDeleteConfirm}
     />
   )
 
   return (
-    <div className="@container space-y-4 p-4 sm:p-5">
+    <div className={compactToolbar ? "@container space-y-3 p-3 sm:p-4" : "@container space-y-4 p-4 sm:p-5"}>
+      {compactToolbar && <h2 ref={boardHeading} tabIndex={-1} className="sr-only">Tasks</h2>}
       {permitsCapability(capabilityCeiling, "create") && <>
         <div aria-label="New task form" hidden={compactToolbar && !quickAddOpen}>
+          {compactToolbar && <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="min-h-11" aria-label="Close new task" onClick={() => { setQuickAddOpen(false); boardHeading.current?.focus() }}>Close</Button></div>}
           <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={compactToolbar && !quickAddOpen ? undefined : focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
         </div>
       </>}
 
       <TaskFilter
         compactToolbar={compactToolbar}
-        toolbarAction={compactToolbar && permitsCapability(capabilityCeiling, "create") ? <Button variant="outline" size="sm" aria-expanded={quickAddOpen} onClick={() => setQuickAddOpen(value => !value)}>New task</Button> : undefined}
         onClearFilters={() => {
           if (paging) paging.changeFilters({ status: "all", priority: undefined, assigneeEmail: undefined })
           else { setSelectedStatus("all"); setSelectedPriority("all"); setSelectedAssignee(null) }
@@ -397,7 +414,7 @@ export const TaskList = memo(function TaskList({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="text-sm text-muted-foreground">
-          {paging && <span className="mr-3 text-xs">Workspace totals</span>}
+          {paging && <span className={compactToolbar ? "sr-only" : "mr-3 text-xs"}>Workspace totals</span>}
           <span className="font-medium text-foreground">{paging ? paging.aggregates?.open ?? "…" : tasks.length - completedCount}</span> open
           <span className="mx-2 text-border">/</span>
           <span className="font-medium text-primary">{paging ? paging.aggregates?.done ?? "…" : completedCount}</span> done
@@ -410,7 +427,7 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {/* Board */}
-      <div className="grid grid-cols-1 gap-4 @lg:grid-cols-2 @3xl:grid-cols-3" aria-label="Task board">
+      <div className={compactToolbar ? "space-y-5" : "grid grid-cols-1 gap-4 @lg:grid-cols-2 @3xl:grid-cols-3"} aria-label="Task board">
         {loading ? (
           <Card className="rounded-[var(--saathi-radius-card)] border-border bg-card p-8 text-center @lg:col-span-2 @3xl:col-span-3">
             <div className="flex items-center justify-center gap-2">
@@ -420,7 +437,9 @@ export const TaskList = memo(function TaskList({
           </Card>
         ) : (
           <>
+            {compactToolbar && filteredTasks.length === 0 && <p role="status" className="py-6 text-center text-sm text-muted-foreground">{paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : tasks.length === 0 && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet." : "No tasks match these filters."}</p>}
             <TaskColumn
+              compact={compactToolbar}
               title="To do"
               count={todoTasks.length}
               emptyMessage={(paging ? paging.aggregates?.total === 0 : tasks.length === 0) && !searchQuery && selectedStatus === "all" && selectedPriority === "all" && !selectedAssignee ? "No tasks yet. Add one above." : paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : "No tasks match these filters."}
@@ -428,6 +447,7 @@ export const TaskList = memo(function TaskList({
               {todoTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
+              compact={compactToolbar}
               title="In progress"
               count={inProgressTasks.length}
               emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : paging ? "No in-progress tasks match these filters." : "Tasks you are actively working on will appear here."}
@@ -435,6 +455,7 @@ export const TaskList = memo(function TaskList({
               {inProgressTasks.map(renderTask)}
             </TaskColumn>
             <TaskColumn
+              compact={compactToolbar}
               title="Done"
               count={completedTasks.length}
               emptyMessage={paging?.nextCursor ? "No matching tasks on this page. Load more to check remaining results." : tasks.length === 0 ? "Completed tasks will appear here." : "No completed tasks match these filters."}
@@ -449,7 +470,7 @@ export const TaskList = memo(function TaskList({
 
       {/* Delete Confirmation */}
       <ConfirmDialog
-        open={!!deleteConfirm}
+        open={active && !!deleteConfirm}
         title="Delete Task"
         description="Are you sure you want to delete this task? This action cannot be undone."
         actionLabel="Delete"
@@ -459,8 +480,8 @@ export const TaskList = memo(function TaskList({
       />
       <TaskEditorDialog
         draftScope={draftScope}
-        task={editingTask}
-        draft={editingDraft}
+        task={editorPresented ? editingTask : null}
+        draft={editorPresented ? editingDraft : null}
         canEdit={(editorPermissions.canEdit && permitsCapability(capabilityCeiling, "edit"))}
         canComment={permitsCapability(capabilityCeiling, "comment")}
         error={editError}
@@ -485,21 +506,24 @@ function TaskColumn({
   count,
   emptyMessage,
   children,
+  compact = false,
 }: {
+  compact?: boolean
   title: string
   count: number
   emptyMessage: string
   children: ReactNode
 }) {
+  if (compact && count === 0) return null
   return (
-    <section className="min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3" aria-label={`${title} tasks`}>
-      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+    <section className={compact ? "min-w-0" : "min-w-0 rounded-[var(--saathi-radius-container)] bg-secondary/40 p-3"} aria-label={`${title} tasks`}>
+      <div className={compact ? "mb-2 flex items-center justify-between px-1" : "mb-4 flex items-center justify-between border-b border-border pb-3"}>
         <h3 className="saathi-label text-muted-foreground">{title}</h3>
         <Badge variant="outline" className="border-border bg-card text-muted-foreground">
           {count}
         </Badge>
       </div>
-      <div className="space-y-3">
+      <div className={compact ? "divide-y divide-border overflow-hidden rounded-xl border border-border bg-card" : "space-y-3"}>
         {count > 0 ? children : (
           <div className="px-3 py-8 text-center text-sm text-muted-foreground">
             {emptyMessage}
@@ -548,6 +572,7 @@ export function TaskEditorDialog({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   const [discardConfirm, setDiscardConfirm] = useState(false)
+  useEffect(() => { setDiscardConfirm(false) }, [task?.id])
   const headingRef = useRef<HTMLHeadingElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const requestClose = () => {
@@ -725,6 +750,8 @@ export function TaskEditorDialog({
 }
 
 interface TaskListItemProps {
+  active?: boolean
+  compact?: boolean
   capabilityCeiling?: CapabilityCeiling
   task: Task
   members: Member[]
@@ -739,6 +766,8 @@ interface TaskListItemProps {
 }
 
 const TaskListItem = memo(function TaskListItem({
+  compact = false,
+  active = true,
   task,
   members,
   currentUserEmail,
@@ -756,6 +785,30 @@ const TaskListItem = memo(function TaskListItem({
     { id: task.workspaceId, ownerId: workspaceOwnerId },
     task,
   )
+
+  if (compact) {
+    const owner = members.find(member => member.email.toLowerCase() === task.assigneeEmail?.toLowerCase())
+    const due = formatTaskDue(task.dueAt, task.dueDate, timeZone)
+    return <Card data-task-row={task.id} className="rounded-none border-0 bg-card p-0 shadow-none">
+      <div className="flex items-start gap-2 px-2 py-2">
+        <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground" aria-label={task.completed ? "Reopen " + task.title : "Complete " + task.title} aria-pressed={task.completed} disabled={operatingTaskId === task.id || !(taskPermissions.canToggle && permitsCapability(capabilityCeiling, "edit"))} onClick={() => onToggleTask(task.id)}>
+          {operatingTaskId === task.id ? <Loader2 className="size-5 animate-spin" /> : task.completed ? <CheckCircle2 className="size-5 text-[var(--saathi-success)]" /> : <Circle className="size-5" />}
+        </Button>
+        <div className="min-w-0 flex-1">
+          <button type="button" className={"line-clamp-2 min-h-11 w-full break-words text-left text-base font-medium leading-6 sm:text-sm sm:leading-5 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring " + (task.completed ? "text-muted-foreground line-through" : "text-foreground")} aria-label={(taskPermissions.canEdit && permitsCapability(capabilityCeiling, "edit") ? "Edit " : "Open ") + task.title} title={task.title} onClick={() => onStartEdit(task)}>{task.title}</button>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pb-1 text-xs text-muted-foreground">
+            <span className="max-w-40 truncate" title={task.assigneeEmail ?? undefined}>{task.assigneeEmail ? owner?.username || task.assigneeEmail : "Unassigned"}</span>
+            {due && <span>Due {due}</span>}
+            {task.priority === "high" && <span className="inline-flex items-center gap-1 text-[var(--saathi-danger)]"><Flag className="size-3" aria-hidden="true" />High</span>}
+          </div>
+        </div>
+        {active && taskPermissions.canDelete && permitsCapability(capabilityCeiling, "delete") && <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground" aria-label={"Task actions for " + task.title} disabled={operatingTaskId === task.id}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" aria-labelledby={undefined} aria-label={"Actions for " + task.title}><DropdownMenuItem variant="destructive" className="min-h-11" onSelect={() => onConfirmDelete(task.id)}>Delete task</DropdownMenuItem></DropdownMenuContent>
+        </DropdownMenu>}
+      </div>
+    </Card>
+  }
 
   return (
     <Card className="group rounded-[var(--saathi-radius-card)] border border-border bg-card p-4 shadow-none transition-colors duration-200 hover:border-primary/30 hover:bg-muted/20">

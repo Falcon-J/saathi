@@ -18,9 +18,9 @@ function mount(component, props, actions={}) {
  const react={memo:c=>c,useMemo:f=>f(),useState(initial){const i=cursor++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return[slots[i],value=>{const next=typeof value==='function'?value(slots[i]):value;if(next!==slots[i]){slots[i]=next;changed=true}}]},useRef(value){const i=cursor++;if(!(i in slots))slots[i]={current:value};return slots[i]},useEffect(fn,deps){const i=cursor++;if(!slots[i]||deps.some((v,j)=>v!==slots[i][j])){slots[i]=deps;effects.push(fn)}}}
  const time=load('lib/task-time.ts',{})
  const draft=load('lib/task-draft.ts',{'./task-time.ts':time})
- const components=['button','input','textarea','card','badge','dialog','label']
+ const components=['button','input','textarea','card','badge','dialog','label','dropdown-menu']
  const deps={'@/lib/capability-ceiling':load('lib/capability-ceiling.ts',{}),react,'react/jsx-runtime':{jsx,jsxs:jsx},'@/lib/draft-storage':modules.storage,'@/lib/task-time':time,'@/lib/task-draft':draft,'lucide-react':{},'@/app/actions/workspaces':{updateWorkspaceSettings:async(...args)=>({workspace:await (actions.updateWorkspace??(async(id,fields,version)=>({...props.workspace,...fields,version:version+1})))(...args)})},'@/app/tasks/actions':{getTaskById:async()=>({error:'unused'})},'@/lib/mutation-result':{getMutationError:r=>r?.error},'@/hooks/usePermissions':{useTaskPermissions:()=>({canEdit:true})}}
- for(const c of components)deps['@/components/ui/'+c]=Object.fromEntries(['Button','Input','Textarea','Card','Badge','Dialog','DialogContent','DialogDescription','DialogFooter','DialogHeader','DialogTitle','Label'].map(n=>[n,n]))
+ for(const c of components)deps['@/components/ui/'+c]=Object.fromEntries(['Button','Input','Textarea','Card','Badge','Dialog','DialogContent','DialogDescription','DialogFooter','DialogHeader','DialogTitle','Label','DropdownMenu','DropdownMenuContent','DropdownMenuItem','DropdownMenuTrigger'].map(n=>[n,n]))
  for(const c of ['TaskQuickAdd','ConfirmDialog','TaskFilter','TaskComments'])deps['@/components/'+c.replace(/[A-Z]/g,(m,i)=>(i?'-':'')+m.toLowerCase())]={[c]:c}
  const loaded=load(`components/${component}.tsx`,deps)
  const Component=loaded[{ 'workspace-settings':'WorkspaceSettings','task-quick-add':'TaskQuickAdd','task-list':'TaskList'}[component]]
@@ -33,14 +33,15 @@ test('compact toolbar keeps quick add mounted while toggling and opens for focus
  const props={tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,focusQuickAdd:0}
  const ui=mount('task-list',props)
  let rows=ui.render(),region=rows.find(n=>n.props?.['aria-label']==='New task form')
- assert.ok(rows.find(n=>n.type==='TaskFilter').props.toolbarAction,'creation action belongs to the compact filter row')
+ assert.equal(rows.find(n=>n.type==='TaskFilter').props.toolbarAction,undefined,'the persistent bar owns task creation')
  assert.ok(region);assert.equal(region.props.hidden,true)
  assert.ok(nodes(region).some(n=>n.type==='TaskQuickAdd'),'collapsed drafts stay mounted')
  assert.equal(nodes(region).find(n=>n.type==='TaskQuickAdd').props.focusRequest,undefined,'hidden inputs cannot consume focus requests')
- rows.find(n=>n.type==='Button'&&n.props.children==='New task').props.onClick()
- assert.equal(ui.render().find(n=>n.props?.['aria-label']==='New task form').props.hidden,false)
- ui.render().find(n=>n.type==='Button'&&n.props.children==='New task').props.onClick()
  props.focusQuickAdd=1
+ assert.equal(ui.render().find(n=>n.props?.['aria-label']==='New task form').props.hidden,false)
+ ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Close new task').props.onClick()
+ assert.equal(ui.render().find(n=>n.props?.['aria-label']==='New task form').props.hidden,true)
+ props.focusQuickAdd=2
  assert.equal(ui.render().find(n=>n.props?.['aria-label']==='New task form').props.hidden,false)
 })
 
