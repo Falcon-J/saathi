@@ -249,8 +249,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
           }
           log({ canvasJourney: { viewport, step, state: 'passed' } })
         } catch (error) {
-          log({ canvasJourney: { viewport, step, state: 'failed' } })
-          throw new Error(`Canvas hierarchy journey ${viewport.width}x${viewport.height}: ${step}`, { cause: error })
+          log({ canvasJourney: { viewport, step, state: 'failed', error: error instanceof Error ? error.message : 'Unknown browser assertion' } })
+          throw new Error(`Canvas hierarchy journey ${viewport.width}x${viewport.height}: ${step}: ${error instanceof Error ? error.message : "Unknown browser assertion"}`, { cause: error })
         }
       }
       const current = label => expect(hierarchy.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-current', 'location')
