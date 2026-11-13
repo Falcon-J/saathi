@@ -46,27 +46,33 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
   const matchesAction = (value: string) => !searchScope || value.includes(query.trim().toLowerCase())
   const run = (work: () => void) => { if (disabled || busy) return; setOpen(false); setQuery(""); work() }
   return <section ref={root} aria-label="Canvas commands" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5">
-    <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2"><p role="status" className="truncate text-sm font-medium" aria-label="Command scope" title={scopeName}>{scopeLabel ?? scopeName}</p><div className="flex shrink-0 items-center gap-1">{followingAgent && onStopFollowing && <Button size="sm" variant="ghost" onClick={onStopFollowing}>Stop following</Button>}{!searchScope && <Button size="sm" variant="ghost" disabled={disabled || busy} onClick={() => { if (!disabled && !busy) onList() }}>Task list</Button>}</div></div>
-    <Command label="Search commands and tasks" shouldFilter={!searchScope} loop className="relative overflow-visible rounded-b-2xl"
-      onKeyDownCapture={event => { if (!open && event.key === "Enter") { event.preventDefault(); event.stopPropagation(); setOpen(true) } else if (!open && ["ArrowDown", "ArrowUp"].includes(event.key)) setOpen(true) }}
+    <div className={`${followingAgent ? "flex" : "sr-only sm:not-sr-only sm:flex"} items-center justify-between gap-2 border-b border-border px-4 py-2`}><p role="status" className="min-w-0 truncate text-sm font-medium" aria-label="Command scope" title={scopeName}>{scopeLabel ?? scopeName}</p><div className="flex shrink-0 items-center gap-1">{followingAgent && onStopFollowing && <Button size="sm" variant="ghost" className="min-h-11 sm:min-h-0" onClick={onStopFollowing}>Stop following</Button>}{!searchScope && <Button size="sm" variant="ghost" className="hidden sm:inline-flex" disabled={disabled || busy} onClick={() => { if (!disabled && !busy) onList() }}>Task list</Button>}</div></div>
+    <Command label="Search commands and tasks" shouldFilter={!searchScope} loop className="relative overflow-visible rounded-b-2xl [&_[data-slot=command-item]]:min-h-11 sm:[&_[data-slot=command-item]]:min-h-0 [&_[data-slot=command-input-wrapper]]:h-12 sm:[&_[data-slot=command-input-wrapper]]:h-9"
+      onKeyDownCapture={event => { if ((event.target as HTMLElement | null)?.closest?.("button")) return; if (!open && event.key === "Enter") { event.preventDefault(); event.stopPropagation(); setOpen(true) } else if (!open && ["ArrowDown", "ArrowUp"].includes(event.key)) setOpen(true) }}
       onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setOpen(false) } }}>
-      <CommandList hidden={!open} className="absolute inset-x-0 bottom-full mb-14 max-h-[min(50dvh,360px)] rounded-xl border border-border bg-popover shadow-xl">
+      <CommandList hidden={!open} className={`absolute inset-x-0 bottom-full ${followingAgent ? "mb-16" : "mb-2"} max-h-[min(50dvh,360px)] rounded-xl border border-border bg-popover shadow-xl sm:mb-14`}>
         {!remote.loading && !remote.error && <CommandEmpty>{searchScope && query.trim().length < 2 ? "Type at least 2 characters to search." : "No matching commands or tasks."}</CommandEmpty>}
         {remote.loading && <p role="status" className="p-3 text-sm">Searching…</p>}
         {remote.error && <div role="alert" className="p-3 text-sm">{remote.error}<Button size="sm" variant="ghost" onClick={remote.retry}>Try again</Button></div>}
         <CommandGroup heading="Actions">
           {canCreate && matchesAction("create add new task") && <CommandItem value="create add new task" disabled={disabled || busy} onSelect={() => run(onCreate)}>Create task</CommandItem>}
           {!searchScope && matchesAction("open workspace") && <CommandItem value="open workspace" disabled={disabled || busy} onSelect={() => run(onWorkspace)}>Open workspace</CommandItem>}
+          {!searchScope && <CommandItem value="task list show all" disabled={disabled || busy} onSelect={() => run(onList)}>Task list</CommandItem>}
           {selectedTask && matchesAction(`complete ${selectedTask.title.toLowerCase()}`) && canComplete && !selectedTask.completed && selectedTask.status !== "done" && <CommandItem value={`complete ${selectedTask.title}`} disabled={disabled || busy} onSelect={() => run(onComplete)}>Complete {selectedTask.title}</CommandItem>}
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Tasks">{(searchScope ? remote.items : tasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>
       </CommandList>
-      <CommandInput ref={input} maxLength={120} asChild placeholder={busy ? "Saving…" : "Search tasks or commands"}
+      <div className="flex items-center">
+      <div className="min-w-0 flex-1">
+      <CommandInput ref={input} maxLength={120} asChild className="h-12 min-w-0 text-base sm:h-10 sm:text-sm" placeholder={busy ? "Saving…" : "Search tasks or commands"}
         value={query} onValueChange={value => { setQuery(value); setOpen(true) }} onFocus={() => setOpen(true)} disabled={disabled || busy}>
         {/* eslint-disable-next-line jsx-a11y/role-has-required-aria-props -- cmdk supplies aria-controls through its supported Input asChild slot. */}
         <input role="combobox" aria-label="Search commands and tasks" aria-expanded={open} {...(!open ? { "aria-activedescendant": undefined } : {})} />
       </CommandInput>
+      </div>
+      {canCreate && !searchScope && <Button aria-label="New task" size="sm" className="mr-1 min-h-11 min-w-11 shrink-0 sm:hidden" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(onCreate)}>New task</Button>}
+      </div>
     </Command>
   </section>
 }

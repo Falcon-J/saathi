@@ -94,7 +94,7 @@ export function TaskFilter({
           placeholder="Search tasks..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="border-border bg-card pl-10 text-foreground placeholder:text-muted-foreground"
+          className="border-border bg-card pl-10 pr-12 text-foreground sm:pr-10 placeholder:text-muted-foreground"
         />
         {searchQuery && (
           <button

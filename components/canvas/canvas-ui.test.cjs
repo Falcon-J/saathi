@@ -34,7 +34,7 @@ function bar(overrides = {}) {
   const slots = [], listeners = new Map(), calls = []
   let cursor = 0, tree
   const props = { scopeName: 'Workspace', tasks: [{ id: 'a', title: 'Allowed task', completed: false }], selectedTask: { id: 'a', title: 'Allowed task', completed: false },
-    canComplete: true, disabled: false, busy: false, onCreate: () => calls.push('create'), onComplete: () => calls.push('complete'), onOpenTask: id => calls.push(id), onWorkspace() {}, onList() {}, ...overrides }
+    canComplete: true, disabled: false, busy: false, onCreate: () => calls.push('create'), onComplete: () => calls.push('complete'), onOpenTask: id => calls.push(id), onWorkspace() {}, onList: () => calls.push('list'), ...overrides }
   const react = { useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value }] }, useRef(initial) { return slots[cursor++] ??= { current: initial } },
     useEffect(fn) { cursor++; fn() } }
   const ui = { Command: 'Command', CommandEmpty: 'CommandEmpty', CommandGroup: 'CommandGroup', CommandInput: 'CommandInput', CommandItem: 'CommandItem', CommandList: 'CommandList', CommandSeparator: 'CommandSeparator' }
@@ -119,6 +119,78 @@ test('canvas search input preserves the server query length boundary', () => {
   assert.equal(bar().render().find(node => node.type === 'CommandInput').props.maxLength, 120)
 })
 
+test('direct new task uses the guarded create action and closes search results', () => {
+  const ui = bar()
+  ui.render().find(node => node.type === 'CommandInput').props.onValueChange('draft')
+  const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
+  assert.ok(create)
+  create.props.onClick()
+  assert.deepEqual(ui.calls, ['create'])
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, true)
+  assert.equal(ui.render().find(node => node.type === 'CommandInput').props.value, '')
+})
+
+test('collapsed search leaves Enter available to activate the direct new task button', () => {
+  const ui = bar()
+  ui.render().find(node => node.type === 'Command').props.onKeyDown({ key: 'Escape', stopPropagation() {} })
+  let prevented = false
+  ui.render().find(node => node.type === 'Command').props.onKeyDownCapture({ key: 'Enter', target: { closest: selector => selector === 'button' }, preventDefault() { prevented = true }, stopPropagation() {} })
+  assert.equal(prevented, false)
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, true)
+  const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
+  let stopped = false
+  create.props.onKeyDown({ key: 'Enter', stopPropagation() { stopped = true } })
+  assert.equal(stopped, true)
+  create.props.onClick()
+  assert.deepEqual(ui.calls, ['create'])
+})
+
+test('Escape from the direct new task button dismisses open results', () => {
+  const ui = bar()
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
+  const event = { key: 'Escape', stopped: false, stopPropagation() { this.stopped = true } }
+  ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task').props.onKeyDown(event)
+  if (!event.stopped) ui.render().find(node => node.type === 'Command').props.onKeyDown(event)
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, true)
+  assert.deepEqual(ui.calls, [])
+})
+
+test('direct new task respects creation permission, search scope and admission guards', () => {
+  for (const overrides of [{ canCreate: false }, { searchScope: {} }, { searchScope: { resourceId: 'company' } }]) {
+    assert.equal(bar(overrides).render().some(node => node.type === 'Button' && node.props['aria-label'] === 'New task'), false)
+  }
+  for (const overrides of [{ disabled: true }, { busy: true }]) {
+    const ui = bar(overrides)
+    const create = ui.render().find(node => node.type === 'Button' && node.props['aria-label'] === 'New task')
+    assert.ok(create)
+    assert.equal(create.props.disabled, true)
+    create.props.onClick()
+    assert.deepEqual(ui.calls, [])
+  }
+})
+
+test('task list is a searchable workspace action that closes results on selection', () => {
+  const ui = bar({ canCreate: false, canComplete: false })
+  const list = ui.action('Task list')
+  assert.ok(list)
+  for (const query of ['task', 'list', 'show all']) assert.ok(list.props.value.includes(query))
+  list.props.onSelect()
+  assert.deepEqual(ui.calls, ['list'])
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, true)
+  for (const searchScope of [{}, { resourceId: 'company' }]) assert.equal(bar({ searchScope }).action('Task list'), undefined)
+})
+
+test('task list action cannot dispatch while busy or denied', () => {
+  for (const overrides of [{ disabled: true }, { busy: true }]) {
+    const ui = bar(overrides)
+    const list = ui.action('Task list')
+    assert.ok(list)
+    assert.equal(list.props.disabled, true)
+    list.props.onSelect()
+    assert.deepEqual(ui.calls, [])
+  }
+})
+
 test('company and overview commands never expose an unrelated workspace action',()=>{
  const ui=bar({searchScope:{resourceId:'company'},scopeName:'Canvas / Company',scopeLabel:'Company'});
  assert.equal(ui.render().some(n=>n.type==='Button'&&n.props.children==='Task list'),false);
@@ -126,4 +198,11 @@ test('company and overview commands never expose an unrelated workspace action',
  assert.equal(ui.action('Open workspace'),undefined);
  const scope=ui.render().find(n=>n.props?.['aria-label']==='Command scope');
  assert.equal(scope.props.children,'Company');assert.equal(scope.props.title,'Canvas / Company');
+});
+
+test('native phone viewport keeps zoom available and opts into content resizing',()=>{
+ const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'./globals.css':{}});
+ assert.equal(layout.viewport.width,'device-width');assert.equal(layout.viewport.initialScale,1);
+ assert.notEqual(layout.viewport.viewportFit,'cover');assert.equal(layout.viewport.interactiveWidget,'resizes-content');
+ assert.notEqual(layout.viewport.userScalable,false);assert.equal(layout.viewport.maximumScale,undefined);
 });

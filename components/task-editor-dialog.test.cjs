@@ -88,6 +88,54 @@ test("opening the task editor focuses its heading without requesting a text keyb
   assert.equal(parts.some(node => node.props?.autoFocus), false)
 })
 
+test("phone task editor uses a bottom sheet while keeping its named modal and scrollable body", () => {
+  state = []
+  const parts = nodes(render(true, null))
+  const content = parts.find(node => node.type === "DialogContent")
+  assert.equal(text(parts.find(node => node.type === "DialogTitle")), "Edit task")
+  for (const token of ["saathi-mobile-controls", "max-sm:bottom-0", "max-sm:top-auto", "max-sm:left-0", "max-sm:max-w-none", "max-sm:translate-x-0", "max-sm:translate-y-0", "max-sm:max-h-[calc(100dvh-0.5rem)]", "max-sm:rounded-b-none", "max-sm:rounded-t-2xl", "max-sm:animate-none!"]) {
+    assert.ok(content.props.className.split(" ").includes(token), `sheet must apply ${token}`)
+  }
+  assert.ok(parts.some(node => node.props?.className?.includes("min-h-0 flex-1 space-y-6 overflow-y-auto")))
+  assert.equal(text(nodes(render(false, null)).find(node => node.type === "DialogTitle")), "Task details")
+})
+
+test("phone footer retains external submit and cancel actions side by side above the safe area", () => {
+  state = []
+  let submitted = 0
+  const parts = nodes(render(true, null, { onSubmit: event => { event.preventDefault(); submitted++ } }))
+  const footer = parts.find(node => node.type === "DialogFooter")
+  const actions = nodes(footer).filter(node => node.type === "Button")
+  assert.deepEqual(actions.map(text), ["Cancel", "Save changes"])
+  assert.ok(footer.props.className.split(" ").includes("flex-row"))
+  assert.ok(footer.props.className.includes("max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]"))
+  for (const action of actions) {
+    assert.ok(action.props.className.includes("max-sm:min-h-11"))
+    assert.ok(action.props.className.includes("max-sm:min-w-11"))
+  }
+  assert.equal(actions[1].props.type, "submit")
+  const form = parts.find(node => node.type === "form" && node.props.id === actions[1].props.form)
+  assert.ok(form, "fixed footer save must still target the editor form")
+  form.props.onSubmit({ preventDefault() {} })
+  assert.equal(submitted, 1)
+})
+
+test("status and assignee share a row from 360px and retain field edits", () => {
+  state = []
+  const changes = []
+  const parts = nodes(render(true, null, { onDraftChange: value => changes.push(value) }))
+  const row = parts.find(node => node.type === "div" && node.props?.className?.includes("min-[360px]:grid-cols-2"))
+  assert.ok(row)
+  assert.ok(row.props.className.split(" ").includes("grid-cols-1"))
+  const status = nodes(row).find(node => node.props?.id === "task-edit-status")
+  const assignee = nodes(row).find(node => node.props?.id === "task-edit-assignee")
+  assert.equal(status.props.value, draft.status)
+  assert.equal(assignee.props.value, draft.assigneeEmail)
+  status.props.onChange({ target: { value: "in-progress" } })
+  assignee.props.onChange({ target: { value: "member@example.test" } })
+  assert.deepEqual(changes, [{ status: "in-progress" }, { assigneeEmail: "member@example.test" }])
+})
+
 test("optional planning stays mounted behind a closed disclosure after discussion", () => {
   state = []
   const changes = []
@@ -146,6 +194,25 @@ test("invalid optional fields reveal themselves while conflict recovery remains 
   assert.equal(nodes(details).some(node => node.props?.role === "alert"), false)
   assert.equal(nodes(details).some(node => node.props?.["aria-label"] === "Latest saved task"), false)
   assert.ok(parts.some(node => node.props?.["aria-label"] === "Latest saved task"))
+})
+
+test("native optional-field validation opens planning without replacing unsaved values", () => {
+  state = []
+  const unsaved = { ...draft, dueDate: "2026-12-05", dueTime: "10:30", estimatedMinutes: "2000", priority: "high" }
+  const changes = []
+  const draw = () => nodes(render(true, null, { draft: unsaved, onDraftChange: value => changes.push(value) }))
+  const details = draw().find(node => node.type === "details")
+  const element = { open: false }
+  details.props.onInvalidCapture({ currentTarget: element })
+  assert.equal(element.open, true)
+  assert.deepEqual(changes, [], "revealing native validation must not rewrite the draft")
+  const parts = draw()
+  for (const [id, expected] of [["task-edit-title", unsaved.title], ["task-edit-description", "Context"], ["task-edit-due-date", "2026-12-05"], ["task-edit-due-time", "10:30"], ["task-edit-estimate", "2000"], ["task-edit-priority", "high"]]) {
+    assert.equal(parts.find(node => node.props?.id === id).props.value, expected)
+  }
+  const estimate = parts.find(node => node.props?.id === "task-edit-estimate")
+  assert.equal(estimate.props.form, "task-editor-form")
+  assert.equal(estimate.props.max, 1440)
 })
 
 for (const trigger of ["Cancel", "dialog dismissal"]) {

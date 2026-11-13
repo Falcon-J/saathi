@@ -7,6 +7,36 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@media (width < 640px) {
+  .saathi-mobile-controls button:not([role="checkbox"]):not([role="switch"]),
+  [role="alertdialog"] button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .saathi-mobile-controls input:not([type="checkbox"]):not([type="radio"]),
+  .saathi-mobile-controls select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .saathi-mobile-controls textarea {
+    font-size: 16px;
+  }
+
+  .saathi-mobile-controls summary,
+  .saathi-mobile-controls label:has(input[type="checkbox"]),
+  .saathi-mobile-controls label:has(input[type="radio"]) {
+    min-height: 44px;
+  }
+
+  .saathi-mobile-controls :is([data-slot="dialog-close"], button[aria-label="Clear task search"]),
+  .saathi-mobile-controls button:has(> svg:only-child) {
+    display: grid;
+    place-items: center;
+  }
+}
+
 .saathi-dashboard .react-flow__attribution {
   background: var(--card);
 }
