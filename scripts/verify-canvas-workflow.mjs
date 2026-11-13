@@ -220,11 +220,105 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await expect(page.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     await accessibility(page)
     await page.screenshot({ path: `${evidence}/canvas-association.png`, fullPage: true })
-    await page.getByRole('button', { name: `Open ${sectionName}`, exact: true }).click()
-    await expect(panel).not.toBeVisible()
     const hierarchy = page.getByRole('navigation', { name: 'Canvas hierarchy', exact: true })
-    await expect(hierarchy.getByRole('button', { name: sectionName, exact: true })).toHaveAttribute('aria-current', 'location')
-    await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+    const [journeyWorkspace] = await db`SELECT name FROM workspaces WHERE id=${workspace}`
+    assert.equal((await db`SELECT parent_id FROM canvas_resources WHERE id=${attached.id}`)[0].parent_id, sectionForLink.id)
+    // Exercise the hierarchy forwards through the actual cards, independently of search.
+    // Keep numeric space evidence descriptive: a dense map is not itself a failure.
+    for (const viewport of [{ width: 1280, height: 900 }, { width: 360, height: 800 }]) {
+      await page.setViewportSize(viewport)
+      const phase = async (step, work) => {
+        log({ canvasJourney: { viewport, step, state: 'started' } })
+        try {
+          await work()
+          if (['overview', 'company-open-keyboard', 'section-open', 'workspace-open', 'task-open'].includes(step)) {
+            await page.screenshot({ path: `${evidence}/canvas-hierarchy-${viewport.width}-${step}.png`, fullPage: true })
+          }
+          log({ canvasJourney: { viewport, step, state: 'passed' } })
+        } catch (error) {
+          log({ canvasJourney: { viewport, step, state: 'failed' } })
+          throw new Error(`Canvas hierarchy journey ${viewport.width}x${viewport.height}: ${step}`, { cause: error })
+        }
+      }
+      const current = label => expect(hierarchy.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-current', 'location')
+      const openCard = async (id, label, keyboard = false) => {
+        const card = page.locator(`.react-flow__node[data-id="${id}"]`)
+        const heading = card.getByRole('heading', { name: label, exact: true })
+        const button = card.getByRole('button', { name: `Open ${label}`, exact: true })
+        await expectInsideCanvas(page, heading, card)
+        await expectInsideCanvas(page, button, card)
+        const canvas = await page.getByRole('region', { name: 'Workspace canvas', exact: true }).boundingBox()
+        const bounds = await card.boundingBox(), headingBounds = await heading.boundingBox(), buttonBounds = await button.boundingBox()
+        const round = value => Math.round(value * 1000) / 1000
+        const box = value => Object.fromEntries(Object.entries(value).map(([key, number]) => [key, round(number)]))
+        log({ canvasSpace: { viewport, kind: id.split(':')[0], canvas: box(canvas), card: box(bounds), heading: box(headingBounds), openControl: box(buttonBounds),
+          canvasViewportAreaRatio: round(canvas.width * canvas.height / (viewport.width * viewport.height)),
+          cardCanvasAreaRatio: round(bounds.width * bounds.height / (canvas.width * canvas.height)),
+          cardHeaderHeightRatio: round((Math.max(headingBounds.y + headingBounds.height, buttonBounds.y + buttonBounds.height) - bounds.y) / bounds.height) } })
+        if (keyboard) {
+          await button.focus()
+          await expect(button).toBeFocused()
+          await page.keyboard.press('Enter')
+        } else await button.click()
+        await current(label)
+        await expect(panel).not.toBeVisible()
+      }
+      await phase('overview', async () => {
+        await hierarchy.getByRole('button', { name: 'Canvas', exact: true }).click()
+        await page.getByRole('button', { name: 'Fit View', exact: true }).click()
+        await current('Canvas')
+      })
+      await phase('company-open-keyboard', () => openCard(`container:${companyId}`, companyName, true))
+      await phase('section-open', () => openCard(`container:${sectionForLink.id}`, sectionName))
+      await phase('workspace-open', async () => {
+        await openCard(`workspace:${workspace}`, journeyWorkspace.name)
+        await expect(page.getByLabel('Current workspace', { exact: true })).toHaveValue(workspace)
+      })
+      await phase('task-open', async () => {
+        await openCard(`task:${workspace}:${agentTaskId}`, title)
+        await expect(editor.getByLabel('Title', { exact: true })).toHaveValue(title)
+        await accessibility(page)
+      })
+      const [beforeEdit] = await db`SELECT version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
+      const description = `Hierarchy journey edited at ${viewport.width}x${viewport.height}`
+      await phase('task-edit', async () => {
+        await editor.getByLabel('Description', { exact: true }).fill(description)
+        await editor.getByLabel('Status', { exact: true }).selectOption('in-progress')
+        await editor.getByRole('button', { name: 'Save changes', exact: true }).click()
+        await expect(editor).not.toBeVisible()
+        await expect.poll(async () => {
+          const [row] = await db`SELECT description,status,version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
+          return row && { description: row.description, status: row.status, version: row.version }
+        }).toEqual({ description, status: 'in_progress', version: beforeEdit.version + 1 })
+        await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+      })
+      await phase('same-task-reopen', async () => {
+        await openCard(`task:${workspace}:${agentTaskId}`, title)
+        await expect(editor.getByLabel('Description', { exact: true })).toHaveValue(description)
+        await expect(editor.getByLabel('Status', { exact: true })).toHaveValue('in-progress')
+        await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
+        await page.getByRole('button', { name: 'Close work area', exact: true }).click()
+      })
+      await phase('task-complete', async () => {
+        await search.fill('complete')
+        await page.getByRole('option', { name: `Complete ${title}`, exact: true }).click()
+        await expect.poll(async () => {
+          const [row] = await db`SELECT status,version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
+          return row && { status: row.status, version: row.version }
+        }).toEqual({ status: 'done', version: beforeEdit.version + 2 })
+        await current(title)
+        await accessibility(page)
+        await page.screenshot({ path: `${evidence}/canvas-hierarchy-${viewport.width}.png`, fullPage: true })
+      })
+      for (const label of [journeyWorkspace.name, sectionName, companyName, 'Canvas']) {
+        await phase(`return-${label === journeyWorkspace.name ? 'workspace' : label === sectionName ? 'section' : label === companyName ? 'company' : 'canvas'}`, async () => {
+          await hierarchy.getByRole('button', { name: label, exact: true }).click()
+          await current(label)
+          await expect(workArea).not.toBeVisible()
+        })
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 900 })
     await page.getByLabel('Current workspace', { exact: true }).selectOption(otherWorkspace)
     await page.getByRole('button', { name: 'Manage canvas', exact: true }).click()
     await panel.getByLabel('Company, section or workspace', { exact: true }).selectOption(sectionForLink.id)
