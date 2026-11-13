@@ -112,9 +112,18 @@ test('broad task searches cannot dispatch the unrelated current-workspace action
   ui.render().find(node => node.type === 'CommandInput').props.onValueChange('Exact task title')
   assert.equal(ui.action('Open workspace'), undefined)
   ui.render().find(node => node.type === 'CommandInput').props.onValueChange('open work')
-  assert.ok(ui.action('Open workspace'))
+  assert.equal(ui.action('Open workspace'), undefined)
 })
 
 test('canvas search input preserves the server query length boundary', () => {
   assert.equal(bar().render().find(node => node.type === 'CommandInput').props.maxLength, 120)
 })
+
+test('company and overview commands never expose an unrelated workspace action',()=>{
+ const ui=bar({searchScope:{resourceId:'company'},scopeName:'Canvas / Company',scopeLabel:'Company'});
+ assert.equal(ui.render().some(n=>n.type==='Button'&&n.props.children==='Task list'),false);
+ ui.render().find(n=>n.type==='CommandInput').props.onValueChange('open work');
+ assert.equal(ui.action('Open workspace'),undefined);
+ const scope=ui.render().find(n=>n.props?.['aria-label']==='Command scope');
+ assert.equal(scope.props.children,'Company');assert.equal(scope.props.title,'Canvas / Company');
+});

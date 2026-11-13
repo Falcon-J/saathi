@@ -143,6 +143,7 @@ export function projectCanvas(input: {
   resources?: readonly CanvasResourcePath[]
   navigation: CanvasNavigation
   zoom: number
+  compact?: boolean
 }): CanvasProjection {
   if (!Number.isFinite(input.zoom) || input.zoom <= 0) throw new Error("Canvas zoom must be finite and positive")
   const ordered = [...input.graphs].sort((a, b) => textOrder(a.workspace.id, b.workspace.id))
@@ -172,10 +173,10 @@ export function projectCanvas(input: {
   const groups = ordered.map(entry => {
     const expanded = pointsAtWorkspace(navigation.focus, entry.workspace.id) || pointsAtWorkspace(navigation.selection, entry.workspace.id)
     const taskCount = entry.graph.tasks.length
-    const dense = taskCount > 12
+    const dense = taskCount > 4 || Boolean(input.compact && taskCount > 2)
     const taskFocus = [navigation.focus, navigation.selection].find((focus): focus is Extract<CanvasFocus, { kind: "task" }> => focus?.kind === "task" && focus.workspaceId === entry.workspace.id)
-    return { entry, expanded, dense, taskFocus, width: expanded ? dense ? 420 : 760 : 320,
-      height: expanded ? dense ? taskFocus ? 352 : 448 : 100 + Math.ceil(taskCount / 2) * 240 : 160 }
+    return { entry, expanded, dense, taskFocus, width: expanded ? dense || input.compact ? 420 : 760 : 320,
+      height: expanded ? (dense || input.compact) && taskFocus ? 352 : dense ? 448 : 112 + Math.ceil(taskCount / (input.compact ? 1 : 2)) * 240 : 160 }
   })
   let rowY = 0
   for (let index = 0; index < groups.length; index += 2) {
@@ -204,8 +205,9 @@ export function projectCanvas(input: {
       orderedTasks.forEach((task, taskIndex) => {
         const detail = pointsAtTask(navigation.focus, workspace.id, task.id) || pointsAtTask(navigation.selection, workspace.id, task.id)
         nodes.push({ id: taskNodeId(workspace.id, task.id), kind: "task", recordId: task.id,
-          workspaceId: workspace.id, parentId: id, position: dense ? { x: 24, y: 112 } : { x: 24 + (taskIndex % 2) * 368, y: 80 + Math.floor(taskIndex / 2) * 240 },
-          width: dense ? 372 : 344, height: 216, hidden: !expanded || (dense && taskFocus?.taskId !== task.id), expanded: detail,
+          workspaceId: workspace.id, parentId: id, position: dense || (input.compact && taskFocus) ? { x: 24, y: 112 }
+            : input.compact ? { x: 24, y: 112 + taskIndex * 240 } : { x: 24 + (taskIndex % 2) * 368, y: 112 + Math.floor(taskIndex / 2) * 240 },
+          width: dense || input.compact ? 372 : 344, height: 216, hidden: !expanded || ((dense || Boolean(input.compact && taskFocus)) && taskFocus?.taskId !== task.id), expanded: detail,
           representation: detail ? "detail" : input.zoom < 0.55 ? "compact" : "summary",
           readiness: taskReadiness.get(task.id) ?? "completed" })
       })
@@ -213,7 +215,7 @@ export function projectCanvas(input: {
         dependencyEdgeId(workspace.id, a.prerequisiteTaskId, a.dependentTaskId),
         dependencyEdgeId(workspace.id, b.prerequisiteTaskId, b.dependentTaskId)))) {
         edges.push({ id: dependencyEdgeId(workspace.id, edge.prerequisiteTaskId, edge.dependentTaskId), workspaceId: workspace.id,
-          source: taskNodeId(workspace.id, edge.prerequisiteTaskId), target: taskNodeId(workspace.id, edge.dependentTaskId), hidden: !expanded || dense })
+          source: taskNodeId(workspace.id, edge.prerequisiteTaskId), target: taskNodeId(workspace.id, edge.dependentTaskId), hidden: !expanded || dense || Boolean(input.compact && taskFocus) })
       }
       columnX += width + 120
     }

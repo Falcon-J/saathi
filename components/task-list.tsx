@@ -548,6 +548,7 @@ export function TaskEditorDialog({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   const [discardConfirm, setDiscardConfirm] = useState(false)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const requestClose = () => {
     if (isSaving) return
@@ -563,14 +564,14 @@ export function TaskEditorDialog({
 
   return (
     <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && requestClose()}>
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
+      <DialogContent onOpenAutoFocus={event => { event.preventDefault(); headingRef.current?.focus() }} className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
         <DialogHeader className="border-b border-border bg-secondary/35 px-5 py-5 pr-12 sm:px-6">
           <div className="flex items-start gap-3 text-left">
             <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <SquarePen className="size-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl">{canEdit ? "Edit task" : "Task details"}</DialogTitle>
+              <DialogTitle ref={headingRef} tabIndex={-1} className="text-xl outline-none">{canEdit ? "Edit task" : "Task details"}</DialogTitle>
               <DialogDescription className="sr-only">
                 {canEdit ? "Update the details that help your team understand and move this work." : canComment ? "Review the task and discuss the work with your team below." : "Review the retained task details and discussion."}
               </DialogDescription>
@@ -580,8 +581,8 @@ export function TaskEditorDialog({
 
         {task && draft && (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <form id="task-editor-form" className="space-y-6 px-5 py-5 sm:px-6" onSubmit={onSubmit}>
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+              <form id="task-editor-form" className="space-y-6" onSubmit={onSubmit}>
               <fieldset disabled={!canEdit || isSaving} className="space-y-6">
               <section aria-label="Task details" className="space-y-4">
                 <div className="space-y-2">
@@ -593,30 +594,25 @@ export function TaskEditorDialog({
                     onChange={(event) => onDraftChange({ title: event.target.value })}
                     disabled={isSaving}
                     maxLength={200}
-                    autoFocus
                     className="h-11 bg-card text-base"
                   />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3"><Label htmlFor="task-edit-description">Description</Label><span className="text-xs text-muted-foreground">Optional</span></div>
+                  <Label htmlFor="task-edit-description">Description</Label>
                   <Textarea
                     id="task-edit-description"
                     value={draft.description}
                     onChange={(event) => onDraftChange({ description: event.target.value })}
                     disabled={isSaving}
                     maxLength={1000}
-                    rows={5}
+                    rows={3}
                     placeholder="Add useful context, acceptance notes, or a link..."
                     className="resize-y bg-card"
                   />
                 </div>
               </section>
 
-              <section aria-labelledby="task-planning-heading" className="space-y-4 border-t border-border pt-5">
-                <div>
-                  <h3 id="task-planning-heading" className="text-sm font-semibold">Planning &amp; ownership</h3>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="task-edit-status">Status</Label>
                     <select
@@ -632,32 +628,6 @@ export function TaskEditorDialog({
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="task-edit-priority">Priority</Label>
-                    <select
-                      id="task-edit-priority"
-                      value={draft.priority}
-                      onChange={(event) => onDraftChange({ priority: event.target.value as TaskEditorDraft["priority"] })}
-                      disabled={isSaving}
-                      className="flex h-10 w-full rounded-[var(--saathi-radius-control)] border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="task-edit-due-date">Due date</Label>
-                    <Input id="task-edit-due-date" type="date" value={draft.dueDate} onChange={(event) => onDraftChange({ dueDate: event.target.value })} disabled={isSaving} className="h-10 bg-card" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="task-edit-due-time">Due time ({Intl.DateTimeFormat().resolvedOptions().timeZone}) <span className="font-normal text-muted-foreground">(optional)</span></Label>
-                    <Input id="task-edit-due-time" type="time" value={draft.dueTime} onChange={(event) => onDraftChange({ dueTime: event.target.value })} disabled={isSaving || !draft.dueDate} className="h-10 bg-card" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="task-edit-estimate">Estimate <span className="font-normal text-muted-foreground">(minutes)</span></Label>
-                    <Input id="task-edit-estimate" type="number" min={1} max={1440} step={1} value={draft.estimatedMinutes} onChange={(event) => onDraftChange({ estimatedMinutes: event.target.value })} disabled={isSaving} placeholder="e.g. 45" className="h-10 bg-card" />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="task-edit-assignee">Assignee</Label>
                     <select
                       id="task-edit-assignee"
@@ -670,11 +640,50 @@ export function TaskEditorDialog({
                       {members.map((member) => <option key={member.id} value={member.email}>{member.username}</option>)}
                     </select>
                   </div>
-                </div>
-              </section>
+              </div>
+              </fieldset>
+              </form>
+
+              <TaskComments taskId={task.id} draftScope={draftScope} key={task.id} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+
+              <details
+                key={task.id}
+                open={error ? true : undefined}
+                onInvalidCapture={event => { event.currentTarget.open = true }}
+                className="border-t border-border pt-4"
+              >
+                <summary className="cursor-pointer rounded-sm py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">More details</summary>
+                <fieldset disabled={!canEdit || isSaving} className="grid gap-4 pt-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-priority">Priority</Label>
+                    <select
+                      id="task-edit-priority" form="task-editor-form"
+                      value={draft.priority}
+                      onChange={(event) => onDraftChange({ priority: event.target.value as TaskEditorDraft["priority"] })}
+                      disabled={isSaving}
+                      className="flex h-10 w-full rounded-[var(--saathi-radius-control)] border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-due-date">Due date</Label>
+                    <Input id="task-edit-due-date" form="task-editor-form" type="date" value={draft.dueDate} onChange={(event) => onDraftChange({ dueDate: event.target.value })} disabled={isSaving} className="h-10 bg-card" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-due-time">Due time ({Intl.DateTimeFormat().resolvedOptions().timeZone}) <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                    <Input id="task-edit-due-time" form="task-editor-form" type="time" value={draft.dueTime} onChange={(event) => onDraftChange({ dueTime: event.target.value })} disabled={isSaving || !draft.dueDate} className="h-10 bg-card" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-edit-estimate">Estimate <span className="font-normal text-muted-foreground">(minutes)</span></Label>
+                    <Input id="task-edit-estimate" form="task-editor-form" type="number" min={1} max={1440} step={1} value={draft.estimatedMinutes} onChange={(event) => onDraftChange({ estimatedMinutes: event.target.value })} disabled={isSaving} placeholder="e.g. 45" className="h-10 bg-card" />
+                  </div>
+                </fieldset>
+              </details>
 
               {error && <p className="rounded-[var(--saathi-radius-control)] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</p>}
-              </fieldset>
               {error && onReviewLatest && <Button type="button" variant="outline" disabled={isSaving || reviewLoading} onClick={() => void onReviewLatest()}>{reviewLoading ? "Loading latest task..." : "Review latest task"}</Button>}
               {latestTask && <section aria-label="Latest saved task" className="space-y-3 rounded-lg border border-border p-3">
                 <h3 className="font-semibold">Latest saved task</h3>
@@ -682,11 +691,7 @@ export function TaskEditorDialog({
                 <p className="text-sm">Your draft is retained. Review these values before keeping your edited fields or replacing your draft.</p>
                 <div className="flex flex-wrap gap-2"><Button type="button" onClick={onKeepDraft}>Keep my changes</Button><Button type="button" variant="outline" onClick={onUseLatest}>Use latest task</Button></div>
               </section>}
-              </form>
 
-              <div className="px-5 pb-5 sm:px-6">
-                <TaskComments taskId={task.id} draftScope={draftScope} key={task.id} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
-              </div>
             </div>
 
             <DialogFooter className="border-t border-border bg-secondary/45 px-5 py-4 sm:px-6">

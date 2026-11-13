@@ -82,7 +82,13 @@ async function edit(p, title, changes) {
   await nav(p, 'Board')
   await p.getByRole('button', { name: `Edit ${title}`, exact: true }).click()
   const dialog = p.getByRole('dialog', { name: 'Edit task', exact: true })
-  for (const [label, value] of Object.entries(changes)) await dialog.getByLabel(label, { exact: true }).selectOption(value)
+  for (const [label, value] of Object.entries(changes)) {
+    const field = dialog.getByLabel(label, { exact: true })
+    if (['Priority', 'Due date', 'Estimate (minutes)'].includes(label) && !await field.isVisible()) {
+      await dialog.locator('summary').filter({ hasText: 'More details' }).click()
+    }
+    await field.selectOption(value)
+  }
   await dialog.getByRole('button', { name: 'Save changes', exact: true }).click()
   await expect(dialog).not.toBeVisible()
 }

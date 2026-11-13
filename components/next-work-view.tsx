@@ -42,9 +42,12 @@ type Props = {
   onChanged?: () => Promise<unknown>
   onRefreshReady?: (refresh: (() => Promise<boolean>) | null) => void
   connected?: boolean
+  compact?: boolean
+  focusGroup?: "ready" | "waiting" | "completed_inconsistent"
+  onShowAll?: () => void
 }
 
-export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskRevision, onOpenTask, onChanged, onRefreshReady, connected = true }: Props) {
+export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskRevision, onOpenTask, onChanged, onRefreshReady, connected = true, compact = false, focusGroup, onShowAll }: Props) {
   const [storedData, setData] = useState<{ scope: string; graph: Graph; projection: NextWorkResult<Task> } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -213,7 +216,9 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
     dependents.set(edge.prerequisiteTaskId, linked)
   }
   const dependentTasks = (taskId: string) => dependents.get(taskId) ?? []
-  const matches = (item: NextWorkItem<Task>) => `${item.task.title} ${item.task.assigneeEmail ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())
+  const memberNames = new Map((workspace.members ?? []).map(member => [normalizeEmail(member.email), member.username || member.email]))
+  const assigneeName = (email?: string | null) => email ? memberNames.get(normalizeEmail(email)) ?? email : "Unassigned"
+  const matches = (item: NextWorkItem<Task>) => `${item.task.title} ${item.task.assigneeEmail ?? ""} ${assigneeName(item.task.assigneeEmail)}`.toLowerCase().includes(query.trim().toLowerCase())
   const section = (title: string, items: NextWorkItem<Task>[]) => (
     <section aria-label={title} className="space-y-2">
       <h3 className="text-sm font-semibold">{title} ({items.length})</h3>
@@ -222,13 +227,13 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <p className="break-words font-medium">{item.task.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{item.unassigned ? "Unassigned" : item.task.assigneeEmail}{formatTaskDue(item.task.dueAt, item.task.dueDate, workspace.timezone) ? ` · ${formatTaskDue(item.task.dueAt, item.task.dueDate, workspace.timezone)}` : ""}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{assigneeName(item.task.assigneeEmail)}{formatTaskDue(item.task.dueAt, item.task.dueDate, workspace.timezone) ? ` · ${formatTaskDue(item.task.dueAt, item.task.dueDate, workspace.timezone)}` : ""}</p>
             </div>
             <Button type="button" variant="outline" size="sm" aria-label={`Open ${item.task.title}`} disabled={Boolean(pending)} onClick={() => { if (!pendingChange.current) onOpenTask(item.task.id) }}>Open task</Button>
           </div>
           {item.prerequisites.length > 0 && (
             <ul className="mt-2 space-y-1 text-xs">
-              {item.prerequisites.map(source => <li key={source.taskId} className="break-words"><Button type="button" variant="link" disabled={Boolean(pending)} className="h-auto whitespace-normal p-0 text-left text-xs" onClick={() => { if (!pendingChange.current) onOpenTask(source.taskId) }}>{source.title}</Button> — {source.status === "done" ? "Complete" : "Not complete"} · {graphTasks.get(source.taskId)?.assigneeEmail || "Unassigned"}</li>)}
+              {item.prerequisites.map(source => <li key={source.taskId} className="break-words"><Button type="button" variant="link" disabled={Boolean(pending)} className="h-auto whitespace-normal p-0 text-left text-xs" onClick={() => { if (!pendingChange.current) onOpenTask(source.taskId) }}>{source.title}</Button> — {source.status === "done" ? "Complete" : "Not complete"} · {assigneeName(graphTasks.get(source.taskId)?.assigneeEmail)}</li>)}
             </ul>
           )}
           {dependentTasks(item.task.id).length > 0 && <div className="mt-2 text-xs">
@@ -239,7 +244,7 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
           {canEdit(item.task) && <Button type="button" variant="ghost" size="sm" className="mt-2" aria-label={`Edit prerequisites for ${item.task.title}`} disabled={loading || Boolean(pending)} onClick={event => { returnFocus.current = event?.currentTarget ?? null; select(item.task.id) }}>Edit prerequisites</Button>}
         </article>
       ))}
-      {items.length === 0 && <p className="text-sm text-muted-foreground">{title === "Ready" ? "No ready tasks." : "No waiting tasks."}</p>}
+      {items.length === 0 && <p className="text-sm text-muted-foreground">{title === "Ready" ? "No ready tasks." : title === "Waiting" ? "No waiting tasks." : "No completed work needs review."}</p>}
       {items.length > 0 && !items.some(matches) && <p className="text-sm text-muted-foreground">No matching tasks.</p>}
     </section>
   )
@@ -253,13 +258,14 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
       {!recoveryReady && <div role="alert" className="space-y-2 text-sm text-destructive"><p>Session recovery storage is unavailable. Prerequisite changes are paused.</p><Button type="button" variant="outline" onClick={() => { restorePending(); void load() }}>Retry recovery</Button></div>}
       {pending && !saving && <div className="space-y-2"><p className="text-sm">A prerequisite change needs confirmation. Your original change is retained for recovery.</p>{permitsCapability(workspace.capabilityCeiling, "edit") && <Button type="button" onClick={() => save(pendingChange.current!)}>Retry change</Button>}</div>}
       {data && <>
+        {focusGroup && onShowAll && <Button type="button" variant="ghost" size="sm" disabled={Boolean(pending)} onClick={() => { if (!pendingChange.current) onShowAll() }}>All work</Button>}
         <Input aria-label="Search next work" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks or assignees" />
-        <div className="grid gap-4 md:grid-cols-2">{section("Ready", data.projection.ready)}{section("Waiting", data.projection.waiting)}</div>
-        {data.projection.ready.length === 0 && data.projection.waiting.length === 0 && <p className="text-sm text-muted-foreground">No unfinished tasks.</p>}
-        {data.projection.completedInconsistencies.length > 0 && section("Review completed work", data.projection.completedInconsistencies)}
-        <label className="block text-sm font-medium">Inspect prerequisites
+        <div className={`grid gap-4 ${!focusGroup && !compact ? "md:grid-cols-2" : ""}`}>{(!focusGroup || focusGroup === "ready") && section("Ready", data.projection.ready)}{(!focusGroup || focusGroup === "waiting") && section("Waiting", data.projection.waiting)}</div>
+        {!focusGroup && data.projection.ready.length === 0 && data.projection.waiting.length === 0 && <p className="text-sm text-muted-foreground">No unfinished tasks.</p>}
+        {(focusGroup === "completed_inconsistent" || (!focusGroup && data.projection.completedInconsistencies.length > 0)) && section("Review completed work", data.projection.completedInconsistencies)}
+        {!compact && <label className="block text-sm font-medium">Inspect prerequisites
           <select aria-label="Task to inspect" className="mt-1 min-h-11 w-full rounded-md border border-border bg-background px-3" value={selectedId} disabled={Boolean(pending) || loading} onChange={event => { returnFocus.current = event.currentTarget; select(event.target.value) }}><option value="">Choose a task</option>{data.graph.tasks.map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select>
-        </label>
+        </label>}
         {selected && <section ref={editor} tabIndex={-1} aria-label={`Prerequisites for ${selected.title}`} className="space-y-3 rounded-lg border border-border p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           <div className="flex items-start justify-between gap-2"><h3 className="break-words text-sm font-semibold">{selected.title} depends on</h3><Button type="button" variant="ghost" size="sm" disabled={Boolean(pending)} onClick={() => { select(""); returnFocus.current?.focus() }}>Close prerequisites</Button></div>
           {selectedSources.length === 0 && <p className="text-sm text-muted-foreground">No recorded prerequisites</p>}

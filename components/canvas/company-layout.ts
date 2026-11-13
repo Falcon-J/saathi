@@ -82,7 +82,7 @@ export function layoutCompanyResources(resources: readonly AuthorizedCanvasResou
     const descendants = [...children.get(id) ?? []].sort(compare)
     children.set(id, descendants)
     for (const child of descendants) measure(child)
-    if (descendants.length) Object.assign(nodes.get(id)!, place(descendants, 80, 24))
+    if (descendants.length) Object.assign(nodes.get(id)!, place(descendants, 112, 24))
   }
   const roots = [...nodes.values()].filter(node => !node.parentId).map(node => node.id).sort(compare)
   for (const root of roots) measure(root)
