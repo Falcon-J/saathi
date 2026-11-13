@@ -12,7 +12,7 @@ async function selectWorkspace(page, id) {
 }
 async function openWorkspaceTools(page) {
   const show = page.getByRole('button', { name: 'Show canvas', exact: true })
-  if (await show.isVisible()) await show.click()
+  if (await show.isVisible()) return
   await page.getByRole('button', { name: 'Open workspace tools', exact: true }).click()
 }
 async function filterTasks(area, value) {

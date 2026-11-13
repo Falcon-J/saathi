@@ -15,16 +15,16 @@ const runtime = { 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/na
 test('canvas route redirects anonymous accounts before mounting the client surface', async () => {
   const route = load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: async () => null },
     'next/navigation': { redirect: path => { throw new Error(`redirect:${path}`) } }, '@/components/canvas/canvas-shell': { CanvasShell: 'CanvasShell' } })
-  await assert.rejects(route.default(), /redirect:\/login/)
+  await assert.rejects(route.default({}), /redirect:\/login/)
 })
 
 test('canvas route distinguishes unavailable identity from an authenticated client', async () => {
   const make = read => load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: read },
     'next/navigation': { redirect() { throw new Error('Unexpected redirect') } }, '@/components/canvas/canvas-shell': { CanvasShell: 'CanvasShell' } })
-  const unavailable = await make(async () => { throw new Error('Identity offline') }).default()
+  const unavailable = await make(async () => { throw new Error('Identity offline') }).default({})
   assert.equal(nodes(unavailable).some(node => node.type === 'CanvasShell'), false)
   assert.equal(nodes(unavailable).some(node => node.props?.role === 'alert'), true)
-  const authenticated = await make(async () => ({ email: 'member@example.test', id: 'stable-actor' })).default()
+  const authenticated = await make(async () => ({ email: 'member@example.test', id: 'stable-actor' })).default({})
   assert.equal(authenticated.type, 'CanvasShell')
   assert.equal(authenticated.props.email, 'member@example.test')
   assert.equal(authenticated.props.actorId, 'stable-actor')

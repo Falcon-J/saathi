@@ -5,7 +5,7 @@ import { canvasUrl, parseCanvasUrl } from "@/features/canvas/navigation-url"
 
 export const dynamic = "force-dynamic"
 
-export default async function CanvasPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
+export default async function CanvasPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams ?? {}
   const query = new URLSearchParams()
   for (const key of ["resource", "workspace", "task", "view", "group"]) {
