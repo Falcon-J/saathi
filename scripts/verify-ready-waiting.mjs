@@ -184,8 +184,10 @@ try {
     await page.getByRole('button', { name: 'Add prerequisite', exact: true }).click()
     await expect(page.getByRole('button', { name: `Remove ${title} prerequisite`, exact: true })).toBeVisible()
   }
-  await expect(card(page, 'Waiting', titles[2])).toContainText(users[1].email)
-  await expect(card(page, 'Waiting', titles[2])).toContainText(users[0].email)
+  await expect(card(page, 'Waiting', titles[2])).toContainText(`QA ${users[1].role}`)
+  await expect(card(page, 'Waiting', titles[2])).not.toContainText(users[1].email)
+  await expect(card(page, 'Waiting', titles[2])).toContainText(`QA ${users[0].role}`)
+  await expect(card(page, 'Waiting', titles[2])).not.toContainText(users[0].email)
   await card(page, 'Waiting', titles[2]).getByRole('button', { name: titles[0], exact: true }).click()
   await expect(page.getByRole('dialog').getByLabel('Title', { exact: true })).toHaveValue(titles[0])
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
