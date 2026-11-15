@@ -46,7 +46,7 @@ const ariaLabels = {
 
 import { CanvasCamera, type CanvasCameraHandle, type CanvasTool } from "./canvas-camera"
 import { readCanvasCamera, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM } from "./camera-utils"
-export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true }: {
+export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true, compact }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
@@ -60,6 +60,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
   onOpenResource: (id: string) => void
   focus: CanvasFocus
   followingAgent: boolean
+  compact?: boolean
   restoreReady?: boolean
   ready?: boolean
 }) {
@@ -134,7 +135,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     nodesFocusable edgesFocusable disableKeyboardA11y={false} colorMode={resolvedTheme === "dark" ? "dark" : "light"} onlyRenderVisibleElements
     ariaLabelConfig={ariaLabels} proOptions={{ hideAttribution: false }}>
     <Background gap={24} size={1} />
-    <CanvasCamera nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
+    <CanvasCamera nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} compact={compact} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
       controllerRef={controller} tool={tool} onToolChange={setTool} onZoom={onZoom} onManualNavigation={onManualNavigation} />
   </ReactFlow>
 }

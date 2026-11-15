@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { useCanvasSearch } from "./use-canvas-search"
 import type { Task } from "@/lib/task-contract"
 
-export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, canComplete, canCreate = true, busy, disabled, onOpenTask, onCreate, onComplete, onWorkspace, onList, followingAgent = false, onStopFollowing, searchScope, searchRevision = "" }: {
+export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, canComplete, canCreate = true, canEdit = false, canManage = false, busy, disabled, onOpenTask, onCreate, onComplete, onWorkspace, onList, onAsk, onImport, onTool, onNavigate, followingAgent = false, onStopFollowing, searchScope, searchRevision = "" }: {
   searchScope?: { resourceId?: string }
   searchRevision?: string
   scopeName: string
@@ -15,6 +15,8 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
   selectedTask: Task | null
   canComplete: boolean
   canCreate?: boolean
+  canEdit?: boolean
+  canManage?: boolean
   busy: boolean
   disabled: boolean
   onOpenTask: (id: string, workspaceId?: string) => void
@@ -22,12 +24,21 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
   onComplete: () => void
   onWorkspace: () => void
   onList: () => void
+  onAsk?: () => void
+  onImport?: () => void
+  onTool?: (tool: "prerequisites" | "agents" | "team" | "activity" | "settings") => void
+  onNavigate?: (path: "/archive" | "/connections") => void
   followingAgent?: boolean
   onStopFollowing?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const remote = useCanvasSearch(query, Boolean(searchScope) && open && !disabled, searchScope?.resourceId, searchRevision)
+  const matchingTasks = useMemo(() => {
+    if (!open || searchScope) return []
+    const text = query.trim().toLocaleLowerCase()
+    return tasks.filter(task => `${task.id} ${task.title} ${("description" in task ? task.description : "") ?? ""} ${task.assigneeEmail ?? ""}`.toLocaleLowerCase().includes(text)).slice(0, 50)
+  }, [tasks, query, open, searchScope])
   const input = useRef<HTMLInputElement>(null)
   const root = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -60,9 +71,23 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
           {!searchScope && matchesAction("open workspace") && <CommandItem value="open workspace" disabled={disabled || busy} onSelect={() => run(onWorkspace)}>Open workspace</CommandItem>}
           {!searchScope && <CommandItem value="task list show all" disabled={disabled || busy} onSelect={() => run(onList)}>Task list</CommandItem>}
           {completionAvailable && selectedTask && matchesAction(`complete ${selectedTask.title.toLowerCase()}`) && canComplete && !selectedTask.completed && selectedTask.status !== "done" && <CommandItem value={`complete ${selectedTask.title}`} disabled={disabled || busy} onSelect={() => run(onComplete)}>Complete {selectedTask.title}</CommandItem>}
+
+          {!searchScope && onAsk && <CommandItem value="ask saathi plan draft summarize attention" disabled={disabled || busy} onSelect={() => run(onAsk)}>Ask Saathi</CommandItem>}
+          {!searchScope && onImport && <CommandItem value="import csv tasks" disabled={disabled || busy} onSelect={() => run(onImport)}>Import tasks</CommandItem>}
+          {!searchScope && onTool && <>
+            {canEdit && <CommandItem value="prerequisites dependencies ready waiting" disabled={disabled || busy} onSelect={() => run(() => onTool("prerequisites"))}>Prerequisites</CommandItem>}
+            <CommandItem value="agent runs review evidence" disabled={disabled || busy} onSelect={() => run(() => onTool("agents"))}>Agent runs</CommandItem>
+            <CommandItem value="team members invitations" disabled={disabled || busy} onSelect={() => run(() => onTool("team"))}>Team</CommandItem>
+            <CommandItem value="history activity changes" disabled={disabled || busy} onSelect={() => run(() => onTool("activity"))}>History</CommandItem>
+            {canManage && <CommandItem value="settings workspace archive delete" disabled={disabled || busy} onSelect={() => run(() => onTool("settings"))}>Settings</CommandItem>}
+          </>}
+          {onNavigate && <>
+            {matchesAction("archive archived workspaces history") && <CommandItem value="archive archived workspaces history" disabled={busy} onSelect={() => { if (!busy) { setOpen(false); onNavigate("/archive") } }}>Archive</CommandItem>}
+            {matchesAction("connections mcp oauth agents") && <CommandItem value="connections mcp oauth agents" disabled={busy} onSelect={() => { if (!busy) { setOpen(false); onNavigate("/connections") } }}>Connections</CommandItem>}
+          </>}
         </CommandGroup>
         <CommandSeparator />
-        <CommandGroup heading="Tasks">{(searchScope ? remote.items : tasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>
+        <CommandGroup heading="Tasks">{(searchScope ? remote.items : matchingTasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("description" in task ? task.description : "") ?? ""} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>
       </CommandList>
       <div className="flex items-center">
       <div className="min-w-0 flex-1">

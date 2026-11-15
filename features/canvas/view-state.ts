@@ -5,7 +5,7 @@ const identifier = (value: unknown): value is string => typeof value === "string
 function validFocus(value: unknown): value is CanvasFocus {
   if (!value || typeof value !== "object") return false
   const focus = value as Record<string, unknown>
-  return focus.kind === "overview" || (identifier(focus.workspaceId)
+  return focus.kind === "overview" || (focus.kind === "resource" && identifier(focus.resourceId)) || (identifier(focus.workspaceId)
     && (focus.kind === "workspace" || (focus.kind === "task" && identifier(focus.taskId))))
 }
 

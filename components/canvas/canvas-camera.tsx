@@ -12,10 +12,10 @@ export type CanvasTool = "select" | "pan"
 export type CanvasCameraHandle = { cancelPending: () => void; keyDown: (event: KeyboardEvent<HTMLDivElement>) => void }
 
 /** Store subscriptions stay below ReactFlow; camera updates never rebuild its controlled records. */
-export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true }: {
+export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
   nodes: Node[]; focus: CanvasFocus; followingAgent: boolean; cameraKey: string; initialCamera: SavedCanvasCamera | null
   controllerRef: Ref<CanvasCameraHandle>; tool: CanvasTool; onToolChange: (tool: CanvasTool) => void
-  onViewportWidthChange: (width: number) => void; ready?: boolean; restoreReady?: boolean
+  onViewportWidthChange: (width: number) => void; ready?: boolean; restoreReady?: boolean; compact?: boolean
   onZoom: (zoom: number) => void; onManualNavigation: () => void
 }) {
   const flow = useReactFlow()
@@ -35,7 +35,7 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
   const selectedIds = nodes.filter(node => node.selected && !node.hidden).map(node => node.id)
   const input = focusId ? nodes.find(node => node.id === focusId) : nodes.find(node => !node.hidden)
   const internal = useInternalNode(input?.id ?? "")
-  const layoutReady = Boolean(input && internal && !internal.hidden && internal.internals.userNode === input)
+  const layoutReady = (compact === undefined || compact === (width < 640)) && Boolean(input && internal && !internal.hidden && internal.internals.userNode === input)
   const resources = nodes.filter(node => node.type !== "task").map(node => node.id).join("|")
   const fit = useCallback((ids: string[]) => ids.length ? flow.fitBounds(flow.getNodesBounds(ids), { padding: .15, duration: 0 }) : Promise.resolve(false), [flow])
   const fitAll = useCallback(() => fit(nodes.filter(node => !node.hidden).map(node => node.id)), [nodes, fit])
@@ -73,7 +73,8 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
     if (!initialized.current) {
       initialized.current = true
       const saved = key === initialKey.current ? initialCamera : readCanvasCamera(cameraKey, key)
-      if (saved && !interacted.current) { pending.current = null; void flow.setViewport(restoreCanvasCamera(saved, width, height), { duration: 0 }); return }
+      const responsiveLayoutChanged = saved?.canvasWidth !== undefined && compact !== undefined && (saved.canvasWidth < 640) !== compact
+      if (saved && !responsiveLayoutChanged && !interacted.current) { pending.current = null; void flow.setViewport(restoreCanvasCamera(saved, width, height), { duration: 0 }); return }
     }
     if (pending.current !== key) return
     // Claim this camera intent before a synchronous viewport/store notification can re-enter.
@@ -82,7 +83,7 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
     const result = focusId ? fit([focusId]) : fitAll()
     void result.then(applied => { if (!applied && request === generation.current && previous.current.key === key) pending.current = key })
       .catch(() => { if (request === generation.current && previous.current.key === key) pending.current = key })
-  }, [restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitAll, width, height, geometry])
+  }, [compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitAll, width, height, geometry])
   return <>
     <Panel position="bottom-left" className="!m-3"><div role="toolbar" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm">
       <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => { cancelPending(); void flow.zoomOut({ duration: 0 }) }}><Minus className="size-4" /></Button>

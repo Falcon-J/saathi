@@ -28,3 +28,5 @@ test("unavailable preference storage keeps manual canvas navigation usable", () 
   assert.doesNotThrow(() => saveCanvasView(scope, focus, blocked))
   assert.equal(readCanvasView(scope, blocked).focus.kind, "overview")
 })
+
+test('company resource focus is retained as an opaque preference without agent following',()=>{const values=new Map<string,string>(),storage={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v)}};const scope={actorId:'actor',canvasId:'personal'};saveCanvasView(scope,{kind:'resource',resourceId:'section'},storage);assert.deepEqual(readCanvasView(scope,storage).focus,{kind:'resource',resourceId:'section'});assert.equal(readCanvasView(scope,storage).followingAgent,false)})
