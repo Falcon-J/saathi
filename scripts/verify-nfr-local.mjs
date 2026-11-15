@@ -10,13 +10,13 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { startLocalRedisRest } from './local-redis-rest.mjs'
 import { createLocalAuthFixture, signInLocalAuthFixture } from './local-auth-fixtures.mjs'
-import { canvasAccessEnabled, planCanvasAccessFixtures, seedCanvasAccessFixtures, cleanupCanvasAccessFixtures } from './local-canvas-access-fixtures.mjs'
+import { sourceFingerprint } from './source-fingerprint.mjs'
+import { createDeliveryClock } from './delivery-clock.mjs'
 
 assert.ok(process.argv.slice(2).every(arg => ['--smoke', '--diagnostic', '--profile'].includes(arg)), 'Only --smoke, --diagnostic or --profile is supported')
 const smoke = process.argv.includes('--smoke')
 const diagnostic = process.argv.includes('--diagnostic')
 const profile = process.argv.includes('--profile')
-const canvasAccess = canvasAccessEnabled(process.env.SAATHI_QA_CANVAS_ACCESS)
 assert.ok(!(smoke && diagnostic), 'Choose either smoke or diagnostic')
 const fixtureSignInInterval = Number(process.env.SAATHI_QA_AUTH_SETUP_INTERVAL_MS ?? '0')
 assert.ok(Number.isInteger(fixtureSignInInterval) && fixtureSignInInterval >= 0 && fixtureSignInInterval <= 60000, 'Fixture sign-in interval must be an integer from 0 to 60000ms')
@@ -28,15 +28,15 @@ const directory = `.local-test/nfr-${runId}`
 mkdirSync(directory, { recursive: true })
 const pause = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)))
 const users = [], workspaces = Array.from({ length: 4 }, () => randomUUID()), observers = [], mutations = [], errors = []
-const canvasFixtures = canvasAccess ? planCanvasAccessFixtures(workspaces) : null
-let canvasSeeded = null, canvasRemaining = null
 // Recovery manifest contains disposable UUIDs only; never persist cookies, keys or passwords.
-const recordOwnedFixtures = (extraIds = []) => writeFileSync(`${directory}/owned-fixtures.json`, JSON.stringify({ runId, workspaces, canvasFixtures, userIds: [...new Set([...users.map(user => user.id), ...extraIds])] }, null, 2))
+const recordOwnedFixtures = (extraIds = []) => writeFileSync(`${directory}/owned-fixtures.json`, JSON.stringify({ runId, workspaces, userIds: [...new Set([...users.map(user => user.id), ...extraIds])] }, null, 2))
 recordOwnedFixtures()
 const setupRecovery = { createRetries: 0, recoveredCreates: 0, signInRetries: 0, minimumSignInIntervalMs: fixtureSignInInterval }
 const samples = { warmRead: [], read: [], write: [], admission: [], deliveryUpperBound: [], scheduleLag: [] }
 const timingLimit = 60000, timingBuffer = [], eventSlots = new Map()
 const eventLoop = monitorEventLoopDelay({ resolution: 20 })
+const deliveryClock = createDeliveryClock({ maxTasks: envelope.writes, maxObservations: envelope.writes * envelope.members,
+  onSample: ({ durationMs, sample }) => { samples.deliveryUpperBound.push(durationMs); timing({ ...sample, durationMs }) } })
 let timingCount = 0, timingDropped = 0, workloadStarted = null, workloadEnded = null, writesAttempted = 0, fingerprint = null
 let db, admin, bridge, server, log, stopping = false, attempts = 0, readAttempts = 0, streamAttempts = 0, duplicateNotifications = 0, phase = 'preflight', backgroundReads
 function timing(sample) {
@@ -180,28 +180,27 @@ async function observe(observer) {
       let buffer = ''
       for (;;) {
         const { done, value } = await reader.read()
+        const receivedAt = performance.now()
         if (done) break
         buffer += decoder.decode(value, { stream: true }).replaceAll('\r\n', '\n')
         const blocks = buffer.split('\n\n'); buffer = blocks.pop()
         for (const block of blocks) {
           const lines = block.split('\n'), id = lines.find(line => line.startsWith('id:'))
-          if (id) observer.lastId = id.slice(3).trim()
           const data = lines.filter(line => line.startsWith('data:')).map(line => line.slice(5).trim()).join('\n')
           if (!data) continue
           const event = JSON.parse(data)
           if (event.type === 'connected') { observer.ready = true; observer.connected = true }
           if (event.type === 'resync-required') errors.push({ phase: 'stream-resync', actorSlot: users.indexOf(observer.user) })
-          if (event.type !== 'task-created') continue
+          if (event.type !== 'task-created') { if (id) observer.lastId = id.slice(3).trim(); continue }
           assert.equal(event.workspaceId, observer.user.workspace, 'Cross-workspace delivery')
           assert.ok(event.data?.eventId && Number.isFinite(event.timestamp), 'Expected durable event identity and timestamp')
+          assert.ok(event.data.task?.id && event.data.task.workspaceId === observer.user.workspace, 'Expected scoped task identity')
           if (!eventSlots.has(event.data.eventId)) eventSlots.set(event.data.eventId, eventSlots.size)
-          const delay = Date.now() - event.timestamp
-          timing({ kind: 'event', at: new Date().toISOString(), durationMs: delay, actorSlot: users.indexOf(observer.user), workspaceSlot: workspaces.indexOf(observer.user.workspace), eventSlot: eventSlots.get(event.data.eventId), duplicate: observer.seen.has(event.data.eventId) })
-          if (!observer.seen.has(event.data.eventId)) {
-            assert.ok(delay >= 0, 'Event clock mismatch; negative delivery interval')
-            observer.seen.add(event.data.eventId)
-            samples.deliveryUpperBound.push(delay)
-          } else duplicateNotifications++
+          const sample = { kind: 'event', at: new Date().toISOString(), actorSlot: users.indexOf(observer.user), workspaceSlot: workspaces.indexOf(observer.user.workspace), eventSlot: eventSlots.get(event.data.eventId), duplicate: false }
+          const unique = deliveryClock.receive({ workspaceId: observer.user.workspace, taskId: event.data.task.id, eventId: event.data.eventId, observerSlot: observer.slot, receivedAt, sample })
+          if (unique) observer.seen.add(event.data.eventId)
+          else { duplicateNotifications++; timing({ ...sample, duplicate: true }) }
+          if (id) observer.lastId = id.slice(3).trim()
         }
       }
     } catch {
@@ -219,7 +218,7 @@ async function observe(observer) {
 let result
 try {
   const hash = value => createHash('sha256').update(value).digest('hex')
-  fingerprint = { revision: (await capture('git', ['rev-parse', 'HEAD'])).trim(), workingDiffSha256: hash(await capture('git', ['diff', '--binary', 'HEAD', '--', '.'])), verifierSha256: hash(readFileSync('scripts/verify-nfr-local.mjs')), builtActionManifestSha256: hash(readFileSync('.next/server/server-reference-manifest.json')), recordedAt: new Date().toISOString() }
+  fingerprint = { ...sourceFingerprint(), revision: (await capture('git', ['rev-parse', 'HEAD'])).trim(), workingDiffSha256: hash(await capture('git', ['diff', '--binary', 'HEAD', '--', '.'])), verifierSha256: hash(readFileSync('scripts/verify-nfr-local.mjs')), builtActionManifestSha256: hash(readFileSync('.next/server/server-reference-manifest.json')), recordedAt: new Date().toISOString() }
   writeFileSync(`${directory}/revision.json`, JSON.stringify(fingerprint, null, 2))
   phase = 'local-stack-status'
   const cli = process.env.SAATHI_QA_SUPABASE_CLI
@@ -274,7 +273,6 @@ try {
       for (const user of members) await tx`INSERT INTO workspace_members(workspace_id,user_id) VALUES(${workspace},${user.id})`
       for (let index = 0; index < envelope.seed; index++) await tx`INSERT INTO tasks(id,workspace_id,title,priority,created_by_user_id) VALUES(${randomUUID()},${workspace},${`Seed ${index}`},'medium',${owner.id})`
     }
-    if (canvasFixtures) canvasSeeded = await seedCanvasAccessFixtures(tx, canvasFixtures, users)
   })
   const token = randomUUID()
   bridge = await startLocalRedisRest({ token })
@@ -292,7 +290,7 @@ try {
   phase = 'sse-admission'
   progress()
   for (const user of users) {
-    const observer = { user, seen: new Set(), ready: false, connections: 0, lastId: null }
+    const observer = { user, slot: observers.length, seen: new Set(), ready: false, connections: 0, lastId: null }
     observers.push(observer); observer.done = observe(observer)
     await pause(smoke ? 25 : 100)
   }
@@ -319,8 +317,11 @@ try {
     timing({ kind: 'write-schedule', at: new Date().toISOString(), actorSlot: users.indexOf(user), workspaceSlot: workspaces.indexOf(user.workspace), scheduledOffsetMs: intendedAt - started, scheduleLagMs })
     const commandId = randomUUID()
     try {
+      const dispatchedAt = performance.now()
       const saved = await action(user, 'addTask', [user.workspace, `NFR ${runId} ${index}`, '', null, null, 'medium', 'today', null, null, commandId], 'write')
       assert.ok(saved.task?.id, 'Mutation returned no task')
+      assert.equal(saved.task.workspaceId, user.workspace, 'Mutation returned a different workspace')
+      deliveryClock.confirm({ workspaceId: user.workspace, taskId: saved.task.id, dispatchedAt })
       mutations.push({ id: saved.task.id, workspace: user.workspace, commandId })
       user.writes++
     } catch (error) {
@@ -338,6 +339,7 @@ try {
   phase = 'bounded-delivery-drain'
   progress()
   await until(() => observers.every(observer => observer.seen.size === envelope.writes / 4), 30000)
+  deliveryClock.assertComplete()
   phase = 'database-cross-check'
   const eventRows = await db`SELECT a.id,a.entity_id,a.workspace_id,o.published_at FROM activity_events a JOIN outbox_events o ON o.id=a.id WHERE a.workspace_id=ANY(${workspaces}::uuid[]) AND a.event_type='task-created'`
   const taskRows = await db`SELECT id,workspace_id,title FROM tasks WHERE workspace_id=ANY(${workspaces}::uuid[])`
@@ -362,7 +364,6 @@ try {
   if (acceptance) assert.ok(observers.every(observer => observer.connections >= 4), 'Normal four-minute SSE rotation was not observed')
   result = { passed: true, mode, scope: smoke ? 'SMOKE ONLY; not NFR evidence' : diagnostic ? 'DIAGNOSTIC ONLY; not NFR acceptance' : 'Local production, real local Supabase Auth/PostgreSQL and Redis; not hosted release evidence', runId, envelope, elapsedMs: Math.round(elapsedMs), attempts, readAttempts, streamAttempts, errors: errors.length, errorRate: errors.length / attempts,
     mutations: mutations.length, durableEvents: eventRows.length, receipts: receiptRows.length, uniqueRecipientDeliveries: samples.deliveryUpperBound.length, deliveries: deliveryCounts(), normalAdmissionLimits: true, allRolesActuallyActive: true, connections: observers.map(observer => observer.connections), timings: Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, summary(values)])),
-    deliveryTiming: 'Transaction-assigned event timestamp to observer receipt, conservative upper bound on commit-to-observer; not exact commit timestamp',
     performanceThresholds: { taskReadP95Ms: 750, deliveryUpperBoundP95Ms: 2000, unexpectedFailureRateExclusive: .01 }, performanceTargets: { taskReadP95Within750ms: percentile(samples.read, .95) <= 750, deliveryUpperBoundP95Within2s: percentile(samples.deliveryUpperBound, .95) <= 2000, unexpectedFailureRateBelow1Percent: errors.length / attempts < .01 }, performanceAssertionsApplied: acceptance, revocationWithin30s: 'not measured', reconciliationWithin5s: 'not measured' }
   if (acceptance && Object.values(result.performanceTargets).some(value => !value)) { result.passed = false; process.exitCode = 1 }
 } catch (error) {
@@ -376,6 +377,9 @@ try {
   result.fingerprint = fingerprint
   result.setupRecovery = setupRecovery
   result.databasePoolMax = process.env.DATABASE_POOL_MAX ?? '1'
+  result.timingSemanticsVersion = 2
+  result.deliveryTiming = 'Same-generator monotonic command dispatch to event receipt; conservative commit-to-observer upper bound including Auth, request and SQL work; not exact commit timestamp'
+  result.deliveryClock = deliveryClock.status()
   result.phaseProfiling = diagnostic || profile
   result.readWorkload = { scheduling: 'Response-dependent reads with 15-second think time per user', attempts: samples.read.length, achievedRequestsPerSecond: result.elapsedMs ? samples.read.length * 1000 / result.elapsedMs : 0 }
   stopping = true
@@ -390,7 +394,6 @@ try {
     const cleanupUsers = [...new Map([...users, ...discovered].map(user => [user.id, user])).values()]
     recordOwnedFixtures(cleanupUsers.map(user => user.id))
     if (db) await db.begin(async tx => {
-      if (canvasFixtures) canvasRemaining = await cleanupCanvasAccessFixtures(tx, canvasFixtures)
       await tx`DELETE FROM outbox_events WHERE workspace_id=ANY(${workspaces}::uuid[])`
       await tx`DELETE FROM activity_events WHERE workspace_id=ANY(${workspaces}::uuid[])`
       await tx`DELETE FROM workspaces WHERE id=ANY(${workspaces}::uuid[])`
@@ -418,7 +421,6 @@ try {
     }
     result.cleanup = 'Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped'
   } catch { result.cleanup = 'FAILED; owned-fixtures.json records exact disposable UUIDs for recovery; no broad deletion attempted'; result.passed = false; process.exitCode = 1 }
-  result.canvasAccess = { enabled: canvasAccess, seeded: canvasSeeded, remaining: canvasRemaining }
   await bridge?.close(); await db?.end()
   result.timingEvidence = { file: 'timings.jsonl', samples: timingCount, dropped: timingDropped, limit: timingLimit }
   flushTimings()

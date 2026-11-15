@@ -38,9 +38,11 @@ import { normalizeEmail } from "@/lib/identity"
 import { removeDraft, clearAccountDrafts } from "@/lib/draft-storage"
 import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
-type SessionUser = { email: string; username: string }
+type SessionUser = { id: string; email: string; username: string }
 export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null)
+  const creationActor = useRef(user?.id)
+  useLayoutEffect(() => { creationActor.current = user?.id }, [user?.id])
   const [loading, setLoading] = useState(true)
   const [askOpen, setAskOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -258,10 +260,13 @@ export default function Dashboard() {
     window.history.replaceState(null, "", "#workspace-header")
   }
 
-  const handleCreateWorkspace = async (name: string, details: { summary: string; targetDate: string | null }) => {
-    const workspace = await createWorkspace(name, details)
-    if (!workspace) return { error: "Unable to create the workspace." }
-    finishWorkspaceCreation(workspace.id)
+  const handleCreateWorkspace = async (name: string, details: { summary: string; targetDate: string | null }, commandId: string) => {
+    const actor = user?.id
+    const result = await createWorkspace(name, details, commandId, actor ?? "")
+    if (result?.error || !result?.workspace) return { error: result?.error ?? "Unable to confirm workspace creation.", rejected: result?.rejected }
+    if (actor !== creationActor.current) return {}
+    if (result.workspace.archivedAt) { setCreatingWorkspace(false); info("Workspace already created", "The workspace is now archived."); return {} }
+    finishWorkspaceCreation(result.workspace.id)
     return {}
   }
 
@@ -285,11 +290,17 @@ export default function Dashboard() {
     await refreshWorkspaces()
   }
 
-  const handleApprovePlan = async (plan: WorkspacePlan) => {
-    const result = await createWorkspaceFromPlan(plan)
-    if (result.error || !result.workspace) return { error: result.error ?? "Unable to create the workspace." }
-    await refreshWorkspaces()
-    finishWorkspaceCreation(result.workspace.id)
+  const handleApprovePlan = async (plan: WorkspacePlan, commandId: string) => {
+    const actor = user?.id
+    const result = await createWorkspaceFromPlan(plan, commandId, actor ?? "")
+    if (result.error || !result.workspace) return { error: result.error ?? "Unable to confirm workspace creation.", rejected: result.unknownOutcome === false }
+    if (actor !== creationActor.current) return {}
+    try {
+      await refreshWorkspaces()
+      if (actor !== creationActor.current) return {}
+      if (result.workspace.archivedAt) { setCreatingWorkspace(false); info("Workspace already created", "The workspace is now archived."); return {} }
+      finishWorkspaceCreation(result.workspace.id)
+    } catch { setCreatingWorkspace(false); info("Workspace created", "Refresh to see the workspace.") }
     return {}
   }
 
@@ -453,7 +464,9 @@ export default function Dashboard() {
               </section>
             ) : !showWorkspace ? (
               <WorkspaceCreateForm
-                key={creatingWorkspace ? "new" : "first"}
+                key={`${user.id}:${creatingWorkspace ? "new" : "first"}`}
+                actorId={user.id}
+                account={user.email}
                 aiEnabled={aiWorkspaceEnabled}
                 canCancel={workspaces.length > 0}
                 onCancel={() => setCreatingWorkspace(false)}

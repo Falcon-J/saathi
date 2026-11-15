@@ -1,10 +1,12 @@
 import { assertWorkspaceAccess } from "../../features/access/service.ts"
+import { requireAccessIdentifier } from "../../features/access/errors.ts"
 import type { AccessCapability } from "../../features/access/contracts.ts"
 import { taskDeadline } from "../task-deadline.ts"
 import { z } from "zod"
 import { commandHash, readCommandReceipt, saveCommandReceipt } from "./command-receipts.ts"
 import { randomUUID } from "node:crypto"
 import { getDb, type Transaction } from "../db/client.ts"
+import { getCurrentTransaction } from "../db/transaction-context.ts"
 import { appendDomainEvent } from "./events.ts"
 import { normalizeTaskUpdates, type TaskUpdate, type Task } from "../task-contract.ts"
 import { canChangeTask, matchesTaskVersion } from "../task-permission.ts"
@@ -80,17 +82,20 @@ export async function listTaskRecordsPage(actorId: string, workspaceId: string, 
     scope = normalizeTaskPage(input)
     if(scope.cursor) boundary = decodeTaskCursor(scope.cursor,workspaceId,scope)
   } catch { throw new TaskError("Invalid task page or cursor", "validation") }
-  // ACL facts and page rows share the same repeatable-read snapshot.
-  return getDb().begin("isolation level repeatable read read only", async tx => {
-  await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
+  requireAccessIdentifier(actorId)
+  const database = getDb()
   // Compare cursor timestamps in SQL: JS Dates truncate stored microseconds.
-  const rows = await tx`WITH authorized AS MATERIALIZED (
-      SELECT w.id FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+  const readRows = (db: Db, legacyOnly: boolean) => db`WITH scoped AS MATERIALIZED (
+      SELECT w.id,r.id AS resource_id FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+      LEFT JOIN canvas_resources r ON r.workspace_id=w.id
       WHERE w.id=${workspaceId} AND m.user_id=${actorId}
+    ), authorized AS MATERIALIZED (
+      SELECT id FROM scoped WHERE ${!legacyOnly} OR resource_id IS NULL
     ), boundary_task AS (
       SELECT t.created_at FROM tasks t JOIN authorized a ON a.id=t.workspace_id WHERE t.id=${boundary}::uuid
     ), access AS (
       SELECT EXISTS(SELECT 1 FROM authorized) AS authorized,
+        EXISTS(SELECT 1 FROM scoped WHERE resource_id IS NOT NULL) AS section_attached,
         (${boundary}::uuid IS NULL OR EXISTS(SELECT 1 FROM boundary_task)) AS cursor_valid
     )
     SELECT access.*, page.* FROM access LEFT JOIN LATERAL (
@@ -106,11 +111,22 @@ export async function listTaskRecordsPage(actorId: string, workspaceId: string, 
           OR (t.created_at = (SELECT created_at FROM boundary_task) AND t.id>${boundary}::uuid))
       ORDER BY t.created_at DESC,t.id ASC LIMIT ${scope.limit+1}
     ) page ON true ORDER BY page.created_at DESC,page.id ASC`
+  const project = (rows: Row[]): TaskPage => {
   if (!rows[0]?.authorized) throw new TaskError("Workspace unavailable or access denied", "forbidden")
   if (!rows[0].cursor_valid) throw new TaskError("Task cursor unavailable", "validation")
   const tasks = rows.filter(row => row.id !== null)
   const visible=tasks.slice(0,scope.limit)
   return {tasks:visible.map(mapTask),nextCursor:tasks.length>scope.limit ? encodeTaskCursor(workspaceId,scope,visible[visible.length-1].id) : null}
+  }
+  // Membership, absent attachment and returned data are one statement snapshot.
+  // Attached workspaces yield no data here; policy is re-read in the full path.
+  if (!getCurrentTransaction()) {
+    const rows = await readRows(database, true)
+    if (rows[0]?.section_attached === false) return project(rows)
+  }
+  return database.begin("isolation level repeatable read read only", async tx => {
+    await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
+    return project(await readRows(tx, false))
   })
 }
 export async function getTaskRecord(actorId: string, workspaceId: string, taskId: string): Promise<Task> {
@@ -124,19 +140,32 @@ export async function getTaskRecord(actorId: string, workspaceId: string, taskId
 }
 export async function getTaskAggregates(actorId: string, workspaceId: string): Promise<TaskAggregates> {
   if(!z.string().uuid().safeParse(workspaceId).success) throw new TaskError("Invalid workspace identifier","validation")
-  return getDb().begin("isolation level repeatable read read only", async tx => {
-  await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
-  const [row]=await tx`WITH authorized AS MATERIALIZED (
-      SELECT w.id,w.timezone FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+  requireAccessIdentifier(actorId)
+  const database = getDb()
+  const readRows = (db: Db, legacyOnly: boolean) => db`WITH scoped AS MATERIALIZED (
+      SELECT w.id,w.timezone,r.id AS resource_id FROM workspaces w JOIN workspace_members m ON m.workspace_id=w.id
+      LEFT JOIN canvas_resources r ON r.workspace_id=w.id
       WHERE w.id=${workspaceId} AND m.user_id=${actorId}
+    ), authorized AS MATERIALIZED (
+      SELECT id,timezone FROM scoped WHERE ${!legacyOnly} OR resource_id IS NULL
     ) SELECT EXISTS(SELECT 1 FROM authorized) AS authorized,count(*)::int AS total,
+      EXISTS(SELECT 1 FROM scoped WHERE resource_id IS NOT NULL) AS section_attached,
       count(*) FILTER(WHERE status='todo')::int AS todo, count(*) FILTER(WHERE status='in_progress')::int AS progress,
       count(*) FILTER(WHERE status='done')::int AS done, count(*) FILTER(WHERE priority='low')::int AS low,
       count(*) FILTER(WHERE priority='medium')::int AS medium, count(*) FILTER(WHERE priority='high')::int AS high,
       count(*) FILTER(WHERE status<>'done' AND (due_at < now() OR (due_at IS NULL AND due_date < (now() AT TIME ZONE a.timezone)::date)))::int AS overdue
       FROM tasks t JOIN authorized a ON a.id=t.workspace_id`
+  const project = (row: Row | undefined): TaskAggregates => {
   if (!row?.authorized) throw new TaskError("Workspace unavailable or access denied", "forbidden")
   return {total:row.total,open:row.total-row.done,done:row.done,overdue:row.overdue,byStatus:{todo:row.todo,"in-progress":row.progress,done:row.done},byPriority:{low:row.low,medium:row.medium,high:row.high}}
+  }
+  if (!getCurrentTransaction()) {
+    const rows = await readRows(database, true)
+    if (rows[0]?.section_attached === false) return project(rows[0])
+  }
+  return database.begin("isolation level repeatable read read only", async tx => {
+    await assertWorkspaceAccess(actorId, workspaceId, "read", tx)
+    return project((await readRows(tx, false))[0])
   })
 }
 export async function createTaskRecord(actorId: string, workspaceId: string, input: TaskUpdate, commandId?: string): Promise<Task> {

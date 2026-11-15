@@ -33,6 +33,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: '1'
       DATABASE_POOL_MAX: '1'
+      SAATHI_QA_SUPABASE_PROJECT: saathi-performance-ci
       SAATHI_QA_CANVAS_ACCESS: 'true'
     steps:
       - uses: actions/checkout@v4

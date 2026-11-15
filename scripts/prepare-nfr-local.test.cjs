@@ -10,7 +10,7 @@ test('preparation rejects remote or wrong-project endpoints before migration or 
     { DB_URL: 'postgresql://private-password@remote.example.test/postgres' }, { DB_URL: 'postgresql://postgres:private-password@127.0.0.1:54322/postgres' },
     { API_URL: 'http://127.0.0.1:56321/other' }, { API_URL: 'http://user:private-password@127.0.0.1:56321' }]) {
     const calls = []
-    await assert.rejects(prepareNfr({ env: {}, run: async (...args) => { calls.push(args); return JSON.stringify({ ...status, ...override }) }, log() {} }),
+    await assert.rejects(prepareNfr({ configure() {}, record() {}, env: {}, run: async (...args) => { calls.push(args); return JSON.stringify({ ...status, ...override }) }, log() {} }),
       error => !error.message.includes('private-password') && !error.message.includes('remote.example'))
     assert.equal(calls.length, 1)
   }
@@ -22,7 +22,7 @@ test('preparation runs real migrations and default production build using privat
   const parent = { PATH: 'tools', HOME: 'home', GITHUB_TOKEN: 'private-github', OPENAI_API_KEY: 'private-openai',
     DATABASE_URL: 'postgresql://private-production', DATABASE_POOL_MAX: '10', RATE_LIMIT_TASKS_MAX: '999999', SSE_MAX_CONNECTIONS: '999999', SAATHI_QA_SUPABASE_CLI: '/tools/supabase' }
   const before = { ...parent }
-  await prepareNfr({ env: parent, run: async (...args) => { calls.push(args); return calls.length === 1 ? JSON.stringify(status) : '' }, log: value => logs.push(value) })
+  await prepareNfr({ configure() {}, record() {}, env: parent, run: async (...args) => { calls.push(args); return calls.length === 1 ? JSON.stringify(status) : '' }, log: value => logs.push(value) })
   assert.deepEqual(parent, before)
   assert.deepEqual(calls[0].slice(0, 2), ['/tools/supabase', ['status', '--workdir', '.local-test/supabase-acceptance', '-o', 'json']])
   assert.equal(calls[0][2].capture, true)
@@ -49,7 +49,7 @@ test('preparation accepts IPv6 loopback and legacy anon public keys without expo
   const anon = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ role: 'anon' })).toString('base64url')}.signature`
   let calls = 0
   const logs = []
-  await prepareNfr({ env: {}, run: async () => ++calls === 1 ? JSON.stringify({ ...status, API_URL: 'http://[::1]:56321', DB_URL: 'postgres://postgres:private-password@[::1]:56322/postgres', PUBLISHABLE_KEY: undefined, ANON_KEY: anon }) : '', log: value => logs.push(value) })
+  await prepareNfr({ configure() {}, record() {}, env: {}, run: async () => ++calls === 1 ? JSON.stringify({ ...status, API_URL: 'http://[::1]:56321', DB_URL: 'postgres://postgres:private-password@[::1]:56322/postgres', PUBLISHABLE_KEY: undefined, ANON_KEY: anon }) : '', log: value => logs.push(value) })
   assert.equal(calls, 4)
   assert.ok(!logs.join('').includes(anon))
 })
@@ -58,7 +58,7 @@ test('secret-role credentials cannot be selected as the public build key', async
   const { prepareNfr } = await import('./prepare-nfr-local.mjs')
   for (const key of [status.SECRET_KEY, `header.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.signature`]) {
     let calls = 0
-    await assert.rejects(prepareNfr({ env: {}, run: async () => { calls++; return JSON.stringify({ ...status, PUBLISHABLE_KEY: key }) }, log() {} }))
+    await assert.rejects(prepareNfr({ configure() {}, record() {}, env: {}, run: async () => { calls++; return JSON.stringify({ ...status, PUBLISHABLE_KEY: key }) }, log() {} }))
     assert.equal(calls, 1)
   }
 })
@@ -79,7 +79,18 @@ test('child diagnostics retain safe output and redact credentials without leakin
 test('migration failure stops preparation and reports only its safe phase', async () => {
   const { prepareNfr } = await import('./prepare-nfr-local.mjs')
   let calls = 0
-  await assert.rejects(prepareNfr({ env: {}, run: async () => { if (++calls === 1) return JSON.stringify(status); throw new Error('private-password private-jwt-secret') }, log() {} }),
+  await assert.rejects(prepareNfr({ configure() {}, record() {}, env: {}, run: async () => { if (++calls === 1) return JSON.stringify(status); throw new Error('private-password private-jwt-secret') }, log() {} }),
     error => /migration/.test(error.message) && !error.message.includes('private-'))
   assert.equal(calls, 2)
 })
+
+test('Auth pool validation uses the selected disposable project and blocks migration on failure', async () => {
+  const { prepareNfr } = await import('./prepare-nfr-local.mjs')
+  let commands = 0, configuration
+  await assert.rejects(prepareNfr({ env: { SAATHI_QA_SUPABASE_PROJECT: 'saathi-performance-ci' }, run: async () => { commands++; return JSON.stringify(status) },
+    configure: async input => { configuration = input; throw Error('private-password') }, log() {}, record() {} }), error => /pooling/.test(error.message) && !error.message.includes('private-password'))
+  assert.equal(commands, 1)
+  assert.deepEqual(configuration, { project: 'saathi-performance-ci', apiOrigin: status.API_URL })
+})
+
+test('hosted acceptance workflows select their disposable Auth project before preparation',()=>{for(const file of ['.github/workflows/canvas-acceptance.yml','.github/workflows/performance.yml']){const source=require('node:fs').readFileSync(file,'utf8');const beforeSteps=source.split(/    steps:/)[0];assert.match(beforeSteps,/SAATHI_QA_SUPABASE_PROJECT:\s*saathi-performance-ci/,file)}})

@@ -10,7 +10,7 @@ function load(path, dependencies, browser) {
   new Function('require', 'exports', 'window', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, browser)
   return exports
 }
-const runtime = { 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts') }
+const runtime = { '@/lib/feature-flags': { resolveFeatureFlags: () => ({ aiWorkspace: true, csvImport: true }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts') }
 
 test('canvas route redirects anonymous accounts before mounting the client surface', async () => {
   const route = load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: async () => null },
@@ -35,7 +35,7 @@ function bar(overrides = {}) {
   let cursor = 0, tree
   const props = { scopeName: 'Workspace', tasks: [{ id: 'a', title: 'Allowed task', completed: false }], selectedTask: { id: 'a', title: 'Allowed task', completed: false },
     canComplete: true, disabled: false, busy: false, onCreate: () => calls.push('create'), onComplete: () => calls.push('complete'), onOpenTask: id => calls.push(id), onWorkspace() {}, onList: () => calls.push('list'), ...overrides }
-  const react = { useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value }] }, useRef(initial) { return slots[cursor++] ??= { current: initial } },
+  const react = { useMemo(fn) { cursor++; return fn() }, useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value }] }, useRef(initial) { return slots[cursor++] ??= { current: initial } },
     useEffect(fn) { cursor++; fn() } }
   const ui = { Command: 'Command', CommandEmpty: 'CommandEmpty', CommandGroup: 'CommandGroup', CommandInput: 'CommandInput', CommandItem: 'CommandItem', CommandList: 'CommandList', CommandSeparator: 'CommandSeparator' }
   const exports = load('components/canvas/canvas-command-bar.tsx', { ...runtime, react, './use-canvas-search': { useCanvasSearch: () => ({ items: [], loading: false }) }, '@/components/ui/command': ui, '@/components/ui/button': { Button: 'Button' } },
@@ -67,6 +67,16 @@ test('read-only command access preserves navigation while hiding task creation',
   const ui = bar({ canCreate: false, canComplete: false })
   assert.equal(ui.action('Create task'), undefined)
   assert.equal(ui.action('Open workspace').props.disabled, false)
+})
+
+test('primary canvas command keeps readable contrast when saving ends', () => {
+  for (const busy of [true, false]) {
+    const ui = bar({ busy })
+    const action = ui.render().find(node => node.type === 'Button' && node.props.title === 'Allowed task')
+    assert.ok(action)
+    assert.match(action.props.className, /disabled:opacity-100/)
+    assert.equal(action.props.disabled, busy)
+  }
 })
 
 test('busy and denied scopes prevent dispatch when handlers are invoked directly', () => {
@@ -226,3 +236,7 @@ test('an unavailable canvas account can retry the same valid task link', async (
  const tree=await route.default({searchParams:Promise.resolve({workspace:'w',task:'t',view:'tasks'})});
  assert.equal(nodes(tree).find(n=>n.type==='a').props.href,'/canvas?workspace=w&task=t&view=tasks');
 });
+
+test('workspace commands retain local planning import tool and account actions without replacing scoped search',()=>{const calls=[],ui=bar({canEdit:true,canManage:true,onAsk:()=>calls.push('ask'),onImport:()=>calls.push('import'),onTool:t=>calls.push(t),onNavigate:p=>calls.push(p)});for(const name of ['Ask Saathi','Import tasks','Prerequisites','Agent runs','Team','History','Settings','Archive','Connections'])assert.ok(ui.action(name),name);ui.action('Ask Saathi').props.onSelect();assert.deepEqual(calls,['ask']);const broad=bar({searchScope:{resourceId:'section'},canEdit:true,canManage:true,onAsk(){},onImport(){},onTool(){},onNavigate(){}});assert.equal(broad.action('Ask Saathi'),undefined);assert.equal(broad.action('Import tasks'),undefined);assert.equal(broad.action('Settings'),undefined);assert.ok(broad.action('Connections'))})
+
+test('workspace search scans the full authorized graph while rendering at most fifty task matches',()=>{const tasks=Array.from({length:1000},(_,i)=>({id:'task-'+i,title:'Task '+i,description:i===999?'Unique description needle':'',completed:false}));const ui=bar({tasks,selectedTask:null,canComplete:false});assert.equal(ui.render().filter(n=>n.type==='CommandItem'&&n.props.value.startsWith('task-')).length,50);ui.render().find(n=>n.type==='CommandInput').props.onValueChange('Unique description needle');assert.equal(ui.render().filter(n=>n.type==='CommandItem'&&n.props.value.startsWith('task-')).length,1);assert.ok(ui.render().some(n=>n.type==='CommandItem'&&n.props.value.startsWith('task-999 ')))})

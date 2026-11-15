@@ -1,8 +1,8 @@
 "use client"
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
-import { Background, Controls, Handle, Position, ReactFlow, useStore, type Node, type NodeProps, type Viewport, type ReactFlowInstance } from "@xyflow/react"
+import { Background, Handle, Position, ReactFlow, type Node, type NodeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Button } from "@/components/ui/button"
 import { taskNodeId, workspaceNodeId, type CanvasFocus, type CanvasProjection, type CanvasReadiness, type CanvasRepresentation } from "@/features/canvas/model"
@@ -27,7 +27,7 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
   return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground ${container ? "border-dashed border-border bg-muted/10" : workspace ? "border-border bg-card/95 shadow-sm" : "border-primary/25 bg-card shadow-sm"}`}>
     <Handle type="target" position={Position.Left} style={canvasHandleStyle} isConnectable={false} />
     <div className={workspace ? "flex h-28 items-start justify-between gap-4 overflow-hidden px-5 py-4" : "flex h-full flex-col gap-3 p-4"}>
-      <div className={workspace ? "min-w-0" : "min-h-0 flex-1 overflow-hidden"}><h2 title={data.title} className={`line-clamp-2 break-words font-semibold tracking-tight ${workspace ? "text-lg" : "text-base"}`}>{data.title}</h2>
+      <div className={workspace ? "min-w-0" : "min-h-0 flex-1 overflow-hidden"}><h2 title={data.title} className={`line-clamp-2 break-words font-semibold tracking-tight ${workspace ? "text-lg" : "text-base"}`}><button type="button" className="nodrag nopan cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-ring" onClick={event => { event.stopPropagation(); data.open() }}>{data.title}</button></h2>
         {data.representation !== "compact" && data.subtitle && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{data.subtitle}</p>}
         {!workspace && data.representation === "detail" && data.description && <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{data.description}</p>}
       </div>
@@ -44,15 +44,9 @@ const ariaLabels = {
   "edge.a11yDescription.default": "Task prerequisite or canvas association. The connection name identifies its purpose.",
 }
 
-function readCamera(key: string): (Viewport & { canvasWidth?: number; canvasHeight?: number }) | null {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) ?? "null")
-    return parsed && [parsed.x, parsed.y, parsed.zoom].every(Number.isFinite) && parsed.zoom >= 0.15 && parsed.zoom <= 2
-      ? { x: parsed.x, y: parsed.y, zoom: parsed.zoom, canvasWidth: parsed.canvasWidth, canvasHeight: parsed.canvasHeight } : null
-  } catch { return null }
-}
-
-export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true }: {
+import { CanvasCamera, type CanvasCameraHandle, type CanvasTool } from "./canvas-camera"
+import { readCanvasCamera, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM } from "./camera-utils"
+export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true, compact }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
@@ -66,65 +60,18 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
   onOpenResource: (id: string) => void
   focus: CanvasFocus
   followingAgent: boolean
+  compact?: boolean
+  restoreReady?: boolean
   ready?: boolean
 }) {
   const { resolvedTheme } = useTheme()
-  const [initialCamera] = useState(() => readCamera(cameraKey))
-  const flow = useRef<ReactFlowInstance<FlowNode> | null>(null)
-  const [initialized, setInitialized] = useState(false)
-  const canvasWidth = useStore(state => state.width)
-  const canvasHeight = useStore(state => state.height)
-  useEffect(() => {
-    if (canvasWidth > 0) onViewportWidthChange(canvasWidth)
-  }, [canvasWidth, onViewportWidthChange])
-  const previousSize = useRef<{ width: number; height: number } | null>(null)
-  const pendingResize = useRef(false)
-  const restoredCamera = useRef(false)
-  const manualCamera = useRef(false)
-  const manualFocusCamera = useRef(false)
-  const resourceKey = resources.map(resource => resource.id).join("|")
-  useEffect(() => {
-    if (resourceKey && !restoredCamera.current && !manualCamera.current && focus.kind === "overview") {
-      void flow.current?.fitView({ padding: 0.12, maxZoom: 1.2, duration: 0 })
-    }
-  }, [resourceKey, focus.kind])
-  const focusKey = JSON.stringify(focus)
-  const previousFocus = useRef(focusKey)
-  const previousFollowing = useRef(followingAgent)
-  const pendingFocus = useRef<string | null>(null)
-  const focusReady = focus.kind === "overview" || (focus.kind === "resource" ? resources.some(record => record.id === focus.resourceId) : (focus.kind === "workspace"
-    ? projection.records.workspaces.has(workspaceNodeId(focus.workspaceId))
-    : projection.records.tasks.has(taskNodeId(focus.workspaceId, focus.taskId))))
-  useEffect(() => {
-    if (previousFocus.current !== focusKey || (followingAgent && !previousFollowing.current)) {
-      pendingFocus.current = focusKey
-      manualFocusCamera.current = false
-    }
-    else if (previousFollowing.current && !followingAgent) pendingFocus.current = null
-    previousFocus.current = focusKey
-    previousFollowing.current = followingAgent
-    if (pendingFocus.current !== focusKey || !focusReady) return
-    pendingFocus.current = null
-    const focus: CanvasFocus = JSON.parse(focusKey)
-    const id = focus.kind === "task" ? taskNodeId(focus.workspaceId, focus.taskId)
-      : focus.kind === "workspace" ? workspaceNodeId(focus.workspaceId) : focus.kind === "resource" ? containerNodeId(focus.resourceId) : null
-    // Instant camera changes also respect reduced-motion preferences.
-    void flow.current?.fitView({ nodes: id ? [{ id }] : undefined, padding: 0.15, maxZoom: 1.2, duration: 0 })
-  }, [focusKey, focusReady, followingAgent])
-  useEffect(() => {
-    if (!initialized || canvasWidth <= 0 || canvasHeight <= 0) return
-    const previous = previousSize.current
-    if (!previous) pendingResize.current = initialCamera?.canvasWidth !== canvasWidth || initialCamera?.canvasHeight !== canvasHeight
-    else if (previous.width !== canvasWidth || previous.height !== canvasHeight) pendingResize.current = true
-    previousSize.current = { width: canvasWidth, height: canvasHeight }
-    if (!pendingResize.current || !ready || !focusReady) return
-    pendingResize.current = false
-    const current: CanvasFocus = JSON.parse(focusKey)
-    const id = current.kind === "task" ? taskNodeId(current.workspaceId, current.taskId)
-      : current.kind === "workspace" ? workspaceNodeId(current.workspaceId) : current.kind === "resource" ? containerNodeId(current.resourceId) : null
-    void flow.current?.fitView({ nodes: id ? [{ id }] : undefined, padding: 0.15, maxZoom: 1.2, duration: 0 })
-  }, [canvasWidth, canvasHeight, initialized, initialCamera, ready, focusReady, focusKey])
-  const nodes = useMemo<FlowNode[]>(() => {
+  const [initialCamera] = useState(() => readCanvasCamera(cameraKey, JSON.stringify(focus)))
+  const controller = useRef<CanvasCameraHandle | null>(null)
+  const events = useRef({ onOpen, onOpenResource, onOpenGroup })
+  useLayoutEffect(() => { events.current = { onOpen, onOpenResource, onOpenGroup } }, [onOpen, onOpenResource, onOpenGroup])
+  const [tool, setTool] = useState<CanvasTool>("select")
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const baseNodes = useMemo<FlowNode[]>(() => {
     const assigneeNames = new Map([...projection.records.workspaces.values()].flatMap(workspace => workspace.members.map(member => [member.email.toLowerCase(), member.username || member.email] as const)))
     const projected: FlowNode[] = projection.nodes.map(node => {
     const workspace = projection.records.workspaces.get(node.kind === "workspace" ? node.id : node.parentId!)!
@@ -136,7 +83,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
       return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
         hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height),
         ariaLabel: `${title}, ${node.count} tasks`, data: { title, count: node.count, representation: node.representation,
-          kind: node.kind, expanded: false, open: () => onOpenGroup(node.workspaceId, node.readiness!) } }
+          kind: node.kind, expanded: false, open: () => events.current.onOpenGroup(node.workspaceId, node.readiness!) } }
     }
     const subtitle = task
       ? [node.readiness === "completed_inconsistent" ? "Review completed work" : node.readiness, task.assigneeEmail ? assigneeNames.get(task.assigneeEmail.toLowerCase()) ?? task.assigneeEmail : null, formatTaskDue(task.dueAt, task.dueDate, workspace.timezone)].filter(Boolean).join(" · ")
@@ -146,7 +93,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
       ariaLabel: `${task?.title ?? workspace.name}${subtitle ? `, ${subtitle}` : ""}`,
       data: { title: task?.title ?? workspace.name, description: grouped ? undefined : task?.description ?? workspace.summary,
         subtitle, representation: node.representation, kind: node.kind, expanded: node.expanded,
-        open: () => onOpen(task ? { kind: "task", workspaceId: node.workspaceId, taskId: task.id } : { kind: "workspace", workspaceId: node.workspaceId }) } }
+        open: () => events.current.onOpen(task ? { kind: "task", workspaceId: node.workspaceId, taskId: task.id } : { kind: "workspace", workspaceId: node.workspaceId }) } }
     })
     const selected = projection.nodes.find(node => node.kind === "workspace")
     const hierarchy = layoutCompanyResources(resources, selected ? { workspaceId: selected.workspaceId, nodeId: selected.id, width: selected.width, height: selected.height } : undefined, workspaces)
@@ -162,47 +109,33 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
       return { id: box.id, type: box.kind, position: box.position, parentId: box.parentId,
         draggable: false, selectable: true, ...canvasNodeGeometry(box.width, box.height), ariaLabel: `${record?.kind ?? "workspace"} ${title}`,
         data: { title, representation: "summary" as const, kind: box.kind, expanded: box.kind === "container",
-          open: () => box.workspaceId ? onOpen({ kind: "workspace", workspaceId: box.workspaceId }) : onOpenResource(record!.id) } }
+          open: () => box.workspaceId ? events.current.onOpen({ kind: "workspace", workspaceId: box.workspaceId }) : events.current.onOpenResource(record!.id) } }
     }), ...projected.filter(node => node.type === "task" || node.type === "readiness")]
-  }, [projection, onOpen, onOpenGroup, resources, onOpenResource, workspaces])
-  const focusedId = focus.kind === "task" ? taskNodeId(focus.workspaceId, focus.taskId)
-    : focus.kind === "workspace" ? workspaceNodeId(focus.workspaceId) : focus.kind === "resource" ? containerNodeId(focus.resourceId) : null
-  const focusedNode = nodes.find(node => node.id === focusedId)
-  const focusedGeometry = focusedNode ? `${focusedNode.width}:${focusedNode.height}` : null
-  const previousGeometry = useRef<{ id: string | null; geometry: string | null }>({ id: focusedId, geometry: focusedGeometry })
-  const pendingGeometry = useRef(false)
-  useEffect(() => {
-    const previous = previousGeometry.current
-    if (previous.id !== focusedId) pendingGeometry.current = false
-    else if (previous.geometry && focusedGeometry && previous.geometry !== focusedGeometry) pendingGeometry.current = true
-    previousGeometry.current = { id: focusedId, geometry: focusedGeometry }
-    if (manualFocusCamera.current) { pendingGeometry.current = false; return }
-    if (!pendingGeometry.current || !initialized || !ready || !focusReady || !focusedId) return
-    pendingGeometry.current = false
-    void flow.current?.fitView({ nodes: [{ id: focusedId }], padding: 0.15, maxZoom: 1.2, duration: 0 })
-  }, [focusedId, focusedGeometry, initialized, ready, focusReady])
-  const initialize = useCallback((instance: ReactFlowInstance<FlowNode>) => {
-    flow.current = instance
-    setInitialized(true)
-    const camera = initialCamera
-    restoredCamera.current = Boolean(camera)
-    if (camera) void instance.setViewport(camera, { duration: 0 })
-    else void instance.fitView({ padding: 0.12, duration: 0 })
-  }, [initialCamera])
-  const finishMove = useCallback((_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
-    onZoom(viewport.zoom)
-    try { localStorage.setItem(cameraKey, JSON.stringify({ ...viewport, canvasWidth, canvasHeight })) } catch { /* Camera preferences are optional. */ }
-  }, [cameraKey, onZoom, canvasWidth, canvasHeight])
-  return <ReactFlow<FlowNode> nodes={nodes} edges={[...projection.edges, ...projectCanvasReferences(resources, references)]} nodeTypes={nodeTypes} defaultEdgeOptions={edgeOptions}
-    onNodeClick={(_event, node) => node.data.open()}
-    onPointerDownCapture={() => { manualCamera.current = true; manualFocusCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() }}
-    onKeyDownCapture={() => { manualCamera.current = true; manualFocusCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() }}
-    onInit={initialize} onMove={(_event, viewport) => onZoom(viewport.zoom)} onMoveEnd={finishMove}
-    onMoveStart={event => { if (event) { manualCamera.current = true; manualFocusCamera.current = true; pendingFocus.current = null; pendingResize.current = false; onManualNavigation() } }}
-    nodesDraggable={false} nodesConnectable={false} deleteKeyCode={null} minZoom={0.15} maxZoom={2}
-    defaultViewport={initialCamera ?? undefined} fitView={!initialCamera}
+  }, [projection, resources, workspaces])
+  const nodes = useMemo(() => baseNodes.map(node => selectedIds.has(node.id) ? { ...node, selected: true } : node), [baseNodes, selectedIds])
+  const changeNodes = useCallback((changes: NodeChange<FlowNode>[]) => {
+    const selections = changes.filter(change => change.type === "select")
+    if (!selections.length) return
+    setSelectedIds(current => {
+      const next = new Set(current)
+      for (const change of selections) { if (change.selected) next.add(change.id); else next.delete(change.id) }
+      return next.size === current.size && [...next].every(id => current.has(id)) ? current : next
+    })
+  }, [])
+  const edges = useMemo(() => [...projection.edges, ...projectCanvasReferences(resources, references)], [projection.edges, resources, references])
+  const cancelPending = useCallback(() => controller.current?.cancelPending(), [])
+  const keyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => controller.current?.keyDown(event), [])
+  const moveStart = useCallback((event: MouseEvent | TouchEvent | null) => { if (event) controller.current?.cancelPending() }, [])
+  return <ReactFlow<FlowNode> nodes={nodes} edges={edges} onNodesChange={changeNodes} onNodeDoubleClick={(_event, node) => node.data.open()} nodeTypes={nodeTypes} defaultEdgeOptions={edgeOptions}
+    onPointerDownCapture={cancelPending} onKeyDownCapture={keyDown} onMoveStart={moveStart}
+    selectionOnDrag={tool === "select"} panOnDrag={tool === "pan" ? true : [1, 2]} panActivationKeyCode="Space" panOnScroll
+    zoomOnScroll={false} zoomOnPinch zoomActivationKeyCode={["Control", "Meta"]}
+    nodesDraggable={false} nodesConnectable={false} deleteKeyCode={null} minZoom={MIN_CANVAS_ZOOM} maxZoom={MAX_CANVAS_ZOOM}
+    defaultViewport={initialCamera ?? undefined} fitView={false}
     nodesFocusable edgesFocusable disableKeyboardA11y={false} colorMode={resolvedTheme === "dark" ? "dark" : "light"} onlyRenderVisibleElements
     ariaLabelConfig={ariaLabels} proOptions={{ hideAttribution: false }}>
-    <Background gap={24} size={1} />{canvasHeight >= 180 && <Controls showInteractive={false} />}
+    <Background gap={24} size={1} />
+    <CanvasCamera nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} compact={compact} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
+      controllerRef={controller} tool={tool} onToolChange={setTool} onZoom={onZoom} onManualNavigation={onManualNavigation} />
   </ReactFlow>
 }

@@ -2,6 +2,12 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { readCanvasView, saveCanvasView } from "@/features/canvas/view-state"
+import { WorkspaceAdvisor } from "@/components/workspace-advisor"
+import { TaskImport } from "@/components/task-import"
+import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
+import { confirmWorkspaceAdvisorDraft } from "@/app/actions/workspace-advisor"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ReactFlowProvider } from "@xyflow/react"
 import { ArrowLeft, Building2, ChevronDown, List, Map as MapIcon, MoreHorizontal, Plus, RefreshCw } from "lucide-react"
@@ -37,7 +43,10 @@ const CanvasFlow = dynamic(() => import("./canvas-flow"), { ssr: false,
   loading: () => <p role="status" className="p-6">Loading canvas…</p> })
 type Tool = "ready" | "tasks" | "prerequisites" | "team" | "settings" | "activity" | "agents"
 
-export function CanvasShell({ email, actorId }: { email: string; actorId: string }) {
+export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnabled = true }: { email: string; actorId: string; aiEnabled?: boolean; csvImportEnabled?: boolean }) {
+  const router = useRouter()
+  const [askOpen, setAskOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const account = normalizeEmail(email)
   const scope = useMemo(() => ({ actorId, canvasId: "personal" }), [actorId])
   const store = useWorkspaces(email, { loadTasks: false })
@@ -72,7 +81,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const currentScope = useRef(workspace?.id)
   useLayoutEffect(() => { currentScope.current = workspace?.id }, [workspace?.id])
   const projection = useMemo(() => projectCanvas({ graphs, resources: companies.resources, navigation: currentNavigation, zoom, compact: compactCanvas }), [graphs, companies.resources, currentNavigation, zoom, compactCanvas])
-  const tasks = graph.entry?.graph.tasks ?? []
+  const tasks = useMemo(() => graph.entry?.graph.tasks ?? [], [graph.entry])
   const taskReadiness = useMemo(() => new Map(projection.nodes.filter(node => node.kind === "task").map(node => [node.recordId, node.readiness])), [projection.nodes])
   const listedTasks = listReadiness ? tasks.filter(task => taskReadiness.get(task.id) === listReadiness) : tasks
   const readinessNames = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
@@ -93,6 +102,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const canLeave = useCallback(() => !hasActiveDraft() || window.confirm("Leave this work area? Your unfinished draft will be kept for recovery."), [hasActiveDraft])
   const canLeaveAll = useCallback(() => !Object.values(dirty.current).some(Boolean) || window.confirm("Leave this page or workspace? Unsaved changes may be lost if browser recovery is unavailable."), [])
   const stopFollowing = useCallback(() => setNavigation(state => state.followingAgent ? { ...state, followingAgent: false } : state), [setNavigation])
+  const [locationInitialized, setLocationInitialized] = useState(false)
   const [pendingLocation, setPendingLocation] = useState<{ location: CanvasLocation | null } | null>(null)
   const browserNavigation = useRef<{ position: HistoryPosition; url: string; key: string; pending: boolean; expected: string | null; reverting: boolean } | null>(null)
   const location = useMemo<CanvasLocation>(() => ({ focus: focused, view: workOpen ? tool : null, group: workOpen && tool === "ready" ? readyGroup ?? null : null }), [focused, workOpen, tool, readyGroup])
@@ -104,8 +114,9 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     installHistoryPositions(window)
     const state = { position: readHistoryPosition(window), url: url(), key: "", pending: true, expected: null as string | null, reverting: false }
     browserNavigation.current = state
-    const initial = parseCanvasUrl(state.url)
-    if (initial?.focus.kind === "overview") { state.pending = false; state.key = canvasUrl(initial) }
+    const requested = parseCanvasUrl(state.url)
+    const initial = requested?.focus.kind === "overview" ? { ...requested, focus: readCanvasView(scope).focus } : requested
+    if (initial?.focus.kind === "overview") { state.pending = false; state.key = canvasUrl(initial); setLocationInitialized(true) }
     else setPendingLocation({ location: initial })
     const pop = (event: PopStateEvent) => {
       if (state.reverting) { state.reverting = false; return }
@@ -140,7 +151,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     }
     const unsubscribe = subscribeHistoryTraversal(window, pop)
     return () => { unsubscribe(); browserNavigation.current = null }
-  }, [actorId])
+  }, [actorId, scope])
   useEffect(() => {
     const state = browserNavigation.current
     if (!state || !pendingLocation) return
@@ -170,8 +181,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     state.url = canvasUrl(restored, state.url)
     window.history.replaceState(publicHistoryState(window.history.state), "", state.url)
     state.position = readHistoryPosition(window)
-    setPendingLocation(null)
-  }, [pendingLocation, store, companies.loading, companies.error, companies.resources, graph.entry, graph.loading, graph.error, tasks, actorId, scope, isOwner, capabilityCeiling])
+    setPendingLocation(null); setLocationInitialized(true)
+  }, [pendingLocation, store, store.loading, store.workspaceError, store.workspaces, store.currentWorkspaceId, companies.loading, companies.error, companies.resources, graph.entry, graph.loading, graph.error, tasks, actorId, scope, isOwner, capabilityCeiling])
   useEffect(() => {
     const state = browserNavigation.current
     if (!state || state.pending || state.reverting) return
@@ -180,17 +191,18 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     if ((intent.kind === "workspace" || intent.kind === "task") && store.workspaces.some(item => item.id === intent.workspaceId && permitsCapability(item.capabilityCeiling, "read")) && !graph.error && (graph.loading || graph.entry?.workspace.id !== intent.workspaceId)) return
     if (state.expected && state.expected !== locationKey) return
     state.expected = null
+    saveCanvasView(scope, currentNavigation.focus)
     if (state.key === locationKey) return
     // Reconciliation and agent following replace history; camera changes never enter it.
     const replace = navigation.followingAgent || canvasUrl({ focus: navigation.focus, view: workOpen ? tool : null, group: workOpen && tool === "ready" ? readyGroup ?? null : null }) !== locationKey
     state.url = canvasUrl(location, state.url); state.key = locationKey
     window.history[replace ? "replaceState" : "pushState"](publicHistoryState(window.history.state), "", state.url)
     state.position = readHistoryPosition(window)
-  }, [location, locationKey, navigation, actorId, workOpen, tool, readyGroup, store.loading, store.workspaceError, store.workspaces, companies.loading, companies.error, graph.loading, graph.error, graph.entry])
+  }, [scope, currentNavigation.focus, location, locationKey, navigation, actorId, workOpen, tool, readyGroup, store.loading, store.workspaceError, store.workspaces, companies.loading, companies.error, graph.loading, graph.error, graph.entry])
   const dismissPendingLocation = useCallback(() => {
     const state = browserNavigation.current
     if (state) { state.pending = false; state.expected = null }
-    setPendingLocation(null)
+    setPendingLocation(null); setLocationInitialized(true)
   }, [])
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => { if (Object.values(dirty.current).some(Boolean)) { event.preventDefault(); event.returnValue = "" } }
@@ -336,7 +348,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
         : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={beginCreateWorkspace}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
-        : <><div role="region" aria-label="Workspace canvas" className={`relative ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
+        : <><div role="region" aria-label="Workspace canvas" className={`relative ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow compact={compactCanvas} restoreReady={locationInitialized} projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
@@ -378,14 +390,43 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     {mutationError && <p role="alert" className={`absolute inset-x-4 z-30 mx-auto max-w-3xl rounded-lg border border-destructive/30 bg-card p-3 text-sm ${dockClearance}`}>{mutationError}</p>}
     <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} scopeName={breadcrumbs.map(item => item.label).join(" / ")} scopeLabel={breadcrumbs.at(-1)?.label ?? "Canvas"}
       searchScope={broadSearch ? focused.kind === "resource" ? { resourceId: focused.resourceId } : {} : undefined} searchRevision={JSON.stringify([actorId, store.realtime.eventRevision, revision, companies.resources, store.workspaces.map(item => item.id)])}
-      tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={!broadSearch && (capabilityCeiling.create ?? false)} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()} onWorkspace={openWorkspace} onList={() => { stopFollowing(); setListReadiness(null); setListOpen(true) }} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />
+      tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={!broadSearch && (capabilityCeiling.create ?? false)} canEdit={capabilityCeiling.edit} canManage={isOwner && capabilityCeiling.manage} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()} onAsk={!broadSearch && aiEnabled && capabilityCeiling.create ? () => { if (canLeave()) { stopFollowing(); setWorkOpen(false); setAskOpen(true) } } : undefined}
+      onImport={!broadSearch && csvImportEnabled && capabilityCeiling.create ? () => { if (canLeave()) { stopFollowing(); setWorkOpen(false); setImportOpen(true) } } : undefined}
+      onNavigate={path => { if (canLeaveAll()) router.push(path) }}
+      onTool={next => { if (!broadSearch && workspace && !commandDisabled && canLeave()) { dismissPendingLocation(); stopFollowing(); setTool(next); setWorkMounted(true); setWorkOpen(true) } }}
+      onWorkspace={openWorkspace} onList={() => { stopFollowing(); setListReadiness(null); setListOpen(true) }} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />
+    {workspace && aiEnabled && capabilityCeiling.create && !workspaceUnavailable && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="saathi-mobile-controls max-h-[85dvh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription className="sr-only">Review proposed tasks before creating them.</DialogDescription></DialogHeader>
+      <WorkspaceAdvisor key={`${actorId}:${workspace.id}`} workspaceId={workspace.id} timeZone={workspace.timezone} draftScope={draftScope}
+        onConfirmDraft={async (draft, commandId) => {
+          const workspaceId = workspace.id
+          const result = await confirmWorkspaceAdvisorDraft(workspaceId, draft, commandId)
+          if (result.task && currentScope.current === workspaceId) {
+            setRevision(value => value + 1)
+            try { if (!await graph.reload()) return { ...result, warning: "Task created. Refresh the canvas to see the latest tasks." } }
+            catch { return { ...result, warning: "Task created. Refresh the canvas to see the latest tasks." } }
+          }
+          return result
+        }} />
+    </DialogContent></Dialog>}
+    {workspace && csvImportEnabled && capabilityCeiling.create && !workspaceUnavailable && <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent><DialogHeader><DialogTitle>Import tasks</DialogTitle><DialogDescription className="sr-only">Review CSV tasks before importing them into this workspace.</DialogDescription></DialogHeader>
+      <TaskImport key={`${actorId}:${workspace.id}`} workspaceId={workspace.id} onImported={async () => { setRevision(value => value + 1); if (!await graph.reload()) throw new Error("Tasks imported. Refresh the canvas to see them.") }} />
+    </DialogContent></Dialog>}
     <Dialog open={listOpen} onOpenChange={setListOpen}><DialogContent className="saathi-mobile-controls max-h-[80dvh] overflow-y-auto"><DialogHeader><DialogTitle>{listReadiness ? readinessNames[listReadiness] : workspace?.name ?? "Workspace"} tasks</DialogTitle><DialogDescription className="sr-only">Open a task from the current authorized workspace.</DialogDescription></DialogHeader>
       {graph.error ? <p role="alert">{graph.error}</p> : graph.loading && !graph.entry ? <p role="status">Loading tasks…</p> : <ul className="space-y-2">{listedTasks.map(task => <li key={task.id}><Button variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" onClick={() => { openTask(task.id); setListOpen(false) }}>{task.title}<span className="ml-auto pl-3 text-xs text-muted-foreground">{taskReadiness.get(task.id)?.replaceAll("_", " ")}</span></Button></li>)}</ul>}
       {!graph.loading && !graph.error && listedTasks.length === 0 && <p>{listReadiness ? "No tasks in this group." : "No tasks in this workspace."}</p>}
     </DialogContent></Dialog>
-    <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent className="saathi-mobile-controls max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create workspace</DialogTitle><DialogDescription className="sr-only">Create a workspace using its name, goal and target date.</DialogDescription></DialogHeader>{createTarget ? <ContextualWorkspaceCreate actorId={actorId} target={createTarget} onCancel={() => setCreateOpen(false)} onCreated={async id => { const refreshed = await Promise.all([store.refreshWorkspaces(), companies.reload()]); setRevision(value => value + 1); if (!refreshed.every(Boolean)) throw new Error("Canvas refresh incomplete"); dirty.current = { tasks: false, settings: false }; dirtyEditorTask.current = undefined; setQuickAdd(0); setTasksMounted(false); store.setCurrentWorkspaceId(id); setNavigation(state => navigateCanvas(state, { kind: "workspace", workspaceId: id }, "manual")); setCreateOpen(false); setWorkOpen(false); setWorkMounted(false) }} /> : <WorkspaceCreateForm compact aiEnabled={false} canCancel onCancel={() => setCreateOpen(false)}
-      onCreate={async (name, details) => { await store.createWorkspace(name, details); setCreateOpen(false); setNavigation(createCanvasNavigation(scope)); setWorkOpen(false); setWorkMounted(false) }}
-      onSuggest={async () => ({ error: "Planning assistance is unavailable here." })} onApprove={async () => ({ error: "Use manual workspace creation." })} />}</DialogContent></Dialog>
+    <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent className="saathi-mobile-controls max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create workspace</DialogTitle><DialogDescription className="sr-only">Create a workspace using its name, goal and target date.</DialogDescription></DialogHeader>{createTarget ? <ContextualWorkspaceCreate actorId={actorId} target={createTarget} onCancel={() => setCreateOpen(false)} onCreated={async id => { const refreshed = await Promise.all([store.refreshWorkspaces(), companies.reload()]); setRevision(value => value + 1); if (!refreshed.every(Boolean)) throw new Error("Canvas refresh incomplete"); dirty.current = { tasks: false, settings: false }; dirtyEditorTask.current = undefined; setQuickAdd(0); setTasksMounted(false); store.setCurrentWorkspaceId(id); setNavigation(state => navigateCanvas(state, { kind: "workspace", workspaceId: id }, "manual")); setCreateOpen(false); setWorkOpen(false); setWorkMounted(false) }} /> : <WorkspaceCreateForm actorId={actorId} account={account} compact aiEnabled={aiEnabled} canCancel onCancel={() => setCreateOpen(false)}
+      onCreate={async (name, details, commandId) => { const result = await store.createWorkspace(name, details, commandId, actorId); if (result?.error || !result?.workspace) return { error: result?.error ?? "Unable to confirm workspace creation.", rejected: result?.rejected }; setCreateOpen(false); if (result.workspace.archivedAt) { setMutationError("The workspace was already created and is now archived."); return {} }; setNavigation(createCanvasNavigation(scope)); setWorkOpen(false); setWorkMounted(false) }}
+      onSuggest={generateWorkspaceDraft} onApprove={async (plan, commandId) => {
+        const result = await createWorkspaceFromPlan(plan, commandId, actorId)
+        if (result.error || !result.workspace) return { error: result.error ?? "Unable to confirm workspace creation.", rejected: result.unknownOutcome === false }
+        setCreateOpen(false)
+        if (result.workspace.archivedAt) { setMutationError("The workspace was already created and is now archived."); return {} }
+        setWorkOpen(false); setWorkMounted(false); setNavigation(createCanvasNavigation(scope))
+        try { if (!await store.refreshWorkspaces()) throw new Error("Refresh incomplete"); store.setCurrentWorkspaceId(result.workspace.id) }
+        catch { setMutationError("Workspace created. Refresh the canvas to see it.") }
+        return {}
+      }} />}</DialogContent></Dialog>
     <Dialog open={companyOpen} onOpenChange={setCompanyOpen}><DialogContent className="saathi-mobile-controls max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Company canvas</DialogTitle><DialogDescription className="sr-only">Manage companies, sections and their explicit access grants.</DialogDescription></DialogHeader>
       {companies.error ? <div role="alert" className="space-y-3"><p>{companies.error}</p><Button onClick={() => void companies.reload()}>Try again</Button></div> : companies.loading ? <p role="status">Loading companies…</p>
         : <CompanyPanel key={actorId} actorId={actorId} resources={companies.resources} workspace={workspace} initialResourceId={companyResourceId} refreshSignal={store.realtime.eventRevision + revision} onChanged={refreshAll}

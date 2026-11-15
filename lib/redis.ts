@@ -80,6 +80,8 @@ class RedisService {
         this.redis = new Redis({
           url,
           token,
+          // This adapter owns value and stream decoding; preserve wire strings.
+          automaticDeserialization: false,
           retry: {
             retries: this.maxRetries,
             backoff: (retryCount: number) => Math.min(1000 * Math.pow(2, retryCount), 10000)
@@ -488,8 +490,10 @@ class RedisService {
         // polls. XRANGE is supported by the same Redis Streams API and keeps
         // the cursor semantics explicit for our short polling interval.
         if (fromId === "$") return []
-        const entries = await this.xrange(streamKey, fromId, "+", count + 1)
-        return entries.filter(entry => compareStreamIds(entry.id, fromId) > 0).slice(0, count)
+        // Exclusive bounds avoid transferring and decoding the last-seen payload
+        // on every idle poll. Redis enforces full 64-bit stream-ID ordering.
+        const cursor = fromId === "0" ? "0-0" : fromId
+        return (await this.xrange(streamKey, `(${cursor}`, "+", count)).slice(0, count)
       } catch (error) {
         console.error(`[Saathi] Redis stream poll failed for stream ${streamKey}:`, error)
       }

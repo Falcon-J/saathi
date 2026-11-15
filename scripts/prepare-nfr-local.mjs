@@ -3,6 +3,8 @@ import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { recordLocalAcceptanceBuild } from './local-acceptance-build.mjs'
+import { configureLocalAuthPool } from './local-auth-pool.mjs'
 
 const workdir = '.local-test/supabase-acceptance'
 const inheritedNames = ['PATH', 'Path', 'HOME', 'USERPROFILE', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL', 'CI', 'GITHUB_ACTIONS', 'NPM_CONFIG_CACHE', 'npm_config_cache']
@@ -40,7 +42,7 @@ function publicKey(status) {
   throw new Error('Expected a public local Auth key')
 }
 
-export async function prepareNfr({ env = process.env, run = runCommand, log = value => console.log(value) } = {}) {
+export async function prepareNfr({ env = process.env, run = runCommand, record = recordLocalAcceptanceBuild, configure = configureLocalAuthPool, log = value => console.log(value) } = {}) {
   let phase = 'local status validation'
   try {
     const base = Object.fromEntries(inheritedNames.filter(name => env[name] !== undefined).map(name => [name, env[name]]))
@@ -48,6 +50,9 @@ export async function prepareNfr({ env = process.env, run = runCommand, log = va
     const api = endpoint(status.API_URL, ['http:'], '56321', ['', '/'])
     const database = endpoint(status.DB_URL, ['postgres:', 'postgresql:'], '56322', ['/postgres'])
     const key = publicKey(status)
+    phase = 'local Auth connection pooling'
+    await configure({ project: env.SAATHI_QA_SUPABASE_PROJECT || 'saathi-qa-20261105', apiOrigin: api.origin })
+    log('Disposable Auth connection reuse verified (maximum 10 open and 10 idle)')
     const redisToken = randomUUID(), cronSecret = randomUUID()
     const child = { ...base, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', SAATHI_BUILD_WORKERS: '1',
       DATABASE_URL: status.DB_URL, NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
@@ -66,6 +71,8 @@ export async function prepareNfr({ env = process.env, run = runCommand, log = va
     phase = 'production build'
     log(`Building the production app for loopback port ${api.port}`)
     await run(process.execPath, ['node_modules/next/dist/bin/next', 'build'], { env: child, redactions })
+    phase = 'production build provenance'
+    await record({ apiOrigin: api.origin, appOrigin: child.NEXT_PUBLIC_APP_URL, publicKey: key })
     log('Disposable local production build prepared')
   } catch {
     throw new Error(`NFR preparation failed during ${phase}; inspect sanitized command diagnostics`)
