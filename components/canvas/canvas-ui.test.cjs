@@ -69,6 +69,16 @@ test('read-only command access preserves navigation while hiding task creation',
   assert.equal(ui.action('Open workspace').props.disabled, false)
 })
 
+test('primary canvas command keeps readable contrast when saving ends', () => {
+  for (const busy of [true, false]) {
+    const ui = bar({ busy })
+    const action = ui.render().find(node => node.type === 'Button' && node.props.title === 'Allowed task')
+    assert.ok(action)
+    assert.match(action.props.className, /disabled:opacity-100/)
+    assert.equal(action.props.disabled, busy)
+  }
+})
+
 test('busy and denied scopes prevent dispatch when handlers are invoked directly', () => {
   for (const overrides of [{ disabled: true }, { busy: true }]) {
     const ui = bar(overrides)
