@@ -92,3 +92,5 @@ test('Auth pool validation uses the selected disposable project and blocks migra
   assert.equal(commands, 1)
   assert.deepEqual(configuration, { project: 'saathi-performance-ci', apiOrigin: status.API_URL })
 })
+
+test('hosted acceptance workflows select their disposable Auth project before preparation',()=>{for(const file of ['.github/workflows/canvas-acceptance.yml','.github/workflows/performance.yml']){const source=require('node:fs').readFileSync(file,'utf8');const beforeSteps=source.split(/    steps:/)[0];assert.match(beforeSteps,/SAATHI_QA_SUPABASE_PROJECT:\s*saathi-performance-ci/,file)}})
