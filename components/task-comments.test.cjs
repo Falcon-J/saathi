@@ -3,6 +3,11 @@ const test = require('node:test')
 const { readFileSync } = require('node:fs')
 const ts = require('typescript')
 
+
+const draftStorage = {}
+new Function('exports', ts.transpileModule(require('node:fs').readFileSync('lib/draft-storage.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(draftStorage)
+const memoryStorage = () => { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) } }
+
 const deferred = () => {
   let resolve
   const promise = new Promise(done => { resolve = done })
@@ -49,6 +54,7 @@ function harness(actions) {
   }).outputText
   const deps = {
     react,
+    '@/lib/draft-storage': draftStorage,
     'react/jsx-runtime': { jsx, jsxs: jsx },
     '@/app/actions/comments': actions,
     'lucide-react': { Loader2: 'Loader2', MessageSquare: 'MessageSquare' },
@@ -230,4 +236,55 @@ test('saving during a pending read reconciles retained and concurrent discussion
   assert.equal(ui.count('article'), 2)
   assert.deepEqual(cursors, [undefined, 'cursor'])
   assert.doesNotMatch(ui.text(), /Load older comments/)
+})
+
+test('comment drafts survive closing the task and stay within their account workspace scope', async () => {
+  global.sessionStorage = memoryStorage()
+  const actions = { getTaskComments: async () => ({ comments: [] }) }
+  const props = { taskId: 'task', draftScope: 'account:workspace' }
+  const first = harness(actions); first.render(props); await tick(); first.render(props)
+  first.find('Textarea').props.onChange({ target: { value: 'Retain my discussion' } }); first.render(props); first.unmount()
+  const reopened = harness(actions); reopened.render(props); await tick(); reopened.render(props)
+  assert.equal(reopened.find('Textarea').props.value, 'Retain my discussion')
+  const other = harness(actions); other.render({ ...props, draftScope: 'other:workspace' }); await tick(); other.render({ ...props, draftScope: 'other:workspace' })
+  assert.equal(other.find('Textarea').props.value, '')
+  delete global.sessionStorage
+})
+
+test('an interrupted comment save reuses its exact command after closing and reopening', async () => {
+  global.sessionStorage = memoryStorage()
+  const keys = [], pending = deferred()
+  const props = { taskId: 'task', draftScope: 'account:workspace' }
+  const actions = { getTaskComments: async () => ({ comments: [] }), addTaskComment: async (_task, _body, key) => { keys.push(key); return keys.length === 1 ? pending.promise : { comment } } }
+  const first = harness(actions); first.render(props); await tick(); first.render(props)
+  first.find('Textarea').props.onChange({ target: { value: 'Ready' } }); first.render(props)
+  const saving = first.find('form').props.onSubmit({ preventDefault() {} }); first.unmount()
+  const reopened = harness(actions); reopened.render(props); await tick(); reopened.render(props)
+  assert.equal(reopened.find('Textarea').props.value, 'Ready')
+  await reopened.find('form').props.onSubmit({ preventDefault() {} }); reopened.render(props)
+  assert.equal(keys.length, 2); assert.equal(keys[0], keys[1]); assert.equal(reopened.find('Textarea').props.value, '')
+  pending.resolve({ error: 'Response lost', unknownOutcome: true }); await saving
+  const last = harness(actions); last.render(props); await tick(); last.render(props)
+  assert.equal(last.find('Textarea').props.value, '')
+  delete global.sessionStorage
+})
+
+test('comment submissions pause when their recovery command cannot be stored', async () => {
+  global.sessionStorage = { getItem: () => null, setItem: () => { throw new Error('Storage denied') }, removeItem() {} }
+  let writes = 0
+  const props = { taskId: 'task', draftScope: 'account:workspace' }
+  const ui = harness({ getTaskComments: async () => ({ comments: [] }), addTaskComment: async () => { writes++; return { comment } } })
+  ui.render(props); await tick(); ui.render(props)
+  ui.find('Textarea').props.onChange({ target: { value: 'Keep in memory' } }); ui.render(props)
+  await ui.find('form').props.onSubmit({ preventDefault() {} }); ui.render(props)
+  assert.equal(writes, 0); assert.equal(ui.find('Textarea').props.value, 'Keep in memory'); assert.match(ui.text(), /storage/i)
+  delete global.sessionStorage
+})
+
+test('changing the discussion account scope starts a fresh authoritative read', async () => {
+  let reads = 0
+  const ui = harness({ getTaskComments: async () => { reads++; return { comments: [comment] } } })
+  ui.render({ taskId: 'task', draftScope: 'first:workspace' }); await tick(); ui.render({ taskId: 'task', draftScope: 'first:workspace' })
+  ui.render({ taskId: 'task', draftScope: 'second:workspace' }); await tick(); ui.render({ taskId: 'task', draftScope: 'second:workspace' })
+  assert.equal(reads, 2); assert.equal(ui.count('article'), 1)
 })

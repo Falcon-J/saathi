@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { groupTasksForOverview } from "@/lib/task-overview"
 import { formatCalendarDate, formatTaskDue, todayCalendarDate } from "@/lib/task-time"
 import { useTaskPermissions } from "@/hooks/usePermissions"
+import { permitsCapability } from "@/lib/capability-ceiling"
 
 type WorkspaceOverviewProps = {
   workspace: Workspace
@@ -26,18 +27,20 @@ type WorkspaceOverviewProps = {
   focusQuickAdd?: number
   title?: React.ReactNode
   commandBar?: React.ReactNode
+  workContent?: React.ReactNode
 }
 
 function TaskRow({ task, timeZone, workspace, currentUserEmail, onToggleTask, onOpenTask }: { task: Task; timeZone: string; workspace: Workspace; currentUserEmail: string; onToggleTask: (taskId: string) => Promise<unknown>; onOpenTask: (taskId: string) => void }) {
   const done = task.completed || task.status === "done"
   const permissions = useTaskPermissions(currentUserEmail, workspace, task)
+  const canToggle = permissions.canToggle && permitsCapability(workspace.capabilityCeiling, "edit")
 
   return (
     <div className="relative flex min-h-14 items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
       <button
         type="button"
-        disabled={!permissions.canToggle}
-        onClick={() => { if (permissions.canToggle) void onToggleTask(task.id) }}
+        disabled={!canToggle}
+        onClick={() => { if (canToggle) void onToggleTask(task.id) }}
         aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
         className={`grid size-11 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${done ? "bg-[var(--saathi-success)]/12 text-[var(--saathi-success)]" : "text-muted-foreground hover:bg-secondary hover:text-primary"}`}
       >
@@ -78,7 +81,7 @@ function TaskSection({ title, tasks, timeZone, workspace, currentUserEmail, empt
   )
 }
 
-export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, error, onDirtyChange, draftScope, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading, error, onDirtyChange, draftScope, onToggleTask, onOpenTask, onAddTask, onOpenBoard, onReviewBoard, focusQuickAdd, title, commandBar, workContent }: WorkspaceOverviewProps) {
   const groups = groupTasksForOverview(tasks, todayCalendarDate(workspace.timezone), workspace.timezone)
   return (
     <section id="project-board" aria-busy={loading} className="scroll-mt-32 rounded-[var(--saathi-radius-container)] border border-border bg-card shadow-sm">
@@ -91,15 +94,15 @@ export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading,
             </div>
             {title && workspace.summary && <p className="mt-2 max-w-2xl text-base leading-6 text-foreground">{workspace.summary}</p>}
           </div>
-          {!loading && !error && <div className="w-full max-w-48">
+          {!workContent && !loading && !error && <div className="w-full max-w-48">
             <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{groups.completed.length} of {tasks.length} complete</span><span className="tabular-nums">{groups.completion}%</span></div>
             <Progress value={groups.completion} aria-label="Task completion" className="h-2" />
           </div>}
         </div>
       </header>
       <div className="space-y-5 px-4 py-4 sm:px-6">
-        <TaskQuickAdd draftScope={draftScope} onDirtyChange={onDirtyChange} onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />
-        {loading ? (
+        {permitsCapability(workspace.capabilityCeiling, "create") && <TaskQuickAdd draftScope={draftScope} onDirtyChange={onDirtyChange} onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={focusQuickAdd} />}
+        {workContent ?? (loading ? (
           <div role="status" className="space-y-3">
             <span className="sr-only">Loading tasks…</span>
             {[1, 2, 3].map((item) => <div key={item} aria-hidden="true" className="h-14 animate-pulse rounded-lg bg-secondary" />)}
@@ -116,7 +119,7 @@ export function WorkspaceOverview({ workspace, currentUserEmail, tasks, loading,
               <div className="mt-3"><TaskSection title="Completed" tasks={groups.completed} timeZone={workspace.timezone} workspace={workspace} currentUserEmail={currentUserEmail} empty="Completed work will collect here." onToggleTask={onToggleTask} onOpenTask={onOpenTask} /></div>
             </details>
           </>
-        )}
+        ))}
         <Button type="button" variant="link" onClick={onOpenBoard} className="h-auto p-0">View all tasks <ArrowRight className="size-4" /></Button>
         {commandBar}
       </div>

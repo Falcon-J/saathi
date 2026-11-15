@@ -1,0 +1,27 @@
+{
+  "hostPhysicalMemoryMiB": 6030,
+  "observedAvailableMemoryMiB": 641,
+  "wslPriorMaximumMemory": "6GB",
+  "wslNewMaximumMemory": "2GB",
+  "wslProcessors": 4,
+  "swap": "8GB unchanged",
+  "socket": "User cleared stale dockerInference and userAnalyticsOtlpHttp.sock; fresh active sockets preserved",
+  "state": "healthy",
+  "wslRestart": "completed",
+  "engineRestart": "completed; retained PostgreSQL/Auth/Kong/inbucket healthy and Redis restored",
+  "rejectionReason": "blocked by policy; no detailed reason supplied",
+  "newMemoryCapUnderLoad": "Windows attempts retained as failed evidence; full capacity is verified separately on Linux CI",
+  "cleanup": {
+    "accountsAndDomainRows": "verified absent",
+    "legacyRedisKeysRemoved": 39,
+    "redisKeysRemaining": 0,
+    "testServerPort3101": "free",
+    "unacknowledgedAuthRowsRecovered": 1
+  },
+  "guestMemTotalKiB": 1951320,
+  "isolatedSqlVerification": {
+    "tests": 63,
+    "failures": 0,
+    "cleanup": "test database dropped and absence verified"
+  }
+}

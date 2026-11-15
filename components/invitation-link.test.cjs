@@ -108,3 +108,19 @@ test('revoking the displayed invite removes its copy control without hiding a di
  assert.equal(ui.draw().some(node=>node.props?.children==='Copy invite link'),false)
  assert.equal(ui.draw().some(node=>node.type==='Input'),false)
 })
+
+test('a reloaded accepted invitation offers the joined workspace without another acceptance', async () => {
+ const ui=fixture('components/join-invitation.tsx','JoinInvitation',{signedIn:true},{getInvitationLinkPreview:async()=>({...preview,status:'accepted',workspaceId:'joined'})})
+ ui.mount();await tick()
+ assert.ok(ui.draw().some(node=>node.type==='Link'&&node.props.href==='/dashboard?workspace=joined'))
+ assert.equal(ui.draw().some(node=>node.props?.children==='Join workspace'),false)
+})
+test('authorized terminal invitations render their known status without requiring a pending public preview', async () => {
+ for(const status of ['accepted','declined','revoked','expired']) {
+  const deps={'react/jsx-runtime':{jsx,jsxs:jsx},'next/link':{default:'Link'},'next/image':{default:'Image'},'@/components/saathi-logo':{SaathiLogo:'Logo'},'@/components/invitation-response':{},'@/lib/identity':{normalizeEmail:v=>v},'@/lib/auth-simple':{getSession:async()=>({email:'recipient@test'})},'@/app/actions/invitations':{getInvitation:async()=>({id:'id',workspaceName:'Pilot',inviterUsername:'Owner',inviteeEmail:'recipient@test',status,expiresAt:'2026-12-01'}),getInvitationPreview:async()=>null}}
+  const result={};new Function('require','exports',ts.transpileModule(fs.readFileSync('app/invitations/[id]/page.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(key=>deps[key],result)
+  const rows=nodes(await result.default({params:Promise.resolve({id:'id'})}))
+  assert.ok(JSON.stringify(rows).includes(status),status)
+  assert.equal(JSON.stringify(rows).includes('Invitation unavailable'),false)
+ }
+})

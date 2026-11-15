@@ -10,7 +10,10 @@ export async function GET(request: Request) {
     const usage = await getWorkspaceUsage(id, session.id)
     if (!usage) return Response.json({ error: "Forbidden" }, { status: 403 })
     return Response.json({ workspaceId: id, usage }, { headers: { "Cache-Control": "private, no-store" } })
-  } catch {
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "forbidden") {
+      return Response.json({ error: "Forbidden" }, { status: 403 })
+    }
     return Response.json({ error: "Service unavailable" }, { status: 503 })
   }
 }

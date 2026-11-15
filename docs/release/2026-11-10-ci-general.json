@@ -1,0 +1,218 @@
+{
+  "commit": "7ec500141eef3826da694bccc9b8ab6b69476158",
+  "runId": 42698922713,
+  "jobId": 129438131068,
+  "conclusion": "success",
+  "unit": {
+    "tests": 579,
+    "pass": 577,
+    "fail": 0,
+    "skipped": 2
+  },
+  "database": {
+    "tests": 63,
+    "pass": 63,
+    "fail": 0,
+    "skipped": 0
+  },
+  "browser": [
+    "  14 passed (19.7s)"
+  ],
+  "steps": [
+    "Set up job",
+    "Initialize containers",
+    "Run actions/checkout@v4",
+    "Run actions/setup-node@v4",
+    "Run npm ci",
+    "Run npm run type-check -- --incremental false",
+    "Run npm run lint",
+    "Run npm test",
+    "Prepare disposable SQL test database",
+    "Run npm run db:migrate",
+    "Run npm run test:database",
+    "Run npx playwright install --with-deps chromium",
+    "Run npm run test:e2e",
+    "Run npm run build -- --webpack",
+    "Post Run actions/setup-node@v4",
+    "Post Run actions/checkout@v4",
+    "Stop containers",
+    "Complete job"
+  ],
+  "performance": {
+    "runId": 42698922604,
+    "jobId": 129438131243,
+    "conclusion": "success",
+    "sourceHead": "7ec500141eef3826da694bccc9b8ab6b69476158",
+    "resultFile": "benchmarks/2026-11-10-linux-acceptance.json"
+  },
+  "finalMain": {
+    "commit": "94bd9cc42ee99bf373d96e8849c95faf521c2f7c",
+    "tree": "938ddc17bc70764d2fab9a743605064d95f31511",
+    "pullRequests": [
+      15,
+      16
+    ],
+    "runId": 42756029300,
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 129630509307,
+        "name": "verify",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 42756029300,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Initialize containers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Run npm ci",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run npm run type-check -- --incremental false",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Run npm run lint",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Run npm test",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Prepare disposable SQL test database",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Run npm run db:migrate",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Run npm run test:database",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Run npx playwright install --with-deps chromium",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Run npm run test:e2e",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Run npm run build -- --webpack",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 26
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 27
+          },
+          {
+            "name": "Stop containers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 28
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 29
+          }
+        ]
+      }
+    ],
+    "localVerification": {
+      "unitPassed": 577,
+      "optionalSkipped": 2,
+      "browserPassed": 16
+    }
+  },
+  "stateMachineAudit": {
+    "pullRequest": 17,
+    "head": "26735a280db1d0df7ab0fd122d2df5fdfb86610f",
+    "merge": "9d6ef0ddd201b25e35764e371748db8020215899",
+    "tree": "6e7b8509672e5ba966aaaf661ff86596d6f15afa",
+    "unit": {
+      "passed": 599,
+      "skipped": 2,
+      "failed": 0
+    },
+    "database": {
+      "passed": 63,
+      "failed": 0
+    },
+    "browser": {
+      "passed": 16,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionBuild": "passed",
+    "prRunId": 42766420228,
+    "mainRunId": 42766871515,
+    "automaticCodeReview": "completed_no_findings",
+    "machineCount": 41,
+    "productionDeployment": {
+      "status": "success",
+      "url": "https://saathi-ooq2esg0k-omkarjawalikar04-gmailcoms-projects.vercel.app",
+      "githubDeploymentId": 7675001830
+    },
+    "liveAcceptance": "complete",
+    "liveEvidence": "2026-11-11-live-ready-waiting.json",
+    "finalCloseoutDate": "2026-11-12",
+    "finalMainCiConclusion": "success"
+  }
+}

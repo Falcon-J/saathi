@@ -43,7 +43,7 @@ test("workspace domain transactions", { skip: !process.env.DATABASE_TEST_URL }, 
       assert.deepEqual(await listWorkspaces(member), [])
       await assert.rejects(updateWorkspaceRecord(member, workspace.id, { name: "Stolen" }, 1), /Only workspace owner/)
     })
-    await t.test("workspace listing uses two statements regardless of workspace count", async () => {
+    await t.test("workspace listing uses three statements including one ACL batch regardless of workspace count", async () => {
       const second = await createWorkspaceRecord(owner, { name: "Second workspace" })
       workspaceIds.push(second.id)
       const begin = db.begin
@@ -53,7 +53,7 @@ test("workspace domain transactions", { skip: !process.env.DATABASE_TEST_URL }, 
       })))) as typeof db.begin
       let listed
       try { listed = await listWorkspaces(owner) } finally { db.begin = begin }
-      assert.equal(queries, 2)
+      assert.equal(queries, 3)
       assert.equal(listed.length, 2)
       assert.ok(listed.every(item => item.members[0].userId === owner))
     })

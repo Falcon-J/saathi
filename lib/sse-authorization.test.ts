@@ -2,6 +2,52 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { createMembershipVerifier } from "./sse-authorization.ts"
 
+test('section policies are batched once per actor while unattached workspace membership stays on its fast path', async () => {
+  const { createBatchedMembershipVerifier } = await import('./sse-authorization.ts')
+  const policyReads: unknown[] = []
+  let revoked = false
+  const check = createBatchedMembershipVerifier(async pairs => pairs.map(pair => ({ ...pair, sectionAttached: pair.workspaceId !== 'legacy' })), async (actorId, rows) => {
+    policyReads.push({ actorId, rows })
+    return revoked ? [] : rows.filter(row => row.id === 'readable')
+  })
+  assert.deepEqual(await Promise.all([check('legacy', 'owner'), check('readable', 'owner'), check('restricted', 'owner'), check('readable', 'other')]), [true, true, false, true])
+  assert.deepEqual(policyReads, [{ actorId: 'owner', rows: [{ id: 'readable' }, { id: 'restricted' }] }, { actorId: 'other', rows: [{ id: 'readable' }] }])
+  revoked = true
+  assert.equal(await check('readable', 'owner'), false)
+  const before = policyReads.length
+  assert.equal(await check('legacy', 'owner'), true)
+  assert.equal(policyReads.length, before)
+})
+
+test('policy outages fail closed for the whole batch and do not cache completed policy decisions', async () => {
+  const { createBatchedMembershipVerifier } = await import('./sse-authorization.ts')
+  let failed = true
+  const check = createBatchedMembershipVerifier(async pairs => pairs.map(pair => ({ ...pair, sectionAttached: true })), async (_actor, rows) => {
+    if (failed) throw new Error('Policy unavailable')
+    return rows
+  })
+  await assert.rejects(() => check('restricted', 'owner'), /Policy unavailable/)
+  failed = false
+  assert.equal(await check('restricted', 'owner'), true)
+})
+
+test("concurrent checks across workspaces dispatch one exact-pair batch", async () => {
+  const { createBatchedMembershipVerifier } = await import("./sse-authorization.ts")
+  const batches: unknown[] = []
+  const check = createBatchedMembershipVerifier(async pairs => {
+    batches.push(pairs)
+    return []
+  })
+  assert.deepEqual(await Promise.all([
+    check("one", "owner"), check("two", "owner"), check("two", "outsider"), check("one", "owner"),
+  ]), [false, false, false, false])
+  assert.deepEqual(batches, [[
+    { workspaceId: "one", actorId: "owner" },
+    { workspaceId: "two", actorId: "owner" },
+    { workspaceId: "two", actorId: "outsider" },
+  ]])
+})
+
 test("concurrent subscribers share only an in-flight membership check; revocation triggers a fresh read", async () => {
   let reads = 0, permitted = true, release!: () => void
   const check = createMembershipVerifier(async () => {
@@ -34,9 +80,9 @@ test("distinct actors share a fresh workspace query without sharing authorizatio
   const { createBatchedMembershipVerifier } = await import("./sse-authorization.ts")
   let reads = 0
   const allowed = new Set(["owner"])
-  const check = createBatchedMembershipVerifier(async (_workspace, actors) => {
+  const check = createBatchedMembershipVerifier(async pairs => {
     reads++
-    return actors.filter(actor => allowed.has(actor))
+    return pairs.filter(pair => allowed.has(pair.actorId))
   })
   assert.deepEqual(await Promise.all([check("one", "owner"), check("one", "outsider"), check("one", "owner")]), [true, false, true])
   assert.equal(reads, 1)
@@ -45,14 +91,18 @@ test("distinct actors share a fresh workspace query without sharing authorizatio
   assert.equal(reads, 2)
 })
 
-test("batched reads isolate workspaces and retry after database failure", async () => {
+test("a failed cross-workspace batch rejects every check and permits retry", async () => {
   const { createBatchedMembershipVerifier } = await import("./sse-authorization.ts")
   let failed = false
-  const check = createBatchedMembershipVerifier(async (workspace, actors) => {
+  const check = createBatchedMembershipVerifier(async pairs => {
     if (!failed) { failed = true; throw new Error("Database unavailable") }
-    return workspace === "one" ? actors : []
+    return pairs.filter(pair => pair.workspaceId === "one")
   })
-  await assert.rejects(check("one", "owner"), /Database unavailable/)
+  const failures = await Promise.allSettled([check("one", "owner"), check("two", "owner")])
+  for (const failure of failures) {
+    assert.equal(failure.status, "rejected")
+    if (failure.status === "rejected") assert.match(failure.reason.message, /Database unavailable/)
+  }
   assert.deepEqual(await Promise.all([check("one", "owner"), check("two", "owner")]), [true, false])
 })
 
@@ -62,13 +112,13 @@ test("an actor arriving after query dispatch gets a separate fresh query", async
   let dispatched!: () => void
   const started = new Promise<void>(resolve => { dispatched = resolve })
   let reads = 0
-  const check = createBatchedMembershipVerifier(async (_workspace, actors) => {
+  const check = createBatchedMembershipVerifier(async pairs => {
     reads++
     if (reads === 1) {
       dispatched()
       await new Promise<void>(resolve => { release = resolve })
     }
-    return actors.filter(actor => actor === "owner")
+    return pairs.filter(pair => pair.actorId === "owner")
   })
   const owner = check("one", "owner")
   await started
@@ -79,23 +129,36 @@ test("an actor arriving after query dispatch gets a separate fresh query", async
   assert.equal(await owner, true)
 })
 
-test("checks arriving during a workspace read accumulate into the next fresh query", async () => {
+test("checks across workspaces arriving during a read accumulate into the next fresh query", async () => {
   const { createBatchedMembershipVerifier } = await import("./sse-authorization.ts")
   let release!: () => void, dispatched!: () => void
   const started = new Promise<void>(resolve => { dispatched = resolve })
   const batches: string[][] = []
-  const check = createBatchedMembershipVerifier(async (_workspace, actors) => {
-    batches.push(actors)
+  const check = createBatchedMembershipVerifier(async pairs => {
+    batches.push(pairs.map(pair => `${pair.workspaceId}:${pair.actorId}`))
     if (batches.length === 1) { dispatched(); await new Promise<void>(resolve => { release = resolve }) }
-    return actors
+    return pairs
   })
   const first = check("one", "first")
   await started
   const second = check("one", "second")
   await new Promise(resolve => setTimeout(resolve, 25))
-  const third = check("one", "third")
+  const third = check("two", "third")
   assert.equal(batches.length, 1)
   release()
   assert.deepEqual(await Promise.all([first, second, third]), [true, true, true])
-  assert.deepEqual(batches, [["first"], ["second", "third"]])
+  assert.deepEqual(batches, [["one:first"], ["one:second", "two:third"]])
+})
+
+test("partial pair results never authorize the Cartesian product of workspaces and actors", async () => {
+  const { createBatchedMembershipVerifier } = await import("./sse-authorization.ts")
+  let reads = 0
+  const check = createBatchedMembershipVerifier(async () => {
+    reads++
+    return [{ workspaceId: "one", actorId: "owner" }, { workspaceId: "two", actorId: "outsider" }]
+  })
+  assert.deepEqual(await Promise.all([
+    check("one", "owner"), check("two", "owner"), check("one", "outsider"), check("two", "outsider"),
+  ]), [true, false, false, true])
+  assert.equal(reads, 1)
 })

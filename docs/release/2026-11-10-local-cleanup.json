@@ -1,0 +1,38 @@
+{
+  "state": "checked",
+  "ownedUserIds": 437,
+  "ownedWorkspaces": 53,
+  "counts": {
+    "auth_users": 0,
+    "profiles": 0,
+    "workspaces": 0,
+    "activity_events": 0,
+    "ai_operation_logs": 0,
+    "command_receipts": 0,
+    "outbox_events": 0,
+    "task_comments": 0,
+    "task_dependencies": 0,
+    "tasks": 0,
+    "workspace_invitations": 0,
+    "workspace_members": 0
+  },
+  "allAbsent": true,
+  "recoveredUnacknowledgedAuthRows": 1,
+  "localTestProjectTotals": {
+    "auth_users": 0,
+    "profiles": 0,
+    "workspaces": 0,
+    "tasks": 0,
+    "outbox_events": 0,
+    "activity_events": 0
+  },
+  "ownedRunNamespaces": 23,
+  "redisKeyCount": 0,
+  "testServerPortFree": true,
+  "legacyRedisCleanup": {
+    "state": "cleaned",
+    "deleted": 39,
+    "remaining": 0,
+    "totalRedisKeys": 0
+  }
+}

@@ -1,3 +1,4 @@
+import { assertWorkspaceAccess } from "../../features/access/service.ts"
 import { commandHash, readCommandReceipt, saveCommandReceipt } from "./command-receipts.ts"
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
@@ -55,6 +56,7 @@ async function authorizedTask(tx: Transaction, actorId: string, taskId: string, 
   const [member] = await tx`SELECT user_id FROM workspace_members
     WHERE workspace_id = ${task.workspace_id} AND user_id = ${actorId}`
   if (!member) throw new TaskError("Workspace unavailable or access denied", "forbidden")
+  await assertWorkspaceAccess(actorId, task.workspace_id, forWrite ? "comment" : "read", tx)
   return task
 }
 

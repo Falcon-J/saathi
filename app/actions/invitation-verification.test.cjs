@@ -9,7 +9,7 @@ function fixture({proof=false,currentEmail='recipient@example.test',otpId='recip
  if(q.includes('SELECT workspace_id FROM workspace_invitations'))return [{workspace_id:'workspace'}]
  if(q.includes('SELECT * FROM workspaces'))return [{id:'workspace',owner_user_id:'owner'}]
  if(q.includes('SELECT * FROM workspace_invitations'))return [{id:'invite',invitee_email:actor.email,status:'pending',expires_at:new Date(Date.now()+60000)}]
- if(q.includes('SELECT i.id FROM workspace_invitations'))return ownerDetail&&q.includes('owner_user_id')?[{id:'invite'}]:[]
+ if(q.includes('SELECT i.id')&&q.includes('FROM workspace_invitations'))return ownerDetail&&q.includes('owner_user_id')?[{id:'invite',workspace_id:'workspace'}]:[]
  if(q.includes('SELECT i.*,w.name'))return [{id:'invite',workspace_id:'workspace',name:'Owned workspace',username:'Owner',inviter_email:'owner@example.test',invitee_email:actor.email,status:'pending',created_at:new Date(),expires_at:new Date(Date.now()+60000)}]
  if(q.includes('SELECT id FROM workspaces'))return [{id:'workspace'}]
  if(q.includes('SELECT id FROM workspace_invitations'))return []
@@ -18,7 +18,7 @@ function fixture({proof=false,currentEmail='recipient@example.test',otpId='recip
  if(q.includes('INSERT INTO workspace_members')){writes.push('member');return []}
  throw Error(q)}
  const db={begin:async(...args)=>args.at(-1)(tx)}
- const domain=load('lib/data/invitations.ts',{'node:crypto':require('node:crypto'),zod:require('zod'),'../db/client.ts':{getDb:()=>db},'./events.ts':{appendDomainEvent:async()=>{writes.push('event')}}})
+ const domain=load('lib/data/invitations.ts',{'../../features/access/service.ts':{assertWorkspaceAccess:async()=>{}},'node:crypto':require('node:crypto'),zod:require('zod'),'../db/client.ts':{getDb:()=>db},'./events.ts':{appendDomainEvent:async()=>{writes.push('event')}}})
  const otpCalls=[],limits=[]
  const actions=load('app/actions/invitations.ts',{'@/lib/auth-simple':{getSession:async()=>actor},'@/lib/post-commit':{afterDomainCommit(){}},'@/lib/data/invitations':domain,'@/lib/rate-limit':{RateLimitExceeded:class extends Error{},consumeDistributedRateLimit:async(...args)=>{limits.push(args);if(quotaError)throw Error('offline')}},'node:crypto':require('node:crypto'),'@/lib/supabase/config':{getSupabaseConfig:()=>({url:'https://local.test',key:'public'})},'@supabase/supabase-js':{createClient:(url,key,options)=>{otpCalls.push({options});return {auth:{signInWithOtp:async args=>{otpCalls.push(args);return {error:otpError}},verifyOtp:async args=>{otpCalls.push(args);return {data:{user:{id:otpId,email:otpEmail}},error:otpError}}}}}}})
  return {domain,actions,actor,writes,calls,otpCalls,limits}

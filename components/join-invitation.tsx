@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { acceptInvitationLink, getInvitationLinkPreview, type InvitationPreview } from "@/app/actions/invitations"
+import { acceptInvitationLink, getInvitationLinkPreview, type InvitationLinkPreview } from "@/app/actions/invitations"
 import { getAuthCallbackUrl } from "@/lib/supabase/config"
 import { Button } from "@/components/ui/button"
 
@@ -13,7 +13,7 @@ function forgetToken() { try { sessionStorage.removeItem(storageKey) } catch { /
 export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
   const router = useRouter()
   const [token, setToken] = useState("")
-  const [preview, setPreview] = useState<InvitationPreview | null>(null)
+  const [preview, setPreview] = useState<InvitationLinkPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +55,7 @@ export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
     return () => { active.current = false; window.removeEventListener("hashchange", load) }
   }, [])
   const accept = async () => {
-    if (busy.current || !active.current || !signedIn || !preview || !token) return
+    if (busy.current || !active.current || !signedIn || !preview || preview.status === "accepted" || !token) return
     const version = generation.current
     const current = () => active.current && generation.current === version
     busy.current = true; setPending(true); setError(null)
@@ -70,7 +70,10 @@ export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
     finally { if (current()) { busy.current = false; setPending(false) } }
   }
   return <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-border bg-card p-6">
-    {loading ? <p role="status">Loading invitation…</p> : preview ? <>
+    {loading ? <p role="status">Loading invitation…</p> : preview?.status === "accepted" && preview.workspaceId ? <>
+      <h1 className="break-words text-2xl font-semibold">Joined {preview.workspaceName}</h1>
+      <Link href={`/dashboard?workspace=${encodeURIComponent(preview.workspaceId)}`} onClick={forgetToken} className="text-primary underline">Open workspace</Link>
+    </> : preview ? <>
       <h1 className="break-words text-2xl font-semibold">Join {preview.workspaceName}</h1>
       <p className="text-sm">{preview.inviterUsername} invited you to collaborate.</p>
       <p className="text-sm text-muted-foreground">This link lets one person join. Expires {new Date(preview.expiresAt).toLocaleDateString()}.</p>

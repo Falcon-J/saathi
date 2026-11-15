@@ -15,6 +15,12 @@ if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
 return count
 `
 
+const saddWithExpiryScript = `
+local added = redis.call('SADD', KEYS[1], unpack(ARGV, 2))
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+return added
+`
+
 const claimSseLeaseScript = `
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
@@ -54,6 +60,7 @@ class RedisService {
   private redis: Redis | null = null
   private mockStore = sharedMockRedis.store
   private mockStreams = sharedMockRedis.streams
+  private mockExpiryTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private isConnected = false
   private mockStorageEnabled = false
   private maxRetries = 2
@@ -73,6 +80,8 @@ class RedisService {
         this.redis = new Redis({
           url,
           token,
+          // This adapter owns value and stream decoding; preserve wire strings.
+          automaticDeserialization: false,
           retry: {
             retries: this.maxRetries,
             backoff: (retryCount: number) => Math.min(1000 * Math.pow(2, retryCount), 10000)
@@ -217,10 +226,17 @@ class RedisService {
     // Fallback to mock
     this.assertMockStorageEnabled()
     this.mockStore.set(key, serializedValue)
+    const previous = this.mockExpiryTimers.get(key)
+    if (previous) clearTimeout(previous)
+    this.mockExpiryTimers.delete(key)
     if (options?.ex) {
-      // Simple expiry simulation for mock
-      const expiryTimer = setTimeout(() => this.mockStore.delete(key), options.ex * 1000)
+      const expiryTimer = setTimeout(() => {
+        if (this.mockExpiryTimers.get(key) !== expiryTimer) return
+        this.mockStore.delete(key)
+        this.mockExpiryTimers.delete(key)
+      }, options.ex * 1000)
       expiryTimer.unref?.()
+      this.mockExpiryTimers.set(key, expiryTimer)
     }
     return "OK"
   }
@@ -267,6 +283,9 @@ class RedisService {
     // Fallback to mock
     this.assertMockStorageEnabled()
     const existed = this.mockStore.has(key)
+    const previous = this.mockExpiryTimers.get(key)
+    if (previous) clearTimeout(previous)
+    this.mockExpiryTimers.delete(key)
     this.mockStore.delete(key)
     return existed ? 1 : 0
   }
@@ -307,6 +326,29 @@ class RedisService {
     this.assertMockStorageEnabled()
     const set = this.mockStore.get(key)
     return set ? JSON.parse(set) : []
+  }
+
+  /** Add members and refresh their set's expiry in one atomic Redis command. */
+  async saddWithExpiry(key: string, expirySeconds: number, ...members: string[]): Promise<number> {
+    if (!key || !Number.isSafeInteger(expirySeconds) || expirySeconds < 1 || members.length === 0) {
+      throw new Error("Set expiry configuration is invalid")
+    }
+    if (this.redis) return this.withRetry(async () => Number(await this.redis!.eval(saddWithExpiryScript, [key], [expirySeconds, ...members])))
+    this.assertMockStorageEnabled()
+    const currentMembers = new Set<string>(JSON.parse(this.mockStore.get(key) ?? "[]"))
+    const previousSize = currentMembers.size
+    members.forEach(member => currentMembers.add(member))
+    this.mockStore.set(key, JSON.stringify([...currentMembers]))
+    const previous = this.mockExpiryTimers.get(key)
+    if (previous) clearTimeout(previous)
+    const timer = setTimeout(() => {
+      if (this.mockExpiryTimers.get(key) !== timer) return
+      this.mockStore.delete(key)
+      this.mockExpiryTimers.delete(key)
+    }, expirySeconds * 1000)
+    timer.unref?.()
+    this.mockExpiryTimers.set(key, timer)
+    return currentMembers.size - previousSize
   }
 
   async srem(key: string, ...members: string[]): Promise<number> {
@@ -448,8 +490,10 @@ class RedisService {
         // polls. XRANGE is supported by the same Redis Streams API and keeps
         // the cursor semantics explicit for our short polling interval.
         if (fromId === "$") return []
-        const entries = await this.xrange(streamKey, fromId, "+", count + 1)
-        return entries.filter(entry => compareStreamIds(entry.id, fromId) > 0).slice(0, count)
+        // Exclusive bounds avoid transferring and decoding the last-seen payload
+        // on every idle poll. Redis enforces full 64-bit stream-ID ordering.
+        const cursor = fromId === "0" ? "0-0" : fromId
+        return (await this.xrange(streamKey, `(${cursor}`, "+", count)).slice(0, count)
       } catch (error) {
         console.error(`[Saathi] Redis stream poll failed for stream ${streamKey}:`, error)
       }

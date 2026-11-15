@@ -23,3 +23,14 @@ test("failed refresh does not permanently block subsequent refresh", async () =>
   await run()
   assert.equal(reads, 2)
 })
+
+test("all callers receive the final trailing read result for reconciliation", async () => {
+  let reads = 0, release!: () => void
+  const run = createCoalescedRefresh(async () => {
+    if (++reads === 1) await new Promise<void>(resolve => { release = resolve })
+    return reads === 1
+  })
+  const first = run(), trailing = run()
+  release()
+  assert.deepEqual(await Promise.all([first, trailing]), [false, false])
+})

@@ -14,6 +14,10 @@ test("task pages traverse 137 tied tasks, search full scope and recheck authoriz
   const foreign=await createWorkspaceRecord(other,{name:"Other task pages"})
   try {
     await db`INSERT INTO workspace_members(workspace_id,user_id) VALUES (${workspace.id},${member})`
+    assert.deepEqual(await listTaskRecordsPage(member,workspace.id),{tasks:[],nextCursor:null})
+    assert.deepEqual(await getTaskAggregates(member,workspace.id),{total:0,open:0,done:0,overdue:0,byStatus:{todo:0,'in-progress':0,done:0},byPriority:{low:0,medium:0,high:0}})
+    await assert.rejects(listTaskRecordsPage(other,workspace.id),/access denied/)
+    await assert.rejects(getTaskAggregates(other,workspace.id),/access denied/)
     const ids=Array.from({length:137},()=>randomUUID()).sort()
     await db`INSERT INTO tasks ${db(ids.map((id,index)=>({id,workspace_id:workspace.id,title:index===136?'Needle task':'Task '+index,description:index===135?'description match':null,status:index%3===0?'done':index%3===1?'todo':'in_progress',priority:index%3===0?'high':index%3===1?'low':'medium',created_by_user_id:owner,assignee_user_id:index===136?member:null,created_at:'2026-10-04T00:00:00.123456Z',due_date:'2000-01-01'})))}`
     const seen:string[]=[];let cursor:string|undefined;let firstCursor=''
@@ -21,6 +25,9 @@ test("task pages traverse 137 tied tasks, search full scope and recheck authoriz
     assert.deepEqual(seen,ids);assert.equal(new Set(seen).size,137)
     assert.deepEqual((await listTaskRecordsPage(member,workspace.id,{search:'NEEDLE',status:'active',priority:'low',assigneeEmail:member+'@example.test'})).tasks.map(task=>task.id),[ids[136]])
     assert.equal((await listTaskRecordsPage(member,workspace.id,{search:'description match'})).tasks[0].id,ids[135])
+    assert.deepEqual(await listTaskRecordsPage(member,workspace.id,{search:'no matching task'}),{tasks:[],nextCursor:null})
+    const afterLast=encodeTaskCursor(workspace.id,normalizeTaskPage(),ids[136])
+    assert.deepEqual(await listTaskRecordsPage(member,workspace.id,{cursor:afterLast}),{tasks:[],nextCursor:null})
     const counts=await getTaskAggregates(member,workspace.id)
     assert.deepEqual(counts,{total:137,open:91,done:46,overdue:91,byStatus:{todo:46,'in-progress':45,done:46},byPriority:{low:46,medium:45,high:46}})
     // Test calendar deadlines at both date extremes, independent of the server/session timezone.

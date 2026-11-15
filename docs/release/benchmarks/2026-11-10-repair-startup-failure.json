@@ -1,0 +1,108 @@
+{
+  "passed": false,
+  "mode": "smoke",
+  "scope": "SMOKE ONLY",
+  "runId": "13e811d8-87a6-42cc-9590-37b7fe081ce8",
+  "phase": "local-auth-fixtures",
+  "failure": "Local Auth identity creation failed",
+  "envelope": {
+    "users": 8,
+    "members": 2,
+    "writes": 8,
+    "seconds": 8,
+    "seed": 2
+  },
+  "attempts": 0,
+  "readAttempts": 0,
+  "streamAttempts": 0,
+  "successfulMutations": 0,
+  "deliveries": {
+    "expected": 16,
+    "observed": 0,
+    "missing": 16,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [],
+  "timings": {
+    "warmRead": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "read": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "write": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "admission": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "deliveryUpperBound": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 0,
+    "meanMs": null,
+    "maxMs": null,
+    "p95Ms": null,
+    "p99Ms": null
+  },
+  "workload": {
+    "elapsedMs": 0,
+    "intendedWriteRatePerSecond": 1,
+    "attemptedWrites": 0,
+    "achievedWriteRatePerSecond": 0,
+    "attemptedWriteRatePerSecond": 0,
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "elapsedMs": 0,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "a9d1f3244163ac15aa49319d15a54ed51b611ef3402472292e37e82e23cd089e",
+    "verifierSha256": "7a02bc4313c76f194d72a69b38b5b3a15ce8c28fa415b8d5fe6930dd517cd279",
+    "builtActionManifestSha256": "1e52e3fcf905b5c5cd2b70c634131e3ea32cc984b9537806d5b3c7b9e27ade46",
+    "recordedAt": "2026-11-09T19:10:34.613Z"
+  },
+  "databasePoolMax": "1",
+  "phaseProfiling": false,
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 0,
+    "achievedRequestsPerSecond": 0
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 0,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

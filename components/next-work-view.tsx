@@ -1,12 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { addPrerequisite, getTaskGraph, removePrerequisite, type TaskGraphResult } from "@/app/actions/task-dependencies"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/app/tasks/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { normalizeEmail } from "@/lib/identity"
+import { permitsCapability } from "@/lib/capability-ceiling"
+import { createCoalescedRefresh } from "@/lib/read-coordinator"
 import { deriveNextWork, type NextWorkItem, type NextWorkResult } from "@/lib/next-work"
 import { formatTaskDue } from "@/lib/task-time"
 
@@ -38,10 +40,11 @@ type Props = {
   taskRevision?: string
   onOpenTask: (taskId: string) => void
   onChanged?: () => Promise<unknown>
+  onRefreshReady?: (refresh: (() => Promise<boolean>) | null) => void
   connected?: boolean
 }
 
-export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskRevision, onOpenTask, onChanged, connected = true }: Props) {
+export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskRevision, onOpenTask, onChanged, onRefreshReady, connected = true }: Props) {
   const [storedData, setData] = useState<{ scope: string; graph: Graph; projection: NextWorkResult<Task> } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,9 +87,14 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
     }
   }, [storageKey, workspace.id])
 
-  useEffect(() => { restorePending() }, [restorePending])
+  useEffect(() => {
+    const sequenceRef = requestSequence
+    restorePending()
+    return () => { activeScope.current = ""; sequenceRef.current++ }
+  }, [restorePending])
 
-  const load = useCallback(async () => {
+  const readGraph = useCallback(async () => {
+    if (activeScope.current !== storageKey) return false
     const sequence = ++requestSequence.current
     setLoading(true)
     setError(null)
@@ -111,21 +119,26 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
       if (sequence === requestSequence.current) setLoading(false)
     }
   }, [workspace.id, storageKey])
+  const load = useMemo(() => createCoalescedRefresh(readGraph), [readGraph])
 
   useEffect(() => {
-    const sequenceRef = requestSequence
     void load()
-    return () => { sequenceRef.current++ }
   }, [load, refreshSignal, taskRevision])
+
+  useEffect(() => {
+    onRefreshReady?.(load)
+    return () => onRefreshReady?.(null)
+  }, [load, onRefreshReady])
 
   useEffect(() => { if (selectedId) editor.current?.focus() }, [selectedId])
 
-  const canEdit = (task: Task) => Boolean(task.version) && (
+  const canEdit = (task: Task) => permitsCapability(workspace.capabilityCeiling, "edit") && Boolean(task.version) && (
     normalizeEmail(currentUserEmail) === normalizeEmail(workspace.ownerId)
     || normalizeEmail(currentUserEmail) === normalizeEmail(task.createdBy)
   )
 
   const save = async (change: PendingChange) => {
+    if (!permitsCapability(workspace.capabilityCeiling, "edit")) return
     if (writing.current || !recoveryReady || activeScope.current !== storageKey) return
     try { window.sessionStorage.setItem(storageKey, JSON.stringify(change)) } catch {
       setError("Browser session storage is unavailable. Enable storage before changing prerequisites so an interrupted save can be recovered.")
@@ -190,6 +203,16 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
 
   const selected = data?.graph.tasks.find(task => task.id === selectedId)
   const selectedSources = data?.graph.dependencies.filter(edge => edge.dependentTaskId === selectedId) ?? []
+  const graphTasks = new Map(data?.graph.tasks.map(task => [task.id, task]))
+  const dependents = new Map<string, Task[]>()
+  for (const edge of data?.graph.dependencies ?? []) {
+    const task = graphTasks.get(edge.dependentTaskId)
+    if (!task || task.completed || task.status === "done") continue
+    const linked = dependents.get(edge.prerequisiteTaskId) ?? []
+    linked.push(task)
+    dependents.set(edge.prerequisiteTaskId, linked)
+  }
+  const dependentTasks = (taskId: string) => dependents.get(taskId) ?? []
   const matches = (item: NextWorkItem<Task>) => `${item.task.title} ${item.task.assigneeEmail ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())
   const section = (title: string, items: NextWorkItem<Task>[]) => (
     <section aria-label={title} className="space-y-2">
@@ -203,27 +226,32 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
             </div>
             <Button type="button" variant="outline" size="sm" aria-label={`Open ${item.task.title}`} disabled={Boolean(pending)} onClick={() => { if (!pendingChange.current) onOpenTask(item.task.id) }}>Open task</Button>
           </div>
-          {item.prerequisites.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No recorded prerequisites</p> : (
+          {item.prerequisites.length > 0 && (
             <ul className="mt-2 space-y-1 text-xs">
-              {item.prerequisites.map(source => <li key={source.taskId}><Button type="button" variant="link" disabled={Boolean(pending)} className="h-auto whitespace-normal p-0 text-left text-xs" onClick={() => { if (!pendingChange.current) onOpenTask(source.taskId) }}>{source.title}</Button> — {source.status === "done" ? "Complete" : "Not complete"}</li>)}
+              {item.prerequisites.map(source => <li key={source.taskId} className="break-words"><Button type="button" variant="link" disabled={Boolean(pending)} className="h-auto whitespace-normal p-0 text-left text-xs" onClick={() => { if (!pendingChange.current) onOpenTask(source.taskId) }}>{source.title}</Button> — {source.status === "done" ? "Complete" : "Not complete"} · {graphTasks.get(source.taskId)?.assigneeEmail || "Unassigned"}</li>)}
             </ul>
           )}
+          {dependentTasks(item.task.id).length > 0 && <div className="mt-2 text-xs">
+            <span className="text-muted-foreground">Needed by</span>
+            <ul className="mt-1 space-y-1">{dependentTasks(item.task.id).map(task => <li key={task.id}><Button type="button" variant="link" disabled={Boolean(pending)} aria-label={`Open dependent ${task.title}`} className="h-auto whitespace-normal p-0 text-left text-xs" onClick={() => { if (!pendingChange.current) onOpenTask(task.id) }}>{task.title}</Button></li>)}</ul>
+          </div>}
           {item.readiness === "completed_inconsistent" && <p className="mt-2 text-xs text-destructive">Completed with unfinished prerequisites</p>}
           {canEdit(item.task) && <Button type="button" variant="ghost" size="sm" className="mt-2" aria-label={`Edit prerequisites for ${item.task.title}`} disabled={loading || Boolean(pending)} onClick={event => { returnFocus.current = event?.currentTarget ?? null; select(item.task.id) }}>Edit prerequisites</Button>}
         </article>
       ))}
+      {items.length === 0 && <p className="text-sm text-muted-foreground">{title === "Ready" ? "No ready tasks." : "No waiting tasks."}</p>}
       {items.length > 0 && !items.some(matches) && <p className="text-sm text-muted-foreground">No matching tasks.</p>}
     </section>
   )
 
   return (
-    <section aria-labelledby="next-work-title" aria-busy={loading || saving} className="mb-4 space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-2"><h2 id="next-work-title" className="text-xl font-semibold">Next work</h2><Button type="button" variant="outline" size="sm" disabled={loading || saving} onClick={() => void load()}>Refresh next work</Button></header>
+    <section aria-labelledby="next-work-title" aria-busy={loading || saving} className="space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-2"><h2 id="next-work-title" className="text-lg font-semibold">Ready and Waiting</h2><Button type="button" variant="outline" size="sm" aria-label="Refresh next work" disabled={loading || saving} onClick={() => void load()}>Refresh</Button></header>
       {loading && <p role="status" className="text-sm text-muted-foreground">{data ? "Refreshing next work; previous results may be out of date…" : "Loading next work…"}</p>}
       {!connected && <p role="status" className="text-sm text-muted-foreground">Live updates are paused. Refresh next work to check the latest state.</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {!recoveryReady && <div role="alert" className="space-y-2 text-sm text-destructive"><p>Session recovery storage is unavailable. Prerequisite changes are paused.</p><Button type="button" variant="outline" onClick={() => { restorePending(); void load() }}>Retry recovery</Button></div>}
-      {pending && !saving && <div className="space-y-2"><p className="text-sm">A prerequisite change needs confirmation. Retry the same change to recover its result.</p><Button type="button" onClick={() => save(pendingChange.current!)}>Retry change</Button></div>}
+      {pending && !saving && <div className="space-y-2"><p className="text-sm">A prerequisite change needs confirmation. Your original change is retained for recovery.</p>{permitsCapability(workspace.capabilityCeiling, "edit") && <Button type="button" onClick={() => save(pendingChange.current!)}>Retry change</Button>}</div>}
       {data && <>
         <Input aria-label="Search next work" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks or assignees" />
         <div className="grid gap-4 md:grid-cols-2">{section("Ready", data.projection.ready)}{section("Waiting", data.projection.waiting)}</div>

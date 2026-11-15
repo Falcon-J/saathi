@@ -38,7 +38,7 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
       assert.deepEqual((await listInvitationRecords(member)).map(i=>i.id),[invitation.id])
       assert.deepEqual(await listInvitationRecords(outsider),[])
       assert.deepEqual(await listInvitationRecords(owner),[])
-      await assert.rejects(listInvitationRecords(member,workspace.id),/owner/)
+      await assert.rejects(listInvitationRecords(member,workspace.id),{code:"forbidden"})
     })
     await t.test("invitation is available before the recipient creates an account",async()=>{
       const preview=await readInvitationPreview(newRecipientInvitation.id)
@@ -63,7 +63,7 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
     })
     await t.test("only the owner can revoke; revocation and decline are safe to retry",async()=>{
       const revoked=await createInvitationRecord(owner,workspace.id,outsider.email)
-      await assert.rejects(respondToInvitation(outsider,revoked.id,"revoked"),/not available/)
+      await assert.rejects(respondToInvitation(outsider,revoked.id,"revoked"),{code:"forbidden"})
       await respondToInvitation(owner,revoked.id,"revoked")
       await respondToInvitation(owner,revoked.id,"revoked")
       await assert.rejects(respondToInvitation(outsider,revoked.id,"accepted"),/no longer pending/)
@@ -131,7 +131,7 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
       })))) as typeof db.begin
       let tasks
       try { tasks=await listTaskRecords(owner.id,workspace.id) } finally {db.begin=originalBegin}
-      assert.equal(queries,2,"one authorization query and one task projection query")
+      assert.equal(queries,3,"workspace membership, current section policy and one task projection query")
       assert.deepEqual(tasks.map(task=>task.id),tasks.map(task=>task.id).sort())
       assert.equal(tasks.find(task=>task.id===dated.id)?.dueDate,"2026-10-04")
       assert.equal(tasks.find(task=>task.id===dated.id)?.assigneeEmail,member.email)

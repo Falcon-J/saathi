@@ -7,6 +7,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.saathi-dashboard .react-flow__attribution {
+  background: var(--card);
+}
+
+.saathi-dashboard .react-flow__attribution a {
+  color: var(--foreground);
+}
+
 :root {
   --background: #f7f7f4;
   --foreground: #202426;

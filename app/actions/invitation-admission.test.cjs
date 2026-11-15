@@ -36,7 +36,7 @@ function fixture({ outsider = false, member = false, existing = false, archived 
       return result
     } finally { locked = false }
   } }
-  const domain = load('lib/data/invitations.ts', { 'node:crypto': crypto, zod: require('zod'), '../db/client.ts': { getDb: () => db }, './events.ts': { appendDomainEvent: async () => { events++ }, flushOutbox: async () => {} } })
+  const domain = load('lib/data/invitations.ts', { '../../features/access/service.ts': { assertWorkspaceAccess: async () => {} }, 'node:crypto': crypto, zod: require('zod'), '../db/client.ts': { getDb: () => db }, './events.ts': { appendDomainEvent: async () => { events++ }, flushOutbox: async () => {} } })
   class RateLimitExceeded extends Error {}
   const rate = { RateLimitExceeded, consumeDistributedRateLimit: async (scope, maximum) => {
     charged.push({ scope, locked })

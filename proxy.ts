@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getCanonicalAuthEntryUrl, getSupabaseConfig } from './lib/supabase/config'
 
 export async function proxy(request: NextRequest) {
+  // MCP authenticates bearer tokens itself; resource metadata is public discovery.
+  if (request.nextUrl.pathname === '/mcp' || request.nextUrl.pathname === '/.well-known/oauth-protected-resource/mcp') {
+    const response = NextResponse.next({ request })
+    response.headers.set('Cache-Control', 'no-store')
+    return response
+  }
   if (request.method === 'GET' || request.method === 'HEAD') {
     try {
       const entry = getCanonicalAuthEntryUrl(request.url, request.headers.get('host'))
@@ -31,8 +37,10 @@ export async function proxy(request: NextRequest) {
       },
     })
     if (refreshOnly) {
-      // Actions and API handlers own live user and permission checks; this only refreshes session cookies.
-      await client.auth.getClaims()
+      // Cookie maintenance only: never authorize from this unverified session.
+      // The action/API performs getUser and its own membership checks. getClaims
+      // would duplicate that network check for symmetric signing keys.
+      await client.auth.getSession()
     } else {
       const { data: { user }, error } = await client.auth.getUser()
       if (protectedPage && error && (!error.status || error.status >= 500)) return new NextResponse('Account service temporarily unavailable. Please reload shortly.', { status: 503, headers: { 'Cache-Control': 'no-store' } })

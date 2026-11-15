@@ -1,0 +1,836 @@
+{
+  "revision": "df27594511553f4b",
+  "passed": true,
+  "results": [
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "fixtures",
+      "result": "passed"
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "production-server",
+      "result": {
+        "initialDashboardActions": [
+          {
+            "action": "login",
+            "elapsedMs": 1077
+          },
+          {
+            "action": "getSession"
+          },
+          {
+            "action": "getFeatureCapabilities"
+          },
+          {
+            "action": "getUserWorkspaces"
+          },
+          {
+            "action": "getTaskGraph",
+            "elapsedMs": 436
+          }
+        ]
+      }
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "create-and-assign",
+      "result": "passed"
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "multiple-prerequisites",
+      "result": "passed"
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "member-permissions-and-realtime",
+      "result": {
+        "uppercaseSse": {
+          "canonicalConnectedWorkspace": true,
+          "assignedTaskCompletionReceived": true
+        }
+      }
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "member-permissions-and-realtime",
+      "result": "passed"
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "search-and-outsider",
+      "result": "passed"
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "draft-refresh-navigation-back",
+      "result": "passed"
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "desktop-mobile-keyboard-accessibility",
+      "result": {
+        "passed": true,
+        "evidence": "C:\\Users\\ojade\\OneDrive\\Documents\\ChatGPT\\saathi\\.local-test\\ready-waiting-d0fedca4-7067-48d8-b92b-53fb192ef37b",
+        "realRedisRequests": 252
+      }
+    },
+    {
+      "scope": "ready-waiting-local",
+      "revision": "df27594511553f4b",
+      "phase": "cleanup",
+      "result": "passed"
+    }
+  ],
+  "actionSamples": [
+    {
+      "actor": "owner",
+      "action": "login",
+      "phase": "production-server",
+      "status": 200,
+      "responseStartMs": 1066,
+      "elapsedMs": 1077
+    },
+    {
+      "actor": "owner",
+      "action": "getSession",
+      "phase": "production-server",
+      "status": 200,
+      "responseStartMs": 362
+    },
+    {
+      "actor": "owner",
+      "action": "getFeatureCapabilities",
+      "phase": "production-server",
+      "status": 200,
+      "responseStartMs": 196
+    },
+    {
+      "actor": "owner",
+      "action": "getUserWorkspaces",
+      "phase": "production-server",
+      "status": 200,
+      "responseStartMs": 421
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "production-server",
+      "status": 200,
+      "responseStartMs": 435,
+      "elapsedMs": 436
+    },
+    {
+      "actor": "owner",
+      "action": "addTask",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 922
+    },
+    {
+      "actor": "owner",
+      "action": "getUserWorkspaces",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 476
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 341,
+      "elapsedMs": 346
+    },
+    {
+      "actor": "owner",
+      "action": "addTask",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 430
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 252
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 201,
+      "elapsedMs": 205
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 436,
+      "elapsedMs": 440
+    },
+    {
+      "actor": "owner",
+      "action": "addTask",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 393,
+      "elapsedMs": 799
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 518
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 447,
+      "elapsedMs": 449
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 316
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 416
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 295
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 311
+    },
+    {
+      "actor": "owner",
+      "action": "updateTask",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 345
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 221,
+      "elapsedMs": 223
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 167
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 181,
+      "elapsedMs": 185
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 175
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 246
+    },
+    {
+      "actor": "owner",
+      "action": "updateTask",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 277
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 196
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 115,
+      "elapsedMs": 118
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 125,
+      "elapsedMs": 127
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 135,
+      "elapsedMs": 137
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "create-and-assign",
+      "status": 200,
+      "responseStartMs": 182
+    },
+    {
+      "actor": "owner",
+      "action": "addPrerequisite",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 188
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 146
+    },
+    {
+      "actor": "owner",
+      "action": "addPrerequisite",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 179
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 158
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 138,
+      "elapsedMs": 164
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 176,
+      "elapsedMs": 180
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 175,
+      "elapsedMs": 179
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskById",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 146,
+      "elapsedMs": 148
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 169,
+      "elapsedMs": 172
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 181
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 273
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 155,
+      "elapsedMs": 158
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 134,
+      "elapsedMs": 137
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 109
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskById",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 232,
+      "elapsedMs": 238
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 318
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "multiple-prerequisites",
+      "status": 200,
+      "responseStartMs": 188
+    },
+    {
+      "actor": "member",
+      "action": "login",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 272,
+      "elapsedMs": 277
+    },
+    {
+      "actor": "member",
+      "action": "getSession",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 213
+    },
+    {
+      "actor": "member",
+      "action": "getFeatureCapabilities",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 14
+    },
+    {
+      "actor": "member",
+      "action": "getUserWorkspaces",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 190,
+      "elapsedMs": 193
+    },
+    {
+      "actor": "member",
+      "action": "getTaskGraph",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 169
+    },
+    {
+      "actor": "member",
+      "action": "getUserWorkspaces",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 176
+    },
+    {
+      "actor": "member",
+      "action": "getTaskGraph",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 122
+    },
+    {
+      "actor": "member",
+      "action": "getTaskGraph",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 333
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 393,
+      "elapsedMs": 398
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 285
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 161
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 282
+    },
+    {
+      "actor": "owner",
+      "action": "updateTask",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 339
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 473
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 266
+    },
+    {
+      "actor": "member",
+      "action": "getTaskGraph",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 513
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 576,
+      "elapsedMs": 579
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 271
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 470
+    },
+    {
+      "actor": "owner",
+      "action": "updateTask",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 502
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 241,
+      "elapsedMs": 244
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 173
+    },
+    {
+      "actor": "member",
+      "action": "getTaskGraph",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 356
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "member-permissions-and-realtime",
+      "status": 200,
+      "responseStartMs": 375
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "search-and-outsider",
+      "status": 200,
+      "responseStartMs": 347
+    },
+    {
+      "actor": "outsider",
+      "action": "login",
+      "phase": "search-and-outsider",
+      "status": 200,
+      "responseStartMs": 331,
+      "elapsedMs": 337
+    },
+    {
+      "actor": "outsider",
+      "action": "getSession",
+      "phase": "search-and-outsider",
+      "status": 200,
+      "responseStartMs": 410
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 414
+    },
+    {
+      "actor": "outsider",
+      "action": "getFeatureCapabilities",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 16
+    },
+    {
+      "actor": "outsider",
+      "action": "getUserWorkspaces",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 370
+    },
+    {
+      "actor": "owner",
+      "action": "getSession",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 206
+    },
+    {
+      "actor": "owner",
+      "action": "getFeatureCapabilities",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 15
+    },
+    {
+      "actor": "owner",
+      "action": "getUserWorkspaces",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 202
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 339
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceInvitations",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 327
+    },
+    {
+      "actor": "owner",
+      "action": "getUserWorkspaces",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 337
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 291
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 343,
+      "elapsedMs": 350
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 423
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceInvitations",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 340
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 320,
+      "elapsedMs": 322
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 213
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 423
+    },
+    {
+      "actor": "owner",
+      "action": "getSession",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 351
+    },
+    {
+      "actor": "owner",
+      "action": "getFeatureCapabilities",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 17
+    },
+    {
+      "actor": "owner",
+      "action": "getUserWorkspaces",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 467,
+      "elapsedMs": 470
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 580
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 357,
+      "elapsedMs": 361
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskComments",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 348,
+      "elapsedMs": 352
+    },
+    {
+      "actor": "owner",
+      "action": "getUserWorkspaces",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 265
+    },
+    {
+      "actor": "owner",
+      "action": "getTasksPage",
+      "phase": "draft-refresh-navigation-back",
+      "status": 200,
+      "responseStartMs": 316,
+      "elapsedMs": 320
+    },
+    {
+      "actor": "owner",
+      "action": "getWorkspaceTaskAggregates",
+      "phase": "desktop-mobile-keyboard-accessibility",
+      "status": 200,
+      "responseStartMs": 222
+    },
+    {
+      "actor": "owner",
+      "action": "getTaskGraph",
+      "phase": "desktop-mobile-keyboard-accessibility",
+      "status": 200,
+      "responseStartMs": 192
+    }
+  ]
+}

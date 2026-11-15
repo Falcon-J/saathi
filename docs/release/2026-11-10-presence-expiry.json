@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "id": "eb4b121a-fd63-4897-b43b-1882b3c58d35",
+  "firstTtl": 10,
+  "refreshedTtl": 10,
+  "refreshSurvivedOldDeadline": true,
+  "inactiveSetExpired": true,
+  "cleanup": true
+}

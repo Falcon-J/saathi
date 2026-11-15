@@ -1,0 +1,451 @@
+{
+  "passed": false,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "runId": "c0dac3e7-fd09-4e28-83be-3eabbebaadd2",
+  "phase": "measured-workload",
+  "failure": "A required mutation failed; stopped the workload after settling active writers",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "attempts": 423,
+  "readAttempts": 300,
+  "streamAttempts": 100,
+  "successfulMutations": 10,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 0,
+    "missing": 2500,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [
+    {
+      "phase": "write",
+      "index": 5
+    },
+    {
+      "phase": "read",
+      "actorSlot": 0,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 21,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 20,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 19,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 22,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 23,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 3,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 24,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 6
+    },
+    {
+      "phase": "read",
+      "actorSlot": 25,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 26,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 27,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 7
+    },
+    {
+      "phase": "read",
+      "actorSlot": 29,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 28,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 8
+    },
+    {
+      "phase": "read",
+      "actorSlot": 31,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 32,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 30,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 33,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 34,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 35,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 38,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 37,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 9
+    },
+    {
+      "phase": "read",
+      "actorSlot": 36,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 40,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 1,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 41,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 10
+    },
+    {
+      "phase": "read",
+      "actorSlot": 39,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 42,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 43,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 44,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 11
+    },
+    {
+      "phase": "read",
+      "actorSlot": 45,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 2,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 46,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 47,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 12
+    },
+    {
+      "phase": "read",
+      "actorSlot": 48,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 49,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 5,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 50,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 51,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 13
+    },
+    {
+      "phase": "read",
+      "actorSlot": 52,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 53,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 54,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 55,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 7,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 56,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 14
+    },
+    {
+      "phase": "read",
+      "actorSlot": 4,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 57,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 58,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 59,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 15
+    },
+    {
+      "phase": "read",
+      "actorSlot": 60,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 61,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 63,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 16
+    },
+    {
+      "phase": "read",
+      "actorSlot": 64,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 62,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 11,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 66,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 65,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 67,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 17
+    },
+    {
+      "phase": "read",
+      "actorSlot": 68,
+      "action": "getTasksPage"
+    }
+  ],
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 7237,
+      "p95Ms": 8371,
+      "p99Ms": 8474
+    },
+    "read": {
+      "count": 100,
+      "p50Ms": 10568,
+      "p95Ms": 13936,
+      "p99Ms": 14316
+    },
+    "write": {
+      "count": 23,
+      "p50Ms": 10774,
+      "p95Ms": 20202,
+      "p99Ms": 20822
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 1896,
+      "p95Ms": 3252,
+      "p99Ms": 3409
+    },
+    "deliveryUpperBound": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "scheduleLag": {
+      "count": 23,
+      "p50Ms": 0,
+      "p95Ms": 10,
+      "p99Ms": 81
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 2024,
+    "meanMs": 29.36376461660079,
+    "maxMs": 172.883967,
+    "p95Ms": 35.028991,
+    "p99Ms": 63.242239
+  },
+  "workload": {
+    "elapsedMs": 59506,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 23,
+    "achievedWriteRatePerSecond": 0.16805055797003313,
+    "attemptedWriteRatePerSecond": 0.3865162833310762,
+    "scheduleLag": {
+      "count": 23,
+      "p50Ms": 0,
+      "p95Ms": 10,
+      "p99Ms": 81
+    }
+  },
+  "elapsedMs": 59506,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "6df55aecccc2c2793546f72abee5b46de9207687e34549262062a815c6f3ce80",
+    "verifierSha256": "93cfb47b4049b3bb501d64866759d7be1aaff8a900100e034c0504ff29e44f9f",
+    "builtActionManifestSha256": "6d9a8c663cfa6215f09f622f5187ffdafaa9c0a97a68d3df97701c3df2e744f6",
+    "recordedAt": "2026-11-09T18:31:38.837Z"
+  },
+  "databasePoolMax": "1",
+  "phaseProfiling": true,
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 100,
+    "achievedRequestsPerSecond": 1.6805028064396867
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 446,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

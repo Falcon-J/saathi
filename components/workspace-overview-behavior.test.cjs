@@ -28,6 +28,7 @@ function harness(onAddTask) {
     '@/lib/mutation-result': { getMutationError: result => result?.error }, '@/lib/draft-storage': { readDraft: () => null, writeDraft() {}, removeDraft() {}, isDraftRecord: value => Boolean(value && typeof value === 'object') }, '@/lib/task-time': { localDateTimeToIso: () => undefined },
   })
   const overview = load('components/workspace-overview.tsx', {
+    '@/lib/capability-ceiling': require('../lib/capability-ceiling.ts'),
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     'lucide-react': Object.fromEntries(['ArrowRight','CalendarDays','Check','Circle','Clock3','Plus','Target'].map(name => [name,name])),
     '@/components/ui/button': { Button: 'Button' }, '@/components/task-quick-add': quickAdd, '@/components/ui/progress': { Progress: 'Progress' },
@@ -41,6 +42,16 @@ function harness(onAddTask) {
   const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : typeof node.type === 'function' ? nodes(node.type(node.props)) : [node, ...nodes(node.props?.children)]
   return { render(overrides = {}) { cursor = 0; return nodes(overview.WorkspaceOverview({ ...props, ...overrides })) }, toggles: () => toggles }
 }
+
+test('section read-only ceiling hides quick add and blocks completion for the workspace owner', () => {
+  const ui = harness(async () => ({}))
+  const rows = ui.render({ currentUserEmail: 'owner@example.test', workspace: { id: 'workspace', name: 'Workspace', timezone: 'UTC', ownerId: 'owner@example.test', capabilityCeiling: { read: true } } })
+  const toggle = rows.find(node => node.props?.['aria-label'] === 'Complete Task')
+  assert.equal(toggle.props.disabled, true)
+  toggle.props.onClick()
+  assert.equal(ui.toggles(), 0)
+  assert.equal(rows.some(node => node.props?.['aria-label'] === 'Task title'), false)
+})
 
 test('Overview completion follows the same owner creator assignee permission as Board', () => {
   const ui = harness(async () => ({}))
@@ -103,4 +114,15 @@ test('failed task reads preserve quick add but never announce empty work or comp
   assert.ok(rows.some(node => node.type === 'form'), 'draft owner stays mounted')
   assert.ok(rows.some(node => node.props?.role === 'status'))
   assert.doesNotMatch(JSON.stringify(rows), /Nothing needs your attention|0 of 0/)
+})
+
+test('handoff content replaces date lists and progress while preserving quick add during read failure', () => {
+  const ui = harness(async () => ({}))
+  const workContent = { type: 'Handoffs', props: { children: 'Ready and Waiting' } }
+  for (const error of [null, 'Task read failed']) {
+    const rows = ui.render({ workContent, error })
+    assert.ok(rows.some(node => node.type === 'Handoffs'))
+    assert.ok(rows.some(node => node.type === 'form'), 'quick-add remains mounted')
+    assert.equal(rows.some(node => node.type === 'Progress' || node.type === 'h3'), false)
+  }
 })

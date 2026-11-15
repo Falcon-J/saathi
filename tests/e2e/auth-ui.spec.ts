@@ -46,6 +46,25 @@ test("sign-in page has no serious or critical accessibility violations", async (
   expect(violations, JSON.stringify(violations.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ html, failureSummary }) => ({ html, failureSummary })) })), null, 2)).toEqual([])
 })
 
+test("password recovery submit stays opaque before and after hydration", async ({ page }) => {
+  let releaseHydration!: () => void
+  const hydration = new Promise<void>(resolve => { releaseHydration = resolve })
+  await page.route("**/_next/static/**/*.js", async request => {
+    await hydration
+    await request.continue()
+  })
+  const submit = page.getByRole("button", { name: "Send reset link", exact: true })
+  try {
+    await page.goto("/forgot-password", { waitUntil: "commit" })
+    await expect(submit).toBeDisabled()
+    await expect(submit).toHaveCSS("opacity", "1")
+  } finally {
+    releaseHydration()
+  }
+  await expect(submit).toBeEnabled()
+  await expect(submit).toHaveCSS("opacity", "1")
+})
+
 for (const route of ["/register", "/forgot-password", "/reset-password"]) {
   test(`${route} renders without overflow or serious accessibility violations`, async ({ page }) => {
     await page.goto(route)

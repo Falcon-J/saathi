@@ -6,6 +6,7 @@ const ts = require('typescript')
 function fixture(workspaceOverrides = {}, options = {}) {
   const slots = [], listeners = new Map(), pushes = [], removed = []
   let cursor = 0, effects = [], selected = 'workspace', allowDiscard = false
+  const taskReadModes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]))
   const react = {
     useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value }] },
@@ -35,16 +36,19 @@ function fixture(workspaceOverrides = {}, options = {}) {
     dependencies[statement.moduleSpecifier.text] = Object.fromEntries(names?.elements?.map(item => [item.name.text, item.name.text]) ?? [])
   }
   Object.assign(dependencies, {
+    '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'),
     '@/lib/draft-storage': { removeDraft(key) { removed.push(key) }, clearAccountDrafts() {} },
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     'next/navigation': { useRouter: () => router },
     '@/hooks/use-notifications': { useNotifications: () => notifications },
-    '@/lib/auth-simple': { getSession: async () => ({ email: 'owner@example.test', username: 'Owner' }), logout: async () => options.logoutResult ?? ({ error: 'Unavailable' }) },
-    '@/app/actions/capabilities': { getFeatureCapabilities: async () => ({ aiWorkspace: false, csvImport: false }) },
+    '@/lib/auth-simple': { getSession: async () => ({ ...(options.session ?? { id: 'aaaaaaaa-0000-4000-8000-000000000001', email: 'owner@example.test', username: 'Owner' }) }), logout: async () => options.logoutResult ?? ({ error: 'Unavailable' }) },
+    '@/app/actions/capabilities': { getFeatureCapabilities: async () => options.capabilities ?? ({ aiWorkspace: false, csvImport: false }) },
+    '@/app/actions/workspace-intent': { createWorkspaceFromPlan: (...args) => options.createPlan?.(...args), generateWorkspaceDraft: async () => ({}) },
+    '@/app/actions/workspace-advisor': { confirmWorkspaceAdvisorDraft: async () => options.advisorResult },
     '@/lib/identity': { normalizeEmail: value => value.toLowerCase() },
-    '@/lib/dashboard-state': { getDashboardState: () => 'workspace' },
+    '@/lib/dashboard-state': { getDashboardState: ({creating}) => creating ? 'creating' : 'workspace' },
     '@/lib/dashboard-navigation': { workspaceViewFromHash: hash => ({ '#project-board': 'board', '#team-panel': 'team', '#settings-panel': 'settings' }[hash] ?? 'overview') },
-    '@/hooks/use-workspaces': { useWorkspaces: () => ({ workspaces: [workspace, { ...workspace, id: 'other' }], currentWorkspaceId: selected, setCurrentWorkspaceId: id => { selected = id }, tasks: [], realtime: { isConnected: true, eventRevision: 0 }, refreshWorkspaces: async () => {}, refreshTasks: async () => true, ...workspaceOverrides }) },
+    '@/hooks/use-workspaces': { useWorkspaces: (_email, options) => { taskReadModes.push(options.loadTasks); return ({ workspaces: [workspace, { ...workspace, id: 'other' }], currentWorkspaceId: selected, setCurrentWorkspaceId: id => { selected = id }, tasks: [], realtime: { isConnected: true, eventRevision: 0 }, refreshWorkspaces: async () => {}, refreshTasks: async () => true, ...workspaceOverrides }) } },
   })
   const exports = {}
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
@@ -52,7 +56,8 @@ function fixture(workspaceOverrides = {}, options = {}) {
   const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
   return {
     render() { cursor = 0; const tree = exports.default(); const pending = effects; effects = []; pending.forEach(fn => fn()); return nodes(tree) },
-    pushes, removed, redirects, location: window.location, selected: () => selected, allowDiscard(value) { allowDiscard = value },
+    pushes, removed, redirects, taskReadModes, location: window.location, selected: () => selected, allowDiscard(value) { allowDiscard = value },
+    authChanged() { listeners.get('storage')?.({ key: 'auth-change' }) },
     back(hash) { window.location.hash = hash; listeners.get('hashchange')?.() },
   }
 }
@@ -117,9 +122,32 @@ test('dirty quick-add blocks navigation and workspace changes until explicit dis
   assert.ok(component(ui.render(), 'WorkspaceBoard'))
 })
 
-test('Overview does not load the full dependency view until requested', async () => {
+test('workspace opens directly into handoffs and retains Board navigation', async () => {
   const ui = fixture(); ui.render(); await tick()
-  assert.equal(component(ui.render(), 'NextWorkView'), undefined)
+  assert.equal(component(ui.render(), 'WorkspaceOverview').props.workContent.type, 'NextWorkView')
+  component(ui.render(), 'WorkspaceOverview').props.onOpenBoard()
+  assert.ok(component(ui.render(), 'WorkspaceBoard'))
+})
+
+test('handoffs own task reads and quick-add reconciles through the mounted graph', async () => {
+  const ui = fixture(); ui.render(); await tick()
+  const overview = component(ui.render(), 'WorkspaceOverview')
+  assert.ok(ui.taskReadModes.every(value => value === false), 'do not also subscribe to full task lists')
+  let refreshes = 0
+  overview.props.workContent.props.onRefreshReady(async () => { refreshes++; return true })
+  await overview.props.onReviewBoard()
+  assert.equal(refreshes, 1)
+  overview.props.workContent.props.onRefreshReady(async () => false)
+  await assert.rejects(overview.props.onReviewBoard(), /Tasks unavailable/)
+})
+
+test('advisor creation on Board refreshes Board without requiring an unmounted handoff graph', async () => {
+  const ui = fixture({}, { capabilities: { aiWorkspace: true, csvImport: false }, advisorResult: { task: { id: 'new-task' } } })
+  ui.render(); await tick(); ui.render()
+  component(ui.render(), 'DashboardNavigation').props.onOpenBoard()
+  const result = await component(ui.render(), 'WorkspaceAdvisor').props.onConfirmDraft({}, 'command')
+  assert.equal(result.task.id, 'new-task')
+  assert.equal(result.warning, undefined)
 })
 
 
@@ -146,6 +174,22 @@ test('workspace refresh failure leaves a dirty settings editor mounted', async (
 })
 
 
+test('read-only section capability reaches Board and removes legacy creation and management controls', async () => {
+  const workspace = { id: 'workspace', name: 'Pilot', members: [], ownerId: 'owner@example.test', timezone: 'UTC', capabilityCeiling: { read: true } }
+  const ui = fixture({ workspaces: [workspace] }, { capabilities: { aiWorkspace: true, csvImport: true } })
+  ui.render(); await tick()
+  let rows = ui.render()
+  assert.equal(rows.some(node => node.type === 'Button' && JSON.stringify(node.props.children).includes('New task')), false)
+  assert.equal(rows.some(node => node.props?.onSelect && JSON.stringify(node.props.children).includes('Settings')), false)
+  assert.equal(component(rows, 'WorkspaceAdvisor'), undefined)
+  component(rows, 'DashboardNavigation').props.onOpenBoard()
+  assert.deepEqual(component(ui.render(), 'WorkspaceBoard').props.capabilityCeiling, { read: true })
+  ui.back('#team-panel')
+  assert.equal(component(ui.render(), 'MemberManager'), undefined)
+  ui.back('#settings-panel')
+  assert.equal(component(ui.render(), 'WorkspaceSettings'), undefined)
+})
+
 test('same-tab Help discards confirmed drafts while cancel and new-tab preserve them', async () => {
   const ui = fixture(); ui.render(); await tick()
   component(ui.render(), 'WorkspaceOverview').props.onDirtyChange(true)
@@ -159,4 +203,12 @@ test('same-tab Help discards confirmed drafts while cancel and new-tab preserve 
   ui.allowDiscard(true)
   link().props.onClick({ button: 0, preventDefault() { throw Error('allowed') } })
   assert.deepEqual(ui.removed, ['saathi:draft:owner@example.test:workspace:quick-add'])
+})
+
+for(const kind of ['manual','plan'])test('late '+kind+' unknown creation remains recoverable after account changes',async()=>{
+ let resolve;const result=new Promise(done=>{resolve=done});const options={session:{id:'aaaaaaaa-0000-4000-8000-000000000001',email:'owner@example.test',username:'Owner'},createPlan:()=>result};
+ const ui=fixture({createWorkspace:()=>result},options);ui.render();await tick();ui.render();component(ui.render(),'WorkspaceSwitcher').props.onStartNew();
+ const form=component(ui.render(),'WorkspaceCreateForm');const pending=kind==='manual'?form.props.onCreate('Launch',{summary:'Goal',targetDate:null},'same-command'):form.props.onApprove({title:'Launch',summary:'Goal',targetDate:null,tasks:[]},'same-command');
+ options.session={id:'bbbbbbbb-0000-4000-8000-000000000001',email:'other@example.test',username:'Other'};ui.authChanged();await tick();ui.render();
+ resolve({error:'Result unconfirmed',rejected:false,unknownOutcome:true});const outcome=await pending;assert.equal(outcome.error,'Result unconfirmed');assert.equal(outcome.rejected,false)
 })

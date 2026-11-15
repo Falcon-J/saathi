@@ -28,14 +28,14 @@ export async function flushOutbox(workspaceId?: string): Promise<OutboxFlushResu
   try {
     const { realtimeService } = await import("../realtime.ts")
     const claimToken = randomUUID()
-    const rows = await getDb().begin(async tx => tx`UPDATE outbox_events SET claimed_at = now(), claim_token = ${claimToken}
+    const rows = await getDb()`UPDATE outbox_events SET claimed_at = now(), claim_token = ${claimToken}
       WHERE id IN (
         SELECT id FROM outbox_events
         WHERE published_at IS NULL AND (claimed_at IS NULL OR claimed_at < now() - interval '5 minutes')
           AND (${workspaceId ?? null}::uuid IS NULL OR workspace_id = ${workspaceId ?? null}::uuid)
         ORDER BY created_at LIMIT 25 FOR UPDATE SKIP LOCKED
       )
-      RETURNING id, payload`)
+      RETURNING id, payload`
 
     for (const row of rows) {
       result.attempted++

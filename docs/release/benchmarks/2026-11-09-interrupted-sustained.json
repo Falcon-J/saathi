@@ -1,0 +1,123 @@
+{
+  "passed": false,
+  "mode": "acceptance",
+  "scope": "INVALIDATED by overnight host suspension; not a completed900-second capacity result",
+  "runId": "cef62b6d-3f62-424f-9ecc-a4234b5b50a4",
+  "phase": "bounded-delivery-drain",
+  "failure": "Overnight host suspension invalidated schedule and sessions; original verifier exited and exact cleanup was recovered",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 1000,
+    "seconds": 900,
+    "seed": 750
+  },
+  "attempts": 3293,
+  "readAttempts": 1060,
+  "streamAttempts": 1233,
+  "successfulMutations": 91,
+  "deliveries": {
+    "expected": 25000,
+    "observed": 900,
+    "missing": 24100,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": {
+    "count": 2288,
+    "byPhase": {
+      "read": 346,
+      "write": 909,
+      "stream": 1033
+    }
+  },
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 4632,
+      "p95Ms": 6599,
+      "p99Ms": 6672
+    },
+    "read": {
+      "count": 860,
+      "p50Ms": 9087,
+      "p95Ms": 63843464,
+      "p99Ms": 63845670
+    },
+    "write": {
+      "count": 1000,
+      "p50Ms": 30007,
+      "p95Ms": 30684,
+      "p99Ms": 63842678
+    },
+    "admission": {
+      "count": 1133,
+      "p50Ms": 30009,
+      "p95Ms": 30030,
+      "p99Ms": 30208
+    },
+    "deliveryUpperBound": {
+      "count": 900,
+      "p50Ms": 29332,
+      "p95Ms": 78124,
+      "p99Ms": 81832
+    },
+    "scheduleLag": {
+      "count": 1000,
+      "p50Ms": 63510539,
+      "p95Ms": 63794792,
+      "p99Ms": 63828103
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 14275,
+    "meanMs": 4502.863623944518,
+    "maxMs": 63874753.626111,
+    "p95Ms": 36.798463,
+    "p99Ms": 68.026367
+  },
+  "workload": {
+    "elapsedMs": 64231521,
+    "intendedWriteRatePerSecond": 1.1111111111111112,
+    "attemptedWrites": 1000,
+    "achievedWriteRatePerSecond": 0.0014167498940184178,
+    "attemptedWriteRatePerSecond": 0.015568680154048548,
+    "scheduleLag": {
+      "count": 1000,
+      "p50Ms": 63510539,
+      "p95Ms": 63794792,
+      "p99Ms": 63828103
+    }
+  },
+  "elapsedMs": 64231521,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "d46361c92f84613f9f65fbbcd0237c75e4e6f4d7118e2de49b68ea3adfe37e0c",
+    "verifierSha256": "ba53d3777665be14cc279482b423bd492e279552fda742ecec8a3239dab57a57",
+    "builtActionManifestSha256": "6d9a8c663cfa6215f09f622f5187ffdafaa9c0a97a68d3df97701c3df2e744f6",
+    "recordedAt": "2026-11-08T12:07:01.908Z"
+  },
+  "databasePoolMax": "1",
+  "phaseProfiling": true,
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 860,
+    "achievedRequestsPerSecond": 0.013389064848705669
+  },
+  "cleanup": "RECOVERED: exact100 Auth identities,4 exclusively-owned workspaces and associated DB/Redis fixtures removed; absence verified",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 5193,
+    "dropped": 0,
+    "limit": 60000
+  },
+  "originalFailure": "Local fixture or transport failed; inspect phase and scoped server log",
+  "cleanupRecovery": {
+    "users": 100,
+    "workspaces": 4,
+    "actualPersistedWrites": 102,
+    "absenceVerified": true
+  },
+  "hostSuspension": true
+}

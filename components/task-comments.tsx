@@ -7,8 +7,19 @@ import type { TaskComment } from "@/lib/data/comments"
 import type { RealtimeEvent } from "@/lib/realtime"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { readDraft, writeDraft, removeDraft, isDraftRecord } from "@/lib/draft-storage"
 
-export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskId: string; refreshEvent?: RealtimeEvent | null; readOnly?: boolean }) {
+type CommentCommand = { body: string; taskId: string; id: string }
+type CommentDraft = { body: string; command: CommentCommand | null }
+
+function readCommentDraft(draftKey: string | undefined, taskId: string) {
+  return readDraft(draftKey, (value): value is CommentDraft =>
+    isDraftRecord(value) && typeof value.body === "string" && (value.command === null || (isDraftRecord(value.command)
+      && value.command.taskId === taskId && value.command.body === value.body && typeof value.command.id === "string" && value.command.id.length > 0)))
+}
+
+export function TaskComments({ taskId, refreshEvent, readOnly = false, draftScope }: { taskId: string; refreshEvent?: RealtimeEvent | null; readOnly?: boolean; draftScope?: string }) {
+  const draftKey = draftScope ? `${draftScope}:comment:${taskId}` : undefined
   const [comments, setComments] = useState<TaskComment[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [body, setBody] = useState("")
@@ -19,22 +30,24 @@ export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskI
   const readVersion = useRef(0)
   const scope = useRef({ taskId, active: true })
   const submitting = useRef(false)
-  const pendingCommand = useRef<{ body: string; taskId: string; id: string } | null>(null)
+  const pendingCommand = useRef<CommentCommand | null>(null)
 
   useEffect(() => {
     scope.current = { taskId, active: true }
     submitting.current = false
     setComments([])
     setNextCursor(null)
-    setBody("")
+    const retained = readOnly ? null : readCommentDraft(draftKey, taskId)
+    pendingCommand.current = retained?.command ?? null
+    setBody(retained?.body ?? "")
     setSaving(false)
-    setNeedsRefresh(false)
+    setNeedsRefresh(Boolean(retained?.command))
     setError(null)
     return () => {
       scope.current.active = false
       readVersion.current += 1
     }
-  }, [taskId])
+  }, [taskId, draftKey, readOnly])
 
   const loadComments = useCallback(async (cursor?: string) => {
     const version = ++readVersion.current
@@ -59,7 +72,7 @@ export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskI
     } finally {
       if (isCurrent()) setLoading(false)
     }
-  }, [taskId])
+  }, [taskId, draftKey, readOnly])
 
   useEffect(() => {
     void loadComments()
@@ -77,6 +90,12 @@ export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskI
     const isCurrent = () => current.active && scope.current === current
 
     if (pendingCommand.current?.body !== body || pendingCommand.current.taskId !== taskId) pendingCommand.current = { body, taskId, id: crypto.randomUUID() }
+    // Retain the exact receipt before sending, including if the dialog closes mid-save.
+    writeDraft(draftKey, { body, command: pendingCommand.current })
+    if (draftKey && readCommentDraft(draftKey, taskId)?.command?.id !== pendingCommand.current.id) {
+      setError("Browser session storage is unavailable. Enable storage before posting so an interrupted comment can be recovered.")
+      return
+    }
     submitting.current = true
     setSaving(true)
     setError(null)
@@ -94,6 +113,8 @@ export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskI
       setLoading(false)
       setComments((comments) => comments.some(comment => comment.id === result.comment!.id)
         ? comments : [...comments, result.comment!])
+      const retained = readCommentDraft(draftKey, taskId)
+      if (retained?.command?.id === pendingCommand.current?.id) removeDraft(draftKey)
       pendingCommand.current = null
       setBody("")
       // Reconcile history and concurrent comments after invalidating older reads.
@@ -149,7 +170,13 @@ export function TaskComments({ taskId, refreshEvent, readOnly = false }: { taskI
       {!readOnly && <form onSubmit={handleSubmit} className="space-y-2">
         <Textarea
           value={body}
-          onChange={(event) => setBody(event.target.value)}
+          onChange={(event) => {
+            const nextBody = event.target.value
+            setBody(nextBody)
+            const command = pendingCommand.current?.body === nextBody ? pendingCommand.current : null
+            if (nextBody) writeDraft(draftKey, { body: nextBody, command })
+            else removeDraft(draftKey)
+          }}
           placeholder="Add a useful update or question..."
           maxLength={2000}
           rows={3}

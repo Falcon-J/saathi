@@ -56,10 +56,13 @@ test('reconnection without replay and resync-required invalidate the paged Board
   sources[0].onopen(); render(); await tick()
   const before = render(), readsBefore = actions.length
   missedTask = true
-  sources[0].onerror({}); sources[0].onopen()
+  sources[0].onerror({})
+  assert.equal(render().realtime.eventRevision, before.realtime.eventRevision + 1, 'loss refreshes before reconnect')
+  await tick()
+  sources[0].onopen()
   const reconnected = render(); await tick()
-  assert.equal(reconnected.realtime.eventRevision, before.realtime.eventRevision + 1)
-  assert.equal(actions.length, readsBefore + 2)
+  assert.equal(reconnected.realtime.eventRevision, before.realtime.eventRevision + 2)
+  assert.equal(actions.length, readsBefore + 4, 'loss and successful reconnect each reconcile the paged Board')
   assert.deepEqual(render().board.tasks, [{ id: 'missed-task' }])
   const beforeGap = render().realtime.eventRevision
   sources[0].onmessage({ data: JSON.stringify({ type: 'resync-required' }), lastEventId: '' })

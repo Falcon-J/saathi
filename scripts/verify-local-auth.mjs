@@ -8,6 +8,8 @@ import AxeBuilder from '@axe-core/playwright'
 import { createClient } from '@supabase/supabase-js'
 import net from 'node:net'
 import { startLocalRedisRest } from './local-redis-rest.mjs'
+import { authAcceptanceServer } from './local-auth-server.mjs'
+import { assertLocalAcceptanceBuild } from './local-acceptance-build.mjs'
 
 // This runner only touches the isolated CLI stack, never the project's hosted env files.
 const base = 'http://127.0.0.1:3101'
@@ -83,8 +85,9 @@ async function layout(page, focusTarget = page.getByLabel('Task title', { exact:
   log({ accessibility: 'passed', verifiedToastFocusProxies: proxyCount })
 }
 try {
-  const command = process.platform === 'win32' ? 'cmd.exe' : 'npx'
-  const args = process.platform === 'win32'
+  const cli = process.env.SAATHI_QA_SUPABASE_CLI
+  const command = cli || (process.platform === 'win32' ? 'cmd.exe' : 'npx')
+  const args = cli ? ['status', '--workdir', '.local-test/supabase-acceptance', '-o', 'json'] : process.platform === 'win32'
     ? ['/d', '/s', '/c', 'npx.cmd --yes supabase@2.120.0 status --workdir .local-test/supabase-acceptance -o json']
     : ['--yes', 'supabase@2.120.0', 'status', '--workdir', '.local-test/supabase-acceptance', '-o', 'json']
   const status = JSON.parse(await capture(command, args))
@@ -93,6 +96,9 @@ try {
   const publicKey = status.PUBLISHABLE_KEY || status.ANON_KEY
   const adminKey = status.SECRET_KEY || status.SERVICE_ROLE_KEY
   assert.ok(publicKey && adminKey)
+  const production = process.env.SAATHI_QA_AUTH_SERVER_MODE !== 'development'
+  assert.ok(['production', 'development'].includes(process.env.SAATHI_QA_AUTH_SERVER_MODE || 'production'), 'Unknown Auth acceptance server mode')
+  if (production) assertLocalAcceptanceBuild({ apiOrigin: api, appOrigin: base, publicKey })
   log('passed')
   phase = 'migrations'
   await capture(process.execPath, ['scripts/migrate-database.mjs'], { ...process.env, DATABASE_MIGRATION_URL: database })
@@ -115,14 +121,13 @@ try {
   await new Promise((resolve, reject) => { const probe = net.createServer(); probe.once('error', () => reject(new Error('Local acceptance port is occupied'))); probe.listen(3101, '127.0.0.1', () => probe.close(resolve)) })
   const redisToken = randomUUID()
   redisBridge = await startLocalRedisRest({ token: redisToken })
-  const env = { ...process.env, NODE_ENV: 'development', DATABASE_URL: database, DATABASE_MIGRATION_URL: database,
+  const specification = authAcceptanceServer({ platform: process.platform, node: process.execPath, production })
+  const env = { ...process.env, NODE_ENV: specification.nodeEnv, DATABASE_URL: database, DATABASE_MIGRATION_URL: database,
     NEXT_PUBLIC_SUPABASE_URL: api, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey, NEXT_PUBLIC_SUPABASE_ANON_KEY: publicKey,
     NEXT_PUBLIC_APP_URL: base, APP_URL: base, ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false',
     UPSTASH_REDIS_REST_URL: redisBridge.url, UPSTASH_REDIS_REST_TOKEN: redisToken,
     KV_REST_API_URL: redisBridge.url, KV_URL: redisBridge.url, KV_REST_API_TOKEN: redisToken, GROQ_API_KEY: '', RESEND_API_KEY: '', EMAIL_FROM: '' }
-  server = process.platform === 'win32'
-    ? spawn('cmd.exe', ['/d', '/s', '/c', 'npm.cmd run dev -- --webpack --hostname 127.0.0.1 --port 3101'], { cwd: process.cwd(), env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    : spawn('npm', ['run', 'dev', '--', '--webpack', '--hostname', '127.0.0.1', '--port', '3101'], { cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'] })
+  server = spawn(specification.command, specification.args, { cwd: process.cwd(), env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
   const remember = chunk => { serverOutput = (serverOutput + chunk).slice(-128000) }
   server.stdout.on('data', remember); server.stderr.on('data', remember)
   server.on('error', () => { failed = true })

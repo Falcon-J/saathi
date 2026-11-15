@@ -1,0 +1,120 @@
+{
+  "passed": false,
+  "mode": "acceptance",
+  "scope": "Local NFR verification",
+  "runId": "572f559d-04b1-41c7-8bf0-d7dbf7a49ea3",
+  "phase": "sse-admission",
+  "failure": "Local fixture or transport failed; inspect phase and scoped server log",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 1000,
+    "seconds": 900,
+    "seed": 750
+  },
+  "attempts": 430,
+  "readAttempts": 0,
+  "streamAttempts": 430,
+  "successfulMutations": 0,
+  "deliveries": {
+    "expected": 25000,
+    "observed": 0,
+    "missing": 25000,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": {
+    "count": 330,
+    "byPhase": {
+      "stream": 330
+    }
+  },
+  "timings": {
+    "warmRead": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "read": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "write": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "admission": {
+      "count": 348,
+      "p50Ms": 13279,
+      "p95Ms": 27833,
+      "p99Ms": 29442
+    },
+    "deliveryUpperBound": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 0,
+    "meanMs": null,
+    "maxMs": null,
+    "p95Ms": null,
+    "p99Ms": null
+  },
+  "workload": {
+    "elapsedMs": 0,
+    "intendedWriteRatePerSecond": 1.1111111111111112,
+    "attemptedWrites": 0,
+    "achievedWriteRatePerSecond": 0,
+    "attemptedWriteRatePerSecond": 0,
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "elapsedMs": 0,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "9d79c042b07e749a8a5323a4acac8622742e22a97710f21397382f3d3e8b9f1f",
+    "verifierSha256": "70a63d0b08b4e603fc50e20766582d7f3d219cdbee4bceb500c2b9236aa003c1",
+    "builtActionManifestSha256": "6d9a8c663cfa6215f09f622f5187ffdafaa9c0a97a68d3df97701c3df2e744f6",
+    "recordedAt": "2026-11-09T06:04:03.419Z"
+  },
+  "databasePoolMax": "5",
+  "phaseProfiling": true,
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 0,
+    "achievedRequestsPerSecond": 0
+  },
+  "cleanup": "RECOVERED: remaining exact owned Auth/profile/workspace rows removed from isolated local database; identity/workspace Redis keys removed; absence verified",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 430,
+    "dropped": 0,
+    "limit": 60000
+  },
+  "originalCleanup": "FAILED; inspect owned fixture UUIDs using runId; no broad deletion attempted",
+  "cleanupRecovery": {
+    "remainingUsersRemoved": 94,
+    "workspaceNamespaces": 3,
+    "absenceVerified": true,
+    "localOnly": true
+  }
+}

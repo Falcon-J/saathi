@@ -158,7 +158,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
                   {formError && <p role="alert" className="rounded-xl border border-[#f1b8b1] bg-[#fff4f1] px-4 py-3 text-sm leading-5 text-[#b42318]">{formError}</p>}
 
-                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={!hydrated || loading}>
+                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] disabled:opacity-100 sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={!hydrated || loading}>
                     {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
                   </Button>
                 </form>

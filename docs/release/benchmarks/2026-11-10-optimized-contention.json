@@ -1,0 +1,241 @@
+{
+  "passed": false,
+  "mode": "acceptance",
+  "scope": "Local NFR verification",
+  "runId": "6cedc47f-4491-43e8-86bd-e4fd833d7ed4",
+  "phase": "measured-workload",
+  "failure": "A required mutation failed; stopped the workload after settling active writers",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 1000,
+    "seconds": 900,
+    "seed": 750
+  },
+  "attempts": 710,
+  "readAttempts": 547,
+  "streamAttempts": 100,
+  "successfulMutations": 55,
+  "deliveries": {
+    "expected": 25000,
+    "observed": 300,
+    "missing": 24700,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [
+    {
+      "phase": "read",
+      "actorSlot": 70,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 64,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 29
+    },
+    {
+      "phase": "read",
+      "actorSlot": 69,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 62,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 68,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 30
+    },
+    {
+      "phase": "read",
+      "actorSlot": 65,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 51
+    },
+    {
+      "phase": "read",
+      "actorSlot": 39,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 37,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 40,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "write",
+      "index": 52
+    },
+    {
+      "phase": "read",
+      "actorSlot": 77,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 74,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 79,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 76,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 53
+    },
+    {
+      "phase": "read",
+      "actorSlot": 71,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 72,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 75,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 54
+    },
+    {
+      "phase": "read",
+      "actorSlot": 81,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 78,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 80,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "read",
+      "actorSlot": 82,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "write",
+      "index": 33
+    },
+    {
+      "phase": "write",
+      "index": 34
+    }
+  ],
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 6329,
+      "p95Ms": 12863,
+      "p99Ms": 13058
+    },
+    "read": {
+      "count": 347,
+      "p50Ms": 10441,
+      "p95Ms": 18373,
+      "p99Ms": 19561
+    },
+    "write": {
+      "count": 63,
+      "p50Ms": 19470,
+      "p95Ms": 33680,
+      "p99Ms": 34223
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 519,
+      "p95Ms": 865,
+      "p99Ms": 915
+    },
+    "deliveryUpperBound": {
+      "count": 300,
+      "p50Ms": 7958,
+      "p95Ms": 25821,
+      "p99Ms": 26008
+    },
+    "scheduleLag": {
+      "count": 63,
+      "p50Ms": 2,
+      "p95Ms": 8,
+      "p99Ms": 11
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 4245,
+    "meanMs": 26.2832881828033,
+    "maxMs": 204.472319,
+    "p95Ms": 32.079871,
+    "p99Ms": 34.635775
+  },
+  "workload": {
+    "elapsedMs": 111622,
+    "intendedWriteRatePerSecond": 1.1111111111111112,
+    "attemptedWrites": 63,
+    "achievedWriteRatePerSecond": 0.49273275757259766,
+    "attemptedWriteRatePerSecond": 0.5644029768558846,
+    "scheduleLag": {
+      "count": 63,
+      "p50Ms": 2,
+      "p95Ms": 8,
+      "p99Ms": 11
+    }
+  },
+  "elapsedMs": 111622,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "6df55aecccc2c2793546f72abee5b46de9207687e34549262062a815c6f3ce80",
+    "verifierSha256": "93cfb47b4049b3bb501d64866759d7be1aaff8a900100e034c0504ff29e44f9f",
+    "builtActionManifestSha256": "6d9a8c663cfa6215f09f622f5187ffdafaa9c0a97a68d3df97701c3df2e744f6",
+    "recordedAt": "2026-11-09T18:27:42.011Z"
+  },
+  "databasePoolMax": "1",
+  "phaseProfiling": false,
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 347,
+    "achievedRequestsPerSecond": 3.108706169034778
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 1073,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

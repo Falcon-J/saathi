@@ -7,7 +7,7 @@ const nodes = node => !node || typeof node !== 'object' ? [] : Array.isArray(nod
 function harness(file, name, mode, action) {
  const slots=[], effects=[], destinations=[]; let cursor=0
  const react={useState(initial){const index=cursor++;if(!(index in slots))slots[index]=initial;return[slots[index],value=>{slots[index]=typeof value==='function'?value(slots[index]):value}]},useRef(value){const index=cursor++;if(!(index in slots))slots[index]={current:value};return slots[index]},useEffect(effect,deps){const index=cursor++;if(!slots[index]||deps.some((v,i)=>v!==slots[index][i])){slots[index]=deps;effects.push(effect)}}}
- const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'next/image':{default:'Image'},'next/link':{default:'Link'},'next/navigation':{useRouter:()=>({replace:value=>destinations.push(value),refresh(){}})},'lucide-react':{},'@/lib/auth-simple':{login:action,signup:action,requestPasswordReset:action,updatePassword:action},'@/lib/supabase/auth-boundary':{safeAuthRedirect:()=>'/dashboard'},'@/components/ui/button':{Button:'Button'},'@/components/ui/input':{Input:'Input'},'@/hooks/use-notifications':{useNotifications:()=>({success(){}})},'@/components/saathi-logo':{SaathiLogo:'SaathiLogo'}}
+ const deps={react,'react/jsx-runtime':{jsx,jsxs:jsx},'next/image':{default:'Image'},'next/link':{default:'Link'},'next/navigation':{useRouter:()=>({replace:value=>destinations.push(value),refresh(){}})},'lucide-react':{},'@/lib/auth-simple':{login:action,signup:action,requestPasswordReset:action,updatePassword:action,logout:action},'@/lib/supabase/auth-boundary':{safeAuthRedirect:()=>'/dashboard'},'@/components/ui/button':{Button:'Button'},'@/components/ui/input':{Input:'Input'},'@/hooks/use-notifications':{useNotifications:()=>({success(){}})},'@/components/saathi-logo':{SaathiLogo:'SaathiLogo'}}
  const loaded={};new Function('require','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText)(key=>{assert.ok(key in deps,key);return deps[key]},loaded)
  const draw=()=>{cursor=0;return nodes(loaded[name]({mode}))}
  return {draw,destinations,mount(){draw();effects.splice(0).forEach(effect=>effect());return draw()},fill(){for(const input of draw().filter(node=>node.type==='Input')) input.props.onChange({target:{value:input.props.type==='email'?'qa@example.test':input.props.type==='password'?'long-password':'QA'}})},submit(){return draw().find(node=>node.type==='form').props.onSubmit({preventDefault(){}})}}
@@ -48,4 +48,22 @@ test('signup enters the dashboard immediately when a session is returned', async
 test('unexpected confirmation requirement offers recovery without pretending signup signed in', async () => {
  const oldWindow=global.window;global.window={location:{search:''},localStorage:{setItem(){}}}
  try {const ui=harness('components/auth-form.tsx','AuthForm','signup',async()=>({success:true,confirmationRequired:true}));ui.mount();ui.fill();await ui.submit();assert.deepEqual(ui.destinations,[]);assert.match(JSON.stringify(ui.draw()),/Check your email/);assert.ok(ui.draw().some(node=>node.type==='Link'&&node.props.children==='Return to sign in'))}finally{global.window=oldWindow}
+})
+
+test('password update preserves committed success when session cleanup fails and offers sign-out retry', async () => {
+ let calls=0
+ const ui=harness('components/password-recovery-form.tsx','PasswordRecoveryForm','update',async()=>{calls++;return calls===1?{success:true,sessionEnded:false,message:'Password updated. Sign out to finish.'}:{success:true}})
+ ui.mount();ui.fill();await ui.submit()
+ assert.deepEqual(ui.destinations,[])
+ assert.match(JSON.stringify(ui.draw()),/Password updated/)
+ assert.equal(ui.draw().some(node=>node.type==='form'),false)
+ const retry=ui.draw().find(node=>node.type==='Button'&&node.props.children==='Sign out')
+ assert.ok(retry);await retry.props.onClick()
+ assert.equal(calls,2);assert.deepEqual(ui.destinations,['/login?reset=success'])
+})
+test('password update does not lose committed success when sign-out throws', async () => {
+ const deps={'next/headers':{},'./supabase/server':{createClient:async()=>({auth:{getUser:async()=>({data:{user:{email_confirmed_at:'verified'}}}),updateUser:async()=>({error:null}),signOut:async()=>{throw Error('Offline')}}})},'./supabase/config':{},'./supabase/auth-boundary':{},'./data/profiles':{},'./identity':{}}
+ const loaded={};new Function('require','exports',ts.transpileModule(fs.readFileSync('lib/auth-simple.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(key=>deps[key],loaded)
+ const result=await loaded.updatePassword('long-password')
+ assert.equal(result.success,true);assert.equal(result.sessionEnded,false);assert.match(result.message,/Password updated/)
 })

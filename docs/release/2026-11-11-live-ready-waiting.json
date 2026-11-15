@@ -1,0 +1,117 @@
+{
+  "date": "2026-11-11",
+  "runId": "52accd25-520b-46c6-bd8c-1136f2e9ccc6",
+  "baseUrl": "https://saathi-ten.vercel.app",
+  "sourceRevision": "9d6ef0ddd201b25e35764e371748db8020215899",
+  "functionalPassed": true,
+  "scenarios": {
+    "realOwnerMemberOutsiderPasswordSignIn": true,
+    "workspaceCreation": true,
+    "singleUseInvitation": true,
+    "acceptedInvitationReloadRecovery": true,
+    "outsiderAcceptedLinkDenied": true,
+    "threeTasksCreated": true,
+    "ownerAssignments": true,
+    "twoPrerequisitesWaiting": true,
+    "allPrerequisitesReady": true,
+    "reopeningReturnsToWaiting": true,
+    "liveMemberUpdatesWithoutManualRefresh": true,
+    "uppercaseStreamCanonical": true,
+    "reconnectMissedChangeReconciled": true,
+    "memberEditPermissionBoundary": true,
+    "outsiderUsageAndSse403": true,
+    "commentDraftCloseReload": true,
+    "committedLostResponseRecoveredSameCommand": true,
+    "sqlSingleCommentAndReceipt": true,
+    "search": true,
+    "quickAddStayReloadDiscard": true,
+    "editorReloadCancelDiscard": true,
+    "linkedTaskNavigation": true,
+    "memberTaskDetailsReadOnly": true,
+    "keyboardFocusRestoration": true,
+    "mobileNoOverflow": true,
+    "desktopMobileSeriousCriticalAxeZero": true,
+    "memberRemovalAndSse403": true,
+    "removedMemberCannotReuseInvite": true
+  },
+  "layout": {
+    "width": 360,
+    "scrollWidth": 360
+  },
+  "errors": {
+    "uncaughtPageErrors": 0,
+    "unexpectedHttpFailures": 0,
+    "intentionalDroppedCommittedResponse": {
+      "applied": true,
+      "status": 200
+    }
+  },
+  "databaseAuthCleanup": {
+    "counts": {
+      "workspaces": 0,
+      "tasks": 0,
+      "dependencies": 0,
+      "memberships": 0,
+      "comments": 0,
+      "invitations": 0,
+      "receipts": 0,
+      "activity": 0,
+      "outbox": 0,
+      "ai_operations": 0,
+      "profiles": 0,
+      "auth_users": 0,
+      "sessions": 0
+    },
+    "method": "Exact ownership-guarded SQL cleanup after browser teardown; all test Auth sessions globally signed out",
+    "verified": true,
+    "remainingRows": 0
+  },
+  "runtimeCacheCleanup": {
+    "complete": true,
+    "exactStreamKey": "stream:3e84ec4b-3d8c-44aa-9f14-37a281ad0242",
+    "confirmation": {
+      "source": "User executed exact DEL in Upstash console",
+      "returned": 1,
+      "confirmedOn": "2026-11-12"
+    },
+    "independentlyRechecked": false
+  },
+  "evidence": {
+    "desktop": "browser-evidence/2026-11-11-live-ready-waiting-desktop.png",
+    "mobile": "browser-evidence/2026-11-11-live-ready-waiting-mobile.png"
+  },
+  "postCleanupReadiness": {
+    "status": 200,
+    "result": "ready"
+  },
+  "applicationCodeChangesRequired": false,
+  "completed": true,
+  "passed": true,
+  "completedOn": "2026-11-12",
+  "finalVerification": {
+    "date": "2026-11-12",
+    "productionReadiness": {
+      "httpStatus": 200,
+      "status": "ready"
+    },
+    "mainRevision": "9d6ef0ddd201b25e35764e371748db8020215899",
+    "ciRun": 42766871515,
+    "ciConclusion": "success",
+    "databaseAuthCounts": {
+      "workspaces": 0,
+      "tasks": 0,
+      "dependencies": 0,
+      "memberships": 0,
+      "comments": 0,
+      "invitations": 0,
+      "receipts": 0,
+      "activity": 0,
+      "outbox": 0,
+      "ai_operations": 0,
+      "profiles": 0,
+      "auth_users": 0,
+      "sessions": 0
+    },
+    "outstandingActions": []
+  }
+}

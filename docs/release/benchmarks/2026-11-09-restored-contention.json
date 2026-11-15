@@ -1,0 +1,85 @@
+{
+  "passed": false,
+  "mode": "acceptance-attempt-stopped",
+  "runId": "6443652b-0b90-4379-ad76-451083aca992",
+  "scope": "Stopped after required writes failed; not a completed900-second run",
+  "failure": "Required1000 successful mutations could no longer be reached",
+  "progressAtStop": {
+    "runId": "6443652b-0b90-4379-ad76-451083aca992",
+    "phase": "measured-workload",
+    "mode": "acceptance",
+    "envelope": {
+      "users": 100,
+      "members": 25,
+      "writes": 1000,
+      "seconds": 900,
+      "seed": 750
+    },
+    "elapsedMs": 300985,
+    "intendedWriteRatePerSecond": 1.1111111111111112,
+    "attemptedWrites": 335,
+    "achievedWriteRatePerSecond": 0.9967258118569373,
+    "attemptedWriteRatePerSecond": 1.1130104899069133,
+    "scheduleLag": {
+      "count": 335,
+      "p50Ms": 1,
+      "p95Ms": 7,
+      "p99Ms": 13
+    },
+    "identitiesCreated": 100,
+    "identitiesSignedIn": 100,
+    "observersReady": 100,
+    "attemptedRequests": 2492,
+    "successfulMutations": 300,
+    "errors": 244,
+    "deliveries": {
+      "expected": 25000,
+      "observed": 4995,
+      "missing": 20005,
+      "duplicateNotifications": 0
+    },
+    "updatedAt": "2026-11-09T18:03:55.199Z"
+  },
+  "actualPersistedWrites": 312,
+  "partialFlushedTimings": {
+    "warmRead": {
+      "count": 200,
+      "p95Ms": 4272
+    },
+    "read": {
+      "count": 1771,
+      "p95Ms": 14072
+    },
+    "write": {
+      "count": 336,
+      "p95Ms": 24311
+    },
+    "admission": {
+      "count": 200,
+      "p95Ms": 8081
+    },
+    "event": {
+      "count": 5214,
+      "p95Ms": 100972
+    },
+    "write-schedule": {
+      "count": 0,
+      "p95Ms": null
+    }
+  },
+  "truncatedTimingLines": 0,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "00240a230a0598a3efe73a244f661c9cfedc592019d3d04179f7df8f5e610903",
+    "verifierSha256": "14ad52d6f6250e7ee9c0f09127baf635c44b620d5b822b5eda8264daef358b43",
+    "builtActionManifestSha256": "6d9a8c663cfa6215f09f622f5187ffdafaa9c0a97a68d3df97701c3df2e744f6",
+    "recordedAt": "2026-11-09T17:57:38.820Z"
+  },
+  "cleanup": {
+    "verified": true,
+    "users": 100,
+    "workspaces": 4,
+    "redisKeys": 208,
+    "absenceVerified": true
+  }
+}

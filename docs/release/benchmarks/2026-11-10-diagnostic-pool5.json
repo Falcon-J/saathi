@@ -1,0 +1,564 @@
+{
+  "passed": false,
+  "mode": "diagnostic",
+  "scope": "DIAGNOSTIC ONLY; not NFR acceptance",
+  "runId": "8110e724-c03b-4543-b18d-488ae39155ab",
+  "phase": "warm-reads",
+  "failure": "Admission or warmup failed",
+  "envelope": {
+    "users": 100,
+    "members": 25,
+    "writes": 100,
+    "seconds": 60,
+    "seed": 750
+  },
+  "attempts": 300,
+  "readAttempts": 200,
+  "streamAttempts": 100,
+  "successfulMutations": 0,
+  "deliveries": {
+    "expected": 2500,
+    "observed": 0,
+    "missing": 2500,
+    "duplicateNotifications": 0
+  },
+  "allRolesActuallyActive": false,
+  "errors": [
+    {
+      "phase": "warmRead",
+      "actorSlot": 10,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 14,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 12,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 56,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 57,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 58,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 59,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 60,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 16,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 61,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 18,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 13,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 63,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 64,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 65,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 15,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 67,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 66,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 68,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 71,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 70,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 69,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 73,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 72,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 19,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 74,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 75,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 20,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 76,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 77,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 22,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 78,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 79,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 21,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 17,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 23,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 80,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 81,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 82,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 83,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 84,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 85,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 86,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 88,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 87,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 89,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 90,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 91,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 92,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 93,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 94,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 24,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 25,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 95,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 26,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 27,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 96,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 29,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 33,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 31,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 34,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 97,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 98,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 99,
+      "action": "getTasksPage"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 30,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 35,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 36,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 43,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 37,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 41,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 32,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 28,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 39,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 40,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 38,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 42,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 45,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 50,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 46,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 44,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 51,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 48,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 52,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 49,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 54,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 53,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 47,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 55,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 56,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 57,
+      "action": "getWorkspaceTaskAggregates"
+    },
+    {
+      "phase": "warmRead",
+      "actorSlot": 58,
+      "action": "getWorkspaceTaskAggregates"
+    }
+  ],
+  "timings": {
+    "warmRead": {
+      "count": 200,
+      "p50Ms": 10114,
+      "p95Ms": 11171,
+      "p99Ms": 11614
+    },
+    "read": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "write": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "admission": {
+      "count": 100,
+      "p50Ms": 581,
+      "p95Ms": 2488,
+      "p99Ms": 2548
+    },
+    "deliveryUpperBound": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    },
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "generatorEventLoopDelay": {
+    "scope": "Load generator process only; server loop is not measured here",
+    "samples": 0,
+    "meanMs": null,
+    "maxMs": null,
+    "p95Ms": null,
+    "p99Ms": null
+  },
+  "workload": {
+    "elapsedMs": 0,
+    "intendedWriteRatePerSecond": 1.6666666666666667,
+    "attemptedWrites": 0,
+    "achievedWriteRatePerSecond": 0,
+    "attemptedWriteRatePerSecond": 0,
+    "scheduleLag": {
+      "count": 0,
+      "p50Ms": null,
+      "p95Ms": null,
+      "p99Ms": null
+    }
+  },
+  "elapsedMs": 0,
+  "fingerprint": {
+    "revision": "466a330278813704fda89b1be24d8f47d24a86d9",
+    "workingDiffSha256": "ed2c3b6cb7c6b99ece9efb5ba6b02c3417f013d7f7758a4b60f6361cf6822fcb",
+    "verifierSha256": "93cfb47b4049b3bb501d64866759d7be1aaff8a900100e034c0504ff29e44f9f",
+    "builtActionManifestSha256": "6d9a8c663cfa6215f09f622f5187ffdafaa9c0a97a68d3df97701c3df2e744f6",
+    "recordedAt": "2026-11-09T18:35:05.529Z"
+  },
+  "databasePoolMax": "5",
+  "phaseProfiling": true,
+  "readWorkload": {
+    "scheduling": "Response-dependent reads with 15-second think time per user",
+    "attempts": 0,
+    "achievedRequestsPerSecond": 0
+  },
+  "cleanup": "Owned fixture UUID rows, local Auth identities and exact identity-matching Redis keys removed; server stopped",
+  "timingEvidence": {
+    "file": "timings.jsonl",
+    "samples": 300,
+    "dropped": 0,
+    "limit": 60000
+  }
+}

@@ -20,7 +20,7 @@ function fixture(overrides = {}, storage = new Map()) {
   const dependencies = {
     react,
     '@/app/tasks/actions': { getTasks: async () => ({ tasks: [] }), ...overrides },
-    '@/app/actions/workspaces': { getUserWorkspaces: async () => { workspaceReads++; return workspaces }, ...overrides },
+    '@/app/actions/workspaces': { getUserWorkspaces: async () => { workspaceReads++; return workspaces }, createWorkspaceCommand: async (...args) => ({ workspace: await overrides.createWorkspace?.(...args) }), ...overrides },
     '@/hooks/use-notifications': { useNotifications: () => ({ success() {}, error() {}, info() {} }) },
     '@/hooks/useRealtime': { useRealtime: options => { realtimeOptions = options; return {} } },
     '@/lib/identity': { normalizeEmail: value => value.toLowerCase() },
@@ -29,7 +29,7 @@ function fixture(overrides = {}, storage = new Map()) {
   }
   const exports = {}
   const js = ts.transpileModule(fs.readFileSync('hooks/use-workspaces.ts','utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  new Function('require','exports','console','window',js)(name => { assert.ok(name in dependencies,name); return dependencies[name] }, exports, { error() {} }, { sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) } })
+  new Function('require','exports','console','window',js)(name => { assert.ok(name in dependencies,name); return dependencies[name] }, exports, { error() {}, warn() {} }, { sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) } })
   return {
     render(email = 'owner@example.test', options) { cursor = 0; result = exports.useWorkspaces(email, options); const pending = effects; effects = []; pending.forEach(effect => effect()); return result },
     realtime: () => realtimeOptions,
@@ -79,7 +79,7 @@ test('late workspace creation cannot change a new account selection', async () =
   const created = deferred()
   const ui = fixture({ createWorkspace: () => created.promise })
   ui.render(); await tick(); ui.render(); await tick()
-  const pending = ui.render().createWorkspace('Old account')
+  const pending = ui.render().createWorkspace('Old account', undefined, 'cccccccc-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000001')
   ui.render('other@example.test'); await tick(); ui.render('other@example.test'); await tick()
   created.resolve({ id: 'old-account-workspace' }); await pending
   const state = ui.render('other@example.test')
@@ -165,4 +165,34 @@ test('an invitation refresh cannot switch workspace when editing starts during i
   dirty = true
   read.resolve([{ id: 'workspace' }, { id: 'other' }]); await pending
   assert.equal(ui.render().currentWorkspaceId, 'workspace')
+})
+
+test('committed membership removal remains successful when reconciliation fails', async () => {
+ let reads=0,removed=false
+ const ui=fixture({removeMemberFromWorkspace:async()=>{removed=true},getUserWorkspaces:async()=>{if(++reads>1)throw Error('Offline');return [{id:'workspace',members:[{email:'member@example.test'}]},{id:'other'}]}})
+ ui.render();await tick();ui.render();await tick()
+ await assert.doesNotReject(ui.render().removeMember('member@example.test'))
+ assert.equal(removed,true)
+ const state=ui.render()
+ assert.equal(state.workspaces[0].members.length,0)
+ assert.match(state.workspaceError,/removed.*refresh/i)
+})
+test('committed leave removes local workspace access even when reconciliation fails', async () => {
+ let reads=0
+ const ui=fixture({removeMemberFromWorkspace:async()=>{},getUserWorkspaces:async()=>{if(++reads>1)throw Error('Offline');return [{id:'workspace'},{id:'other'}]}})
+ ui.render();await tick();ui.render();await tick()
+ await assert.doesNotReject(ui.render().removeMember('owner@example.test'))
+ assert.deepEqual(ui.render().workspaces.map(w=>w.id),['other'])
+ assert.equal(ui.render().currentWorkspaceId,'other')
+})
+
+test('workspace retries forward the exact command and do not append duplicate local entries',async()=>{
+ const calls=[];const created={id:'created',name:'Launch'};const ui=fixture({createWorkspaceCommand:async(...args)=>{calls.push(args);return{workspace:created}}});
+ ui.render();await tick();ui.render();await tick();const command='aaaaaaaa-0000-4000-8000-000000000001';
+ await ui.render().createWorkspace('Launch',{summary:'Goal'},command,'aaaaaaaa-0000-4000-8000-000000000001');await ui.render().createWorkspace('Launch',{summary:'Goal'},command,'aaaaaaaa-0000-4000-8000-000000000001');
+ assert.deepEqual(calls,[['Launch',{summary:'Goal'},command,'aaaaaaaa-0000-4000-8000-000000000001'],['Launch',{summary:'Goal'},command,'aaaaaaaa-0000-4000-8000-000000000001']]);assert.equal(ui.render().workspaces.filter(w=>w.id==='created').length,1)
+})
+test('workspace known rejection and unknown outcome remain distinct for form recovery',async()=>{
+ for(const unknownOutcome of [false,true]){const ui=fixture({createWorkspaceCommand:async()=>({error:'Not saved',unknownOutcome})});ui.render();await tick();ui.render();await tick();
+ const result=await ui.render().createWorkspace('Launch',undefined,'cccccccc-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-000000000001');assert.equal(result.rejected,!unknownOutcome);assert.equal(ui.render().workspaces.some(w=>w.name==='Launch'),false)}
 })

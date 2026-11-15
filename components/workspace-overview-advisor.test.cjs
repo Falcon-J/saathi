@@ -6,7 +6,7 @@ const dashboard = fs.readFileSync("app/dashboard/page.tsx", "utf8")
 test("optional AI advisor opens inside the workspace behind its feature flag", () => {
   assert.doesNotMatch(overview, /WorkspaceAdvisor/)
   assert.doesNotMatch(dashboard, /AssistantWorkspace|workspaceMode|Assistant unavailable/)
-  assert.match(dashboard, /aiWorkspaceEnabled && <Dialog/)
+  assert.match(dashboard, /aiWorkspaceEnabled && canCreateTask && <Dialog/)
   assert.match(dashboard, /<DialogTitle>Ask Saathi/)
   assert.match(dashboard, /workspaceId=\{currentWorkspace.id\}/)
   assert.match(dashboard, /confirmWorkspaceAdvisorDraft/)
