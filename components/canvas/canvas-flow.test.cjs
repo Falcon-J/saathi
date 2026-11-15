@@ -225,6 +225,20 @@ test('selection changes stay local while dimension and position changes cannot r
   assert.equal(Boolean(ui.render().nodes.find(node => node.id === id).selected), false)
 })
 
+test('record titles open canonical work while the card remains selectable', () => {
+  const ui = harness(), flow = ui.render()
+  const record = flow.nodeTypes.workspace({ data: flow.nodes[0].data })
+  const visit = node => !node || typeof node !== 'object' ? [] : [node, ...[node.props?.children].flat(Infinity).flatMap(visit)]
+  const heading = visit(record).find(node => node.type === 'h2')
+  const title = visit(heading).find(node => node.type === 'button')
+  assert.ok(title, 'the title must support pointer and keyboard activation')
+  let stopped = false
+  title.props.onClick({ stopPropagation() { stopped = true } })
+  assert.equal(stopped, true)
+  assert.deepEqual(ui.opens, [{ kind: 'workspace', workspaceId: 'a' }])
+  assert.equal(flow.onNodeClick, undefined, 'selecting the rest of a card must not open it')
+})
+
 
 test('camera preferences cannot restore a deep task position into a collapsed or different authorized view', () => {
   const { readCanvasCamera } = require('./camera-utils.ts')

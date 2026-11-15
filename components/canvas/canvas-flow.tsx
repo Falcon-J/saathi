@@ -27,7 +27,7 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
   return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground ${container ? "border-dashed border-border bg-muted/10" : workspace ? "border-border bg-card/95 shadow-sm" : "border-primary/25 bg-card shadow-sm"}`}>
     <Handle type="target" position={Position.Left} style={canvasHandleStyle} isConnectable={false} />
     <div className={workspace ? "flex h-28 items-start justify-between gap-4 overflow-hidden px-5 py-4" : "flex h-full flex-col gap-3 p-4"}>
-      <div className={workspace ? "min-w-0" : "min-h-0 flex-1 overflow-hidden"}><h2 title={data.title} className={`line-clamp-2 break-words font-semibold tracking-tight ${workspace ? "text-lg" : "text-base"}`}>{data.title}</h2>
+      <div className={workspace ? "min-w-0" : "min-h-0 flex-1 overflow-hidden"}><h2 title={data.title} className={`line-clamp-2 break-words font-semibold tracking-tight ${workspace ? "text-lg" : "text-base"}`}><button type="button" className="nodrag nopan cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-ring" onClick={event => { event.stopPropagation(); data.open() }}>{data.title}</button></h2>
         {data.representation !== "compact" && data.subtitle && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{data.subtitle}</p>}
         {!workspace && data.representation === "detail" && data.description && <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{data.description}</p>}
       </div>
