@@ -62,3 +62,16 @@ test("task filters consume semantic light-theme tokens", () => {
   assert.match(taskFilterSource, /bg-secondary/)
   assert.doesNotMatch(taskFilterSource, /border-white\/10|bg-input\/70/)
 })
+
+test('primary button text retains AA contrast on a white surface while hovered', () => {
+  const button = readFileSync(path.join(__dirname, '..', '..', 'components', 'ui', 'button.tsx'), 'utf8')
+  const variant = button.match(/default: '([^']+)'/)[1]
+  const alpha = Number(variant.match(/hover:bg-primary\/(\d+)/)?.[1] ?? 100) / 100
+  const root = globalsCss.match(/:root\s*\{([\s\S]*?)\n\}/)[1]
+  const rgb = token => root.match(new RegExp(`${token}:\\s*#([0-9a-f]{6})`))[1].match(/../g).map(hex => parseInt(hex, 16))
+  const luminance = color => color.map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0)
+  const foreground = luminance(rgb('--primary-foreground'))
+  const background = luminance(rgb('--primary').map(value => Math.round(alpha * value + (1 - alpha) * 255)))
+  const ratio = (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05)
+  assert.ok(ratio >= 4.5, `Hovered primary button contrast ${ratio.toFixed(2)} must meet 4.5:1`)
+})
