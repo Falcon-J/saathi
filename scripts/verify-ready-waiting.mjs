@@ -26,6 +26,7 @@ const revision = createHash('sha256').update(readFileSync(new URL(import.meta.ur
 const results = []
 const users = [], contexts = [], secrets = [], rawStreamPages = []
 const actionSamples = []
+const deferredCleanups = []
 const requestSamples = new WeakMap()
 let actionNames = {}
 let db, admin, bridge, server, browser, page, phase = 'local-stack', failed = false
@@ -309,11 +310,28 @@ try {
   phase = 'cleanup'
   await Promise.allSettled(rawStreamPages.map(p => p.evaluate(() => { window.__saathiQaUppercaseSse?.source.close(); delete window.__saathiQaUppercaseSse })))
   await Promise.allSettled(contexts.map(context => context.close())); await browser?.close()
-  if (server?.pid) {
-    if (process.platform === 'win32') await capture('taskkill.exe', ['/pid', String(server.pid), '/t', '/f']).catch(() => {})
-    else server.kill('SIGTERM')
-  }
   try {
+    const serverAlive = () => server?.exitCode === null && server?.signalCode === null
+    if (server?.pid && serverAlive()) {
+      if (process.platform === 'win32') {
+        try { await capture('taskkill.exe', ['/pid', String(server.pid), '/t', '/f']) }
+        catch { if (serverAlive()) throw new Error('Acceptance server shutdown failed') }
+        if (serverAlive()) await new Promise(resolveExit => {
+          const done = () => { clearTimeout(timer); server.off('exit', done); resolveExit() }
+          const timer = setTimeout(done, 5000)
+          server.once('exit', done)
+        })
+        if (serverAlive()) throw new Error('Acceptance server is still running; fixture cleanup preserved')
+      } else await new Promise(resolveClose => {
+        const force = setTimeout(() => server.kill('SIGKILL'), 5000)
+        server.once('close', () => { clearTimeout(force); resolveClose() })
+        server.kill('SIGTERM')
+      })
+    }
+    let cleanupFailed = false
+    for (const cleanup of deferredCleanups) {
+      try { await cleanup() } catch { failed = true; cleanupFailed = true; log({ deferredFixtureCleanup: "failed" }) }
+    }
     if (db) {
       await db.begin(async tx => {
         await tx`DELETE FROM activity_events WHERE workspace_id=${workspace}`
@@ -343,7 +361,7 @@ try {
       }
       for (const key of keys) await bridge.command(['DEL', key])
     }
-    log('passed')
+    log(cleanupFailed ? 'failed' : 'passed')
   } catch { failed = true; log('failed') }
   await db?.end(); await bridge?.close()
   mkdirSync(evidence, { recursive: true })

@@ -74,11 +74,15 @@ test("workspace advisor stays inside the authenticated, reviewable boundary", ()
 
 test("disabled capabilities reject direct actions before provider calls or writes", async () => {
   let effects = 0
+  const browserWorkspace = await import('../../features/platform/browser-workspace.ts')
+  const workspaceIntent = await import('../../lib/workspace-intent.ts')
   const capabilities = resolveFeatureFlags({ ENABLE_AI_WORKSPACE: "false", ENABLE_CSV_IMPORT: "false" })
   const loadAction = (path) => {
     const exports = {}
     const dependencies = {
       "@/lib/auth-simple": { getSession: async () => ({ id: "actor", email: "actor@example.test" }) },
+      "@/lib/workspace-intent": workspaceIntent,
+      "@/features/platform/browser-workspace": { ...browserWorkspace, createBrowserWorkspace: browserWorkspace.createBrowserWorkspaceCreator({ executeWithReceipt: async command => ({ result: await command.execute(), replayed: false }) }) },
       "@/lib/feature-flags": { isAiWorkspaceEnabled: () => capabilities.aiWorkspace, resolveFeatureFlags: () => capabilities },
       "@/lib/data/workspaces": { readWorkspace: async () => ({ name: "Workspace" }), createWorkspaceRecord: async () => { effects++; throw new Error("Unexpected write") } },
       "@/lib/data/tasks": { TaskError, listTaskRecords: async () => [], createTaskRecord: async () => { effects++; throw new Error("Unexpected write") } },
@@ -96,7 +100,7 @@ test("disabled capabilities reject direct actions before provider calls or write
   const advisor = loadAction("app/actions/workspace-advisor.ts")
   const csv = loadAction("app/actions/migration.ts")
   assert.match((await intent.generateWorkspaceDraft("Goal")).error, /unavailable/)
-  assert.match((await intent.createWorkspaceFromPlan({})).error, /unavailable/)
+  assert.match((await intent.createWorkspaceFromPlan({title:"Goal",summary:"Reviewed",targetDate:null,tasks:[]}, 'command', 'actor')).error, /unavailable/)
   assert.match((await advisor.askWorkspaceAdvisor("workspace", "draft_task", "Task")).error, /unavailable/)
   assert.match((await advisor.confirmWorkspaceAdvisorDraft("workspace", {}, "key")).error, /unavailable/)
   assert.match((await csv.importTasksFromCsv("workspace", "title\nTask")).error, /unavailable/)

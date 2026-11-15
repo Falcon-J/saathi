@@ -67,7 +67,7 @@ export function ContextualWorkspaceCreate({ actorId, target, onCancel, onCreated
         retained.current = null; setPending(null); setError(null); onCancel()
       }}>Stop recovering</Button>
     </div> : null}
-    {ready ? <div hidden={Boolean(pending)}><WorkspaceCreateForm compact aiEnabled={false} canCancel onCancel={onCancel}
+    {ready ? <div hidden={Boolean(pending)}><WorkspaceCreateForm actorId={actorId} account={`canvas:${target.id}`} compact aiEnabled={false} canCancel onCancel={onCancel}
       onCreate={async (name, details) => run({ path: target.path, command: { operation: "workspace.create", input: {
         commandId: crypto.randomUUID(), workspaceId: crypto.randomUUID(), resourceId: crypto.randomUUID(),
         parentId: target.id, expectedParentVersion: target.version, name, summary: details.summary,

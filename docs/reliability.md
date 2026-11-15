@@ -21,4 +21,4 @@ The current code records publish latency and logs workspace-scoped failures with
 
 ## Abuse protection
 
-Invitation and task mutation limits use Redis counters. Email delivery uses immutable queued payloads, provider idempotency keys, bounded retries, and terminal suppression after bounce or complaint. Limits are intentionally targeted rather than applied to every read. Rate-limit responses are explicit and include a retry duration without exposing internal keys.
+Invitation and task mutation limits use Redis counters. Private invitation links expire and admit one accepting account; addressed invitations require the invited verified identity. Invitation mail is not sent. Durable outbox events use bounded, leased publication and retries. Limits are intentionally targeted rather than applied to every read. Rate-limit responses include a retry duration without exposing internal keys.

@@ -36,7 +36,53 @@ export function parseRealtimeStreamEntry(entry: { id: string; fields: Record<str
 }
 
 // Redis Streams + Polling implementation for real-time events
+/** Share raw transport snapshots only; authorization and replay stay per delivery. */
+export function createRawStreamReader<T>(read: (key: string) => Promise<T>, {
+    now = () => performance.now(), retentionMs = 100, maxEntries = 128, maxBytes = 1024 * 1024, maxEntryBytes = 64 * 1024,
+}: { now?: () => number; retentionMs?: number; maxEntries?: number; maxBytes?: number; maxEntryBytes?: number } = {}) {
+    type Entry = { started: number; pending: boolean; bytes: number; result: Promise<string> }
+    const entries = new Map<string, Entry>()
+    let retainedBytes = 0
+    const remove = (key: string, entry: Entry) => {
+        if (entries.get(key) !== entry) return
+        retainedBytes -= entry.bytes
+        entries.delete(key)
+    }
+    const evictOldest = () => {
+        const oldest = entries.entries().next().value
+        if (oldest) remove(oldest[0], oldest[1])
+    }
+    return async (key: string): Promise<T> => {
+        const cached = entries.get(key)
+        if (cached && (cached.pending || now() - cached.started < retentionMs)) return JSON.parse(await cached.result) as T
+        if (cached) remove(key, cached)
+        for (const [oldKey, old] of entries) if (!old.pending && now() - old.started >= retentionMs) remove(oldKey, old)
+        while (entries.size >= maxEntries && entries.size) evictOldest()
+        const entry: Entry = { started: now(), pending: true, bytes: 0, result: Promise.resolve('null') }
+        entries.set(key, entry)
+        entry.result = Promise.resolve().then(() => read(key)).then(value => {
+            const snapshot = JSON.stringify(value)
+            if (typeof snapshot !== 'string') throw new Error('Raw stream response is not JSON data')
+            entry.pending = false
+            const bytes = new TextEncoder().encode(snapshot).byteLength
+            // Start retention before transport, so slow responses cannot extend staleness.
+            if (bytes > maxEntryBytes || bytes > maxBytes || now() - entry.started >= retentionMs) remove(key, entry)
+            else if (entries.get(key) === entry) {
+                while (retainedBytes + bytes > maxBytes && entries.size) evictOldest()
+                if (entries.get(key) === entry) { entry.bytes = bytes; retainedBytes += bytes }
+            }
+            return snapshot
+        }).catch(error => { remove(key, entry); throw error })
+        return JSON.parse(await entry.result) as T
+    }
+}
+
 export class RealtimeService {
+    private readRawStream = createRawStreamReader(async key => {
+        const [workspaceId, cursor, count] = JSON.parse(key) as [string, string, number]
+        return streamService.xread(`${this.eventStreamPrefix}${workspaceId}`, cursor, count)
+    })
+    private readRawBounds = createRawStreamReader(async workspaceId => streamService.getStreamBounds(`${this.eventStreamPrefix}${workspaceId}`), { retentionMs: 0 })
     private static instance: RealtimeService
     private streamKey = 'saathi:events'
     private eventStreamPrefix = 'stream:'
@@ -145,8 +191,7 @@ export class RealtimeService {
     }
 
     async getStreamBounds(workspaceId: string): Promise<{ oldestId: string; latestId: string } | null> {
-        const streamKey = `${this.eventStreamPrefix}${workspaceId}`
-        return streamService.getStreamBounds(streamKey)
+        return this.readRawBounds(workspaceId)
     }
 
     /**
@@ -154,8 +199,7 @@ export class RealtimeService {
      * Used by the SSE route for efficient polling.
      */
     async readNewEvents(workspaceId: string, lastSeenId: string, count: number = 50) {
-        const streamKey = `${this.eventStreamPrefix}${workspaceId}`
-        const entries = await streamService.xread(streamKey, lastSeenId, count)
+        const entries = await this.readRawStream(JSON.stringify([workspaceId, lastSeenId, count]))
         return entries
             .map(entry => {
                 const event = parseRealtimeStreamEntry(entry)

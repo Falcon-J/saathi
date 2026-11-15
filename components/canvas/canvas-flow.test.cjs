@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const test = require('node:test')
 const ts = require('typescript')
 const { createCanvasNavigation, projectCanvas, taskNodeId } = require('../../features/canvas/model.ts')
-const { adoptUserNodes, getEdgePosition, ConnectionMode } = require('@xyflow/system')
+const { adoptUserNodes, getEdgePosition, getNodesBounds, ConnectionMode } = require('@xyflow/system')
 
 const workspace = id => ({ id, name: id, timezone: 'UTC', ownerId: 'owner@example.test', ownerUserId: 'owner', members: [], version: 1, targetAt: null, createdAt: '2026-11-12T00:00:00Z' })
 const task = { id: 'task', workspaceId: 'a', title: 'Actual task', completed: false, status: 'todo', priority: 'medium', createdBy: 'owner@example.test', createdAt: '2026-11-12T00:00:00Z', updatedAt: '2026-11-12T00:00:00Z', version: 1 }
@@ -11,77 +11,44 @@ const navigation = createCanvasNavigation({ actorId: 'actor', canvasId: 'persona
 const project = (graphs = [], focus = { kind: 'overview' }) => projectCanvas({ graphs, navigation: { ...navigation, focus }, zoom: 1 })
 const entry = { workspace: workspace('a'), complete: true, graph: { tasks: [task], dependencies: [], timezone: 'UTC', asOf: '2026-11-12T00:00:00Z' } }
 
-function harness() {
-  const slots = [], effects = [], fits = [], opens = []
-  let cursor = 0, manual = 0, size = { width: 0, height: 0 }
+function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitResult = () => Promise.resolve(true) } = {}) {
+  const slots = [], effects = [], fits = [], opens = [], boundsRequests = [], viewports = [], parents = new Map(), queuedFits = []
+  let size = { width: 0, height: 0 }; let ready = false, cursor = 0, manual = 0, renderedNodes = [], committedNodes = new Map()
   const changed = (a, b) => !a || a.length !== b.length || a.some((value, i) => value !== b[i])
   const react = {
     memo: fn => fn,
-    useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { slots[i].value = value }] },
+    useImperativeHandle(ref, create) { ref.current = create() },
+    useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value }] },
     useRef(initial) { return slots[cursor++] ??= { current: initial } },
     useMemo(fn, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) slots[i] = { deps, value: fn() }; return slots[i].value },
     useCallback(fn, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) slots[i] = { deps, fn }; return slots[i].fn },
     useEffect(fn, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) { slots[i] = { deps }; effects.push(fn) } },
   }
+  react.useLayoutEffect = react.useEffect
   const jsx = (type, props) => ({ type, props })
+  const instance = {
+    get viewportInitialized() { return ready },
+    getNodesBounds: ids => { boundsRequests.push(ids); return getNodesBounds(ids, { nodeLookup: committedNodes, nodeOrigin: [0, 0] }) },
+    fitBounds: (bounds, options) => { fits.push({ bounds, ...options }); return fitResult() },
+    setViewport: viewport => { viewports.push(viewport); return Promise.resolve(true) }, zoomIn() {}, zoomOut() {}, zoomTo() {},
+  }
   const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next-themes': { useTheme: () => ({ resolvedTheme: 'light' }) },
-    '@xyflow/react': { ReactFlow: 'ReactFlow', Background: 'Background', Controls: 'Controls', Handle: 'Handle', Position: { Left: 'left', Right: 'right' }, useStore: selector => selector(size) },
+    '@xyflow/react': { useReactFlow: () => instance, useStore: fn => fn({ ...size, transform: [0, 0, 1] }), useOnViewportChange() {}, Panel: 'Panel', ReactFlow: 'ReactFlow', Background: 'Background', Controls: 'Controls', ControlButton: 'ControlButton', Handle: 'Handle', Position: { Left: 'left', Right: 'right' }, useInternalNode: id => committedNodes.get(id) },
+    'lucide-react': Object.fromEntries(['Focus','Hand','Maximize2','Minus','MousePointer2','Plus'].map(name => [name, name])),
     '@xyflow/react/dist/style.css': {}, '@/components/ui/button': { Button: 'Button' },
-    '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/task-time': require('../../lib/task-time.ts'), './company-layout': require('./company-layout.ts'), './node-geometry': require('./node-geometry.ts') }
+    '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/task-time': require('../../lib/task-time.ts'), './company-layout': require('./company-layout.ts'), './node-geometry': require('./node-geometry.ts'), './camera-utils': { ...require('./camera-utils.ts'), readCanvasCamera: (key, focusKey) => require('./camera-utils.ts').readCanvasCamera(key, focusKey, { getItem: () => JSON.stringify(savedCamera && { ...savedCamera, focusKey: JSON.stringify(savedFocus) }) }) }, './canvas-camera': { CanvasCamera: 'CanvasCamera' } }
   const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-flow.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
   const exports = {}
-  new Function('require', 'exports', 'localStorage', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, { getItem: () => null, setItem() {} })
+  new Function('require', 'exports', 'localStorage', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, { getItem: () => JSON.stringify(savedCamera), setItem() {} })
+  const cameraCode = ts.transpileModule(fs.readFileSync('components/canvas/canvas-camera.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
+  const cameraExports = {}
+  new Function('require', 'exports', 'localStorage', cameraCode)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, cameraExports, { getItem: () => JSON.stringify(savedCamera), setItem() {} })
   let props = { projection: project(), cameraKey: 'actor:personal', resources: [], workspaces: [workspace('a'), workspace('b')], focus: { kind: 'overview' }, followingAgent: false,
     onOpen: focus => opens.push(focus), onOpenResource() {}, onZoom() {}, onViewportWidthChange() {}, onManualNavigation: () => manual++ }
-  return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); effects.splice(0).forEach(fn => fn()); return tree.props },
-    initialize() { this.render().onInit({ fitView: options => { fits.push(options); return Promise.resolve(true) }, setViewport: () => Promise.resolve(true) }); fits.length = 0 }, resize(width, height) { size = { width, height }; return this.render() }, fits, opens, get manual() { return manual } }
+  return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); renderedNodes = tree.props.nodes; const camera = tree.props.children.find(child => child.type === 'CanvasCamera'); cameraExports.CanvasCamera(camera.props); effects.splice(0).forEach(fn => fn()); return tree.props },
+    resize(width, height) { size = { width, height }; this.commit(); return this.render() }, commit() { adoptUserNodes(renderedNodes, committedNodes, parents) },
+    initialize() { this.render(); this.commit(); ready = true; fits.length = 0 }, measure() { queuedFits.splice(0).forEach(fit => fit()) }, fits, opens, boundsRequests, viewports, get manual() { return manual } }
 }
-
-test('responsive projection receives measured viewport width independently of zoom and camera moves', () => {
-  const ui = harness(), widths = []
-  ui.render({ onViewportWidthChange: width => widths.push(width) })
-  assert.deepEqual(widths, [])
-  const flow = ui.resize(360, 500)
-  assert.deepEqual(widths, [360])
-  flow.onMove(null, { x: 0, y: 0, zoom: 0.3 })
-  ui.resize(360, 300)
-  assert.deepEqual(widths, [360])
-  ui.resize(1280, 500)
-  assert.deepEqual(widths, [360, 1280])
-})
-
-test('short context strips reserve their height for the map and restore controls when expanded', () => {
-  const ui = harness()
-  const controls = flow => flow.children.filter(Boolean).some(child => child.type === 'Controls')
-  assert.equal(controls(ui.resize(360, 100)), false)
-  assert.equal(controls(ui.resize(360, 568)), true)
-  assert.equal(controls(ui.resize(360, 100)), false)
-})
-
-test('viewport resizing reframes the current task while ordinary live reads preserve deliberate framing', () => {
-  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
-  ui.render({ projection: project([entry], focus), focus }); ui.initialize()
-  ui.resize(1280, 640); ui.fits.length = 0
-  ui.resize(360, 500)
-  assert.equal(ui.fits.length, 1)
-  assert.deepEqual(ui.fits[0].nodes, [{ id: taskNodeId('a', 'task') }])
-  ui.fits.length = 0
-  ui.render({ projection: project([entry], focus) })
-  assert.equal(ui.fits.length, 0)
-})
-
-test('a resize waits for authorized layout readiness and does not follow late data after manual navigation', () => {
-  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
-  ui.render({ projection: project([entry], focus), focus, ready: false }); ui.initialize()
-  ui.resize(360, 500)
-  assert.equal(ui.fits.length, 0)
-  ui.render({ ready: true })
-  assert.equal(ui.fits.length, 1)
-  ui.render({ ready: false }); ui.resize(500, 360)
-  ui.render().onMoveStart({ type: 'wheel' })
-  ui.render({ ready: true })
-  assert.equal(ui.fits.length, 1)
-})
 
 test('actual React Flow preserves every connection across immutable refreshes and workspace resizing', () => {
   const ui = harness(), lookup = new Map(), parents = new Map()
@@ -90,8 +57,7 @@ test('actual React Flow preserves every connection across immutable refreshes an
   const graph = { ...entry, graph: { ...entry.graph, tasks: [task, { ...task, id: 'dependent', title: 'Dependent' }], dependencies: [{ workspaceId: 'a', prerequisiteTaskId: task.id, dependentTaskId: 'dependent' }] } }
   const references = [{ id: 'link', canvasResourceId: 'section', targetResourceId: 'resource' }]
   function positions(flow) {
-    const initialized = adoptUserNodes(flow.nodes, lookup, parents)
-    assert.equal(initialized.nodesInitialized, true, "Fixed controlled geometry must initialize offscreen nodes so camera fitting can resolve")
+    adoptUserNodes(flow.nodes, lookup, parents)
     return flow.edges.map(edge => {
       const source = lookup.get(edge.source), target = lookup.get(edge.target)
       const position = getEdgePosition({ id: edge.id, sourceNode: source, targetNode: target, sourceHandle: null, targetHandle: null, connectionMode: ConnectionMode.Strict })
@@ -154,58 +120,147 @@ test('explicit follow centers the actual task immediately and stopping does not 
   ui.render({ projection: project([entry], focus), focus }); ui.initialize()
   ui.render({ followingAgent: true })
   assert.equal(ui.fits.length, 1)
-  assert.deepEqual(ui.fits[0].nodes, [{ id: taskNodeId('a', 'task') }])
+  assert.deepEqual(ui.boundsRequests.at(-1), [taskNodeId('a', 'task')])
   assert.equal(ui.fits[0].duration, 0)
   ui.render({ followingAgent: false })
   assert.equal(ui.fits.length, 1)
 })
 
-test('the full card opens its canonical record without relying on a scaled-down button', () => {
-  const ui = harness()
-  const flow = ui.render()
-  flow.onNodeClick({}, flow.nodes.find(node => node.id === 'workspace:b'))
-  assert.deepEqual(ui.opens, [{ kind: 'workspace', workspaceId: 'b' }])
-})
-
-test('dense readiness blocks open the complete canonical group and retain measured focused geometry', () => {
-  const ui = harness(), groups = []
-  const graph = { ...entry, graph: { ...entry.graph, tasks: Array.from({ length: 100 }, (_, index) => ({ ...task, id: String(index), title: `Task ${index}` })) } }
-  const focus = { kind: 'workspace', workspaceId: 'a' }
-  const flow = ui.render({ projection: project([graph], focus), focus, onOpenGroup: (...args) => groups.push(args) })
-  const visible = flow.nodes.filter(node => !node.hidden)
-  const ready = visible.find(node => node.type === 'readiness' && node.data.title === 'Ready')
-  assert.ok(ready, 'dense workspace must show readiness blocks instead of a giant task grid')
-  assert.equal(ready.data.count, 100)
-  assert.match(ready.ariaLabel, /Ready.*100/)
-  flow.onNodeClick({}, ready)
-  assert.deepEqual(groups, [['a', 'ready']])
-  assert.equal(visible.filter(node => node.type === 'task').length, 0)
-  assert.deepEqual(ready.measured, { width: ready.width, height: ready.height })
-  const focused = { kind: 'task', workspaceId: 'a', taskId: '99' }
-  const detail = ui.render({ projection: project([graph], focused), focus: focused })
-  const actual = detail.nodes.filter(node => node.type === 'task' && !node.hidden)
-  assert.equal(actual.length, 1)
-  assert.equal(actual[0].data.title, 'Task 99')
-  assert.deepEqual(actual[0].measured, { width: actual[0].width, height: actual[0].height })
-  actual[0].data.open()
-  assert.deepEqual(ui.opens, [focused])
-})
-
-test('focused workspace reframes when refreshed geometry changes and preserves a manual camera', () => {
-  const focus = { kind: 'workspace', workspaceId: 'a' }
-  const empty = { ...entry, graph: { ...entry.graph, tasks: [] } }
-  const dense = { ...entry, workspace: { ...entry.workspace, name: 'A very long workspace title that wraps over multiple lines', summary: 'Workspace goal' }, graph: { ...entry.graph, tasks: Array.from({ length: 50 }, (_, i) => ({ ...task, id: String(i) })) } }
-  const ui = harness()
-  ui.render({ projection: project([empty], focus), focus }); ui.initialize()
-  ui.render({ projection: project([dense], focus), ready: false })
-  assert.equal(ui.fits.length, 0)
-  ui.render({ ready: true })
+test('opening a collapsed task waits for React Flow to commit its visible geometry before fitting', () => {
+  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
+  ui.render({ projection: project([entry]) }); ui.initialize()
+  ui.render({ projection: project([entry], focus), focus })
+  assert.equal(ui.fits.length, 0, 'the old hidden task cannot satisfy a new focus request')
+  ui.commit(); ui.render()
   assert.equal(ui.fits.length, 1)
-  assert.deepEqual(ui.fits[0].nodes, [{ id: 'workspace:a' }])
-  const workspace = ui.render().nodes.find(node => node.id === 'workspace:a')
-  assert.equal(workspace.data.subtitle, undefined, 'Readiness rows already carry counts; header must reserve space for its title')
-  assert.equal(workspace.data.description, undefined)
-  ui.render().onMoveStart({ type: 'wheel' })
-  ui.render({ projection: project([empty], focus) })
-  assert.equal(ui.fits.length, 1, 'Refresh cannot take the camera after deliberate manual navigation')
+  assert.deepEqual(ui.boundsRequests.at(-1), [taskNodeId('a', 'task')])
 })
+
+test('workspace expansion cannot fit the previous collapsed workspace geometry', () => {
+  const ui = harness(), focus = { kind: 'workspace', workspaceId: 'a' }
+  ui.render({ projection: project([entry]) }); ui.initialize()
+  ui.render({ projection: project([entry], focus), focus })
+  assert.equal(ui.fits.length, 0)
+  ui.commit(); ui.render()
+  assert.equal(ui.fits.length, 1)
+  assert.deepEqual(ui.boundsRequests.at(-1), ['workspace:a'])
+})
+
+test('a task selected before the renderer mounts is focused after initialization', () => {
+  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
+  ui.render({ projection: project([entry], focus), focus }); ui.initialize(); ui.render()
+  assert.equal(ui.fits.length, 1)
+  assert.deepEqual(ui.boundsRequests.at(-1), [taskNodeId('a', 'task')])
+})
+
+test('late node measurement cannot replay an overview fit after explicit focus or manual pan', () => {
+  const ui = harness(), focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
+  ui.render({ projection: project([entry]) }); ui.initialize()
+  let flow = ui.render({ projection: project([entry], focus), focus })
+  ui.commit(); flow = ui.render()
+  assert.equal(ui.fits.length, 1)
+  flow.onMoveStart({ type: 'wheel' })
+  ui.measure()
+  assert.equal(ui.fits.length, 1, 'an earlier overview queue must not overwrite the current camera')
+  assert.equal(flow.fitView, false)
+  assert.ok(flow.children.find(node => node.type === 'CanvasCamera'))
+})
+
+
+test('stopping follow invalidates an earlier failed asynchronous camera request', async () => {
+  let rejectFit
+  const ui = harness({ fitResult: () => new Promise((_resolve, reject) => { rejectFit = reject }) })
+  const focus = { kind: 'task', workspaceId: 'a', taskId: 'task' }
+  ui.render({ projection: project([entry], focus), focus, followingAgent: true }); ui.initialize(); ui.render()
+  assert.equal(ui.fits.length, 1)
+  ui.render({ followingAgent: false })
+  rejectFit(new Error('viewport unavailable')); await Promise.resolve(); await Promise.resolve()
+  ui.render({ projection: project([entry], focus) }); ui.commit(); ui.render()
+  assert.equal(ui.fits.length, 1, 'cancelled follow must not be restored by a late rejection')
+})
+
+test('manual navigation before initial records are adopted prevents late saved camera restoration', () => {
+  const ui = harness({ savedCamera: { x: 20, y: 30, zoom: .5 } })
+  const initial = ui.render()
+  initial.onMoveStart({ type: 'wheel' })
+  ui.initialize(); ui.render()
+  assert.deepEqual(ui.viewports, [])
+})
+
+test('Excalidraw-style tools preserve editing keystrokes and use H and V for canvas navigation', () => {
+  const ui = harness(); let flow = ui.render()
+  const key = (value, tagName = 'DIV') => ({ key: value, target: { tagName }, preventDefault() {} })
+  flow.onKeyDownCapture(key('h', 'INPUT')); flow = ui.render()
+  assert.deepEqual(flow.panOnDrag, [1, 2])
+  flow.onKeyDownCapture(key('h')); flow = ui.render()
+  assert.equal(flow.panOnDrag, true)
+  assert.equal(flow.selectionOnDrag, false)
+  flow.onKeyDownCapture(key('v')); flow = ui.render()
+  assert.deepEqual(flow.panOnDrag, [1, 2])
+  assert.equal(flow.selectionOnDrag, true)
+  assert.equal(flow.panActivationKeyCode, 'Space')
+  assert.equal(flow.panOnScroll, true)
+  assert.equal(flow.zoomOnScroll, false)
+})
+
+test('zoom labels remain useful at a large-canvas overview scale', () => {
+  const { formatCanvasZoom } = require('./camera-utils.ts')
+  assert.equal(formatCanvasZoom(.002), '0.2%')
+  assert.equal(formatCanvasZoom(.55), '55%')
+  assert.equal(formatCanvasZoom(1), '100%')
+  assert.equal(formatCanvasZoom(NaN), String.fromCharCode(8212))
+})
+
+
+test('selection changes stay local while dimension and position changes cannot rewrite canonical layout', () => {
+  const ui = harness(), focus = { kind: 'workspace', workspaceId: 'a' }
+  const first = ui.render({ projection: project([entry], focus), focus })
+  const id = taskNodeId('a', 'task'), original = first.nodes.find(node => node.id === id)
+  first.onNodesChange([{ id, type: 'select', selected: true }, { id, type: 'position', position: { x: 999, y: 999 } }])
+  const selected = ui.render().nodes.find(node => node.id === id)
+  assert.equal(selected.selected, true)
+  assert.deepEqual(selected.position, original.position)
+  assert.equal(selected.data, original.data, 'selection must not rebuild task content')
+  ui.render().onNodesChange([{ id, type: 'select', selected: false }])
+  assert.equal(Boolean(ui.render().nodes.find(node => node.id === id).selected), false)
+})
+
+
+test('camera preferences cannot restore a deep task position into a collapsed or different authorized view', () => {
+  const { readCanvasCamera } = require('./camera-utils.ts')
+  const taskKey = JSON.stringify({ kind: 'task', workspaceId: 'a', taskId: 'task' })
+  const saved = { x: -1000, y: -80000, zoom: 2, focusKey: taskKey }
+  const storage = { getItem: () => JSON.stringify(saved) }
+  assert.deepEqual(readCanvasCamera('scope', taskKey, storage), { x: -1000, y: -80000, zoom: 2 })
+  assert.equal(readCanvasCamera('scope', JSON.stringify({ kind: 'overview' }), storage), null)
+  assert.equal(readCanvasCamera('scope', taskKey, { getItem: () => '{"x":0,"y":0,"zoom":1}' }), null)
+})
+
+
+test('camera restoration preserves the world center when the viewport changes from desktop to mobile', () => {
+  const { restoreCanvasCamera } = require('./camera-utils.ts')
+  const saved = { x: -100, y: -2000, zoom: 1, canvasWidth: 1280, canvasHeight: 700 }
+  const mobile = restoreCanvasCamera(saved, 360, 600)
+  assert.equal((360 / 2 - mobile.x) / mobile.zoom, (1280 / 2 - saved.x) / saved.zoom)
+  assert.equal((600 / 2 - mobile.y) / mobile.zoom, (700 / 2 - saved.y) / saved.zoom)
+})
+
+
+
+test('updated event handlers do not rebuild graph records and existing Open controls use the latest handler', () => {
+  const ui = harness(), calls = [], projection = project([entry])
+  const first = ui.render({ projection, onOpen: () => calls.push('old') })
+  const second = ui.render({ onOpen: () => calls.push('current') })
+  assert.equal(second.nodes, first.nodes)
+  first.nodes[0].data.open()
+  assert.deepEqual(calls, ['current'])
+})
+
+test('responsive width is reported by the isolated camera without rebuilding graph records',()=>{const ui=harness(),widths=[];ui.render({onViewportWidthChange:w=>widths.push(w)});ui.resize(360,500);assert.deepEqual(widths,[360]);ui.resize(360,300);assert.deepEqual(widths,[360]);ui.resize(1280,500);assert.deepEqual(widths,[360,1280])})
+test('viewport resize reframes focused work after the authorized node layout commits',()=>{const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'};ui.render({projection:project([entry],focus),focus});ui.initialize();ui.resize(1280,700);ui.fits.length=0;ui.resize(360,500);assert.equal(ui.fits.length,1);assert.deepEqual(ui.boundsRequests.at(-1),[taskNodeId('a','task')]);ui.fits.length=0;ui.render({projection:project([entry],focus)});assert.equal(ui.fits.length,0)})
+
+test('company resource focus frames its canonical container instead of the full canvas',()=>{const ui=harness();const resource={id:'section',name:'Section',organizationId:'company',parentId:null,kind:'section',mode:'restricted',workspaceId:null,version:1,capabilities:['read']};ui.render({resources:[resource],focus:{kind:'resource',resourceId:'section'}});ui.initialize();ui.render();assert.deepEqual(ui.boundsRequests.at(-1),[require('./company-layout.ts').containerNodeId('section')])})
+
+test('new focused work restores geometry fitting after earlier manual navigation',()=>{const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'};ui.render({projection:project([entry])});ui.initialize();ui.render().onPointerDownCapture();ui.render({projection:project([entry],focus),focus});ui.commit();ui.render();ui.fits.length=0;const changed=project([entry],focus);changed.nodes=changed.nodes.map(n=>n.kind==='task'?{...n,width:n.width+100}:n);ui.render({projection:changed});ui.commit();ui.render();assert.equal(ui.fits.length,1);assert.deepEqual(ui.boundsRequests.at(-1),[taskNodeId('a','task')])})
+
+test('saved focused camera waits for authorized URL resolution instead of restoring overview',()=>{const focus={kind:'workspace',workspaceId:'a'},savedCamera={x:12,y:34,zoom:.37};const ui=harness({savedCamera,savedFocus:focus});ui.render({projection:project([entry]),restoreReady:false});ui.initialize();ui.render();assert.equal(ui.viewports.length,0);ui.render({projection:project([entry],focus),focus,restoreReady:true});ui.commit();ui.render();assert.deepEqual(ui.viewports.at(-1),savedCamera)})

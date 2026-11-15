@@ -72,7 +72,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const currentScope = useRef(workspace?.id)
   useLayoutEffect(() => { currentScope.current = workspace?.id }, [workspace?.id])
   const projection = useMemo(() => projectCanvas({ graphs, resources: companies.resources, navigation: currentNavigation, zoom, compact: compactCanvas }), [graphs, companies.resources, currentNavigation, zoom, compactCanvas])
-  const tasks = graph.entry?.graph.tasks ?? []
+  const tasks = useMemo(() => graph.entry?.graph.tasks ?? [], [graph.entry])
   const taskReadiness = useMemo(() => new Map(projection.nodes.filter(node => node.kind === "task").map(node => [node.recordId, node.readiness])), [projection.nodes])
   const listedTasks = listReadiness ? tasks.filter(task => taskReadiness.get(task.id) === listReadiness) : tasks
   const readinessNames = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
@@ -93,6 +93,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const canLeave = useCallback(() => !hasActiveDraft() || window.confirm("Leave this work area? Your unfinished draft will be kept for recovery."), [hasActiveDraft])
   const canLeaveAll = useCallback(() => !Object.values(dirty.current).some(Boolean) || window.confirm("Leave this page or workspace? Unsaved changes may be lost if browser recovery is unavailable."), [])
   const stopFollowing = useCallback(() => setNavigation(state => state.followingAgent ? { ...state, followingAgent: false } : state), [setNavigation])
+  const [locationInitialized, setLocationInitialized] = useState(false)
   const [pendingLocation, setPendingLocation] = useState<{ location: CanvasLocation | null } | null>(null)
   const browserNavigation = useRef<{ position: HistoryPosition; url: string; key: string; pending: boolean; expected: string | null; reverting: boolean } | null>(null)
   const location = useMemo<CanvasLocation>(() => ({ focus: focused, view: workOpen ? tool : null, group: workOpen && tool === "ready" ? readyGroup ?? null : null }), [focused, workOpen, tool, readyGroup])
@@ -105,7 +106,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     const state = { position: readHistoryPosition(window), url: url(), key: "", pending: true, expected: null as string | null, reverting: false }
     browserNavigation.current = state
     const initial = parseCanvasUrl(state.url)
-    if (initial?.focus.kind === "overview") { state.pending = false; state.key = canvasUrl(initial) }
+    if (initial?.focus.kind === "overview") { state.pending = false; state.key = canvasUrl(initial); setLocationInitialized(true) }
     else setPendingLocation({ location: initial })
     const pop = (event: PopStateEvent) => {
       if (state.reverting) { state.reverting = false; return }
@@ -170,8 +171,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
     state.url = canvasUrl(restored, state.url)
     window.history.replaceState(publicHistoryState(window.history.state), "", state.url)
     state.position = readHistoryPosition(window)
-    setPendingLocation(null)
-  }, [pendingLocation, store, companies.loading, companies.error, companies.resources, graph.entry, graph.loading, graph.error, tasks, actorId, scope, isOwner, capabilityCeiling])
+    setPendingLocation(null); setLocationInitialized(true)
+  }, [pendingLocation, store, store.loading, store.workspaceError, store.workspaces, store.currentWorkspaceId, companies.loading, companies.error, companies.resources, graph.entry, graph.loading, graph.error, tasks, actorId, scope, isOwner, capabilityCeiling])
   useEffect(() => {
     const state = browserNavigation.current
     if (!state || state.pending || state.reverting) return
@@ -190,7 +191,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
   const dismissPendingLocation = useCallback(() => {
     const state = browserNavigation.current
     if (state) { state.pending = false; state.expected = null }
-    setPendingLocation(null)
+    setPendingLocation(null); setLocationInitialized(true)
   }, [])
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => { if (Object.values(dirty.current).some(Boolean)) { event.preventDefault(); event.returnValue = "" } }
@@ -336,7 +337,7 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
         : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={beginCreateWorkspace}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
-        : <><div role="region" aria-label="Workspace canvas" className={`relative ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
+        : <><div role="region" aria-label="Workspace canvas" className={`relative ${showWorkArea ? "invisible pointer-events-none h-full lg:visible lg:pointer-events-auto lg:w-[48%]" : "h-full"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow restoreReady={locationInitialized} projection={projection} cameraKey={cameraStorageKey(scope)} onOpen={open} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
@@ -383,8 +384,8 @@ export function CanvasShell({ email, actorId }: { email: string; actorId: string
       {graph.error ? <p role="alert">{graph.error}</p> : graph.loading && !graph.entry ? <p role="status">Loading tasks…</p> : <ul className="space-y-2">{listedTasks.map(task => <li key={task.id}><Button variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" onClick={() => { openTask(task.id); setListOpen(false) }}>{task.title}<span className="ml-auto pl-3 text-xs text-muted-foreground">{taskReadiness.get(task.id)?.replaceAll("_", " ")}</span></Button></li>)}</ul>}
       {!graph.loading && !graph.error && listedTasks.length === 0 && <p>{listReadiness ? "No tasks in this group." : "No tasks in this workspace."}</p>}
     </DialogContent></Dialog>
-    <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent className="saathi-mobile-controls max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create workspace</DialogTitle><DialogDescription className="sr-only">Create a workspace using its name, goal and target date.</DialogDescription></DialogHeader>{createTarget ? <ContextualWorkspaceCreate actorId={actorId} target={createTarget} onCancel={() => setCreateOpen(false)} onCreated={async id => { const refreshed = await Promise.all([store.refreshWorkspaces(), companies.reload()]); setRevision(value => value + 1); if (!refreshed.every(Boolean)) throw new Error("Canvas refresh incomplete"); dirty.current = { tasks: false, settings: false }; dirtyEditorTask.current = undefined; setQuickAdd(0); setTasksMounted(false); store.setCurrentWorkspaceId(id); setNavigation(state => navigateCanvas(state, { kind: "workspace", workspaceId: id }, "manual")); setCreateOpen(false); setWorkOpen(false); setWorkMounted(false) }} /> : <WorkspaceCreateForm compact aiEnabled={false} canCancel onCancel={() => setCreateOpen(false)}
-      onCreate={async (name, details) => { await store.createWorkspace(name, details); setCreateOpen(false); setNavigation(createCanvasNavigation(scope)); setWorkOpen(false); setWorkMounted(false) }}
+    <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent className="saathi-mobile-controls max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create workspace</DialogTitle><DialogDescription className="sr-only">Create a workspace using its name, goal and target date.</DialogDescription></DialogHeader>{createTarget ? <ContextualWorkspaceCreate actorId={actorId} target={createTarget} onCancel={() => setCreateOpen(false)} onCreated={async id => { const refreshed = await Promise.all([store.refreshWorkspaces(), companies.reload()]); setRevision(value => value + 1); if (!refreshed.every(Boolean)) throw new Error("Canvas refresh incomplete"); dirty.current = { tasks: false, settings: false }; dirtyEditorTask.current = undefined; setQuickAdd(0); setTasksMounted(false); store.setCurrentWorkspaceId(id); setNavigation(state => navigateCanvas(state, { kind: "workspace", workspaceId: id }, "manual")); setCreateOpen(false); setWorkOpen(false); setWorkMounted(false) }} /> : <WorkspaceCreateForm actorId={actorId} account={account} compact aiEnabled={false} canCancel onCancel={() => setCreateOpen(false)}
+      onCreate={async (name, details, commandId) => { const result = await store.createWorkspace(name, details, commandId, actorId); if (result.error) return { error: result.error, rejected: result.rejected }; setCreateOpen(false); setNavigation(createCanvasNavigation(scope)); setWorkOpen(false); setWorkMounted(false) }}
       onSuggest={async () => ({ error: "Planning assistance is unavailable here." })} onApprove={async () => ({ error: "Use manual workspace creation." })} />}</DialogContent></Dialog>
     <Dialog open={companyOpen} onOpenChange={setCompanyOpen}><DialogContent className="saathi-mobile-controls max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Company canvas</DialogTitle><DialogDescription className="sr-only">Manage companies, sections and their explicit access grants.</DialogDescription></DialogHeader>
       {companies.error ? <div role="alert" className="space-y-3"><p>{companies.error}</p><Button onClick={() => void companies.reload()}>Try again</Button></div> : companies.loading ? <p role="status">Loading companies…</p>

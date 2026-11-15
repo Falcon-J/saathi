@@ -41,6 +41,7 @@ test('signup starts a session immediately when the Auth provider enables automat
 test('settings action returns safe conflict and failure results without exposing internal errors', async () => {
   let failure = new Error('Workspace changed. Refresh and try again.')
   const actions = load('app/actions/workspaces.ts', {
+    '@/features/platform/browser-workspace': { createBrowserWorkspace: async () => assert.fail('Settings must not create workspaces'), browserWorkspaceFailure: () => assert.fail('Settings must use their own error result') },
     '@/lib/auth-simple': { getSession: async () => ({ id: 'owner' }) }, '@/lib/post-commit': { afterDomainCommit() {} },
     '@/lib/identity': {}, '@/lib/invitation-domain': {}, '@/lib/data/workspaces': { updateWorkspaceRecord: async () => { throw failure } },
   })

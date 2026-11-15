@@ -156,6 +156,7 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     const environment = {
       GOTRUE_API_HOST: '0.0.0.0', GOTRUE_API_PORT: '9999', API_EXTERNAL_URL: issuer,
       GOTRUE_DB_DRIVER: 'postgres', GOTRUE_DB_DATABASE_URL: databaseUrl.href,
+      GOTRUE_DB_MAX_POOL_SIZE: '10', GOTRUE_DB_MAX_IDLE_POOL_SIZE: '10',
       GOTRUE_JWT_SECRET: existing.GOTRUE_JWT_SECRET, GOTRUE_JWT_KEYS: existing.GOTRUE_JWT_KEYS,
       GOTRUE_JWT_VALID_METHODS: 'HS256,RS256,ES256', GOTRUE_JWT_AUD: 'authenticated', GOTRUE_JWT_ISSUER: issuer,
       GOTRUE_JWT_ADMIN_ROLES: 'service_role,supabase_admin', GOTRUE_JWT_DEFAULT_GROUP_NAME: 'authenticated', GOTRUE_JWT_EXP: '3600',
@@ -293,11 +294,17 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     const unauthenticated = await fetch(resource, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'tools/list', params: {} }) })
     assert.equal(unauthenticated.status, 401); assert.match(unauthenticated.headers.get('www-authenticate') ?? '', /resource_metadata=/)
     let sequence = 1
+    const rpcTimings = []
     async function rpc(token, method, params = {}) {
       const id = sequence++
+      const started = performance.now()
       const response = await fetch(resource, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': '2025-11-25' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) })
+      const body = await response.text()
+      assert.ok(rpcTimings.length < 100, 'MCP timing evidence must stay bounded')
+      rpcTimings.push({ method, httpStatus: response.status, durationMs: performance.now() - started })
       if (!response.ok) {
-        const failure = await response.json().catch(() => ({}))
+        let failure = {}
+        try { failure = JSON.parse(body) } catch { /* Public diagnostic allowlist below. */ }
         const knownErrors = ['MCP authentication required', 'MCP application access denied', 'MCP authorization service unavailable', 'MCP configuration is unavailable']
         const liveCheck = await identity.auth.getUser(token)
         const currentProfile = await getProfile(created.user.id)
@@ -306,7 +313,6 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
         report({ rpcMethod: method, httpStatus: response.status, failureClass: knownErrors.includes(failure.error) ? failure.error : 'other', liveIdentityAccepted: !liveCheck.error && !!liveCheck.data.user, liveIdentityStatus: liveCheck.error?.status, profileCurrent: currentProfile?.id === created.user.id, signatureAccepted, expRemainingSeconds: verified.payload.exp - Math.floor(Date.now() / 1000) })
         return { httpStatus: response.status }
       }
-      const body = await response.text()
       return decodeMcpResponse(body, response.headers.get('content-type'), id)
     }
     const initialized = await rpc(tokens.access_token, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'saathi-real-oauth-verifier', version: '1.0.0' } })
@@ -334,6 +340,33 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     assert.equal(taskRead.state, 'ok'); assert.equal(taskRead.data.title, taskInput.title)
     const [effect] = await db`SELECT count(*)::int AS count FROM tasks WHERE workspace_id=${workspaceId}`; assert.equal(effect.count, 1)
     const [receipt] = await db`SELECT count(*)::int AS count FROM platform_command_receipts WHERE actor_user_id=${created.user.id} AND client_id=${clientId} AND command_id=${commandId}`; assert.equal(receipt.count, 1)
+    phase = 'real-runtime-agent-coordination'
+    assert.ok(toolList.tools.some(tool => tool.name === 'agent_runs.claim'))
+    const claimInputs = [0, 1].map(() => ({ commandId: randomUUID(), expectedVersion: createdTask.data.version, workspaceId, taskId: createdTask.data.id, leaseSeconds: 15 }))
+    const decodeTool = result => result.structuredContent ?? JSON.parse(result.content.find(part => part.type === 'text').text)
+    const claims = (await Promise.all(claimInputs.map(input => rpc(tokens.access_token, 'tools/call', { name: 'agent_runs.claim', arguments: input })))).map(decodeTool)
+    assert.equal(claims.filter(result => result.state === 'committed').length, 1)
+    const winner = claims.findIndex(result => result.state === 'committed'), firstRun = claims[winner].data
+    assert.equal(claims[1 - winner].error.code, 'lease_conflict')
+    const repeatedClaim = await tool(tokens.access_token, 'agent_runs.claim', claimInputs[winner])
+    assert.equal(repeatedClaim.data.id, firstRun.id)
+    const held = { workspaceId, runId: firstRun.id, expectedVersion: null, fencingToken: firstRun.fencingToken }
+    assert.equal((await tool(tokens.access_token, 'agent_runs.start', { ...held, commandId: randomUUID() })).data.state, 'running')
+    await tool(tokens.access_token, 'agent_runs.report', { ...held, commandId: randomUUID(), progress: 'Synthetic MCP transport evidence prepared' })
+    const review = await tool(tokens.access_token, 'agent_runs.submit_review', { ...held, commandId: randomUUID(), evidence: [{ kind: 'text', text: 'Fixture-only evidence for human review' }] })
+    assert.equal(review.data.state, 'awaiting_review')
+    assert.notEqual((await tool(tokens.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).data.status, 'done')
+    // Exercise the actual minimum lease clock rather than changing SQL expiry facts.
+    await delay(16_000)
+    const replacement = await tool(tokens.access_token, 'agent_runs.claim', { ...claimInputs[winner], commandId: randomUUID(), leaseSeconds: 60 })
+    assert.equal(BigInt(replacement.data.fencingToken), BigInt(firstRun.fencingToken) + 1n)
+    const stale = decodeTool(await rpc(tokens.access_token, 'tools/call', { name: 'agent_runs.report', arguments: { ...held, commandId: randomUUID(), progress: 'Must be rejected after takeover' } }))
+    assert.equal(stale.state, 'rejected'); assert.equal(stale.error.code, 'stale_fence')
+    const replacementHeld = { ...held, runId: replacement.data.id, fencingToken: replacement.data.fencingToken }
+    await tool(tokens.access_token, 'agent_runs.start', { ...replacementHeld, commandId: randomUUID() })
+    await tool(tokens.access_token, 'agent_runs.submit_review', { ...replacementHeld, commandId: randomUUID(), evidence: [{ kind: 'text', text: 'Replacement fixture evidence remains advisory' }] })
+    assert.notEqual((await tool(tokens.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).data.status, 'done')
+    report({ parallelClaimOneWinner: true, exactClaimRetry: true, reportedProgressAndEvidence: true, humanReviewRequired: true, actualLeaseExpiry: true, takeoverIncrementsFence: true, staleRunCannotPublish: true })
     phase = 'real-runtime-durable-outbox'
     const { flushOutbox } = loadSource('../lib/data/events.ts'); await flushOutbox(workspaceId)
     const [published] = await db`SELECT count(*)::int AS count FROM outbox_events WHERE workspace_id=${workspaceId} AND published_at IS NOT NULL`; assert.ok(published.count >= 2)
@@ -349,6 +382,7 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     assert.equal((await tool(refreshed.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).state, 'ok')
     await revokeMcpDelegation(created.user.id, grant.id)
     assert.equal((await rpc(refreshed.access_token, 'tools/list')).httpStatus, 403)
+    assert.equal((await rpc(refreshed.access_token, 'tools/call', { name: 'agent_runs.report', arguments: { ...replacementHeld, commandId: randomUUID(), progress: 'Must be denied after revocation' } })).httpStatus, 403)
     const revoked = await human.auth.oauth.revokeGrant({ clientId }); assert.equal(revoked.error, null)
     const [remainingSessions] = await db`SELECT count(*)::int AS count FROM auth.sessions WHERE user_id=${created.user.id} AND oauth_client_id=${clientId}`
     assert.equal(remainingSessions.count, 0)
@@ -372,6 +406,15 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     const unchanged = await inspect(authName)
     assert.equal(unchanged.Id, originalId); assert.equal(JSON.stringify(unchanged.Config.Env), originalEnvironment)
     report({ dedicatedAudiencePreservedOnRefresh: true, applicationRevocationDeniedMcp: true, providerRevokedMcpStatus, oauthRevocationRemovedSessionsAndDeniedRefresh: true, providerIdentity, browserSessionUnaffected: true, freshBrowserLoginAudiencePreserved: true, existingQaAuthUnchanged: true })
+    const percentile = (values, fraction) => Math.round(values.toSorted((a, b) => a - b)[Math.ceil(values.length * fraction) - 1])
+    report({ latencyScope: 'Small isolated actual MCP HTTP runtime sample, dispatch through consumed response; includes live Auth and SQL authorization, excludes external inference; not capacity acceptance',
+      firstAuthenticatedRequestMs: Math.round(rpcTimings[0].durationMs),
+      requests: rpcTimings.length,
+      httpSuccessByMethod: Object.fromEntries(['initialize', 'tools/list', 'tools/call'].map(method => {
+        const values = rpcTimings.filter(row => row.method === method && row.httpStatus >= 200 && row.httpStatus < 300).map(row => row.durationMs)
+        return [method, { count: values.length, p50Ms: values.length ? percentile(values, .5) : null, p95Ms: values.length ? percentile(values, .95) : null }]
+      })),
+      deniedRequests: rpcTimings.filter(row => row.httpStatus === 401 || row.httpStatus === 403).length })
   } catch (error) {
     failed = true
     report({ passed: false, ...safeError(error), status: Number.isInteger(error?.status) ? error.status : undefined, errorCode: typeof error?.code === 'string' && /^[A-Z0-9_]+$/.test(error.code) ? error.code : undefined, detail: 'Sanitized failure; no token, code, password or connection string is printed' })

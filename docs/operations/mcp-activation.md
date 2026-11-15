@@ -15,6 +15,22 @@ Saathi exposes its domain operations at `/mcp`. It uses Supabase OAuth for ident
 
 ## Consent and disconnection
 
+### Codex desktop / CLI connection
+
+Codex is a supported target for the first connection. The installed CLI's `codex mcp add --help` exposes `--oauth-client-id` and `--oauth-resource`; this deployment uses a preregistered **public** client with PKCE and no client secret. Do not paste browser tokens or service keys into Codex configuration.
+
+Use a fixed loopback callback port, for example 56697, when registering this native client. For the current Codex server-specific callback scheme and canonical `https://saathi-ten.vercel.app/mcp` resource, the callback is `http://127.0.0.1:56697/callback/3R-0Tz9upTcM`. Register the exact callback in Supabase and `MCP_OAUTH_REDIRECT_URIS`; allowlist the provider-generated UUID in `MCP_OAUTH_CLIENT_IDS` and the audience hook. Confirm the actual `redirect_uri` printed during login matches before enabling access. A different MCP URL or a client version using issuer-bound callbacks can change this URI; do not replace the exact match with a wildcard.
+
+After hosted activation has passed its checks, add the connection with the registered public client UUID:
+
+```sh
+codex -c mcp_oauth_callback_port=56697 mcp add saathi --url https://saathi-ten.vercel.app/mcp --oauth-client-id REGISTERED_PUBLIC_CLIENT_UUID --oauth-resource https://saathi-ten.vercel.app/mcp
+```
+
+Complete the Saathi login and explicit consent screen. Begin with a selected workspace and read-only access; enable work edits only when testing a reviewed write. A reconnect uses `codex -c mcp_oauth_callback_port=56697 mcp login saathi`. Verify tool discovery, a scoped read, an exact-command retry, and disconnection from Saathi's Connections page. Installing a connection does not prove an external agent executed a task.
+
+Hosted activation on November 16 registered public client `001e171f-e684-4400-9e00-16294057e3c6` with this exact callback and resource. The production hook and allowlists are active; the installed Codex CLI completed login. Its application access was limited to one approved QA workspace for one hour, so that verification grant is not permanent access. See the [closeout report](../release/2026-11-15-platform-closeout.md) for verified lifecycle behavior, fixture cleanup and remaining acceptance gaps. References: [Codex MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Codex callback identity implementation](https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth_callback.rs).
+
 Start a connection from the MCP client. Authentication preserves `authorization_id` through `/login`, then `/oauth/consent` displays the registered client and callback origin. Read-only permissions are the default. Work edits, destructive operations, and membership/invitation management require separate selections; operations marked destructive and security-sensitive require both relevant selections. The user explicitly chooses workspaces or all currently authorized and future workspaces. No selected workspace means no workspace data. Delegations expire after the chosen one hour, one day, seven days or thirty days. Current membership and ownership remain authoritative.
 
 Consent submits through a same-origin authenticated Server Action, re-fetches provider details, matches the current user and allowed client, and compares the returned callback to the registered URI. It saves the application delegation only after the user clicks Allow access. Provider consent and application PostgreSQL writes cannot commit atomically: if provider approval or callback validation fails, the action attempts to revoke the saved application delegation and directs the user to Connections for recovery. A database outage during cleanup requires an operator/user retry; do not infer success from a failed transport.

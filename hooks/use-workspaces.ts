@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react
 import { getTasks, addTask, toggleTask, deleteTask, updateTask, type Task, type TaskStatus } from "@/app/tasks/actions"
 import {
   getUserWorkspaces,
-  createWorkspace as createWorkspaceAction,
+  createWorkspaceCommand as createWorkspaceAction,
   inviteMemberToWorkspace,
   removeMemberFromWorkspace,
   type Workspace
@@ -222,21 +222,23 @@ export function useWorkspaces(userEmail?: string, { loadTasks = true }: { loadTa
   // Polling disabled - using real-time updates instead for better performance
 
   const handleCreateWorkspace = useCallback(
-    async (name: string, details?: { summary?: string; targetDate?: string | null }) => {
-      if (!userEmail) return
+    async (name: string, details: { summary?: string; targetDate?: string | null } | undefined, commandId: string, expectedActorId: string) => {
+      if (!userEmail) return { error: "Sign in to create a workspace.", rejected: true }
 
       const commandSelection = selectionRef.current
       try {
-        const newWorkspace = await createWorkspaceAction(name, details)
-        if (selectionRef.current !== commandSelection) return newWorkspace
-        setWorkspaces(prev => [...prev, newWorkspace])
+        const outcome = await createWorkspaceAction(name, details, commandId, expectedActorId)
+        if (outcome.error || !outcome.workspace) return { error: outcome.error ?? "Could not confirm creation. Retry the same creation.", rejected: outcome.unknownOutcome === false }
+        const newWorkspace = outcome.workspace
+        if (selectionRef.current !== commandSelection || newWorkspace.archivedAt) return { workspace: newWorkspace }
+        setWorkspaces(prev => [...prev.filter(workspace => workspace.id !== newWorkspace.id), newWorkspace])
         setCurrentWorkspaceId(newWorkspace.id)
         success("Workspace created", `"${name}" workspace has been created successfully`)
-        return newWorkspace
-      } catch (error) {
-        console.error("[Saathi] Failed to create workspace:", error)
-        if (selectionRef.current === commandSelection) notifyError("Failed to create workspace", "Please try again with a different name")
-        throw error
+        return { workspace: newWorkspace }
+      } catch {
+        console.warn("[Saathi] Workspace creation could not be confirmed")
+        if (selectionRef.current === commandSelection) notifyError("Creation unconfirmed", "Retry the same creation to recover its result.")
+        throw new Error("Could not confirm creation. Retry the same creation to recover its result.")
       }
     },
     [userEmail, success, notifyError],

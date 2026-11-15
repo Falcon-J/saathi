@@ -9,8 +9,9 @@ const source = ts.transpileModule(fs.readFileSync("components/workspace-create-f
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
 new Function("require", "exports", source)(name => ({
-  react: { useState: value => [value, () => {}] },
+  react: { useState: value => [value, () => {}], useRef: value => ({current:value}), useEffect() {}, useLayoutEffect() {} },
   "react/jsx-runtime": { jsx, jsxs: jsx },
+  "@/lib/workspace-create-command": require("../lib/workspace-create-command.ts"),
   "next/link": { default: "Link" },
   "lucide-react": { CircleHelp: "CircleHelp", LoaderCircle: "LoaderCircle" },
   "@/components/ui/button": { Button: "Button" },
@@ -20,6 +21,8 @@ new Function("require", "exports", source)(name => ({
 
 const nodes = node => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]
 const render = aiEnabled => nodes(moduleExports.WorkspaceCreateForm({
+  actorId: "aaaaaaaa-0000-4000-8000-000000000001",
+  account: "owner@example.test",
   aiEnabled,
   canCancel: false,
   onCancel() {},
@@ -33,6 +36,6 @@ test("workspace creation hides unavailable AI promotion and keeps it when enable
   assert.doesNotMatch(unavailable, /AI Assistant|Help me plan|Launch a new product|AI planning is currently unavailable/)
 
   const enabled = JSON.stringify(render(true))
-  assert.match(enabled, /AI Assistant/)
+  assert.match(enabled, /AI provider/)
   assert.match(enabled, /Help me plan/)
 })

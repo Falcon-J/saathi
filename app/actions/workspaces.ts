@@ -4,8 +4,9 @@ import { getSession } from "@/lib/auth-simple"
 import { afterDomainCommit } from "@/lib/post-commit"
 import { normalizeEmail } from "@/lib/identity"
 import { getPublicInvitationError } from "@/lib/invitation-domain"
+import { createBrowserWorkspace, browserWorkspaceFailure } from "@/features/platform/browser-workspace"
 import {
-  archiveWorkspaceRecord, createWorkspaceRecord, deleteWorkspaceRecord, listWorkspaces, readWorkspace, transferWorkspaceOwnershipRecord,
+  archiveWorkspaceRecord, deleteWorkspaceRecord, listWorkspaces, readWorkspace, transferWorkspaceOwnershipRecord,
   removeWorkspaceMember, updateWorkspaceRecord, type Workspace, type WorkspaceInput,
 } from "@/lib/data/workspaces"
 
@@ -32,11 +33,24 @@ export async function getArchivedWorkspaces(): Promise<{ workspaces?: Workspace[
   }
 }
 
-export async function createWorkspace(name: string, details?: Omit<WorkspaceInput, "name">): Promise<Workspace> {
+export async function createWorkspace(name: string, details: Omit<WorkspaceInput, "name"> | undefined, commandId: string): Promise<Workspace> {
   const session = await requireSession()
-  const workspace = await createWorkspaceRecord(session.id, { ...details, name })
-  afterDomainCommit(workspace.id)
+  const workspace = await createBrowserWorkspace(session.id, { ...details, name }, commandId)
+  try { afterDomainCommit(workspace.id) }
+  catch { console.warn("[Saathi] Workspace post-commit delivery deferred") }
   return workspace
+}
+
+export async function createWorkspaceCommand(name: string, details: Omit<WorkspaceInput, "name"> | undefined, commandId: string, expectedActorId: string): Promise<{ workspace?: Workspace; error?: string; unknownOutcome?: boolean }> {
+  try {
+    const session = await getSession()
+    if (!session) return { error: "Please sign in and retry the same workspace creation to confirm its outcome.", unknownOutcome: true }
+    if (!expectedActorId || expectedActorId !== session.id) return { error: "Your account changed. Return to the original account and retry the same workspace creation to confirm its outcome.", unknownOutcome: true }
+    const workspace = await createBrowserWorkspace(session.id, { ...details, name }, commandId)
+    try { afterDomainCommit(workspace.id) }
+    catch { console.warn("[Saathi] Workspace post-commit delivery deferred") }
+    return { workspace }
+  } catch (error) { return browserWorkspaceFailure(error) }
 }
 
 export async function getWorkspace(workspaceId: string): Promise<Workspace | null> {
