@@ -1,6 +1,6 @@
 # Platform closeout verification
 
-Status: local implementation and required local checks passed, including isolated sustained capacity. Hosted OAuth and MCP were activated and authenticated lifecycle checks passed on November 16 within the approved QA scope. Full release acceptance remains open: three hosted scenarios below are unverified, and the tested local changes have not been integrated into the production revision.
+Status: superseded by the [verified hosted release](2026-11-16-hosted-shipping.md). The local changes are now integrated, merged and deployed; all three hosted gaps and the integrated candidate's sustained acceptance passed. The source fingerprints, measurements and resource notes below retain the earlier closeout's historical scope.
 
 Scope: canvas, shared domain commands, company/section access, MCP OAuth delegation and agent coordination in ADR 0002 and the November 12 release scope. Existing checkout changes and design assets are preserved. This closeout has not committed or pushed changes. Hosted activation redeployed the existing production commit, not this dirty checkout.
 
@@ -53,12 +53,12 @@ All current functional artifacts above include the creation/outbox fix. The pass
 - All ten fixture events were published. Exact cleanup removed two tasks, two agent runs, one lease, one comment, ten activity/outbox pairs, eight platform receipts and two legacy receipts. A final consolidated SQL query found zero remaining owned fixture rows across those tables and confirmed the original workspace remains. Published Redis stream entries retain their normal TTL; the existing stream was not deleted.
 - Sanitized activation checkpoint: `.local-test/hosted-activation-2026-11-16.json`; final public suite: `.local-test/hosted-auth-seoul-final-2026-11-16.log`; fixture manifest: `.local-test/hosted-mcp-cleanup-manifest.json`. Temporary callback servers and test processes are closed. Codex retains its normal secure-store credentials within the bounded delegation.
 
-## Remaining hosted gates
+## Hosted gates closed by the integrated release
 
-- Verify membership removal for a non-owner. The consenting actor owns the only approved QA workspace; no ownership or another user's membership was changed.
-- Send hosted negative requests using a real ordinary-browser JWT and an unrelated registered OAuth client. Local token tests, hosted hook assertions and ordinary browser sign-in passed; these are not equivalent to those two live negative requests.
-- Verify provider-cleanup recovery under an injected provider failure. Local failure recovery and hosted normal revocation/session cleanup passed; no hosted outage was injected.
-- Integrate the tested local canvas/platform changes into the production revision and verify that resulting revision before claiming the whole product is ready to ship. No source commit, push or local-source deployment occurred in this closeout.
+- Non-owner membership removal passed with a disposable member and the actual owner browser UI; the old MCP token immediately lost access.
+- Real ordinary-browser and unrelated registered-client PKCE tokens were rejected by hosted MCP.
+- A narrowly scoped hosted provider-cleanup outage preserved application revocation; reload/retry removed provider sessions and denied refresh. The release contains no fault injector.
+- The local source was integrated with current production, verified, merged through PR26 and deployed. See the [shipping report](2026-11-16-hosted-shipping.md) for exact revisions, current checks and cleanup. The original user's one-hour consent was never extended.
 - Security advisory review still reports leaked-password protection disabled (warning); deny-by-default RLS tables also produce informational notices. No claim of a clean security-advisor report is made. Connection instructions remain in [MCP activation](../operations/mcp-activation.md).
 
 ## Capacity investigation
