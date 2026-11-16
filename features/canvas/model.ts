@@ -148,7 +148,6 @@ export function projectCanvas(input: {
   zoom: number
   compact?: boolean
   relationships?: boolean
-  relatedOnly?: boolean
 }): CanvasProjection {
   if (!Number.isFinite(input.zoom) || input.zoom <= 0) throw new Error("Canvas zoom must be finite and positive")
   const ordered = [...input.graphs].sort((a, b) => textOrder(a.workspace.id, b.workspace.id))
@@ -180,7 +179,7 @@ export function projectCanvas(input: {
     const taskCount = entry.graph.tasks.length
     const dense = taskCount > 4 || Boolean(input.compact && taskCount > 2)
     const taskFocus = [navigation.focus, navigation.selection].find((focus): focus is Extract<CanvasFocus, { kind: "task" }> => focus?.kind === "task" && focus.workspaceId === entry.workspace.id)
-    const neighborhood = input.relationships && taskFocus ? taskNeighborhood(entry.graph.tasks, entry.graph.dependencies, taskFocus.taskId, input.relatedOnly ?? false) : null
+    const neighborhood = input.relationships && taskFocus ? taskNeighborhood(entry.graph.tasks, entry.graph.dependencies, taskFocus.taskId) : null
     const positions = new Map<string, { x: number; y: number }>()
     let rows = 0
     if (neighborhood) {

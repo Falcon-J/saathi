@@ -42,7 +42,7 @@ export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraK
   const fitContext = useCallback((ids: string[]) => width > 0 && height > 0
     ? flow.setViewport(getViewportForBounds(flow.getNodesBounds(ids), width, height, MIN_CANVAS_ZOOM, 1, .15), { duration: 0 })
     : Promise.resolve(false), [flow, width, height])
-  const fitAll = useCallback(() => fit(nodes.filter(node => !node.hidden).map(node => node.id)), [nodes, fit])
+  const fitAll = useCallback(() => fit(nodes.filter(node => !node.hidden && node.data?.contextGroup !== true).map(node => node.id)), [nodes, fit])
   const cancelPending = useCallback(() => { manual.current = true; interacted.current = true; pending.current = null; generation.current++; onManualNavigation() }, [onManualNavigation])
   const setTool = useCallback((next: CanvasTool) => { cancelPending(); onToolChange(next) }, [cancelPending, onToolChange])
   useImperativeHandle(controllerRef, () => ({ cancelPending, keyDown(event) {

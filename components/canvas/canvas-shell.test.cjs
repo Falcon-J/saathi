@@ -4,6 +4,19 @@ const test = require('node:test')
 const ts = require('typescript')
 const historyModule = require('../../lib/browser-history.ts')
 const shellCode = ts.transpileModule(fs.readFileSync('components/canvas/canvas-shell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
+test('focused blocker rollout does not restore camera positions from the wider relationship graph',()=>{
+ const workspace={id:'w',name:'Delivery',ownerId:'actor@example.test',members:[]};
+ const ui=harness({store:{workspaces:[workspace],currentWorkspaceId:'w'},graph:{entry:{workspace,complete:true,graph:{tasks:[],dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}}}});
+ assert.ok(ui.render().find(n=>n.type==='CanvasFlow').props.cameraKey.endsWith(':blockers-v1'));
+})
+test('switching back to selected task inspection focuses its visible All tasks control',()=>{
+ const workspace={id:'w',name:'Delivery',ownerId:'actor@example.test',members:[]};const task={id:'a',workspaceId:'w',title:'A',status:'todo',completed:false,createdBy:'actor@example.test'};
+ const ui=harness({store:{workspaces:[workspace],currentWorkspaceId:'w'},graph:{entry:{workspace,complete:true,graph:{tasks:[task],dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}}}});
+ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'a'});
+ let tree=ui.render();const backRef=tree.find(n=>n.type==='CanvasTaskPanel').props.backButtonRef;assert.ok(backRef,'The inspector needs a visible focus target');
+ backRef.current={focus:()=>ui.calls.push('focus-task-summary')};tree.find(n=>n.type==='CanvasCommandBar').props.onTool('agents');tree=ui.render();tree.find(n=>n.type==='CanvasCommandBar').props.onTool('work');ui.render();
+ assert.equal(ui.calls.filter(call=>call==='focus-task-summary').length,1);
+})
 const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
 function harness(options = {}) {
   const slots = [], effects = [], calls = [], listeners = new Map(), handlers = new Map()

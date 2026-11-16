@@ -41,7 +41,7 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 
 ## Primary interface
 
-Canvas is the signed-in home. A single task panel owns browsing, readiness filtering and inspection; explicit editing reuses the existing versioned editor and recovery paths. Focused React Flow tasks show bounded dependency context; the full authorized graph remains searchable. Ask Saathi has one workspace entry. Dashboard URLs remain available for compatibility.
+Canvas is the signed-in home. A single task panel owns browsing, readiness filtering and inspection; explicit editing reuses the existing versioned editor and recovery paths. Focused React Flow tasks show only the selected task and bounded unfinished direct blockers; the full authorized graph remains searchable. The compact inspector keeps prerequisite editing under Task details. Ask Saathi has one workspace entry. Dashboard URLs remain available for compatibility.
 
 ## Legacy Dashboard states
 
