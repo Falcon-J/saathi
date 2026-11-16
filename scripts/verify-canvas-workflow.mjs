@@ -266,6 +266,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await page.setViewportSize({width:1280,height:900})
     await expect(workArea.getByRole('region',{name:'Task summary',exact:true})).toContainText('Publish handoff')
     await expect.poll(()=>page.locator('.react-flow__edge:visible').count()).toBeGreaterThan(0)
+    for(const title of ['Approve brief','Collect research']) await expectInsideCanvas(page,page.getByRole('region',{name:'Workspace canvas',exact:true}).getByRole('heading',{name:title,exact:true}))
     await page.screenshot({path:`${evidence}/canvas-task-inspection-desktop.png`,fullPage:true})
     await page.setViewportSize({width:360,height:800})
     await page.getByRole('button', { name: 'Show canvas', exact: true }).click()

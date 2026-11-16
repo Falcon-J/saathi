@@ -237,3 +237,10 @@ test("invalid camera scopes and zoom values fail instead of generating ambiguous
   assert.throws(() => cameraStorageKey({ actorId: "", canvasId: "personal" }), /scope/i)
   for (const zoom of [0, -1, NaN, Infinity]) assert.throws(() => projectCanvas({ ...input([]), zoom }), /zoom/i)
 })
+
+test('compact relationship layout keeps the unfinished prerequisite next to selected work',()=>{
+const entry=graph([task('a-blocker'),task('b-done','w',true),task('c-done','w',true),task('focus')]);entry.graph.dependencies=['a-blocker','b-done','c-done'].map(id=>({workspaceId:'w',prerequisiteTaskId:id,dependentTaskId:'focus'}));
+const navigation=navigateCanvas(createCanvasNavigation(scope),{kind:'task',workspaceId:'w',taskId:'focus'},'manual');const result=projectCanvas({graphs:[entry],navigation,zoom:1,compact:true,relationships:true});
+const y=(id:string)=>result.nodes.find(n=>n.kind==='task'&&n.recordId===id)!.position.y;
+assert.equal(y('focus')-y('a-blocker'),160);assert.ok(y('a-blocker')>y('b-done'));assert.ok(y('a-blocker')>y('c-done'));
+})

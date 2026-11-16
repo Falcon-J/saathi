@@ -185,9 +185,11 @@ export function projectCanvas(input: {
     let rows = 0
     if (neighborhood) {
       const columns = input.compact ? 1 : 2
+      const completed = new Set(entry.graph.tasks.filter(task => task.completed || task.status === "done").map(task => task.id))
       const levels = [...new Set(neighborhood.ids.map(id => neighborhood.levels.get(id)!))].sort((a, b) => a - b)
       for (const level of levels) {
-        const ids = neighborhood.ids.filter(id => neighborhood.levels.get(id) === level).sort(textOrder)
+        const ids = neighborhood.ids.filter(id => neighborhood.levels.get(id) === level).sort((a, b) =>
+          (input.compact && level < 0 ? Number(completed.has(b)) - Number(completed.has(a)) : 0) || textOrder(a, b))
         ids.forEach((id, index) => positions.set(id, { x: 24 + index % columns * 264, y: 112 + (rows + Math.floor(index / columns)) * 160 }))
         rows += Math.ceil(ids.length / columns)
       }

@@ -134,11 +134,16 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
   const edges = useMemo(() => [...projection.edges, ...projectCanvasReferences(resources, references)], [projection.edges, resources, references])
   const focusedTaskId = focus.kind === "task" ? taskNodeId(focus.workspaceId, focus.taskId) : ""
   const contextIds = useMemo(() => {
-    if (!nodes.some(node => node.id === focusedTaskId && node.data.relationship)) return undefined
-    const before = projection.edges.find(edge => !edge.hidden && edge.target === focusedTaskId)?.source
-    const after = !compact ? projection.edges.find(edge => !edge.hidden && edge.source === focusedTaskId)?.target : undefined
-    return [before, focusedTaskId, after].filter((id): id is string => Boolean(id))
-  }, [nodes, projection.edges, focusedTaskId, compact])
+    const selected = nodes.find(node => node.id === focusedTaskId && node.data.relationship)
+    if (!selected) return undefined
+    const byId = new Map(nodes.map(node => [node.id, node]))
+    const completed = (id: string) => { const task = projection.records.tasks.get(id); return Boolean(task?.completed || task?.status === "done") }
+    const distance = (id: string) => Math.abs((byId.get(id)?.position.y ?? selected.position.y) - selected.position.y)
+    const rank = (a: string, b: string) => Number(completed(a)) - Number(completed(b)) || distance(a) - distance(b) || (a < b ? -1 : a > b ? 1 : 0)
+    const before = [...new Set(projection.edges.filter(edge => !edge.hidden && edge.target === focusedTaskId).map(edge => edge.source))].sort(rank)
+    const after = [...new Set(projection.edges.filter(edge => !edge.hidden && edge.source === focusedTaskId).map(edge => edge.target))].sort(rank)
+    return [...before.slice(0, compact ? 1 : 4), focusedTaskId, ...after.slice(0, compact ? 0 : 2)]
+  }, [nodes, projection.edges, projection.records.tasks, focusedTaskId, compact])
   const cancelPending = useCallback(() => controller.current?.cancelPending(), [])
   const keyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => controller.current?.keyDown(event), [])
   const moveStart = useCallback((event: MouseEvent | TouchEvent | null) => { if (event) controller.current?.cancelPending() }, [])
