@@ -2,6 +2,7 @@ import type { Workspace } from "../../lib/data/workspaces.ts"
 import type { TaskGraph } from "../../lib/data/task-dependencies.ts"
 import type { Task } from "../../lib/task-contract.ts"
 import { deriveNextWork, type NextWorkResult, type TaskDependency } from "../../lib/next-work.ts"
+import { taskNeighborhood } from "./task-neighborhood.ts"
 
 export type CanvasScope = Readonly<{ actorId: string; canvasId: string }>
 export type CanvasResourcePath = Readonly<{ id: string; name: string; parentId: string | null; workspaceId?: string | null }>
@@ -34,6 +35,7 @@ export type CanvasNode = {
   representation: CanvasRepresentation
   readiness?: CanvasReadiness
   count?: number
+  relationship?: boolean
 }
 export type CanvasEdge = { id: string; source: string; target: string; workspaceId: string; hidden: boolean }
 export type CanvasProjection = {
@@ -46,6 +48,7 @@ export type CanvasProjection = {
     dependencies: ReadonlyMap<string, TaskDependency>
   }
   readiness: ReadonlyMap<string, NextWorkResult<Task>>
+  omittedTaskCount?: number
 }
 
 const textOrder = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
@@ -144,6 +147,8 @@ export function projectCanvas(input: {
   navigation: CanvasNavigation
   zoom: number
   compact?: boolean
+  relationships?: boolean
+  relatedOnly?: boolean
 }): CanvasProjection {
   if (!Number.isFinite(input.zoom) || input.zoom <= 0) throw new Error("Canvas zoom must be finite and positive")
   const ordered = [...input.graphs].sort((a, b) => textOrder(a.workspace.id, b.workspace.id))
@@ -175,14 +180,27 @@ export function projectCanvas(input: {
     const taskCount = entry.graph.tasks.length
     const dense = taskCount > 4 || Boolean(input.compact && taskCount > 2)
     const taskFocus = [navigation.focus, navigation.selection].find((focus): focus is Extract<CanvasFocus, { kind: "task" }> => focus?.kind === "task" && focus.workspaceId === entry.workspace.id)
+    const neighborhood = input.relationships && taskFocus ? taskNeighborhood(entry.graph.tasks, entry.graph.dependencies, taskFocus.taskId, input.relatedOnly ?? false) : null
+    const positions = new Map<string, { x: number; y: number }>()
+    let rows = 0
+    if (neighborhood) {
+      const columns = input.compact ? 1 : 2
+      const levels = [...new Set(neighborhood.ids.map(id => neighborhood.levels.get(id)!))].sort((a, b) => a - b)
+      for (const level of levels) {
+        const ids = neighborhood.ids.filter(id => neighborhood.levels.get(id) === level).sort(textOrder)
+        ids.forEach((id, index) => positions.set(id, { x: 24 + index % columns * 264, y: 112 + (rows + Math.floor(index / columns)) * 160 }))
+        rows += Math.ceil(ids.length / columns)
+      }
+    }
+    if (neighborhood) return { entry, expanded, dense, taskFocus, neighborhood, positions, width: input.compact ? 288 : 552, height: 128 + rows * 160 }
     return { entry, expanded, dense, taskFocus, width: expanded ? dense || input.compact ? 420 : 760 : 320,
-      height: expanded ? (dense || input.compact) && taskFocus ? 352 : dense ? 448 : 112 + Math.ceil(taskCount / (input.compact ? 1 : 2)) * 240 : 160 }
+      height: expanded ? (dense || input.compact) && taskFocus ? 352 : dense ? 448 : 112 + Math.ceil(taskCount / (input.compact ? 1 : 2)) * 240 : 160, neighborhood, positions }
   })
   let rowY = 0
   for (let index = 0; index < groups.length; index += 2) {
     const row = groups.slice(index, index + 2)
     let columnX = 0
-    for (const { entry, expanded, dense, taskFocus, width, height } of row) {
+    for (const { entry, expanded, dense, taskFocus, width, height, neighborhood, positions } of row) {
       const { workspace, graph } = entry
       const id = workspaceNodeId(workspace.id)
       const projection = readiness.get(workspace.id)!
@@ -194,7 +212,7 @@ export function projectCanvas(input: {
         position: { x: columnX, y: rowY }, width, height, hidden: false, expanded,
         representation: expanded ? "detail" : input.zoom < 0.55 ? "compact" : "summary" })
       const orderedTasks = [...graph.tasks].sort((a, b) => textOrder(a.id, b.id))
-      if (dense) {
+      if (dense && !neighborhood) {
         const counts: [CanvasReadiness, number][] = [["ready", projection.ready.length], ["waiting", projection.waiting.length],
           ["completed_inconsistent", projection.completedInconsistencies.length],
           ["completed", graph.tasks.length - projection.ready.length - projection.waiting.length - projection.completedInconsistencies.length]]
@@ -205,21 +223,25 @@ export function projectCanvas(input: {
       orderedTasks.forEach((task, taskIndex) => {
         const detail = pointsAtTask(navigation.focus, workspace.id, task.id) || pointsAtTask(navigation.selection, workspace.id, task.id)
         nodes.push({ id: taskNodeId(workspace.id, task.id), kind: "task", recordId: task.id,
-          workspaceId: workspace.id, parentId: id, position: dense || (input.compact && taskFocus) ? { x: 24, y: 112 }
+          workspaceId: workspace.id, parentId: id, position: neighborhood ? positions.get(task.id) ?? { x: 24, y: 112 } : dense || (input.compact && taskFocus) ? { x: 24, y: 112 }
             : input.compact ? { x: 24, y: 112 + taskIndex * 240 } : { x: 24 + (taskIndex % 2) * 368, y: 112 + Math.floor(taskIndex / 2) * 240 },
-          width: dense || input.compact ? 372 : 344, height: 216, hidden: !expanded || ((dense || Boolean(input.compact && taskFocus)) && taskFocus?.taskId !== task.id), expanded: detail,
-          representation: detail ? "detail" : input.zoom < 0.55 ? "compact" : "summary",
+          width: neighborhood ? 240 : dense || input.compact ? 372 : 344, height: neighborhood ? 128 : 216,
+          hidden: neighborhood ? !positions.has(task.id) : !expanded || ((dense || Boolean(input.compact && taskFocus)) && taskFocus?.taskId !== task.id), expanded: detail,
+          ...(neighborhood ? { relationship: true } : {}),
+          representation: neighborhood ? "summary" : detail ? "detail" : input.zoom < 0.55 ? "compact" : "summary",
           readiness: taskReadiness.get(task.id) ?? "completed" })
       })
       for (const edge of [...graph.dependencies].sort((a, b) => textOrder(
         dependencyEdgeId(workspace.id, a.prerequisiteTaskId, a.dependentTaskId),
         dependencyEdgeId(workspace.id, b.prerequisiteTaskId, b.dependentTaskId)))) {
         edges.push({ id: dependencyEdgeId(workspace.id, edge.prerequisiteTaskId, edge.dependentTaskId), workspaceId: workspace.id,
-          source: taskNodeId(workspace.id, edge.prerequisiteTaskId), target: taskNodeId(workspace.id, edge.dependentTaskId), hidden: !expanded || dense || Boolean(input.compact && taskFocus) })
+          source: taskNodeId(workspace.id, edge.prerequisiteTaskId), target: taskNodeId(workspace.id, edge.dependentTaskId),
+          hidden: neighborhood ? !positions.has(edge.prerequisiteTaskId) || !positions.has(edge.dependentTaskId) : !expanded || dense || Boolean(input.compact && taskFocus) })
       }
       columnX += width + 120
     }
     rowY += Math.max(...row.map(group => group.height)) + 120
   }
-  return { navigation, nodes, edges, records: { workspaces, tasks, dependencies }, readiness }
+  return { navigation, nodes, edges, records: { workspaces, tasks, dependencies }, readiness,
+    ...(input.relationships ? { omittedTaskCount: groups.reduce((sum, group) => sum + (group.neighborhood?.omittedCount ?? 0), 0) } : {}) }
 }

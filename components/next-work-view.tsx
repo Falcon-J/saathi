@@ -34,6 +34,8 @@ function clearStoredPending(key: string, change: PendingChange) {
   } catch { /* A retained command can safely recover through its receipt. */ }
 }
 type Props = {
+  inspectorOnly?: boolean
+  initialTaskId?: string
   workspace: Workspace
   currentUserEmail: string
   refreshSignal: number
@@ -47,7 +49,7 @@ type Props = {
   onShowAll?: () => void
 }
 
-export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskRevision, onOpenTask, onChanged, onRefreshReady, connected = true, compact = false, focusGroup, onShowAll }: Props) {
+export function NextWorkView({ inspectorOnly = false, initialTaskId, workspace, currentUserEmail, refreshSignal, taskRevision, onOpenTask, onChanged, onRefreshReady, connected = true, compact = false, focusGroup, onShowAll }: Props) {
   const [storedData, setData] = useState<{ scope: string; graph: Graph; projection: NextWorkResult<Task> } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -82,13 +84,13 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
       if (raw && !change) window.sessionStorage.removeItem(storageKey)
       pendingChange.current = change
       setPending(change)
-      setSelectedId(change?.input.dependentTaskId ?? "")
+      setSelectedId(change?.input.dependentTaskId ?? (inspectorOnly ? initialTaskId ?? "" : ""))
       setPrerequisiteId(change?.input.prerequisiteTaskId ?? "")
       setRecoveryReady(true)
     } catch {
       setRecoveryReady(false)
     }
-  }, [storageKey, workspace.id])
+  }, [storageKey, workspace.id, inspectorOnly, initialTaskId])
 
   useEffect(() => {
     const sequenceRef = requestSequence
@@ -251,13 +253,14 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
 
   return (
     <section aria-labelledby="next-work-title" aria-busy={loading || saving} className="space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-2"><h2 id="next-work-title" className="text-lg font-semibold">Ready and Waiting</h2><Button type="button" variant="outline" size="sm" aria-label="Refresh next work" disabled={loading || saving} onClick={() => void load()}>Refresh</Button></header>
+      <header className="flex flex-wrap items-center justify-between gap-2"><h2 id="next-work-title" className="text-lg font-semibold">{inspectorOnly ? "Prerequisites" : "Ready and Waiting"}</h2><Button type="button" variant="outline" size="sm" aria-label="Refresh next work" disabled={loading || saving} onClick={() => void load()}>Refresh</Button></header>
       {loading && <p role="status" className="text-sm text-muted-foreground">{data ? "Refreshing next work; previous results may be out of date…" : "Loading next work…"}</p>}
       {!connected && <p role="status" className="text-sm text-muted-foreground">Live updates are paused. Refresh next work to check the latest state.</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {!recoveryReady && <div role="alert" className="space-y-2 text-sm text-destructive"><p>Session recovery storage is unavailable. Prerequisite changes are paused.</p><Button type="button" variant="outline" onClick={() => { restorePending(); void load() }}>Retry recovery</Button></div>}
       {pending && !saving && <div className="space-y-2"><p className="text-sm">A prerequisite change needs confirmation. Your original change is retained for recovery.</p>{permitsCapability(workspace.capabilityCeiling, "edit") && <Button type="button" onClick={() => save(pendingChange.current!)}>Retry change</Button>}</div>}
       {data && <>
+        {!inspectorOnly && <>
         {focusGroup && onShowAll && <Button type="button" variant="ghost" size="sm" disabled={Boolean(pending)} onClick={() => { if (!pendingChange.current) onShowAll() }}>All work</Button>}
         <Input aria-label="Search next work" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tasks or assignees" />
         <div className={`grid gap-4 ${!focusGroup && !compact ? "md:grid-cols-2" : ""}`}>{(!focusGroup || focusGroup === "ready") && section("Ready", data.projection.ready)}{(!focusGroup || focusGroup === "waiting") && section("Waiting", data.projection.waiting)}</div>
@@ -266,8 +269,9 @@ export function NextWorkView({ workspace, currentUserEmail, refreshSignal, taskR
         {!compact && <label className="block text-sm font-medium">Inspect prerequisites
           <select aria-label="Task to inspect" className="mt-1 min-h-11 w-full rounded-md border border-border bg-background px-3" value={selectedId} disabled={Boolean(pending) || loading} onChange={event => { returnFocus.current = event.currentTarget; select(event.target.value) }}><option value="">Choose a task</option>{data.graph.tasks.map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select>
         </label>}
+        </>}
         {selected && <section ref={editor} tabIndex={-1} aria-label={`Prerequisites for ${selected.title}`} className="space-y-3 rounded-lg border border-border p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-          <div className="flex items-start justify-between gap-2"><h3 className="break-words text-sm font-semibold">{selected.title} depends on</h3><Button type="button" variant="ghost" size="sm" disabled={Boolean(pending)} onClick={() => { select(""); returnFocus.current?.focus() }}>Close prerequisites</Button></div>
+          <div className="flex items-start justify-between gap-2"><h3 className="break-words text-sm font-semibold">{selected.title} depends on</h3>{!inspectorOnly && <Button type="button" variant="ghost" size="sm" disabled={Boolean(pending)} onClick={() => { select(""); returnFocus.current?.focus() }}>Close prerequisites</Button>}</div>
           {selectedSources.length === 0 && <p className="text-sm text-muted-foreground">No recorded prerequisites</p>}
           {selectedSources.map(edge => {
             const source = data.graph.tasks.find(task => task.id === edge.prerequisiteTaskId)!

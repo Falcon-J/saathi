@@ -1,8 +1,8 @@
 import type { CanvasFocus } from "./model.ts"
 
-export const CANVAS_TOOLS = ["ready", "tasks", "prerequisites", "team", "settings", "activity", "agents"] as const
+export const CANVAS_TOOLS = ["work", "ready", "tasks", "prerequisites", "team", "settings", "activity", "agents"] as const
 export type CanvasTool = typeof CANVAS_TOOLS[number]
-export type CanvasLocation = { focus: CanvasFocus; view: CanvasTool | null; group: "ready" | "waiting" | "completed_inconsistent" | null }
+export type CanvasLocation = { focus: CanvasFocus; view: CanvasTool | null; group: "ready" | "waiting" | "completed_inconsistent" | "completed" | null }
 const keys = ["resource", "workspace", "task", "view", "group"]
 const id = (value: string | null) => value !== null && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(value)
 
@@ -16,7 +16,7 @@ export function parseCanvasUrl(input: string): CanvasLocation | null {
   const resource = p.get("resource"), workspace = p.get("workspace"), task = p.get("task"), view = p.get("view"), group = p.get("group")
   if ((resource !== null && !id(resource)) || (workspace !== null && !id(workspace)) || (task !== null && !id(task))) return null
   if ((resource && workspace) || (task && !workspace) || (view !== null && !CANVAS_TOOLS.includes(view as CanvasTool)) || (view && !workspace)) return null
-  if (group !== null && (view !== "ready" || !["ready", "waiting", "completed_inconsistent"].includes(group))) return null
+  if (group !== null && ((!['ready', 'work'].includes(view ?? '')) || !["ready", "waiting", "completed_inconsistent", ...(view === 'work' ? ['completed'] : [])].includes(group))) return null
   const focus: CanvasFocus = resource ? { kind: "resource", resourceId: resource } : task && workspace ? { kind: "task", workspaceId: workspace, taskId: task }
     : workspace ? { kind: "workspace", workspaceId: workspace } : { kind: "overview" }
   return { focus, view: view as CanvasTool | null, group: group as CanvasLocation["group"] }
@@ -31,7 +31,7 @@ export function canvasUrl(location: CanvasLocation, base = "/canvas"): string {
     url.searchParams.set("workspace", focus.workspaceId)
     if (focus.kind === "task") url.searchParams.set("task", focus.taskId)
     if (location.view) url.searchParams.set("view", location.view)
-    if (location.view === "ready" && location.group) url.searchParams.set("group", location.group)
+    if ((location.view === "ready" || location.view === "work") && location.group) url.searchParams.set("group", location.group)
   }
   return url.pathname + url.search + url.hash
 }

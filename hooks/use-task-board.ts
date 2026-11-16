@@ -5,7 +5,7 @@ import { getTasksPage, getWorkspaceTaskAggregates } from "@/app/tasks/actions"
 import type { Task } from "@/lib/task-contract"
 import type { TaskPageInput, TaskAggregates } from "@/lib/task-page"
 
-export function useTaskBoard(workspaceId: string, refreshSignal: number) {
+export function useTaskBoard(workspaceId: string, refreshSignal: number, enabled = true) {
   const [filters, setFilters] = useState<TaskPageInput>({})
   const [tasks, setTasks] = useState<Task[]>([])
   const [aggregates, setAggregates] = useState<TaskAggregates | null>(null)
@@ -16,18 +16,18 @@ export function useTaskBoard(workspaceId: string, refreshSignal: number) {
   const version = useRef(0)
   const mounted = useRef(true)
   const morePending = useRef(false)
-  const scope = useRef({ workspaceId, filters })
+  const scope = useRef({ workspaceId, filters, enabled })
   useLayoutEffect(() => {
-    if (scope.current.workspaceId !== workspaceId || scope.current.filters !== filters) {
-      scope.current = { workspaceId, filters }
+    if (scope.current.workspaceId !== workspaceId || scope.current.filters !== filters || scope.current.enabled !== enabled) {
+      scope.current = { workspaceId, filters, enabled }
       version.current++
     }
-  }, [workspaceId, filters])
+  }, [workspaceId, filters, enabled])
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
   const reload = useCallback(async () => {
     const selection = scope.current
-    if (selection.filters !== filters || selection.workspaceId !== workspaceId || !mounted.current) return false
+    if (!enabled || selection.filters !== filters || selection.workspaceId !== workspaceId || !mounted.current) return false
     const request = ++version.current
     const isCurrent = () => mounted.current && version.current === request && scope.current === selection
     setLoading(true)
@@ -51,7 +51,7 @@ export function useTaskBoard(workspaceId: string, refreshSignal: number) {
       if (isCurrent()) setError("Unable to load tasks. Try again.")
       return false
     } finally { if (isCurrent()) setLoading(false) }
-  }, [workspaceId, filters])
+  }, [workspaceId, filters, enabled])
 
   useEffect(() => { void reload() }, [reload, refreshSignal])
 
@@ -66,7 +66,7 @@ export function useTaskBoard(workspaceId: string, refreshSignal: number) {
   }, [])
 
   const loadMore = async () => {
-    if (!nextCursor || loading || morePending.current || scope.current.filters !== filters || scope.current.workspaceId !== workspaceId || !mounted.current) return
+    if (!enabled || !nextCursor || loading || morePending.current || scope.current.filters !== filters || scope.current.workspaceId !== workspaceId || !mounted.current) return
     morePending.current = true
     setLoadingMore(true)
     setError(null)
@@ -84,5 +84,6 @@ export function useTaskBoard(workspaceId: string, refreshSignal: number) {
     } catch { if (isCurrent()) setError("Unable to load more tasks. Try again.") }
     finally { if (isCurrent()) { morePending.current = false; setLoadingMore(false) } }
   }
-  return { tasks, aggregates, filters, changeFilters, nextCursor, loading, loadingMore, error, reload, loadMore }
+  return { tasks: enabled ? tasks : [], aggregates: enabled ? aggregates : null, filters, changeFilters, nextCursor: enabled ? nextCursor : null,
+    loading: enabled && loading, loadingMore: enabled && loadingMore, error: enabled ? error : null, reload, loadMore }
 }

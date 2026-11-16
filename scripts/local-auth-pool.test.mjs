@@ -66,3 +66,7 @@ test('lost install responses reconcile ownership and a newer zero-limit record c
     assert.ok(h.calls.some(c => c.args.includes('cleanup')))
   }
 })
+
+test('managed Linux Auth configuration has canonical LF endings on Windows checkouts',async()=>{
+const h=harness({initialConfigured:true,reused:true});await configureLocalAuthPool({run:h.run,healthy:async()=>true});assert.equal(h.calls.find(c=>c.input)?.input.includes('\r'),false)
+})

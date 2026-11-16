@@ -2,6 +2,11 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { parseCanvasUrl, canvasUrl, resolveCanvasUrl, CANVAS_TOOLS } from "./navigation-url.ts"
 
+test('inspection URLs distinguish task details from legacy editing and preserve readiness filters',()=>{
+  assert.deepEqual(parseCanvasUrl('/canvas?workspace=w&task=t&view=work&group=completed'),{focus:{kind:'task',workspaceId:'w',taskId:'t'},view:'work',group:'completed'})
+  assert.equal(parseCanvasUrl('/canvas?workspace=w&task=t&view=tasks')?.view,'tasks')
+})
+
 test("canvas locations and work views roundtrip without camera state", () => {
   for (const focus of [{ kind: "overview" }, { kind: "resource", resourceId: "section" }, { kind: "workspace", workspaceId: "w" }, { kind: "task", workspaceId: "w", taskId: "t" }] as const) {
     const location = { focus, view: focus.kind === "task" ? "tasks" as const : null, group: null }

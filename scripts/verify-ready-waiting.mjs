@@ -79,7 +79,8 @@ async function login(user) {
   await p.getByLabel('Email', { exact: true }).fill(user.email)
   await p.getByLabel('Password', { exact: true }).fill(user.password)
   await p.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(p).toHaveURL(/\/dashboard/, { timeout: 60000 })
+  await expect(p).toHaveURL(/\/canvas/, { timeout: 60000 })
+  await p.goto(`${base}/dashboard`)
   return p
 }
 async function overview(p) {

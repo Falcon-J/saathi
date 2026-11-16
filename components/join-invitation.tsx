@@ -64,7 +64,7 @@ export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
       if (!current()) return
       if (result.error || !result.success) { setError(result.error || "Unable to join. Please try again."); return }
       forgetToken()
-      router.replace(result.workspaceId ? `/dashboard?workspace=${encodeURIComponent(result.workspaceId)}` : "/dashboard")
+      router.replace(result.workspaceId ? `/canvas?workspace=${encodeURIComponent(result.workspaceId)}` : "/canvas")
       router.refresh()
     } catch { if (current()) setError("Unable to join. Please try again.") }
     finally { if (current()) { busy.current = false; setPending(false) } }
@@ -72,7 +72,7 @@ export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
   return <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-border bg-card p-6">
     {loading ? <p role="status">Loading invitation…</p> : preview?.status === "accepted" && preview.workspaceId ? <>
       <h1 className="break-words text-2xl font-semibold">Joined {preview.workspaceName}</h1>
-      <Link href={`/dashboard?workspace=${encodeURIComponent(preview.workspaceId)}`} onClick={forgetToken} className="text-primary underline">Open workspace</Link>
+      <Link href={`/canvas?workspace=${encodeURIComponent(preview.workspaceId)}`} onClick={forgetToken} className="text-primary underline">Open workspace</Link>
     </> : preview ? <>
       <h1 className="break-words text-2xl font-semibold">Join {preview.workspaceName}</h1>
       <p className="text-sm">{preview.inviterUsername} invited you to collaborate.</p>
@@ -83,6 +83,6 @@ export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
       </>}
     </> : <><h1 className="text-2xl font-semibold">Invitation unavailable</h1><p>Ask the workspace owner for a new link.</p></>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    <Link href="/dashboard" onClick={forgetToken} className="block text-sm text-primary underline">Go to dashboard</Link>
+    <Link href="/canvas" onClick={forgetToken} className="block text-sm text-primary underline">Go to canvas</Link>
   </section>
 }

@@ -12,7 +12,8 @@ export type CanvasTool = "select" | "pan"
 export type CanvasCameraHandle = { cancelPending: () => void; keyDown: (event: KeyboardEvent<HTMLDivElement>) => void }
 
 /** Store subscriptions stay below ReactFlow; camera updates never rebuild its controlled records. */
-export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
+export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
+  contextIds?: string[]
   nodes: Node[]; focus: CanvasFocus; followingAgent: boolean; cameraKey: string; initialCamera: SavedCanvasCamera | null
   controllerRef: Ref<CanvasCameraHandle>; tool: CanvasTool; onToolChange: (tool: CanvasTool) => void
   onViewportWidthChange: (width: number) => void; ready?: boolean; restoreReady?: boolean; compact?: boolean
@@ -80,10 +81,10 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
     // Claim this camera intent before a synchronous viewport/store notification can re-enter.
     pending.current = null
     const request = generation.current
-    const result = focusId ? fit([focusId]) : fitAll()
+    const result = focusId ? fit(contextIds?.length ? contextIds : [focusId]) : fitAll()
     void result.then(applied => { if (!applied && request === generation.current && previous.current.key === key) pending.current = key })
       .catch(() => { if (request === generation.current && previous.current.key === key) pending.current = key })
-  }, [compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitAll, width, height, geometry])
+  }, [contextIds, compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitAll, width, height, geometry])
   return <>
     <Panel position="bottom-left" className="!m-3"><div role="toolbar" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm">
       <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => { cancelPending(); void flow.zoomOut({ duration: 0 }) }}><Minus className="size-4" /></Button>

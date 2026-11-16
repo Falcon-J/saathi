@@ -5,7 +5,7 @@ import { safeAuthRedirect, validateCredentials, resolveVerifiedSession, validate
 test('auth redirects retain only local application destinations', () => {
   assert.equal(safeAuthRedirect('/dashboard?workspace=one'), '/dashboard?workspace=one')
   for (const value of ['https://evil.test', '//evil.test', '/\\evil.test', '/%5cevil.test', '/login\n', 'javascript:alert(1)']) {
-    assert.equal(safeAuthRedirect(value), '/dashboard')
+    assert.equal(safeAuthRedirect(value), '/canvas')
   }
 })
 

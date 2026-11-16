@@ -400,3 +400,9 @@ test('a definitive recovery conflict clears the command and preserves the draft 
   assert.equal(ui.calls[2][1].expectedVersion, 2)
   assert.notEqual(ui.calls[2][1].commandId, original.commandId)
 })
+
+test('contextual prerequisite inspector retains its selected task without an orphaned close action',async()=>{
+const ui=harness();ui.render({inspectorOnly:true,initialTaskId:'Frontend'});await tick();const tree=ui.render();
+assert.ok(tree.some(n=>n.props?.['aria-label']==='Prerequisites for Frontend'));
+assert.equal(Boolean(ui.button('Close prerequisites')),false);assert.equal(Boolean(ui.field('Task to inspect')),false);
+})

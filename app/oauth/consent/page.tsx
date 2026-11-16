@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function McpConsentPage({ searchParams }: { searchParams: Promise<{ authorization_id?: string }> }) {
   let config
-  try { config = resolveMcpConfig() } catch { return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-semibold">Connections unavailable</h1><Link href="/dashboard">Back to workspace</Link></main> }
-  if (!config.enabled) return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-semibold">Agent connections are disabled</h1><Link href="/dashboard">Back to workspace</Link></main>
+  try { config = resolveMcpConfig() } catch { return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-semibold">Connections unavailable</h1><Link href="/canvas">Back to workspace</Link></main> }
+  if (!config.enabled) return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-semibold">Agent connections are disabled</h1><Link href="/canvas">Back to workspace</Link></main>
   const params = await searchParams
   let authorizationId: string
   try { authorizationId = consentAuthorizationId(params.authorization_id) } catch { return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-semibold">Authorization unavailable</h1><p>Start a new connection from your agent.</p></main> }
@@ -29,7 +29,7 @@ export default async function McpConsentPage({ searchParams }: { searchParams: P
   if (destination) redirect(destination)
   const workspaces = [...await listWorkspaces(session.id), ...await listWorkspaces(session.id, true)].map(workspace => ({ id: workspace.id, name: workspace.name }))
   return <main className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-8 sm:px-6">
-    <Link href="/dashboard" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
+    <Link href="/canvas" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
     <h1 className="text-2xl font-semibold">Connect {details!.client.name}</h1>
     <p className="break-all text-sm text-muted-foreground">Return to {new URL(details!.redirect_uri).origin}</p>
     <McpConsentForm authorizationId={authorizationId} workspaces={workspaces} />

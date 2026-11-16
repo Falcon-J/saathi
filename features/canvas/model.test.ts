@@ -19,6 +19,17 @@ const graph = (tasks: Task[] = [], id = "w"): AuthorizedWorkspaceGraph => ({ wor
   graph: { tasks, dependencies: [], timezone: "UTC", asOf: "2026-11-12T00:00:00Z" } })
 const input = (graphs: AuthorizedWorkspaceGraph[]) => ({ graphs, navigation: createCanvasNavigation(scope), zoom: 1 })
 
+test('focused relationship view exposes prerequisites in a dense workspace and keeps records intact',()=>{
+  const entry=graph(Array.from({length:750},(_,i)=>task(String(i))))
+  entry.graph.dependencies=[{workspaceId:'w',prerequisiteTaskId:'699',dependentTaskId:'700'},{workspaceId:'w',prerequisiteTaskId:'700',dependentTaskId:'701'}]
+  const navigation=navigateCanvas(createCanvasNavigation(scope),{kind:'task',workspaceId:'w',taskId:'700'},'manual')
+  const result=projectCanvas({graphs:[entry],navigation,zoom:1,relationships:true,relatedOnly:true})
+  assert.deepEqual(new Set(result.nodes.filter(n=>n.kind==='task'&&!n.hidden).map(n=>n.recordId)),new Set(['699','700','701']))
+  assert.equal(result.edges.filter(e=>!e.hidden).length,2)
+  assert.equal(result.records.tasks.size,750)
+  for(const node of result.nodes.filter(n=>n.kind==='task'&&!n.hidden))assert.equal(node.relationship,true)
+})
+
 for (const count of [0, 1, 2, 4, 12, 13, 50]) test(`narrow workspace with ${count} tasks stays readable without changing canonical records`, () => {
   const entry = graph(Array.from({ length: count }, (_, i) => task(String(i))))
   if (count > 1) entry.graph.dependencies = [{ workspaceId: "w", prerequisiteTaskId: "0", dependentTaskId: "1" }]

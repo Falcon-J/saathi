@@ -44,14 +44,18 @@ function harness(options = {}) {
   }
   if(options.previousUrl)history.pushState({__NA:true,tree:['next']},'',options.url??'/canvas')
   const jsx = (type, props) => ({ type, props })
-  const deps = { '@/features/canvas/view-state': { readCanvasView: scope => require('../../features/canvas/view-state.ts').readCanvasView(scope,options.preferences), saveCanvasView: (scope,focus) => require('../../features/canvas/view-state.ts').saveCanvasView(scope,focus,options.preferences) }, 'next/navigation': { useRouter: () => ({ push: path => calls.push(['navigate',path]) }) }, '@/app/actions/workspace-intent': { generateWorkspaceDraft: async () => ({}), createWorkspaceFromPlan: async () => ({}) }, '@/app/actions/workspace-advisor': { confirmWorkspaceAdvisorDraft: async () => ({}) }, react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
-    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map'].map(key => [key, key])),
+  const deps = { '@/features/canvas/view-state': { readCanvasView: scope => require('../../features/canvas/view-state.ts').readCanvasView(scope,options.preferences), saveCanvasView: (scope,focus) => require('../../features/canvas/view-state.ts').saveCanvasView(scope,focus,options.preferences) }, 'next/navigation': { useRouter: () => ({ push: path => calls.push(['navigate',path]), replace:path=>calls.push(['replace',path]) }) }, '@/app/actions/workspace-intent': { generateWorkspaceDraft: async () => ({}), createWorkspaceFromPlan: async () => ({}) }, '@/app/actions/workspace-advisor': { confirmWorkspaceAdvisorDraft: async () => ({}) }, react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
+    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map', 'Sparkles'].map(key => [key, key])),
     '@/hooks/use-workspaces': { useWorkspaces: () => store }, '@/hooks/use-canvas-graph': { useCanvasGraph: () => graph }, './use-canvas-resources': { useCanvasResources: () => companies },
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts'), '@/lib/browser-history':historyModule, '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
   }
   for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/workspace-advisor': ['WorkspaceAdvisor'], '@/components/task-import': ['TaskImport'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem', 'DropdownMenuSeparator'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
+  deps['./canvas-task-panel']={CanvasTaskPanel:'CanvasTaskPanel'}
+  deps['@/components/invitation-notifications']={InvitationNotifications:'InvitationNotifications'}
+  deps['@/lib/auth-simple']={logout:async()=>({success:true})}
+  deps['@/lib/draft-storage']={clearAccountDrafts(prefix){calls.push(['clear-drafts',prefix])}}
   new Function('require', 'exports', 'window', shellCode)(name => { assert.ok(name in deps, name); return deps[name] }, exports, browser)
   return { render() { cursor = 0; tree = exports.CanvasShell({ actorId: 'actor', email: 'actor@example.test', ...options.flags });for(const node of nodes(tree)){if(node.props?.ref)node.props.ref.current={focus:()=>calls.push(['focus',node.props['aria-label']])}} effects.splice(0).forEach(fn => fn()); return nodes(tree) }, text() { return JSON.stringify(tree) }, url:()=>entries[position].url, canonicalUrl:()=>canonicalUrl, entries, history, store, graph, companies, calls, listeners }
 }
@@ -78,6 +82,21 @@ module.exports = { harness, nodes }
 
 const historyWorkspace = (id = 'w') => ({id,name:id,ownerId:'actor@example.test',members:[]})
 const historyGraph = (id = 'w', ids = ['t']) => ({workspace:historyWorkspace(id),complete:true,graph:{tasks:ids.map(taskId=>({id:taskId,workspaceId:id,title:taskId,createdBy:'actor@example.test',completed:false,status:'todo',createdAt:'2026-11-13T00:00:00Z',updatedAt:'2026-11-13T00:00:00Z'})),dependencies:[],timezone:'UTC',asOf:'2026-11-13T12:00:00Z'}})
+
+test('node inspection opens the single task panel and explicit edit reuses the recovered editor',()=>{
+ const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'})
+ let tree=ui.render();const panel=tree.find(n=>n.type==='CanvasTaskPanel');assert.ok(panel);assert.equal(panel.props.selectedTask.id,'t')
+ assert.match(ui.url(),/view=work/);assert.equal(tree.find(n=>n.type==='WorkspaceBoard')?.props.openTaskId??null,null)
+ panel.props.onEdit('t');tree=ui.render();assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.openTaskId,'t');assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.editorOnly,true)
+})
+test('task list, readiness groups and header AI share the work panel without a second list dialog',()=>{
+ const ui=harness({flags:{aiEnabled:true},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ const tree=ui.render();assert.equal(tree.filter(n=>n.type==='CanvasTaskPanel').length,1);assert.equal(tree.find(n=>n.type==='CanvasCommandBar').props.placement,'header')
+ assert.equal(tree.find(n=>n.type==='CanvasCommandBar').props.onAsk,undefined);assert.equal(tree.filter(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi').length,1)
+ assert.equal(tree.some(n=>n.type==='Link'&&n.props.href==='/dashboard'),false)
+})
 test('initial task URL waits for lists and current graph without overwriting the deep link',()=>{
  const ui=harness({url:'/canvas?workspace=w&task=t&view=tasks',store:{loading:true,currentWorkspaceId:'old'},graph:{loading:true}})
  assert.notEqual(ui.render().find(n=>n.type==='CanvasFlow')?.props.restoreReady,true);ui.render();assert.match(ui.url(),/task=t/)
@@ -87,7 +106,7 @@ test('initial task URL waits for lists and current graph without overwriting the
  ui.graph.loading=false;ui.graph.entry=historyGraph();ui.render()
  const tree=ui.render();assert.equal(tree.find(n=>n.type==='CanvasFlow').props.restoreReady,true);assert.deepEqual(tree.find(n=>n.type==='CanvasFlow').props.focus,{kind:'task',workspaceId:'w',taskId:'t'})
  assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.openTaskId,'t')
- assert.equal(tree.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
+ assert.equal(tree.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work')
  assert.equal(ui.history.state.__NA,true);assert.deepEqual(ui.history.state.tree,['next'])
 })
 test('Back and Forward restore work focus while dirty cancellation retains draft and history position',()=>{
@@ -100,7 +119,7 @@ test('Back and Forward restore work focus while dirty cancellation retains draft
  const taskUrl=ui.url()
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true)
  ui.history.back();ui.render();assert.equal(ui.url(),taskUrl)
- assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
+ assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work')
  ui.history.back();ui.render();assert.equal(ui.url(),taskUrl)
  allow=true;ui.history.back();ui.render();ui.render();assert.equal(ui.url(),readyUrl)
  ui.history.forward();ui.render();ui.render();assert.equal(ui.url(),taskUrl)
@@ -122,8 +141,8 @@ test('browser workspace transitions protect retained drafts and wait for the des
  ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();ui.render()
  ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'tasks'}});ui.render()
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
- const original=ui.url();ui.history.go(-3);ui.render();assert.equal(ui.url(),original);assert.equal(ui.store.currentWorkspaceId,'z')
- allow=true;ui.history.go(-3);ui.render();assert.equal(ui.store.currentWorkspaceId,'w');assert.match(ui.url(),/workspace=w/)
+ const original=ui.url(), destination=ui.entries.findIndex(e=>e.url.includes('workspace=w'))-(ui.entries.length-1);ui.history.go(destination);ui.render();assert.equal(ui.url(),original);assert.equal(ui.store.currentWorkspaceId,'z')
+ allow=true;ui.history.go(destination);ui.render();assert.equal(ui.store.currentWorkspaceId,'w');assert.match(ui.url(),/workspace=w/)
  ui.render();assert.match(ui.url(),/workspace=w/)
  ui.graph.entry=historyGraph();ui.render();ui.render()
  assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'workspace',workspaceId:'w'})
@@ -141,7 +160,7 @@ test('cancelled page Back restores the current URL and saved Next tree for a ret
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false)
  const original=ui.url();ui.history.back();ui.render()
  assert.equal(ui.url(),original);assert.deepEqual(ui.history.state.tree,['next'])
- assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'tasks')
+ assert.equal(ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work')
  ui.history.back();ui.render();assert.equal(ui.url(),original)
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(false,false)
  ui.history.back();ui.render();assert.equal(ui.url(),'/dashboard');assert.equal(ui.entries[0].url,'/dashboard')
@@ -214,16 +233,16 @@ test('camera movement and measured width never add navigation entries',()=>{
 })
 test('hidden dirty task editor blocks a different task but resumes its own canonical task',()=>{
  const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph('w',['t','other'])}})
- ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'other'});ui.render()
- ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'});ui.render()
+ ui.render().find(n=>n.type==='CanvasCommandBar').props.onOpenTask('other');ui.render()
+ ui.render().find(n=>n.type==='CanvasCommandBar').props.onOpenTask('t');ui.render()
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true,false,'t')
  ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Show canvas').props.onClick();ui.render()
  assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.active,false)
  const retained=ui.url()
- ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'other'});ui.render()
+ ui.render().find(n=>n.type==='CanvasCommandBar').props.onOpenTask('other');ui.render()
  assert.equal(ui.url(),retained);assert.match(ui.text(),/Save or discard/)
  ui.history.go(-2);ui.render();assert.equal(ui.url(),retained)
- ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'task',workspaceId:'w',taskId:'t'});ui.render()
+ ui.render().find(n=>n.type==='CanvasCommandBar').props.onOpenTask('t');ui.render()
  assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.active,true)
  assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.openTaskId,'t')
 })
@@ -249,11 +268,11 @@ test('canvas management accessible name includes its visible button label', () =
  ui.render().find(n=>n.type==='CanvasFlow').props.onOpenGroup('w','ready');
  const result=ui.render();
  assert.equal(result.filter(n=>n.type==='Dialog')[0].props.open,false);
- const work=result.find(n=>n.type==='NextWorkView');
- assert.equal(work.props.focusGroup,'ready'); assert.equal(work.props.workspace.id,'w');
- assert.equal(result.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'ready');
+ const work=result.find(n=>n.type==='CanvasTaskPanel');
+ assert.equal(work.props.group,'ready'); assert.equal(work.props.workspace.id,'w');
+ assert.equal(result.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work');
  result.find(n=>n.type==='CanvasCommandBar').props.onList();
- assert.ok(ui.render().filter(n=>n.type==='Button').some(n=>n.props.children?.[0]==='done-task'));
+ assert.deepEqual(ui.render().find(n=>n.type==='CanvasTaskPanel').props.tasks.map(t=>t.id),['ready-task','done-task']);
  });
 
 test('workspace creation captures the selected section and keeps its destination stable', () => {
@@ -285,8 +304,8 @@ test('read-only workspace tools land on Ready and Waiting with the actual worksp
  ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
  ui.render().find(n=>n.type==='Button'&&n.props['aria-label']==='Open workspace tools').props.onClick();
  const result=ui.render();
- assert.equal(result.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'ready');
- assert.ok(result.some(n=>n.type==='NextWorkView'&&n.props.compact));
+ assert.equal(result.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work');
+ assert.ok(result.some(n=>n.type==='CanvasTaskPanel'&&n.props.workspace.id==='w'));
 });
 
 test('workspace picker focuses its selected workspace and avoids mounting an unused board',()=>{
@@ -310,7 +329,7 @@ test('a retained hidden task draft does not block reading work but still protect
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true);
  ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'ready'}});
  let prevented=false;ui.listeners.get('beforeunload')({preventDefault(){prevented=true},returnValue:null});assert.equal(prevented,true);
- ui.render().find(n=>n.type==='NextWorkView').props.onOpenTask('a');
+ ui.render().find(n=>n.type==='CanvasTaskPanel').props.onInspect('a');
  assert.deepEqual(ui.render().find(n=>n.type==='CanvasFlow').props.focus,{kind:'task',workspaceId:'w',taskId:'a'});
 });
 
@@ -323,7 +342,7 @@ test('page and workspace exits still guard a hidden in-memory draft when browser
  ui.render().find(n=>n.type==='WorkspaceBoard').props.onDirtyChange(true);
  ui.render().find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.onChange({target:{value:'ready'}});
  accepted=false;let prevented=false;
- ui.render().find(n=>n.type==='Link'&&n.props['aria-label']==='Open dashboard').props.onClick({preventDefault(){prevented=true}});assert.equal(prevented,true);
+ ui.render().find(n=>n.type==='Link'&&n.props.href==='/connections').props.onClick({preventDefault(){prevented=true}});assert.equal(prevented,true);
  ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['data-workspace-id']==='other').props.onSelect();assert.equal(ui.store.currentWorkspaceId,'w');
  assert.equal(ui.calls.filter(c=>c==='confirm').length,3);
 });
@@ -363,7 +382,7 @@ test('work focus preserves the canvas and task draft when returning to the map',
  const work=ui.render(),back=work.find(n=>n.type==='Button'&&n.props['aria-label']==='Show canvas');
  assert.ok(back,'the working surface must provide a clear return to the canvas');
  assert.ok(work.some(n=>n.type==='CanvasFlow'),'canvas must stay mounted during work');
- const pane=work.find(n=>n.type==='aside');assert.ok(pane.props.className.split(' ').includes('top-0'));
+ const pane=work.find(n=>n.type==='aside');assert.match(pane.props.className,/relative/);
  back.props.onClick();const map=ui.render();
  assert.ok(map.some(n=>n.type==='CanvasFlow'));assert.ok(map.some(n=>n.type==='WorkspaceBoard'),'hidden draft stays mounted');
  assert.equal(map.find(n=>n.type==='CanvasFlow').props.focus.kind,'workspace');
@@ -378,6 +397,24 @@ test('one canonical location control replaces competing workspace and breadcrumb
  assert.equal(tree.filter(n=>n.type==='nav'&&n.props['aria-label']==='Canvas hierarchy').length,1);
 });
 
-test('canvas workspace actions preserve feature flags and current scope',()=>{const ui=harness({flags:{aiEnabled:true,csvImportEnabled:true},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});const commands=ui.render().find(n=>n.type==='CanvasCommandBar').props;assert.equal(typeof commands.onAsk,'function');assert.equal(typeof commands.onImport,'function');assert.equal(commands.canManage,true);commands.onAsk();assert.ok(ui.render().filter(n=>n.type==='Dialog').some(n=>n.props.open&&JSON.stringify(n).includes('Ask Saathi')));const disabled=harness({flags:{aiEnabled:false,csvImportEnabled:false},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});disabled.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});const c=disabled.render().find(n=>n.type==='CanvasCommandBar').props;assert.equal(c.onAsk,undefined);assert.equal(c.onImport,undefined)})
+test('canvas workspace actions preserve feature flags and current scope',()=>{
+const ui=harness({flags:{aiEnabled:true,csvImportEnabled:true},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
+ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
+const tree=ui.render(),commands=tree.find(n=>n.type==='CanvasCommandBar').props;
+assert.equal(commands.onAsk,undefined);assert.equal(typeof commands.onImport,'function');assert.equal(commands.canManage,true);
+tree.find(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi').props.onClick();
+assert.equal(ui.render().find(n=>n.type==='WorkspaceAdvisor').props.workspaceId,'w');
+const disabled=harness({flags:{aiEnabled:false,csvImportEnabled:false},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
+disabled.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
+const off=disabled.render();assert.equal(off.find(n=>n.type==='CanvasCommandBar').props.onImport,undefined);assert.equal(off.some(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi'),false)
+})
 
 test('remembered canvas focus waits for current access and never restores agent following',()=>{const values=new Map(),preferences={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};require('../../features/canvas/view-state.ts').saveCanvasView({actorId:'actor',canvasId:'personal'},{kind:'workspace',workspaceId:'w'},preferences);const ui=harness({preferences,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});ui.render();ui.render();const flow=ui.render().find(n=>n.type==='CanvasFlow');assert.deepEqual(flow.props.focus,{kind:'workspace',workspaceId:'w'});assert.equal(flow.props.followingAgent,false);const denied=harness({preferences,store:{workspaces:[],currentWorkspaceId:null}});denied.render();denied.render();assert.equal(denied.url(),'/canvas');denied.render();assert.deepEqual(require('../../features/canvas/view-state.ts').readCanvasView({actorId:'actor',canvasId:'personal'},preferences).focus,{kind:'overview'})})
+
+test('confirmed sign-out clears only the encoded account draft namespace',async()=>{
+const ui=harness();await ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props.children==='Sign out').props.onSelect();
+// The menu starts the async action; flush its promise before inspecting committed cleanup.
+await Promise.resolve();await Promise.resolve();
+assert.ok(ui.calls.some(c=>Array.isArray(c)&&c[0]==='clear-drafts'&&c[1]==='saathi:draft:actor%40example.test:'));
+assert.ok(ui.calls.some(c=>Array.isArray(c)&&c[0]==='replace'&&c[1]==='/login'));
+})

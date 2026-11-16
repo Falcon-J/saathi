@@ -5,7 +5,7 @@ export function getSupabaseConfig() {
   return { url, key }
 }
 
-export function getAuthCallbackUrl(next = '/dashboard') {
+export function getAuthCallbackUrl(next = '/canvas') {
   const configured = process.env.NEXT_PUBLIC_APP_URL
   if (!configured) throw new Error('Application URL is not configured')
   const origin = new URL(configured)

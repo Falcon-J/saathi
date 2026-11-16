@@ -27,7 +27,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [passwordResetComplete, setPasswordResetComplete] = useState(false)
-  const [returnTo, setReturnTo] = useState("/dashboard")
+  const [returnTo, setReturnTo] = useState("/canvas")
   const [hydrated, setHydrated] = useState(false)
   const pendingRequest = useRef(false)
   const isSignup = mode === "signup"

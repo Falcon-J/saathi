@@ -14,7 +14,7 @@ export function InvitationResponse({ invitationId }: { invitationId: string }) {
     try {
       const result = await (accept ? acceptInvitation(invitationId) : declineInvitation(invitationId))
       if (result.error) { setError(result.error); return }
-      router.replace("/dashboard")
+      router.replace("/canvas")
       router.refresh()
     } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : "Unable to respond. Please try again.") }
     finally { setBusy(false) }

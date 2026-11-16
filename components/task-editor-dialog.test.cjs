@@ -362,3 +362,9 @@ test('hidden canonical task sheets retain drafts and report the actual editor ta
   assert.deepEqual(reports.at(-1),[true,false,'task'],'hidden editor draft is retained, with its task identity');
  } finally {dependencies.react.useEffect=oldEffect}
 });
+
+test('task editor offers the existing delete confirmation only when authorized',()=>{
+let requested=0;const allowed=nodes(render(true,null,{onDelete:()=>requested++}));
+allowed.find(n=>n.type==='Button'&&text(n)==='Delete task').props.onClick();assert.equal(requested,1);
+assert.equal(nodes(render(false,null)).some(n=>n.type==='Button'&&text(n)==='Delete task'),false);
+})

@@ -36,6 +36,7 @@ export interface BoardPaging {
 }
 
 interface TaskListProps {
+  editorOnly?: boolean
   active?: boolean
   compactToolbar?: boolean
   capabilityCeiling?: CapabilityCeiling
@@ -63,6 +64,7 @@ interface TaskListProps {
 }
 
 export const TaskList = memo(function TaskList({
+  editorOnly = false,
   tasks,
   loading,
   members,
@@ -226,7 +228,8 @@ export const TaskList = memo(function TaskList({
   const handleDeleteTask = async (taskId: string) => {
     setOperatingTaskId(taskId)
     try {
-      await onDeleteTask(taskId)
+      const result = await onDeleteTask(taskId)
+      if (!getMutationError(result) && editingTask?.id === taskId) closeEditor()
     } finally {
       setDeleteConfirm(null)
       setOperatingTaskId(null)
@@ -395,7 +398,7 @@ export const TaskList = memo(function TaskList({
         </div>
       </>}
 
-      <TaskFilter
+      {!editorOnly && <><TaskFilter
         compactToolbar={compactToolbar}
         onClearFilters={() => {
           if (paging) paging.changeFilters({ status: "all", priority: undefined, assigneeEmail: undefined })
@@ -467,6 +470,7 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {paging?.nextCursor && <Button variant="outline" onClick={() => void paging.loadMore()} disabled={loading || paging.loadingMore}>{paging.loadingMore ? "Loading more…" : "Load more tasks"}</Button>}
+      </>}
 
       {/* Delete Confirmation */}
       <ConfirmDialog
@@ -484,6 +488,7 @@ export const TaskList = memo(function TaskList({
         draft={editorPresented ? editingDraft : null}
         canEdit={(editorPermissions.canEdit && permitsCapability(capabilityCeiling, "edit"))}
         canComment={permitsCapability(capabilityCeiling, "comment")}
+        onDelete={editorOnly && editorPermissions.canDelete && permitsCapability(capabilityCeiling, "delete") && editingTask ? () => setDeleteConfirm(editingTask.id) : undefined}
         error={editError}
         latestTask={latestTask}
         reviewLoading={reviewLoading}
@@ -552,7 +557,9 @@ export function TaskEditorDialog({
   onDraftChange,
   onClose,
   onSubmit,
+  onDelete,
 }: {
+  onDelete?: () => void
   draftScope?: string
   task: Task | null
   draft: TaskEditorDraft | null
@@ -719,7 +726,8 @@ export function TaskEditorDialog({
 
             </div>
 
-            <DialogFooter className="flex-row border-t border-border bg-secondary/45 px-5 py-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+            <DialogFooter className="flex-row flex-wrap border-t border-border bg-secondary/45 px-5 py-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+              {onDelete && <Button type="button" variant="destructive" className="max-sm:min-h-11" disabled={isSaving} onClick={onDelete}>Delete task</Button>}
               <Button type="button" variant="outline" className="max-sm:min-h-11 max-sm:min-w-11 max-sm:flex-1" onClick={requestClose} disabled={isSaving}>{canEdit ? "Cancel" : "Close"}</Button>
               {canEdit && <Button type="submit" form="task-editor-form" className="max-sm:min-h-11 max-sm:min-w-11 max-sm:flex-1" disabled={isSaving || reviewLoading || Boolean(latestTask)}>{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}Save changes</Button>}
             </DialogFooter>

@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
-import { Background, Handle, Position, ReactFlow, type Node, type NodeProps, type NodeChange } from "@xyflow/react"
+import { Background, Handle, Panel, Position, ReactFlow, type MarkerType, type Node, type NodeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Button } from "@/components/ui/button"
 import { taskNodeId, workspaceNodeId, type CanvasFocus, type CanvasProjection, type CanvasReadiness, type CanvasRepresentation } from "@/features/canvas/model"
@@ -13,7 +13,7 @@ import type { CanvasReference } from "@/features/access/contracts"
 import type { Workspace } from "@/lib/data/workspaces"
 import { canvasHandleStyle, canvasNodeGeometry } from "./node-geometry"
 
-type NodeData = { title: string; subtitle?: string; description?: string; count?: number; representation: CanvasRepresentation; kind: "workspace" | "task" | "container" | "readiness"; expanded: boolean; open: () => void }
+type NodeData = { title: string; subtitle?: string; description?: string; count?: number; relationship?: boolean; representation: CanvasRepresentation; kind: "workspace" | "task" | "container" | "readiness"; expanded: boolean; open: () => void }
 type FlowNode = Node<NodeData, "workspace" | "task" | "container" | "readiness">
 
 const readinessLabels: Record<CanvasReadiness, string> = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
@@ -22,6 +22,13 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
   if (data.kind === "readiness") return <Button variant="outline" className="nodrag nopan h-full w-full justify-between rounded-2xl px-5 text-base" onClick={event => { event.stopPropagation(); data.open() }} aria-label={`Open ${data.title}, ${data.count} tasks`}>
     <span>{data.title}</span><span className="tabular-nums">{data.count}</span>
   </Button>
+  if (data.relationship) return <article className="h-full w-full rounded-xl border border-border bg-card shadow-sm">
+    <Handle type="target" position={Position.Top} style={canvasHandleStyle} isConnectable={false} />
+    <Button variant="ghost" className="nodrag nopan h-full w-full flex-col items-start justify-center gap-3 whitespace-normal rounded-xl p-4 text-left" aria-label={`Open ${data.title}`} onClick={event => { event.stopPropagation(); data.open() }}>
+      <h2 className="line-clamp-2 break-words text-base font-semibold">{data.title}</h2><span className="line-clamp-1 text-sm text-muted-foreground">{data.subtitle}</span>
+    </Button>
+    <Handle type="source" position={Position.Bottom} style={canvasHandleStyle} isConnectable={false} />
+  </article>
   const workspace = data.kind !== "task"
   const container = data.kind === "container"
   return <article className={`h-full w-full overflow-hidden rounded-2xl border text-foreground ${container ? "border-dashed border-border bg-muted/10" : workspace ? "border-border bg-card/95 shadow-sm" : "border-primary/25 bg-card shadow-sm"}`}>
@@ -37,7 +44,7 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
   </article>
 })
 const nodeTypes = { workspace: CanvasRecord, task: CanvasRecord, container: CanvasRecord, readiness: CanvasRecord }
-const edgeOptions = { type: "smoothstep", style: { stroke: "var(--primary)", strokeWidth: 1.5 } }
+const edgeOptions = { type: "smoothstep", markerEnd: { type: "arrowclosed" as MarkerType }, style: { stroke: "var(--primary)", strokeWidth: 1.5 } }
 const ariaLabels = {
   "node.a11yDescription.default": "Press Enter or Space to select this node. Tab to Open to inspect it.",
   "node.a11yDescription.keyboardDisabled": "Tab to Open to inspect this node.",
@@ -46,7 +53,7 @@ const ariaLabels = {
 
 import { CanvasCamera, type CanvasCameraHandle, type CanvasTool } from "./canvas-camera"
 import { readCanvasCamera, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM } from "./camera-utils"
-export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true, compact }: {
+export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true, compact, relatedOnly = false, onRelatedOnlyChange }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
@@ -61,6 +68,8 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
   focus: CanvasFocus
   followingAgent: boolean
   compact?: boolean
+  relatedOnly?: boolean
+  onRelatedOnlyChange?: (value: boolean) => void
   restoreReady?: boolean
   ready?: boolean
 }) {
@@ -81,7 +90,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     if (node.kind === "readiness") {
       const title = readinessLabels[node.readiness!]
       return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
-        hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height),
+        hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height, node.relationship),
         ariaLabel: `${title}, ${node.count} tasks`, data: { title, count: node.count, representation: node.representation,
           kind: node.kind, expanded: false, open: () => events.current.onOpenGroup(node.workspaceId, node.readiness!) } }
     }
@@ -89,9 +98,9 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
       ? [node.readiness === "completed_inconsistent" ? "Review completed work" : node.readiness, task.assigneeEmail ? assigneeNames.get(task.assigneeEmail.toLowerCase()) ?? task.assigneeEmail : null, formatTaskDue(task.dueAt, task.dueDate, workspace.timezone)].filter(Boolean).join(" · ")
       : grouped ? undefined : `${readiness?.ready.length ?? 0} ready · ${readiness?.waiting.length ?? 0} waiting`
     return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
-      hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height),
+      hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height, node.relationship),
       ariaLabel: `${task?.title ?? workspace.name}${subtitle ? `, ${subtitle}` : ""}`,
-      data: { title: task?.title ?? workspace.name, description: grouped ? undefined : task?.description ?? workspace.summary,
+      data: { title: task?.title ?? workspace.name, relationship: node.relationship, description: grouped ? undefined : task?.description ?? workspace.summary,
         subtitle, representation: node.representation, kind: node.kind, expanded: node.expanded,
         open: () => events.current.onOpen(task ? { kind: "task", workspaceId: node.workspaceId, taskId: task.id } : { kind: "workspace", workspaceId: node.workspaceId }) } }
     })
@@ -123,6 +132,13 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     })
   }, [])
   const edges = useMemo(() => [...projection.edges, ...projectCanvasReferences(resources, references)], [projection.edges, resources, references])
+  const focusedTaskId = focus.kind === "task" ? taskNodeId(focus.workspaceId, focus.taskId) : ""
+  const contextIds = useMemo(() => {
+    if (!nodes.some(node => node.id === focusedTaskId && node.data.relationship)) return undefined
+    const before = projection.edges.find(edge => !edge.hidden && edge.target === focusedTaskId)?.source
+    const after = !compact ? projection.edges.find(edge => !edge.hidden && edge.source === focusedTaskId)?.target : undefined
+    return [before, focusedTaskId, after].filter((id): id is string => Boolean(id))
+  }, [nodes, projection.edges, focusedTaskId, compact])
   const cancelPending = useCallback(() => controller.current?.cancelPending(), [])
   const keyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => controller.current?.keyDown(event), [])
   const moveStart = useCallback((event: MouseEvent | TouchEvent | null) => { if (event) controller.current?.cancelPending() }, [])
@@ -135,7 +151,9 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     nodesFocusable edgesFocusable disableKeyboardA11y={false} colorMode={resolvedTheme === "dark" ? "dark" : "light"} onlyRenderVisibleElements
     ariaLabelConfig={ariaLabels} proOptions={{ hideAttribution: false }}>
     <Background gap={24} size={1} />
-    <CanvasCamera nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} compact={compact} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
+    {focus.kind === "task" && onRelatedOnlyChange && <Panel position="top-left" className="!m-3"><label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm"><input type="checkbox" checked={relatedOnly} onChange={event => onRelatedOnlyChange(event.target.checked)} />Related work</label></Panel>}
+    {Boolean(projection.omittedTaskCount) && <Panel position="top-right" className="!m-3 max-w-52"><p role="status" className="rounded-lg border border-border bg-card p-2 text-xs">{nodes.filter(node => node.type === "task" && !node.hidden).length} of {projection.records.tasks.size} tasks on map. Search to open other tasks.</p></Panel>}
+    <CanvasCamera contextIds={contextIds} nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} compact={compact} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
       controllerRef={controller} tool={tool} onToolChange={setTool} onZoom={onZoom} onManualNavigation={onManualNavigation} />
   </ReactFlow>
 }

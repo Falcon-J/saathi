@@ -7,6 +7,13 @@ const jsx = (type, props) => ({ type, props })
 const moduleExports = {}
 const formattedZones = []
 
+test('canvas editor-only mode retains editing and recovery without a second task list',()=>{
+ const tree=nodes(moduleExports.TaskList({tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,editorOnly:true}))
+ assert.equal(tree.some(n=>n.type==='TaskFilter'),false)
+ assert.equal(tree.some(n=>n.props?.['aria-label']==='Task board'),false)
+ assert.ok(tree.some(n=>n.type==='Dialog'))
+})
+
 test('clearing compact board filters resets them atomically without clearing search', () => {
   const calls=[]
   const tree=moduleExports.TaskList({ tasks:[],loading:false,members:[],currentUserEmail:'owner',workspaceOwnerId:'owner',timeZone:'UTC',compactToolbar:true,

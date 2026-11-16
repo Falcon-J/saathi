@@ -67,7 +67,7 @@ export default function GuidePage() {
             <span className="text-lg font-semibold tracking-tight">Saathi</span>
           </Link>
           <Button asChild variant="outline" size="sm" className="rounded-full bg-white/80">
-            <Link href="/dashboard"><ArrowLeft className="size-4" />Back to workspace</Link>
+            <Link href="/canvas"><ArrowLeft className="size-4" />Back to workspace</Link>
           </Button>
         </div>
       </header>
@@ -193,7 +193,7 @@ export default function GuidePage() {
           <p className="saathi-label text-primary">Get back to work</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Ready to move work forward?</h2>
           <p className="mt-2 text-base text-[#53627a]">Return to your workspace and start with one clear next action.</p>
-          <Button asChild className="mt-6 rounded-full"><Link href="/dashboard">Open workspace <ArrowRight className="size-4" /></Link></Button>
+          <Button asChild className="mt-6 rounded-full"><Link href="/canvas">Open workspace <ArrowRight className="size-4" /></Link></Button>
         </div>
       </section>
     </main>

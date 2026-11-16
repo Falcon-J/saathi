@@ -12,6 +12,12 @@ function load(path, dependencies, browser) {
 }
 const runtime = { '@/lib/feature-flags': { resolveFeatureFlags: () => ({ aiWorkspace: true, csvImport: true }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts') }
 
+test('signed-in home opens Canvas while anonymous home retains the landing page', async()=>{
+  const make=session=>load('app/page.tsx',{'@/lib/auth-simple':{getSession:async()=>session},'next/navigation':{redirect:path=>{throw Error('redirect:'+path)}},'./landing/page':{default:'LandingPage'},'react/jsx-runtime':{jsx,jsxs:jsx}})
+  await assert.rejects(make({id:'actor'}).default(),/redirect:\/canvas$/)
+  assert.equal((await make(null).default()).type,'LandingPage')
+})
+
 test('canvas route redirects anonymous accounts before mounting the client surface', async () => {
   const route = load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: async () => null },
     'next/navigation': { redirect: path => { throw new Error(`redirect:${path}`) } }, '@/components/canvas/canvas-shell': { CanvasShell: 'CanvasShell' } })
