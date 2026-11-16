@@ -159,7 +159,7 @@ try {
     NEXT_PUBLIC_SUPABASE_URL: api, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey, NEXT_PUBLIC_SUPABASE_ANON_KEY: publicKey,
     NEXT_PUBLIC_APP_URL: base, APP_URL: base, UPSTASH_REDIS_REST_URL: bridge.url, UPSTASH_REDIS_REST_TOKEN: token,
     KV_REST_API_URL: bridge.url, KV_URL: bridge.url, KV_REST_API_TOKEN: token, CRON_SECRET: randomUUID(),
-    GROQ_API_KEY: '', RESEND_API_KEY: '', ENABLE_AI_WORKSPACE: 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false',
+    GROQ_API_KEY: '', RESEND_API_KEY: '', ENABLE_AI_WORKSPACE: process.env.SAATHI_QA_CANVAS === 'true' ? 'true' : 'false', NEXT_PUBLIC_ENABLE_AI_WORKSPACE: 'false',
     ENABLE_RATE_LIMITING: 'true', ENABLE_REAL_TIME: 'true', USE_MOCK_REDIS: 'false' }
   for (const key of Object.keys(env)) if (key.startsWith('RATE_LIMIT_') || key.startsWith('SSE_') || key === 'LOAD_TEST_SECRET') delete env[key]
   server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], { env, windowsHide: true, stdio: 'ignore' })

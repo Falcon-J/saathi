@@ -52,7 +52,6 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const [importOpen, setImportOpen] = useState(false)
   const [invitationsOpen, setInvitationsOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [relatedOnly, setRelatedOnly] = useState(false)
   const account = normalizeEmail(email)
   const scope = useMemo(() => ({ actorId, canvasId: "personal" }), [actorId])
   const store = useWorkspaces(email, { loadTasks: false })
@@ -69,6 +68,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const [tool, setTool] = useState<Tool>("work")
   const [readyGroup, setReadyGroup] = useState<CanvasReadiness | undefined>()
   const [tasksMounted, setTasksMounted] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [compactCanvas, setCompactCanvas] = useState(false)
   const reportCanvasWidth = useCallback((width: number) => setCompactCanvas(width < 640), [])
   const [createOpen, setCreateOpen] = useState(false)
@@ -84,12 +84,13 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const dirtyEditorTask = useRef<string | undefined>(undefined)
   const currentScope = useRef(workspace?.id)
   useLayoutEffect(() => { currentScope.current = workspace?.id }, [workspace?.id])
-  const projection = useMemo(() => projectCanvas({ graphs, resources: companies.resources, navigation: currentNavigation, zoom, compact: compactCanvas, relationships: true, relatedOnly }), [graphs, companies.resources, currentNavigation, zoom, compactCanvas, relatedOnly])
+  const projection = useMemo(() => projectCanvas({ graphs, resources: companies.resources, navigation: currentNavigation, zoom, compact: compactCanvas, relationships: true }), [graphs, companies.resources, currentNavigation, zoom, compactCanvas])
   const tasks = useMemo(() => graph.entry?.graph.tasks ?? [], [graph.entry])
   const focused = currentNavigation.focus
   const breadcrumbs = canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks)
   const locationButton = useRef<HTMLButtonElement | null>(null)
   const workTools = useRef<HTMLSelectElement | null>(null)
+  const taskSummaryBack = useRef<HTMLButtonElement | null>(null)
   const workFocusRequested = useRef(false)
   const [workFocusRevision, setWorkFocusRevision] = useState(0)
   const requestWorkFocus = () => { workFocusRequested.current = true; setWorkFocusRevision(value => value + 1) }
@@ -251,12 +252,12 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
     setMutationError(null)
     setNavigation(state => navigateCanvas(state, { kind: "task", workspaceId: workspace.id, taskId }, "agent"))
   }
-  const changeTool = (next: Tool) => { if (canLeave()) { dismissPendingLocation(); stopFollowing(); setAskOpen(false); if (next === "tasks") setTasksMounted(true); if (next === "ready" || next === "work") setReadyGroup(undefined); setTool(next) } }
+  const changeTool = (next: Tool) => { if (canLeave()) { dismissPendingLocation(); stopFollowing(); setAskOpen(false); if (next === "tasks") setTasksMounted(true); if (next === "ready" || next === "work") setReadyGroup(undefined); setTool(next); requestWorkFocus() } }
   const changeWorkspace = (id: string) => {
     if (!canLeaveAll() || writing.current) return
     dismissPendingLocation()
     dirty.current = { tasks: false, settings: false }; dirtyEditorTask.current = undefined
-    setWorkOpen(true); setWorkMounted(true); setTool("work"); setAskOpen(false); setTasksMounted(false); setMutationError(null); setQuickAdd(0); setRelatedOnly(false)
+    setWorkOpen(true); setWorkMounted(true); setTool("work"); setAskOpen(false); setTasksMounted(false); setMutationError(null); setQuickAdd(0)
     setNavigation(navigateCanvas(createCanvasNavigation(scope), { kind: "workspace", workspaceId: id }, "manual"))
     store.setCurrentWorkspaceId(id)
   }
@@ -325,19 +326,21 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const commandDisabled = loggingOut || store.loading || companies.loading || Boolean(store.workspaceError || companies.error) || (!broadSearch && (!workspace || !graph.entry || graph.loading || workspaceUnavailable || !capabilityCeiling.read))
   const showWorkArea = workOpen && Boolean(graph.entry && capabilityCeiling.read)
   const taskTool = ["work", "ready", "tasks", "prerequisites"].includes(tool)
+  const taskInspectorOpen = Boolean(selectedTask && taskTool && !askOpen)
   useLayoutEffect(() => {
-    if (workFocusRequested.current && showWorkArea && workTools.current) {
+    const target = taskInspectorOpen ? taskSummaryBack.current : workTools.current
+    if (workFocusRequested.current && showWorkArea && target) {
       workFocusRequested.current = false
-      workTools.current.focus()
+      target.focus()
     }
-  }, [workFocusRevision, showWorkArea])
+  }, [workFocusRevision, showWorkArea, taskInspectorOpen])
   const dockClearance = "bottom-0"
-  const commands = <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} placement="header" scopeName={breadcrumbs.map(item => item.label).join(" / ")} scopeLabel={breadcrumbs.at(-1)?.label ?? "Canvas"}
+  const commands = <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} placement="header" onCreateWorkspace={focused.kind === "overview" ? beginCreateWorkspace : undefined} scopeName={breadcrumbs.map(item => item.label).join(" / ")} scopeLabel={breadcrumbs.at(-1)?.label ?? "Canvas"}
     searchScope={broadSearch ? focused.kind === "resource" ? { resourceId: focused.resourceId } : {} : undefined} searchRevision={JSON.stringify([actorId, store.realtime.eventRevision, revision, companies.resources, store.workspaces.map(item => item.id)])}
     tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={!broadSearch && (capabilityCeiling.create ?? false)} canEdit={capabilityCeiling.edit} canManage={isOwner && capabilityCeiling.manage} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()}
     onImport={!broadSearch && csvImportEnabled && capabilityCeiling.create ? () => { if (canLeave()) { stopFollowing(); setImportOpen(true) } } : undefined}
     onNavigate={path => { if (canLeaveAll()) router.push(path) }}
-    onTool={next => { if (!broadSearch && workspace && !commandDisabled && canLeave()) { dismissPendingLocation(); stopFollowing(); setAskOpen(false); setTool(next); setWorkMounted(true); setWorkOpen(true) } }}
+    onTool={next => { if (!broadSearch && workspace && !commandDisabled && canLeave()) { dismissPendingLocation(); stopFollowing(); setAskOpen(false); setTool(next); setWorkMounted(true); setWorkOpen(true); requestWorkFocus() } }}
     onWorkspace={openWorkspace} onList={openWorkspace} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />
   return <main className="saathi-dashboard relative h-dvh overflow-hidden bg-background text-foreground">
     <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-28 flex-wrap items-center gap-x-2 border-b border-border bg-card px-3 sm:h-16 sm:flex-nowrap sm:px-5">
@@ -347,9 +350,9 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button ref={locationButton} variant="ghost" className="h-11 min-w-0 flex-1 justify-between gap-2 px-2 text-base font-semibold sm:flex-initial sm:max-w-xl" aria-label={"Canvas location: " + (breadcrumbs.at(-1)?.label ?? "Canvas")} aria-current="location" data-workspace-id={workspace?.id} title={breadcrumbs.map(item => item.label).join(" / ")}><span className="truncate">{breadcrumbs.at(-1)?.label ?? "Canvas"}</span><ChevronDown className="size-4 shrink-0 text-muted-foreground" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="start" aria-labelledby={undefined} aria-label="Canvas locations" className="w-[min(28rem,calc(100vw-1.5rem))]">
-            {breadcrumbs.map((item, index) => <DropdownMenuItem key={JSON.stringify(item.focus)} data-canvas-label={item.label} data-canvas-focus={JSON.stringify(item.focus)} aria-current={index === breadcrumbs.length - 1 ? "location" : undefined} className="block min-h-11 whitespace-normal break-words py-3" onSelect={() => { open(item.focus) }}>{breadcrumbs.slice(0, index + 1).map(ancestor => ancestor.label).join(" / ")}</DropdownMenuItem>)}
+            {breadcrumbs.map((item, index) => <DropdownMenuItem key={JSON.stringify(item.focus)} data-workspace-id={item.focus.kind === "workspace" ? item.focus.workspaceId : undefined} data-canvas-label={item.label} data-canvas-focus={JSON.stringify(item.focus)} aria-current={index === breadcrumbs.length - 1 ? "location" : undefined} className="block min-h-11 whitespace-normal break-words py-3" onSelect={() => { open(item.focus) }}>{breadcrumbs.slice(0, index + 1).map(ancestor => ancestor.label).join(" / ")}</DropdownMenuItem>)}
             {store.workspaces.length > 0 && <DropdownMenuSeparator />}
-            {store.workspaces.map(item => <DropdownMenuItem key={item.id} data-workspace-id={item.id} className="block min-h-11 whitespace-normal break-words py-3" disabled={saving} onSelect={() => changeWorkspace(item.id)}>{item.name}</DropdownMenuItem>)}
+            {store.workspaces.filter(item => !breadcrumbs.some(crumb => crumb.focus.kind === "workspace" && crumb.focus.workspaceId === item.id)).map(item => <DropdownMenuItem key={item.id} data-workspace-id={item.id} className="block min-h-11 whitespace-normal break-words py-3" disabled={saving} onSelect={() => changeWorkspace(item.id)}>{item.name}</DropdownMenuItem>)}
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
@@ -360,7 +363,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
       <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Canvas menu"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" aria-labelledby={undefined} aria-label="Canvas menu">
           <DropdownMenuItem className="min-h-11" disabled={store.loading || saving} onSelect={() => { void refreshAll() }}><RefreshCw className="size-4" />Refresh canvas</DropdownMenuItem>
-          <DropdownMenuItem className="min-h-11" aria-label="Manage canvas" onSelect={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" />Manage canvas</DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" aria-label="Company setup" onSelect={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" />Company setup</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" aria-label="Create workspace" onSelect={beginCreateWorkspace}><Plus className="size-4" />Create workspace</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="min-h-11" onSelect={() => { if (canLeaveAll()) setInvitationsOpen(true) }}>Invitations</DropdownMenuItem>
@@ -372,18 +375,17 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
-    <div className={`absolute inset-x-0 top-28 grid grid-cols-1 overflow-y-auto sm:top-16 lg:overflow-hidden ${showWorkArea ? "lg:grid-cols-[minmax(0,1fr)_24rem]" : ""} ${dockClearance}`}>
+    <div className={`absolute inset-x-0 top-28 grid grid-cols-1 overflow-y-auto sm:top-16 lg:overflow-hidden ${showWorkArea ? taskInspectorOpen ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : askOpen || taskTool ? "lg:grid-cols-[minmax(0,1fr)_24rem]" : "lg:grid-cols-[minmax(0,1fr)_minmax(24rem,40rem)]" : ""} ${dockClearance}`}>
       {store.loading ? <p role="status" className="p-6">Loading workspaces…</p>
         : store.workspaceError ? <div role="alert" className="m-6 space-y-3"><p>{store.workspaceError}</p><Button onClick={() => void store.refreshWorkspaces()}>Try again</Button></div>
         : companies.loading ? <p role="status" className="p-6">Loading companies…</p>
         : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={beginCreateWorkspace}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
-        : <><div role="region" aria-label="Workspace canvas" className={`relative min-w-0 ${showWorkArea ? "h-[min(55dvh,30rem)] min-h-80 lg:h-full lg:min-h-0" : "h-full min-h-80"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow compact={compactCanvas} restoreReady={locationInitialized} projection={projection} cameraKey={`${cameraStorageKey(scope)}:relationships-v1`} onOpen={focus => open(focus)} ready={!graph.loading && !companies.loading && !companies.error}
+        : <><div role="region" aria-label="Workspace canvas" className={`relative min-w-0 ${showWorkArea ? "h-[min(55dvh,30rem)] min-h-80 lg:h-full lg:min-h-0" : "h-full min-h-80"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow compact={compactCanvas} restoreReady={locationInitialized} projection={projection} cameraKey={`${cameraStorageKey(scope)}:blockers-v1`} onOpen={focus => open(focus)} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}
-          relatedOnly={relatedOnly} onRelatedOnlyChange={value => { stopFollowing(); setRelatedOnly(value) }}
           onOpenGroup={(workspaceId, readiness) => { if (workspaceId !== workspace?.id || graph.loading || !capabilityCeiling.read || !open({ kind: "workspace", workspaceId })) return; stopFollowing(); setReadyGroup(readiness); setTool("work"); requestWorkFocus() }}
           onManualNavigation={stopFollowing} /></ReactFlowProvider></div>
 
@@ -391,7 +393,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
 
         </>}
       {workspace && graph.entry && capabilityCeiling.read && !workspaceUnavailable && workMounted && <aside aria-label="Workspace work area" className={`saathi-mobile-controls ${workOpen ? "" : "hidden"} relative z-10 min-h-80 w-full border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:h-full lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-t-0`}>
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
+        <div hidden={taskInspectorOpen || askOpen} className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <select ref={workTools} aria-label="Workspace tools" value={taskTool ? "work" : tool} className="min-h-11 min-w-0 flex-1 rounded border border-border bg-card px-2 py-1 text-sm" onChange={event => changeTool(event.target.value as Tool)}>
               <option value="work">Tasks</option>
@@ -410,9 +412,9 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         <div hidden={askOpen || !taskTool}>
         {tasksMounted && <div hidden={tool !== "tasks"}><WorkspaceBoard editorOnly snapshotTasks={tasks} compactToolbar key={workspace.id} workspace={workspace} currentUserEmail={email}
           refreshSignal={store.realtime.eventRevision + revision} openTaskRequest={openTaskRequest} openTaskId={tool === "tasks" ? selectedTask?.id ?? null : null} commentRefreshEvent={store.realtime.lastEvent} capabilityCeiling={capabilityCeiling}
-          focusQuickAdd={quickAdd} draftScope={draftScope} onChanged={graph.reload} onOpenTask={openTask} active={workOpen && tool === "tasks" && !askOpen} onDirtyChange={(value, active = value, editorDraftTaskId) => { dirty.current.tasks = value; dirty.current.activeTasks = active; dirtyEditorTask.current = editorDraftTaskId }}
+          focusQuickAdd={quickAdd} onQuickAddOpenChange={setQuickAddOpen} draftScope={draftScope} onChanged={graph.reload} onOpenTask={openTask} active={workOpen && tool === "tasks" && !askOpen} onDirtyChange={(value, active = value, editorDraftTaskId) => { dirty.current.tasks = value; dirty.current.activeTasks = active; dirtyEditorTask.current = editorDraftTaskId }}
           onAddTask={async (...args) => { const result = await store.addTask(...args); if (!getMutationError(result)) setRevision(value => value + 1); return result }} /></div>}
-        {projection.readiness.get(workspace.id) && <CanvasTaskPanel key={`${actorId}:${workspace.id}`} workspace={workspace} tasks={tasks} dependencies={graph.entry.graph.dependencies} readiness={projection.readiness.get(workspace.id)!} selectedTask={selectedTask} group={readyGroup ?? null} onGroupChange={group => { if (canLeave()) { dismissPendingLocation(); stopFollowing(); setReadyGroup(group ?? undefined); setTool("work") } }} onInspect={inspectTask} onBack={openWorkspace} onEdit={openTask} onCreate={createTask} onComplete={() => void complete()} canCreate={capabilityCeiling.create} canEdit={canEditSelected} canComplete={canComplete} busy={saving || graph.loading} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} onChanged={graph.reload} />}
+        {projection.readiness.get(workspace.id) && <CanvasTaskPanel key={`${actorId}:${workspace.id}`} backButtonRef={taskSummaryBack} creating={tool === "tasks" && quickAddOpen} workspace={workspace} tasks={tasks} dependencies={graph.entry.graph.dependencies} readiness={projection.readiness.get(workspace.id)!} selectedTask={selectedTask} group={readyGroup ?? null} onGroupChange={group => { if (canLeave()) { dismissPendingLocation(); stopFollowing(); setReadyGroup(group ?? undefined); setTool("work") } }} onInspect={inspectTask} onBack={openWorkspace} onEdit={openTask} onCreate={createTask} onComplete={() => void complete()} canCreate={capabilityCeiling.create} canEdit={canEditSelected} canComplete={canComplete} busy={saving || graph.loading} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} onChanged={graph.reload} />}
         </div>
         {!askOpen && tool === "team" && <div className="p-4">{capabilityCeiling.manage ? <MemberManager workspaceId={workspace.id} members={workspace.members} currentUserEmail={email} workspaceOwnerId={workspace.ownerId} onAddMember={store.addMember} onRemoveMember={store.removeMember} onTransferOwnership={async id => { await transferWorkspaceOwnership(workspace.id, id, workspace.version); await refreshAll() }} />
           : <ul className="space-y-3">{workspace.members.map(member => <li key={member.userId} className="rounded-lg border border-border p-3"><p className="font-medium">{member.username || member.email}</p></li>)}</ul>}</div>}

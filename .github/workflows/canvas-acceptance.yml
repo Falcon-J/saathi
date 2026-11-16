@@ -78,6 +78,15 @@ jobs:
         run: npm run verify:canvas:local
         env:
           SAATHI_QA_SUPABASE_CLI: supabase
+      - name: Verify disposable backup restore and Redis recovery
+        env:
+          DATABASE_TEST_URL: postgresql://postgres:postgres@127.0.0.1:55439/postgres
+          DATABASE_MIGRATION_URL: postgresql://postgres:postgres@127.0.0.1:55439/postgres
+        run: |
+          docker compose -f docker-compose.local.yml up -d --wait --wait-timeout 60 postgres
+          node scripts/bootstrap-test-database.mjs
+          npm run db:migrate
+          npm run verify:operations:local
       - name: Upload sanitized evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,6 +98,7 @@ jobs:
             .local-test/ready-waiting-*/results.json
             .local-test/ready-waiting-*/*.png
             .local-test/mcp-oauth-*/result.json
+            .local-test/operations-*/result.json
       - name: Stop exact disposable services
         if: always()
         run: |
@@ -96,5 +106,8 @@ jobs:
           supabase stop --workdir .local-test/supabase-acceptance --project-id saathi-performance-ci --no-backup || status=1
           if docker container inspect saathi-performance-redis >/dev/null 2>&1; then
             docker rm --force saathi-performance-redis || status=1
+          fi
+          if docker container inspect saathi-implementation-db-v1 >/dev/null 2>&1; then
+            docker compose -f docker-compose.local.yml down || status=1
           fi
           exit "$status"

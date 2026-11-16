@@ -92,7 +92,7 @@ export async function changeTaskPrerequisite(actorId: string, input: Prerequisit
       WHERE id=${dependentTaskId} AND workspace_id=${workspaceId}`
     const task = await projectTask(tx, dependentTaskId)
     await appendDomainEvent(tx, { workspaceId, actorUserId: actorId, type: "task-updated", entityType: "task", entityId: dependentTaskId,
-      metadata: { action: type, prerequisiteTaskId }, payload: { task, dependencyChanged: true } })
+      metadata: { action: type, prerequisiteTaskId, taskTitle: task.title }, payload: { task, dependencyChanged: true } })
     await saveCommandReceipt(tx, workspaceId, actorId, commandId, type, hash, task)
     return { task, replayed: false }
   })

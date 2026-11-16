@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import { getDb } from "../db/client.ts"
 import { createWorkspaceRecord } from "./workspaces.ts"
 import { createTaskRecord,changeTaskRecord,listTaskRecords } from "./tasks.ts"
+import { listActivityEvents } from "./activity.ts"
 import { createInvitationRecord,listInvitationRecords,readInvitationPreview,respondToInvitation,recordInvitationEmailProof } from "./invitations.ts"
 
 test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},async t=>{
@@ -97,6 +98,18 @@ test("database collaboration boundaries",{skip:!process.env.DATABASE_TEST_URL},a
       await assert.rejects(changeTaskRecord(member.id,task.id,"delete",{},task.version),/Access denied/)
       const done=await changeTaskRecord(member.id,task.id,"toggle",{},task.version)
       assert.equal(done.completed,true)
+      const history=await listActivityEvents(owner.id,workspace.id)
+      assert.equal(history.find(event=>event.entityId===task.id&&event.eventType==='task-created')?.metadata.taskTitle,'Ship')
+      assert.deepEqual(history.find(event=>event.entityId===task.id&&event.eventType==='task-updated')?.metadata.changedFields,['title'])
+      const completed=history.find(event=>event.entityId===task.id&&event.eventType==='task-toggled')
+      assert.equal(completed?.metadata.taskTitle,'Ship safely');assert.equal(completed?.metadata.status,'done');assert.equal(completed?.taskAvailable,true)
+      await assert.rejects(listActivityEvents(outsider.id,workspace.id),/access denied/)
+      const deleted=await createTaskRecord(owner.id,workspace.id,{title:'Deleted API Brief'})
+      await changeTaskRecord(owner.id,deleted.id,'delete',{},deleted.version)
+      const deletedHistory=(await listActivityEvents(owner.id,workspace.id)).find(event=>event.entityId===deleted.id&&event.eventType==='task-deleted')
+      assert.equal(deletedHistory?.metadata.taskTitle,'Deleted API Brief');assert.equal(deletedHistory?.taskAvailable,false)
+      await db`UPDATE activity_events SET metadata='{}'::jsonb WHERE entity_id=${task.id} AND event_type='task-created'`
+      assert.equal((await listActivityEvents(owner.id,workspace.id)).find(event=>event.entityId===task.id&&event.eventType==='task-created')?.metadata.taskTitle,'Ship safely')
       await assert.rejects(listTaskRecords(outsider.id,workspace.id),/access denied/)
     })
     await t.test("pending invitations expire without adding membership",async()=>{

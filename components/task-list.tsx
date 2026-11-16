@@ -58,6 +58,7 @@ interface TaskListProps {
   commentRefreshEvent?: RealtimeEvent | null
   focusQuickAdd?: number
   draftScope?: string
+  onQuickAddOpenChange?: (open: boolean) => void
   onDirtyChange?: (dirty: boolean, activeDirty?: boolean, editorDraftTaskId?: string) => void
   onOpenTask?: (taskId: string) => void
   onReviewBoard?: () => Promise<void>
@@ -84,6 +85,7 @@ export const TaskList = memo(function TaskList({
   paging,
   detailTask,
   onDirtyChange,
+  onQuickAddOpenChange,
   onOpenTask,
   draftScope,
   capabilityCeiling,
@@ -119,6 +121,7 @@ export const TaskList = memo(function TaskList({
   const draftKey = draftScope ? `${draftScope}:task-editor` : undefined
   const [restoredScope, setRestoredScope] = useState<string | null>(null)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  useEffect(() => { onQuickAddOpenChange?.(active && quickAddOpen && !openTaskId) }, [active, quickAddOpen, openTaskId, onQuickAddOpenChange])
   useEffect(() => {
     if (focusQuickAdd) setQuickAddOpen(true)
   }, [focusQuickAdd])
@@ -676,7 +679,10 @@ export function TaskEditorDialog({
               </fieldset>
               </form>
 
-              <TaskComments taskId={task.id} draftScope={draftScope} key={`comments:${task.id}`} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+              <details key={`discussion:${task.id}`} aria-label="Task discussion" className="border-t border-border pt-2">
+                <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Comments</summary>
+                <TaskComments taskId={task.id} draftScope={draftScope} key={`comments:${task.id}`} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+              </details>
 
               <details
                 key={`details:${task.id}`}

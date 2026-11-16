@@ -159,13 +159,14 @@ export function WorkspaceAdvisor({ workspaceId, timeZone, onConfirmDraft, draftS
   return (
     <Card aria-busy={pending !== null || creating} className="gap-0 border-0 bg-transparent shadow-none">
       <CardHeader className="gap-3 px-0 pt-0 pb-4">
+        <h2 className="text-lg font-semibold">Ask Saathi</h2>
         <Textarea value={question} onChange={event => setQuestion(event.target.value)} maxLength={2000} disabled={pending !== null || creating || confirmationUncertain} aria-label="Advisor question" placeholder="Ask about this workspace" className="min-h-20 bg-card" />
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" onClick={() => void ask(capability)} disabled={!question.trim() || pending !== null || creating || confirmationUncertain}>
-            <Send className="size-3.5" />{pending !== null ? "Sending…" : `Send: ${capabilities.find(item => item.value === capability)?.label}`}
+            <Send className="size-3.5" />{pending !== null ? "Sending…" : "Send"}
           </Button>
           {capabilities.map(({ value, label, icon: Icon }) => (
-            <Button key={value} type="button" variant="outline" size="sm" onClick={() => void ask(value)} disabled={!question.trim() || pending !== null || creating || confirmationUncertain} className="bg-card">
+            <Button key={value} type="button" variant={capability === value ? "secondary" : "outline"} aria-pressed={capability === value} size="sm" onClick={() => void ask(value)} disabled={!question.trim() || pending !== null || creating || confirmationUncertain}>
               <Icon className="size-3.5" />{pending === value ? "Thinking…" : label}
             </Button>
           ))}

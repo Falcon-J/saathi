@@ -13,7 +13,7 @@ const entry = { workspace: workspace('a'), complete: true, graph: { tasks: [task
 
 function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitResult = () => Promise.resolve(true) } = {}) {
   const slots = [], effects = [], fits = [], opens = [], boundsRequests = [], viewports = [], parents = new Map(), queuedFits = []
-  let size = { width: 0, height: 0 }; let ready = false, cursor = 0, manual = 0, renderedNodes = [], committedNodes = new Map()
+  let size = { width: 0, height: 0 }; let ready = false, cursor = 0, manual = 0, renderedNodes = [], committedNodes = new Map(), cameraTree
   const changed = (a, b) => !a || a.length !== b.length || a.some((value, i) => value !== b[i])
   const react = {
     memo: fn => fn,
@@ -30,6 +30,7 @@ function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitRes
     get viewportInitialized() { return ready },
     getNodesBounds: ids => { boundsRequests.push(ids); return getNodesBounds(ids, { nodeLookup: committedNodes, nodeOrigin: [0, 0] }) },
     fitBounds: (bounds, options) => { fits.push({ bounds, ...options }); return fitResult() },
+    fitView: options => { const ids=options.nodes.map(node=>node.id);boundsRequests.push(ids);const bounds=getNodesBounds(ids,{nodeLookup:committedNodes,nodeOrigin:[0,0]});fits.push({bounds,...options,viewport:getViewportForBounds(bounds,size.width,size.height,options.minZoom,options.maxZoom,options.padding)});return fitResult() },
     setViewport: viewport => { viewports.push(viewport); return Promise.resolve(true) }, zoomIn() {}, zoomOut() {}, zoomTo() {},
   }
   const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next-themes': { useTheme: () => ({ resolvedTheme: 'light' }) },
@@ -45,10 +46,19 @@ function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitRes
   new Function('require', 'exports', 'localStorage', cameraCode)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, cameraExports, { getItem: () => JSON.stringify(savedCamera), setItem() {} })
   let props = { projection: project(), cameraKey: 'actor:personal', resources: [], workspaces: [workspace('a'), workspace('b')], focus: { kind: 'overview' }, followingAgent: false,
     onOpen: focus => opens.push(focus), onOpenResource() {}, onZoom() {}, onViewportWidthChange() {}, onManualNavigation: () => manual++ }
-  return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); renderedNodes = tree.props.nodes; const camera = tree.props.children.find(child => child?.type === 'CanvasCamera'); cameraExports.CanvasCamera(camera.props); effects.splice(0).forEach(fn => fn()); return tree.props },
+  return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); renderedNodes = tree.props.nodes; const camera = tree.props.children.find(child => child?.type === 'CanvasCamera'); cameraTree=cameraExports.CanvasCamera(camera.props); effects.splice(0).forEach(fn => fn()); return tree.props }, get cameraTree(){return cameraTree},
     resize(width, height) { size = { width, height }; this.commit(); return this.render() }, commit() { adoptUserNodes(renderedNodes, committedNodes, parents) },
     initialize() { this.render(); this.commit(); ready = true; fits.length = 0 }, measure() { queuedFits.splice(0).forEach(fit => fit()) }, fits, opens, boundsRequests, viewports, get manual() { return manual } }
 }
+
+test('automatic overview and workspace framing never magnifies cards past natural size', () => {
+  for (const focus of [{kind:'overview'}, {kind:'workspace',workspaceId:'a'}]) {
+    const ui=harness(); ui.render({projection:project([entry],focus),focus}); ui.initialize(); ui.resize(1800,1000); ui.render()
+    assert.ok(ui.fits.length>0)
+    assert.ok(ui.fits.every(fit=>fit.maxZoom===1), 'fitBounds must cap automatic magnification at 100%')
+    assert.ok(ui.fits.every(fit=>fit.viewport.zoom<=1))
+  }
+})
 
 test('actual React Flow preserves every connection across immutable refreshes and workspace resizing', () => {
   const ui = harness(), lookup = new Map(), parents = new Map()
@@ -246,7 +256,7 @@ test('relationship cards retain task identity and focus the nearby dependency co
  const selected=flow.nodes.find(n=>n.id===taskNodeId('a','task'))
  assert.equal(selected.data.relationship,true)
  ui.initialize();ui.resize(1000,700);ui.commit();ui.render()
- assert.deepEqual(new Set(ui.boundsRequests.at(-1)),new Set(['before','task','after'].map(id=>taskNodeId('a',id))))
+ assert.deepEqual(new Set(ui.boundsRequests.at(-1)),new Set(['before','task'].map(id=>taskNodeId('a',id))))
 })
 
 
@@ -294,7 +304,7 @@ test('resizing waits for the responsive projection before fitting a manually fra
 test('restoring a focused camera across a responsive breakpoint frames the new canonical layout',()=>{const focus={kind:'task',workspaceId:'a',taskId:'task'},ui=harness({savedCamera:{x:100,y:100,zoom:1,canvasWidth:1280,canvasHeight:708},savedFocus:focus});ui.render({projection:projectCanvas({graphs:[entry],navigation:{...navigation,focus},zoom:1,compact:true}),focus,compact:true});ui.initialize();ui.resize(360,708);ui.commit();ui.render();assert.equal(ui.viewports.length,0,'desktop positions must not restore into a different mobile layout');assert.ok(ui.fits.length>0)})
 
 test('relationship edges use the same vertical handles before and after refresh',()=>{
-const focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[task,{...task,id:'after'}],dependencies:[{workspaceId:'a',prerequisiteTaskId:'task',dependentTaskId:'after'}]}};
+const focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[task,{...task,id:'before'}],dependencies:[{workspaceId:'a',prerequisiteTaskId:'before',dependentTaskId:'task'}]}};
 const ui=harness(),lookup=new Map(),parents=new Map();
 for(let i=0;i<2;i++){
 const flow=ui.render({projection:projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,relationships:true}),focus});
@@ -310,7 +320,23 @@ test('relationship framing includes both desktop prerequisites, prioritizes the 
 const focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[{...task,id:'done',completed:true,status:'done'},{...task,id:'blocker'},task],dependencies:[{workspaceId:'a',prerequisiteTaskId:'done',dependentTaskId:'task'},{workspaceId:'a',prerequisiteTaskId:'blocker',dependentTaskId:'task'}]}};
 for(const compact of [false,true]){
 const ui=harness();ui.render({projection:projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,relationships:true,compact}),focus,compact});ui.initialize();ui.resize(compact?360:896,compact?440:836);
-assert.deepEqual(ui.boundsRequests.at(-1),(compact?['blocker','task']:['blocker','done','task']).map(id=>taskNodeId('a',id)));
+assert.deepEqual(ui.boundsRequests.at(-1),['blocker','task'].map(id=>taskNodeId('a',id)));
 assert.ok(ui.viewports.at(-1)?.zoom<=1,'Automatic relationship fitting must retain readable normal card sizing');
 }
+})
+
+test('task focus removes workspace card chrome and unrelated hierarchy without changing navigation elsewhere',()=>{
+ const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'};
+ const flow=ui.render({projection:projectCanvas({graphs:[entry],navigation:{...navigation,focus},zoom:1,relationships:true}),focus});
+ assert.deepEqual(flow.nodes.filter(n=>n.type!=='task').map(n=>n.id),['workspace:a']);
+ const group=flow.nodes.find(n=>n.id==='workspace:a');assert.equal(group.focusable,false);assert.equal(group.ariaLabel,undefined);assert.equal(flow.nodeTypes.workspace({data:group.data}),null);
+ const selected=flow.nodes.find(n=>n.id===taskNodeId('a','task'));assert.equal(selected.data.focused,true);
+})
+
+test('manual Fit View frames only visible task content and excludes its invisible structural group',()=>{
+ const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[{...task,id:'before'},task],dependencies:[{workspaceId:'a',prerequisiteTaskId:'before',dependentTaskId:'task'}]}};
+ ui.render({projection:projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,relationships:true}),focus});ui.initialize();ui.resize(1000,700);
+ const visit=n=>!n||typeof n!=='object'?[]:Array.isArray(n)?n.flatMap(visit):[n,...visit(n.props?.children)];
+ visit(ui.cameraTree).find(n=>n.props?.['aria-label']==='Fit View').props.onClick();
+ assert.deepEqual(new Set(ui.boundsRequests.at(-1)),new Set(['before','task'].map(id=>taskNodeId('a',id))));
 })

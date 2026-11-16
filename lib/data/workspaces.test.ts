@@ -36,6 +36,7 @@ test("workspace domain transactions", { skip: !process.env.DATABASE_TEST_URL }, 
       assert.equal(workspace.ownerUserId, owner)
       assert.equal((await db`SELECT id FROM tasks WHERE workspace_id=${workspace.id}`).length, 1)
       assert.equal((await db`SELECT id FROM activity_events WHERE workspace_id=${workspace.id}`).length, 2)
+      assert.equal((await db`SELECT metadata FROM activity_events WHERE workspace_id=${workspace.id} AND event_type='task-created'`)[0].metadata.taskTitle, 'Ship')
       assert.equal((await db`SELECT id FROM outbox_events WHERE workspace_id=${workspace.id}`).length, 2)
     })
     await t.test("nonmembers cannot read or change a workspace", async () => {

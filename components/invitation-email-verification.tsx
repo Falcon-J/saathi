@@ -41,10 +41,11 @@ export function InvitationEmailVerification({ onVerified }: { onVerified?: () =>
     <p className="text-sm text-muted-foreground">This is optional for your own workspace. We’ll send a code to your account email before showing invitations from others.</p>
     <Button type="button" variant="outline" disabled={!ready || pending} onClick={() => void run(false)}>{sent ? "Send a new code" : "Send verification code"}</Button>
     {sent && <p role="status" className="text-sm">Check your email for the verification code.</p>}
-    <form onSubmit={submit} className="flex flex-wrap items-end gap-3" aria-busy={pending}>
+    {!sent && <Button type="button" variant="ghost" disabled={!ready || pending} onClick={() => setSent(true)}>I already have a code</Button>}
+    {sent && <form onSubmit={submit} className="flex flex-wrap items-end gap-3" aria-busy={pending}>
       <label className="space-y-1 text-sm">Verification code<Input value={code} onChange={event => setCode(event.target.value)} autoComplete="one-time-code" inputMode="numeric" required disabled={!ready || pending} /></label>
       <Button type="submit" disabled={!ready || pending || !code.trim()}>{pending ? "Please wait…" : "Verify email"}</Button>
-    </form>
+    </form>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </section>
 }

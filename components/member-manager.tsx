@@ -130,9 +130,14 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
     return isCurrentUser ? "Leave Workspace" : "Remove Member"
   }
 
+  const activeInvitation = (invitation: Invitation) => invitation.status === "pending"
+  const activeInvites = invitations.filter(activeInvitation)
+  const pastInvites = invitations.filter(invitation => !activeInvitation(invitation))
+  const invitationCard = (invitation: Invitation) => <div key={invitation.id} className="space-y-2 rounded border border-border p-3 text-sm"><p className="break-words font-medium">{invitation.kind === "link" ? "Single-use invite link" : invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status === "pending" && !activeInvitation(invitation) ? "expired" : invitation.status} · {activeInvitation(invitation) ? "Expires" : "Expiry"} {new Date(invitation.expiresAt).toLocaleDateString()}</p>{activeInvitation(invitation) && <Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button>}</div>
+
   return (
     <>
-      <div className="p-4">
+      <div className="py-2">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
@@ -142,7 +147,7 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
           {isOwner && <InvitationLinkCreator key={workspaceId} workspaceId={workspaceId} onCreated={loadInvitations} revokedInvitationIds={revokedInvitationIds} />}
 
           {lastError && <p role="alert" className="rounded border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{lastError}</p>}
-          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationsLoading ? <p role="status" className="text-xs text-muted-foreground">Loading invitations...</p> : invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : invitations.map(invitation => <div key={invitation.id} className="rounded border p-3 space-y-2 text-sm"><p className="break-all font-medium">{invitation.kind === "link" ? "Single-use invite link" : invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status} · Expires {new Date(invitation.expiresAt).toLocaleDateString()}</p>{invitation.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button></div>}</div>)}</section>}
+          {isOwner && <section className="space-y-2" aria-label="Workspace invitations"><h3 className="text-sm font-medium">Invitations</h3>{invitationsLoading ? <p role="status" className="text-xs text-muted-foreground">Loading invitations...</p> : invitationLoadError ? <div role="alert"><p className="text-sm text-destructive">{invitationLoadError}</p><Button variant="outline" size="sm" onClick={() => void loadInvitations()}>Retry invitations</Button></div> : invitations.length === 0 ? <p className="text-xs text-muted-foreground">No invitations yet.</p> : <><div className="space-y-2">{activeInvites.map(invitationCard)}{activeInvites.length === 0 && <p className="text-sm text-muted-foreground">No active invitations.</p>}</div>{pastInvites.length > 0 && <details className="pt-2"><summary className="min-h-11 cursor-pointer py-3 text-sm">Invitation history ({pastInvites.length})</summary><div className="space-y-2">{pastInvites.map(invitationCard)}</div></details>}</>}</section>}
           {/* Members List */}
           <div className="space-y-2">
             {members.length === 0 ? (

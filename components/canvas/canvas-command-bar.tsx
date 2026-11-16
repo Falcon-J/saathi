@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useCanvasSearch } from "./use-canvas-search"
 import type { Task } from "@/lib/task-contract"
 
-export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, tasks, selectedTask, canComplete, canCreate = true, canEdit = false, canManage = false, busy, disabled, onOpenTask, onCreate, onComplete, onWorkspace, onList, onAsk, onImport, onTool, onNavigate, followingAgent = false, onStopFollowing, searchScope, searchRevision = "" }: {
+export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, tasks, selectedTask, canComplete, canCreate = true, canEdit = false, canManage = false, busy, disabled, onOpenTask, onCreate, onCreateWorkspace, onComplete, onWorkspace, onList, onAsk, onImport, onTool, onNavigate, followingAgent = false, onStopFollowing, searchScope, searchRevision = "" }: {
   placement?: "dock" | "header"
   searchScope?: { resourceId?: string }
   searchRevision?: string
@@ -21,6 +21,7 @@ export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, ta
   busy: boolean
   disabled: boolean
   onOpenTask: (id: string, workspaceId?: string) => void
+  onCreateWorkspace?: () => void
   onCreate: () => void
   onComplete: () => void
   onWorkspace: () => void
@@ -68,6 +69,7 @@ export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, ta
         {remote.loading && <p role="status" className="p-3 text-sm">Searching…</p>}
         {remote.error && <div role="alert" className="p-3 text-sm">{remote.error}<Button size="sm" variant="ghost" onClick={remote.retry}>Try again</Button></div>}
         <CommandGroup heading="Actions">
+          {onCreateWorkspace && matchesAction("create workspace new project") && <CommandItem value="create workspace new project" disabled={disabled || busy} onSelect={() => run(onCreateWorkspace)}>Create workspace</CommandItem>}
           {canCreate && matchesAction("create add new task") && <CommandItem value="create add new task" disabled={disabled || busy} onSelect={() => run(onCreate)}>Create task</CommandItem>}
           {!searchScope && matchesAction("open workspace") && <CommandItem value="open workspace" disabled={disabled || busy} onSelect={() => run(onWorkspace)}>Open workspace</CommandItem>}
           {!searchScope && <CommandItem value="task list show all" disabled={disabled || busy} onSelect={() => run(onList)}>Task list</CommandItem>}
@@ -87,8 +89,8 @@ export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, ta
             {matchesAction("connections mcp oauth agents") && <CommandItem value="connections mcp oauth agents" disabled={busy} onSelect={() => { if (!busy) { setOpen(false); onNavigate("/connections") } }}>Connections</CommandItem>}
           </>}
         </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Tasks">{(searchScope ? remote.items : matchingTasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("description" in task ? task.description : "") ?? ""} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup>
+        {(searchScope ? remote.items : matchingTasks).length > 0 && <><CommandSeparator />
+        <CommandGroup heading="Tasks">{(searchScope ? remote.items : matchingTasks).map(task => <CommandItem key={task.id} value={`${task.id} ${task.title} ${("description" in task ? task.description : "") ?? ""} ${("assigneeEmail" in task ? task.assigneeEmail : "") ?? ""}`} disabled={disabled || busy} onSelect={() => run(() => onOpenTask(task.id, task.workspaceId))}>{task.title}{"workspaceName" in task && <span className="ml-2 text-muted-foreground">{task.workspaceName}</span>}</CommandItem>)}</CommandGroup></>}
       </CommandList>
       <div className="flex items-center">
       <div className="min-w-0 flex-1">

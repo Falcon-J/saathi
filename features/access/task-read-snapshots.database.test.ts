@@ -7,11 +7,17 @@ import { createWorkspaceRecord } from '../../lib/data/workspaces.ts'
 import { createTaskRecord, listTaskRecordsPage, getTaskAggregates } from '../../lib/data/tasks.ts'
 import { createCompany, createCanvasContainer, addOrganizationMember, attachWorkspace, grantCanvasAccess } from './service.ts'
 
-async function bounded<T>(operation: PromiseLike<T>): Promise<T> {
+async function bounded<T>(operation: PromiseLike<T>, timeoutMs = 60000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
-  try { return await Promise.race([Promise.resolve(operation), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(Error('Task-read fixture handshake timed out')), 10000) })]) }
+  try { return await Promise.race([Promise.resolve(operation), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(Error('Task-read fixture handshake timed out')), timeoutMs) })]) }
   finally { clearTimeout(timer) }
 }
+
+test('task-read fixture deadlines honor an explicit short bound', async () => {
+  const started=performance.now()
+  await assert.rejects(bounded(new Promise<never>(()=>{}),10),/Task-read fixture handshake timed out/)
+  assert.ok(performance.now()-started<5000,'An explicit short deadline must not use the long database default')
+})
 
 test('task-read fast statements and policy fallback retain current snapshot boundaries', { skip: !process.env.DATABASE_TEST_URL }, async t => {
   const url = new URL(process.env.DATABASE_TEST_URL!)
@@ -36,15 +42,17 @@ test('task-read fast statements and policy fallback retain current snapshot boun
       const releaseSignal = new Promise<void>(resolve => { release = resolve })
       const attaching = db.begin(async tx => withTransactionContext(tx, async () => {
         await attachWorkspace(owner, { resourceId: resource, workspaceId: workspace.id, parentId: section, mode: 'inherit', expectedWorkspaceVersion: workspace.version, confirmMembershipRestriction: true, commandId: randomUUID() })
-        staged(); await bounded(releaseSignal)
+        // Hold the writer until the bounded readers finish. The old shared 10s
+        // deadline could roll back this fixture while those reads were running.
+        staged(); await bounded(releaseSignal, 240000)
       }))
       const failed = attaching.then(() => { throw Error('Attachment exited before release') })
       void failed.catch(() => {})
       try {
         await bounded(Promise.race([stagedSignal, failed]))
-        assert.equal((await listTaskRecordsPage(member, workspace.id)).tasks.length, 1)
-        assert.equal((await getTaskAggregates(member, workspace.id)).total, 1)
-        await denied(listTaskRecordsPage(outsider, workspace.id))
+        assert.equal((await bounded(listTaskRecordsPage(member, workspace.id))).tasks.length, 1)
+        assert.equal((await bounded(getTaskAggregates(member, workspace.id))).total, 1)
+        await bounded(denied(listTaskRecordsPage(outsider, workspace.id)))
       } finally { release(); await bounded(attaching) }
       await denied(listTaskRecordsPage(member, workspace.id))
       await denied(getTaskAggregates(member, workspace.id))

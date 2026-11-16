@@ -65,8 +65,9 @@ test("task prerequisites are authorized, versioned, replay safe and race safe", 
       assert.deepEqual(graph.tasks.find(task => task.id === b.id), result.task)
       assert.deepEqual(graph.dependencies, [{ workspaceId: workspace.id, dependentTaskId: b.id, prerequisiteTaskId: a.id }])
       assert.ok(!Number.isNaN(Date.parse(graph.asOf)))
-      const events = await db`SELECT id FROM activity_events WHERE entity_id=${b.id} AND metadata->>'action'='dependency-add'`
+      const events = await db`SELECT id,metadata FROM activity_events WHERE entity_id=${b.id} AND metadata->>'action'='dependency-add'`
       assert.equal(events.length, 1)
+      assert.equal(events[0].metadata.taskTitle, 'Connect frontend')
       assert.equal((await db`SELECT id FROM outbox_events WHERE id=${events[0].id}`).length, 1)
       await assert.rejects(changeTaskPrerequisite(owner.id, command(b.id, a.id)), /changed by another/)
       await assert.rejects(changeTaskPrerequisite(owner.id, command(b.id, a.id, 2)), /already exists/)

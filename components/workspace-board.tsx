@@ -27,12 +27,13 @@ type BoardProps = {
   commentRefreshEvent: RealtimeEvent | null
   focusQuickAdd: number
   onChanged?: () => Promise<unknown>
+  onQuickAddOpenChange?: (open: boolean) => void
   onDirtyChange?: (dirty: boolean, activeDirty?: boolean, editorDraftTaskId?: string) => void
   onOpenTask?: (taskId: string) => void
   draftScope?: string
   onAddTask: (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => Promise<unknown>
 }
-export function WorkspaceBoard({ editorOnly = false, snapshotTasks, active = true, workspace, currentUserEmail, refreshSignal, openTaskId, openTaskRequest = 0, commentRefreshEvent, focusQuickAdd, onAddTask, onChanged, onDirtyChange, onOpenTask, draftScope, capabilityCeiling, compactToolbar = false }: BoardProps) {
+export function WorkspaceBoard({ editorOnly = false, snapshotTasks, active = true, workspace, currentUserEmail, refreshSignal, openTaskId, openTaskRequest = 0, commentRefreshEvent, focusQuickAdd, onAddTask, onChanged, onDirtyChange, onQuickAddOpenChange, onOpenTask, draftScope, capabilityCeiling, compactToolbar = false }: BoardProps) {
   const board = useTaskBoard(workspace.id, refreshSignal, !editorOnly)
   const taskSnapshot = editorOnly ? snapshotTasks ?? [] : board.tasks
   const detailKey = JSON.stringify([workspace.id, openTaskId, openTaskRequest])
@@ -82,7 +83,7 @@ export function WorkspaceBoard({ editorOnly = false, snapshotTasks, active = tru
     {board.error && <div role="alert" className="m-4 rounded-lg border border-border p-4"><p>{board.error}</p><Button variant="outline" className="mt-2" onClick={() => void board.reload()}>Try again</Button></div>}
     {detailLoading && <p role="status" className="px-4 pt-3 text-sm text-muted-foreground">Opening task…</p>}
     {detailError && <div role="alert" className="p-4"><p>{detailError}</p><Button variant="outline" onClick={() => setDetailRetry(value => value + 1)}>Try opening task again</Button></div>}
-    <TaskList editorOnly={editorOnly} active={active} compactToolbar={compactToolbar} capabilityCeiling={capabilityCeiling} draftScope={draftScope} onDirtyChange={onDirtyChange} onOpenTask={onOpenTask} tasks={taskSnapshot} loading={board.loading} members={workspace.members} currentUserEmail={currentUserEmail} workspaceOwnerId={workspace.ownerId} timeZone={workspace.timezone} openTaskId={openTaskId} openTaskRequest={openTaskRequest} openTaskReady={Boolean(detailTask)} detailTask={detailTask} commentRefreshEvent={commentRefreshEvent} focusQuickAdd={focusQuickAdd}
+    <TaskList editorOnly={editorOnly} active={active} compactToolbar={compactToolbar} capabilityCeiling={capabilityCeiling} draftScope={draftScope} onDirtyChange={onDirtyChange} onQuickAddOpenChange={onQuickAddOpenChange} onOpenTask={onOpenTask} tasks={taskSnapshot} loading={board.loading} members={workspace.members} currentUserEmail={currentUserEmail} workspaceOwnerId={workspace.ownerId} timeZone={workspace.timezone} openTaskId={openTaskId} openTaskRequest={openTaskRequest} openTaskReady={Boolean(detailTask)} detailTask={detailTask} commentRefreshEvent={commentRefreshEvent} focusQuickAdd={focusQuickAdd}
       paging={editorOnly ? undefined : board} onReviewBoard={async () => { const result = editorOnly ? await onChanged?.() : await board.reload(); if (!result) throw new Error("Tasks unavailable") }}
       onAddTask={async (...args) => { const result = await onAddTask(...args); if (!getMutationError(result)) await board.reload(); return result }}
       onToggleTask={id => completeWrite(() => { const task = knownTask(id); return task ? toggleTask(id, task.version ?? task.updatedAt) : Promise.resolve({ error: "Task unavailable. Refresh tasks." }) })}
