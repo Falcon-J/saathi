@@ -252,7 +252,9 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await expect(workArea.getByLabel('Workspace tools', { exact: true })).toHaveValue('work')
     await workArea.getByRole('button',{name:'All tasks',exact:true}).click()
     await workArea.getByLabel('Filter tasks',{exact:true}).selectOption('waiting')
-    await expect(workArea.getByRole('region', { name: 'Workspace tasks', exact: true })).toContainText('Approve brief')
+    await expect(workArea.getByRole('region', { name: 'Workspace tasks', exact: true })).toContainText('Publish handoff')
+    await workArea.getByRole('button',{name:'Open Publish handoff',exact:true}).click()
+    await expect(workArea.getByRole('region',{name:'Waiting for',exact:true})).toContainText('Approve brief')
     await expect.poll(async () => {
       const pane = await workArea.boundingBox()
       const mounted = await page.locator('.react-flow').count()

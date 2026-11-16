@@ -32,3 +32,5 @@ test('full authorized search stays bounded and can find a late task',()=>{
  ui.render().find(n=>n.type==='Input').props.onChange({target:{value:'Task 749'}})
  assert.deepEqual(ui.render().filter(n=>n.props?.['data-task-row']).map(n=>n.props['data-task-row']),['t749'])
 })
+
+test('waiting task inspection exposes blocker ownership using the member name',()=>{const ui=harness();ui.props.tasks[0].assigneeEmail='member@example.test';ui.props.workspace.members=[{id:'member',email:'member@example.test',username:'Priya'}];ui.props.selectedTask=ui.props.tasks[1];const tree=ui.render();const blocker=tree.find(n=>n.props?.['aria-label']==='Open prerequisite scope');assert.match(JSON.stringify(blocker),/Priya/);assert.doesNotMatch(JSON.stringify(blocker),/member@example.test/)})
