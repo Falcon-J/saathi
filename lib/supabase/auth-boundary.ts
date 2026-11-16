@@ -1,5 +1,5 @@
 export function safeAuthRedirect(value: string | null | undefined): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\s]|%5c|%2f/i.test(value)) return '/dashboard'
+  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\s]|%5c|%2f/i.test(value)) return '/canvas'
   return value
 }
 

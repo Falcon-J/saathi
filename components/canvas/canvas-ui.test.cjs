@@ -12,6 +12,12 @@ function load(path, dependencies, browser) {
 }
 const runtime = { '@/lib/feature-flags': { resolveFeatureFlags: () => ({ aiWorkspace: true, csvImport: true }) }, 'react/jsx-runtime': { jsx, jsxs: jsx }, '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts') }
 
+test('signed-in home opens Canvas while anonymous home retains the landing page', async()=>{
+  const make=session=>load('app/page.tsx',{'@/lib/auth-simple':{getSession:async()=>session},'next/navigation':{redirect:path=>{throw Error('redirect:'+path)}},'./landing/page':{default:'LandingPage'},'react/jsx-runtime':{jsx,jsxs:jsx}})
+  await assert.rejects(make({id:'actor'}).default(),/redirect:\/canvas$/)
+  assert.equal((await make(null).default()).type,'LandingPage')
+})
+
 test('canvas route redirects anonymous accounts before mounting the client surface', async () => {
   const route = load('app/canvas/page.tsx', { ...runtime, '@/lib/auth-simple': { getSession: async () => null },
     'next/navigation': { redirect: path => { throw new Error(`redirect:${path}`) } }, '@/components/canvas/canvas-shell': { CanvasShell: 'CanvasShell' } })
@@ -240,3 +246,7 @@ test('an unavailable canvas account can retry the same valid task link', async (
 test('workspace commands retain local planning import tool and account actions without replacing scoped search',()=>{const calls=[],ui=bar({canEdit:true,canManage:true,onAsk:()=>calls.push('ask'),onImport:()=>calls.push('import'),onTool:t=>calls.push(t),onNavigate:p=>calls.push(p)});for(const name of ['Ask Saathi','Import tasks','Prerequisites','Agent runs','Team','History','Settings','Archive','Connections'])assert.ok(ui.action(name),name);ui.action('Ask Saathi').props.onSelect();assert.deepEqual(calls,['ask']);const broad=bar({searchScope:{resourceId:'section'},canEdit:true,canManage:true,onAsk(){},onImport(){},onTool(){},onNavigate(){}});assert.equal(broad.action('Ask Saathi'),undefined);assert.equal(broad.action('Import tasks'),undefined);assert.equal(broad.action('Settings'),undefined);assert.ok(broad.action('Connections'))})
 
 test('workspace search scans the full authorized graph while rendering at most fifty task matches',()=>{const tasks=Array.from({length:1000},(_,i)=>({id:'task-'+i,title:'Task '+i,description:i===999?'Unique description needle':'',completed:false}));const ui=bar({tasks,selectedTask:null,canComplete:false});assert.equal(ui.render().filter(n=>n.type==='CommandItem'&&n.props.value.startsWith('task-')).length,50);ui.render().find(n=>n.type==='CommandInput').props.onValueChange('Unique description needle');assert.equal(ui.render().filter(n=>n.type==='CommandItem'&&n.props.value.startsWith('task-')).length,1);assert.ok(ui.render().some(n=>n.type==='CommandItem'&&n.props.value.startsWith('task-999 ')))})
+
+test('header following keeps Stop following in the search row without a second status strip',()=>{
+let stopped=0;const ui=bar({placement:'header',followingAgent:true,onStopFollowing:()=>stopped++});const tree=ui.render(),command=tree.find(n=>n.type==='Command');const button=nodes(command).find(n=>n.type==='Button'&&n.props.children==='Stop following');assert.ok(button);button.props.onClick();assert.equal(stopped,1);assert.equal(tree.some(n=>n.props?.['aria-label']==='Command scope'),false)
+})

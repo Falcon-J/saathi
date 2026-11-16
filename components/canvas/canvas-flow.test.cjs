@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const test = require('node:test')
 const ts = require('typescript')
 const { createCanvasNavigation, projectCanvas, taskNodeId } = require('../../features/canvas/model.ts')
-const { adoptUserNodes, getEdgePosition, getNodesBounds, ConnectionMode } = require('@xyflow/system')
+const { adoptUserNodes, getEdgePosition, getNodesBounds, getViewportForBounds, ConnectionMode } = require('@xyflow/system')
 
 const workspace = id => ({ id, name: id, timezone: 'UTC', ownerId: 'owner@example.test', ownerUserId: 'owner', members: [], version: 1, targetAt: null, createdAt: '2026-11-12T00:00:00Z' })
 const task = { id: 'task', workspaceId: 'a', title: 'Actual task', completed: false, status: 'todo', priority: 'medium', createdBy: 'owner@example.test', createdAt: '2026-11-12T00:00:00Z', updatedAt: '2026-11-12T00:00:00Z', version: 1 }
@@ -33,19 +33,19 @@ function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitRes
     setViewport: viewport => { viewports.push(viewport); return Promise.resolve(true) }, zoomIn() {}, zoomOut() {}, zoomTo() {},
   }
   const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next-themes': { useTheme: () => ({ resolvedTheme: 'light' }) },
-    '@xyflow/react': { useReactFlow: () => instance, useStore: fn => fn({ ...size, transform: [0, 0, 1] }), useOnViewportChange() {}, Panel: 'Panel', ReactFlow: 'ReactFlow', Background: 'Background', Controls: 'Controls', ControlButton: 'ControlButton', Handle: 'Handle', Position: { Left: 'left', Right: 'right' }, useInternalNode: id => committedNodes.get(id) },
+    '@xyflow/react': { getViewportForBounds, useReactFlow: () => instance, useStore: fn => fn({ ...size, transform: [0, 0, 1] }), useOnViewportChange() {}, Panel: 'Panel', ReactFlow: 'ReactFlow', Background: 'Background', Controls: 'Controls', ControlButton: 'ControlButton', Handle: 'Handle', Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' }, useInternalNode: id => committedNodes.get(id) },
     'lucide-react': Object.fromEntries(['Focus','Hand','Maximize2','Minus','MousePointer2','Plus'].map(name => [name, name])),
     '@xyflow/react/dist/style.css': {}, '@/components/ui/button': { Button: 'Button' },
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/lib/task-time': require('../../lib/task-time.ts'), './company-layout': require('./company-layout.ts'), './node-geometry': require('./node-geometry.ts'), './camera-utils': { ...require('./camera-utils.ts'), readCanvasCamera: (key, focusKey) => require('./camera-utils.ts').readCanvasCamera(key, focusKey, { getItem: () => JSON.stringify(savedCamera && { ...savedCamera, focusKey: JSON.stringify(savedFocus) }) }) }, './canvas-camera': { CanvasCamera: 'CanvasCamera' } }
-  const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-flow.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
+  const code = ts.transpileModule(fs.readFileSync('components/canvas/canvas-flow.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
   const exports = {}
   new Function('require', 'exports', 'localStorage', code)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, exports, { getItem: () => JSON.stringify(savedCamera), setItem() {} })
-  const cameraCode = ts.transpileModule(fs.readFileSync('components/canvas/canvas-camera.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
+  const cameraCode = ts.transpileModule(fs.readFileSync('components/canvas/canvas-camera.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
   const cameraExports = {}
   new Function('require', 'exports', 'localStorage', cameraCode)(name => { assert.ok(name in dependencies, name); return dependencies[name] }, cameraExports, { getItem: () => JSON.stringify(savedCamera), setItem() {} })
   let props = { projection: project(), cameraKey: 'actor:personal', resources: [], workspaces: [workspace('a'), workspace('b')], focus: { kind: 'overview' }, followingAgent: false,
     onOpen: focus => opens.push(focus), onOpenResource() {}, onZoom() {}, onViewportWidthChange() {}, onManualNavigation: () => manual++ }
-  return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); renderedNodes = tree.props.nodes; const camera = tree.props.children.find(child => child.type === 'CanvasCamera'); cameraExports.CanvasCamera(camera.props); effects.splice(0).forEach(fn => fn()); return tree.props },
+  return { render(next = {}) { props = { ...props, ...next }; cursor = 0; const tree = exports.default(props); renderedNodes = tree.props.nodes; const camera = tree.props.children.find(child => child?.type === 'CanvasCamera'); cameraExports.CanvasCamera(camera.props); effects.splice(0).forEach(fn => fn()); return tree.props },
     resize(width, height) { size = { width, height }; this.commit(); return this.render() }, commit() { adoptUserNodes(renderedNodes, committedNodes, parents) },
     initialize() { this.render(); this.commit(); ready = true; fits.length = 0 }, measure() { queuedFits.splice(0).forEach(fit => fit()) }, fits, opens, boundsRequests, viewports, get manual() { return manual } }
 }
@@ -163,7 +163,7 @@ test('late node measurement cannot replay an overview fit after explicit focus o
   ui.measure()
   assert.equal(ui.fits.length, 1, 'an earlier overview queue must not overwrite the current camera')
   assert.equal(flow.fitView, false)
-  assert.ok(flow.children.find(node => node.type === 'CanvasCamera'))
+  assert.ok(flow.children.find(node => node?.type === 'CanvasCamera'))
 })
 
 
@@ -229,14 +229,24 @@ test('record titles open canonical work while the card remains selectable', () =
   const ui = harness(), flow = ui.render()
   const record = flow.nodeTypes.workspace({ data: flow.nodes[0].data })
   const visit = node => !node || typeof node !== 'object' ? [] : [node, ...[node.props?.children].flat(Infinity).flatMap(visit)]
-  const heading = visit(record).find(node => node.type === 'h2')
-  const title = visit(heading).find(node => node.type === 'button')
+  const heading = visit(record).find(node => node?.type === 'h2')
+  const title = visit(heading).find(node => node?.type === 'button')
   assert.ok(title, 'the title must support pointer and keyboard activation')
   let stopped = false
   title.props.onClick({ stopPropagation() { stopped = true } })
   assert.equal(stopped, true)
   assert.deepEqual(ui.opens, [{ kind: 'workspace', workspaceId: 'a' }])
   assert.equal(flow.onNodeClick, undefined, 'selecting the rest of a card must not open it')
+})
+
+test('relationship cards retain task identity and focus the nearby dependency context',()=>{
+ const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'}
+ const graph={...entry,graph:{...entry.graph,tasks:[{...task,id:'before',title:'Before'},task,{...task,id:'after',title:'After'}],dependencies:[{workspaceId:'a',prerequisiteTaskId:'before',dependentTaskId:'task'},{workspaceId:'a',prerequisiteTaskId:'task',dependentTaskId:'after'}]}}
+ const flow=ui.render({projection:projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,relationships:true}),focus})
+ const selected=flow.nodes.find(n=>n.id===taskNodeId('a','task'))
+ assert.equal(selected.data.relationship,true)
+ ui.initialize();ui.resize(1000,700);ui.commit();ui.render()
+ assert.deepEqual(new Set(ui.boundsRequests.at(-1)),new Set(['before','task','after'].map(id=>taskNodeId('a',id))))
 })
 
 
@@ -282,3 +292,25 @@ test('saved focused camera waits for authorized URL resolution instead of restor
 test('resizing waits for the responsive projection before fitting a manually framed task',()=>{const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[task,...['a','b','c'].map(id=>({...task,id}))]}};const projectFor=compact=>projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,compact});ui.render({projection:projectFor(true),focus,compact:true});ui.initialize();ui.resize(360,708);ui.render().onPointerDownCapture();ui.fits.length=0;ui.resize(800,168);assert.equal(ui.fits.length,0,'old compact positions must not be framed in the landscape viewport');ui.render({projection:projectFor(false),compact:false});ui.commit();ui.render();assert.equal(ui.fits.length,1);assert.deepEqual(ui.boundsRequests.at(-1),[taskNodeId('a','task')])})
 
 test('restoring a focused camera across a responsive breakpoint frames the new canonical layout',()=>{const focus={kind:'task',workspaceId:'a',taskId:'task'},ui=harness({savedCamera:{x:100,y:100,zoom:1,canvasWidth:1280,canvasHeight:708},savedFocus:focus});ui.render({projection:projectCanvas({graphs:[entry],navigation:{...navigation,focus},zoom:1,compact:true}),focus,compact:true});ui.initialize();ui.resize(360,708);ui.commit();ui.render();assert.equal(ui.viewports.length,0,'desktop positions must not restore into a different mobile layout');assert.ok(ui.fits.length>0)})
+
+test('relationship edges use the same vertical handles before and after refresh',()=>{
+const focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[task,{...task,id:'after'}],dependencies:[{workspaceId:'a',prerequisiteTaskId:'task',dependentTaskId:'after'}]}};
+const ui=harness(),lookup=new Map(),parents=new Map();
+for(let i=0;i<2;i++){
+const flow=ui.render({projection:projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,relationships:true}),focus});
+adoptUserNodes(flow.nodes,lookup,parents);
+const edge=flow.edges.find(e=>!e.hidden),source=lookup.get(edge.source),target=lookup.get(edge.target);
+const pos=getEdgePosition({id:edge.id,sourceNode:source,targetNode:target,sourceHandle:null,targetHandle:null,connectionMode:ConnectionMode.Strict});
+assert.equal(pos.sourceX,source.internals.positionAbsolute.x+source.width/2);assert.equal(pos.sourceY,source.internals.positionAbsolute.y+source.height+3);
+assert.equal(pos.targetX,target.internals.positionAbsolute.x+target.width/2);assert.equal(pos.targetY,target.internals.positionAbsolute.y-3);
+}
+})
+
+test('relationship framing includes both desktop prerequisites, prioritizes the unfinished phone blocker and never enlarges automatic cards',()=>{
+const focus={kind:'task',workspaceId:'a',taskId:'task'},graph={...entry,graph:{...entry.graph,tasks:[{...task,id:'done',completed:true,status:'done'},{...task,id:'blocker'},task],dependencies:[{workspaceId:'a',prerequisiteTaskId:'done',dependentTaskId:'task'},{workspaceId:'a',prerequisiteTaskId:'blocker',dependentTaskId:'task'}]}};
+for(const compact of [false,true]){
+const ui=harness();ui.render({projection:projectCanvas({graphs:[graph],navigation:{...navigation,focus},zoom:1,relationships:true,compact}),focus,compact});ui.initialize();ui.resize(compact?360:896,compact?440:836);
+assert.deepEqual(ui.boundsRequests.at(-1),(compact?['blocker','task']:['blocker','done','task']).map(id=>taskNodeId('a',id)));
+assert.ok(ui.viewports.at(-1)?.zoom<=1,'Automatic relationship fitting must retain readable normal card sizing');
+}
+})

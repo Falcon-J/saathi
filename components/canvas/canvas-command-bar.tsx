@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { useCanvasSearch } from "./use-canvas-search"
 import type { Task } from "@/lib/task-contract"
 
-export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, canComplete, canCreate = true, canEdit = false, canManage = false, busy, disabled, onOpenTask, onCreate, onComplete, onWorkspace, onList, onAsk, onImport, onTool, onNavigate, followingAgent = false, onStopFollowing, searchScope, searchRevision = "" }: {
+export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, tasks, selectedTask, canComplete, canCreate = true, canEdit = false, canManage = false, busy, disabled, onOpenTask, onCreate, onComplete, onWorkspace, onList, onAsk, onImport, onTool, onNavigate, followingAgent = false, onStopFollowing, searchScope, searchRevision = "" }: {
+  placement?: "dock" | "header"
   searchScope?: { resourceId?: string }
   searchRevision?: string
   scopeName: string
@@ -57,12 +58,12 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
   const completionAvailable = Boolean(!searchScope && selectedTask && canComplete && !selectedTask.completed && selectedTask.status !== "done")
   const matchesAction = (value: string) => !searchScope || value.includes(query.trim().toLowerCase())
   const run = (work: () => void) => { if (disabled || busy) return; setOpen(false); setQuery(""); work() }
-  return <section ref={root} aria-label="Canvas commands" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5">
-    <div className={`${followingAgent ? "flex" : "max-sm:sr-only sm:flex"} items-center justify-between gap-2 border-b border-border px-4 py-2`}><p role="status" className="min-w-0 truncate text-sm font-medium" aria-label="Command scope" title={scopeName}>{scopeLabel ?? scopeName}</p><div className="flex shrink-0 items-center gap-1">{followingAgent && onStopFollowing && <Button size="sm" variant="ghost" className="min-h-11 sm:min-h-0" onClick={onStopFollowing}>Stop following</Button>}{!searchScope && <Button size="sm" variant="ghost" className="hidden sm:inline-flex" disabled={disabled || busy} onClick={() => { if (!disabled && !busy) onList() }}>Task list</Button>}</div></div>
+  return <section ref={root} aria-label="Canvas commands" className={placement === "header" ? "relative z-30 min-w-0 rounded-lg border border-border bg-card" : "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5"}>
+    {placement === "dock" && <div className={`${followingAgent ? "flex" : "max-sm:sr-only sm:flex"} items-center justify-between gap-2 border-b border-border px-4 py-2`}><p role="status" className="min-w-0 truncate text-sm font-medium" aria-label="Command scope" title={scopeName}>{scopeLabel ?? scopeName}</p><div className="flex shrink-0 items-center gap-1">{followingAgent && onStopFollowing && <Button size="sm" variant="ghost" className="min-h-11 sm:min-h-0" onClick={onStopFollowing}>Stop following</Button>}{placement === "dock" && !searchScope && <Button size="sm" variant="ghost" className="hidden sm:inline-flex" disabled={disabled || busy} onClick={() => { if (!disabled && !busy) onList() }}>Task list</Button>}</div></div>}
     <Command label="Search commands and tasks" shouldFilter={!searchScope} loop className="relative overflow-visible rounded-b-2xl [&_[data-slot=command-item]]:min-h-11 sm:[&_[data-slot=command-item]]:min-h-0 [&_[data-slot=command-input-wrapper]]:h-12 sm:[&_[data-slot=command-input-wrapper]]:h-9"
       onKeyDownCapture={event => { if ((event.target as HTMLElement | null)?.closest?.("button")) return; if (!open && event.key === "Enter") { event.preventDefault(); event.stopPropagation(); setOpen(true) } else if (!open && ["ArrowDown", "ArrowUp"].includes(event.key)) setOpen(true) }}
       onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setOpen(false) } }}>
-      <CommandList hidden={!open} className={`absolute inset-x-0 bottom-full ${followingAgent ? "mb-16" : "mb-2"} max-h-[min(50dvh,360px)] rounded-xl border border-border bg-popover shadow-xl sm:mb-14`}>
+      <CommandList hidden={!open} className={`absolute inset-x-0 ${placement === "header" ? "top-full mt-2" : `bottom-full ${followingAgent ? "mb-16" : "mb-2"} sm:mb-14`} max-h-[min(50dvh,360px)] rounded-xl border border-border bg-popover shadow-xl`}>
         {!remote.loading && !remote.error && <CommandEmpty>{searchScope && query.trim().length < 2 ? "Type at least 2 characters to search." : "No matching commands or tasks."}</CommandEmpty>}
         {remote.loading && <p role="status" className="p-3 text-sm">Searching…</p>}
         {remote.error && <div role="alert" className="p-3 text-sm">{remote.error}<Button size="sm" variant="ghost" onClick={remote.retry}>Try again</Button></div>}
@@ -75,7 +76,7 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
           {!searchScope && onAsk && <CommandItem value="ask saathi plan draft summarize attention" disabled={disabled || busy} onSelect={() => run(onAsk)}>Ask Saathi</CommandItem>}
           {!searchScope && onImport && <CommandItem value="import csv tasks" disabled={disabled || busy} onSelect={() => run(onImport)}>Import tasks</CommandItem>}
           {!searchScope && onTool && <>
-            {canEdit && <CommandItem value="prerequisites dependencies ready waiting" disabled={disabled || busy} onSelect={() => run(() => onTool("prerequisites"))}>Prerequisites</CommandItem>}
+            {canEdit && placement === "dock" && <CommandItem value="prerequisites dependencies ready waiting" disabled={disabled || busy} onSelect={() => run(() => onTool("prerequisites"))}>Prerequisites</CommandItem>}
             <CommandItem value="agent runs review evidence" disabled={disabled || busy} onSelect={() => run(() => onTool("agents"))}>Agent runs</CommandItem>
             <CommandItem value="team members invitations" disabled={disabled || busy} onSelect={() => run(() => onTool("team"))}>Team</CommandItem>
             <CommandItem value="history activity changes" disabled={disabled || busy} onSelect={() => run(() => onTool("activity"))}>History</CommandItem>
@@ -97,7 +98,8 @@ export function CanvasCommandBar({ scopeName, scopeLabel, tasks, selectedTask, c
         <input role="combobox" aria-label="Search commands and tasks" aria-expanded={open} {...(!open ? { "aria-activedescendant": undefined } : {})} />
       </CommandInput>
       </div>
-      {(completionAvailable || (canCreate && !searchScope)) && <Button aria-label={completionAvailable ? "Complete " + selectedTask?.title : "New task"} title={completionAvailable ? selectedTask?.title : undefined} size="sm" className="mr-1 min-h-11 min-w-11 shrink-0 disabled:opacity-100" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(completionAvailable ? onComplete : onCreate)}>{completionAvailable ? "Complete" : "New task"}</Button>}
+      {placement === "header" && followingAgent && onStopFollowing && <Button size="sm" variant="ghost" className="mr-1 min-h-11 shrink-0" onClick={onStopFollowing}>Stop following</Button>}
+      {placement === "dock" && (completionAvailable || (canCreate && !searchScope)) && <Button aria-label={completionAvailable ? "Complete " + selectedTask?.title : "New task"} title={completionAvailable ? selectedTask?.title : undefined} size="sm" className="mr-1 min-h-11 min-w-11 shrink-0 disabled:opacity-100" disabled={disabled || busy} onKeyDown={event => { if (event.key !== "Escape") event.stopPropagation() }} onClick={() => run(completionAvailable ? onComplete : onCreate)}>{completionAvailable ? "Complete" : "New task"}</Button>}
       </div>
     </Command>
   </section>

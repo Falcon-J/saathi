@@ -61,7 +61,7 @@
   --accent: #ddf4ee;
   --accent-foreground: #0f766e;
   --destructive: #ff3b30;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #111111;
   --border: #e1e5ef;
   --input: #ffffff;
   --ring: #0f766e;
@@ -199,7 +199,7 @@
     --accent: #ddf4ee;
     --accent-foreground: #0f766e;
     --destructive: var(--saathi-danger);
-    --destructive-foreground: #ffffff;
+    --destructive-foreground: #111111;
     --border: var(--saathi-border-default);
     --input: var(--saathi-surface-default);
     --ring: var(--saathi-brand);

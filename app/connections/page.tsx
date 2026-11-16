@@ -42,7 +42,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const recorded = await recordedMcpClientIds(session.id).catch(() => null)
   const orphaned = recorded ? grants.filter(grant => configuration.allowedClientIds.includes(grant.client.id) && !recorded.has(grant.client.id)) : []
   return <main className="mx-auto min-h-screen max-w-3xl space-y-6 px-4 py-8 sm:px-6">
-    <Link href="/dashboard" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
+    <Link href="/canvas" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
     <h1 className="text-2xl font-semibold">Agent connections</h1>
     {configuration.status !== 'enabled' && <p role="status" className="alert rounded-lg border border-border px-4 py-3 text-sm">{configuration.status === 'disabled' ? 'Agent access disabled' : 'Agent access unavailable'}</p>}
     {(provider.error || !recorded) && <p role="alert">OAuth connection details are unavailable. You can still stop application access below.</p>}

@@ -75,3 +75,9 @@ test('primary button text retains AA contrast on a white surface while hovered',
   const ratio = (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05)
   assert.ok(ratio >= 4.5, `Hovered primary button contrast ${ratio.toFixed(2)} must meet 4.5:1`)
 })
+
+test('destructive buttons use a semantic foreground with AA contrast in the shared palette',()=>{
+const button=readFileSync(path.join(__dirname,'..','..','components','ui','button.tsx'),'utf8');const variant=button.match(/destructive:\s*'([^']+)'/)[1];assert.match(variant,/text-destructive-foreground/);assert.doesNotMatch(variant,/dark:bg-destructive\/60/);
+const lum=hex=>hex.match(/../g).map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
+const bg=globalsCss.match(/--destructive:\s*#([0-9a-f]{6})/)[1];for(const match of globalsCss.matchAll(/--destructive-foreground:\s*#([0-9a-f]{6})/g)){const ratio=(Math.max(lum(bg),lum(match[1]))+.05)/(Math.min(lum(bg),lum(match[1]))+.05);assert.ok(ratio>=4.5,'Destructive action contrast must meet 4.5:1')}
+})

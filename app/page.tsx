@@ -8,7 +8,7 @@ export default async function Home() {
   const session = await getSession().catch(() => null)
 
   if (session) {
-    redirect("/dashboard")
+    redirect("/canvas")
   }
 
   return <LandingPage />

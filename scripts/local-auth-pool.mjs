@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { createHash, randomUUID } from 'node:crypto'
 
-const configuration = readFileSync(new URL('../supabase/local-auth-pool.conf', import.meta.url), 'utf8')
+const configuration = readFileSync(new URL('../supabase/local-auth-pool.conf', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const configurationHash = createHash('sha256').update(configuration).digest('hex')
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 function docker(args, input) {

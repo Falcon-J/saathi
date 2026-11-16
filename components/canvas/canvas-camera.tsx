@@ -1,18 +1,19 @@
 "use client"
 
 import { useCallback, useEffect, useImperativeHandle, useRef, type KeyboardEvent, type Ref } from "react"
-import { Panel, useInternalNode, useOnViewportChange, useReactFlow, useStore, type Node, type Viewport } from "@xyflow/react"
+import { getViewportForBounds, Panel, useInternalNode, useOnViewportChange, useReactFlow, useStore, type Node, type Viewport } from "@xyflow/react"
 import { Focus, Hand, Maximize2, Minus, MousePointer2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { taskNodeId, workspaceNodeId, type CanvasFocus } from "@/features/canvas/model"
 import { containerNodeId } from "./company-layout"
-import { formatCanvasZoom, restoreCanvasCamera, readCanvasCamera, type SavedCanvasCamera } from "./camera-utils"
+import { MIN_CANVAS_ZOOM, formatCanvasZoom, restoreCanvasCamera, readCanvasCamera, type SavedCanvasCamera } from "./camera-utils"
 
 export type CanvasTool = "select" | "pan"
 export type CanvasCameraHandle = { cancelPending: () => void; keyDown: (event: KeyboardEvent<HTMLDivElement>) => void }
 
 /** Store subscriptions stay below ReactFlow; camera updates never rebuild its controlled records. */
-export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
+export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
+  contextIds?: string[]
   nodes: Node[]; focus: CanvasFocus; followingAgent: boolean; cameraKey: string; initialCamera: SavedCanvasCamera | null
   controllerRef: Ref<CanvasCameraHandle>; tool: CanvasTool; onToolChange: (tool: CanvasTool) => void
   onViewportWidthChange: (width: number) => void; ready?: boolean; restoreReady?: boolean; compact?: boolean
@@ -38,6 +39,9 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
   const layoutReady = (compact === undefined || compact === (width < 640)) && Boolean(input && internal && !internal.hidden && internal.internals.userNode === input)
   const resources = nodes.filter(node => node.type !== "task").map(node => node.id).join("|")
   const fit = useCallback((ids: string[]) => ids.length ? flow.fitBounds(flow.getNodesBounds(ids), { padding: .15, duration: 0 }) : Promise.resolve(false), [flow])
+  const fitContext = useCallback((ids: string[]) => width > 0 && height > 0
+    ? flow.setViewport(getViewportForBounds(flow.getNodesBounds(ids), width, height, MIN_CANVAS_ZOOM, 1, .15), { duration: 0 })
+    : Promise.resolve(false), [flow, width, height])
   const fitAll = useCallback(() => fit(nodes.filter(node => !node.hidden).map(node => node.id)), [nodes, fit])
   const cancelPending = useCallback(() => { manual.current = true; interacted.current = true; pending.current = null; generation.current++; onManualNavigation() }, [onManualNavigation])
   const setTool = useCallback((next: CanvasTool) => { cancelPending(); onToolChange(next) }, [cancelPending, onToolChange])
@@ -54,7 +58,7 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
     onChange: useCallback((viewport: Viewport) => onZoom(viewport.zoom), [onZoom]),
     onEnd: useCallback((viewport: Viewport) => { try { if (!restoreReady || !initialized.current) return; localStorage.setItem(cameraKey, JSON.stringify({ ...viewport, focusKey: key, canvasWidth: width, canvasHeight: height })) } catch { /* Camera preferences are optional. */ } }, [cameraKey, key, width, height, restoreReady]),
   })
-  const geometry = input ? `${input.width}:${input.height}` : ""
+  const geometry = input ? `${input.width}:${input.height}:${input.position.x}:${input.position.y}` : ""
   const previousLayout = useRef({ width, height, focusId, geometry })
   useEffect(() => {
     const changed = previous.current.key !== key
@@ -80,10 +84,10 @@ export function CanvasCamera({ nodes, focus, followingAgent, cameraKey, initialC
     // Claim this camera intent before a synchronous viewport/store notification can re-enter.
     pending.current = null
     const request = generation.current
-    const result = focusId ? fit([focusId]) : fitAll()
+    const result = focusId ? contextIds?.length ? fitContext(contextIds) : fit([focusId]) : fitAll()
     void result.then(applied => { if (!applied && request === generation.current && previous.current.key === key) pending.current = key })
       .catch(() => { if (request === generation.current && previous.current.key === key) pending.current = key })
-  }, [compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitAll, width, height, geometry])
+  }, [contextIds, compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitContext, fitAll, width, height, geometry])
   return <>
     <Panel position="bottom-left" className="!m-3"><div role="toolbar" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm">
       <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => { cancelPending(); void flow.zoomOut({ duration: 0 }) }}><Minus className="size-4" /></Button>

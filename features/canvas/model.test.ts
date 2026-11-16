@@ -19,6 +19,17 @@ const graph = (tasks: Task[] = [], id = "w"): AuthorizedWorkspaceGraph => ({ wor
   graph: { tasks, dependencies: [], timezone: "UTC", asOf: "2026-11-12T00:00:00Z" } })
 const input = (graphs: AuthorizedWorkspaceGraph[]) => ({ graphs, navigation: createCanvasNavigation(scope), zoom: 1 })
 
+test('focused relationship view exposes prerequisites in a dense workspace and keeps records intact',()=>{
+  const entry=graph(Array.from({length:750},(_,i)=>task(String(i))))
+  entry.graph.dependencies=[{workspaceId:'w',prerequisiteTaskId:'699',dependentTaskId:'700'},{workspaceId:'w',prerequisiteTaskId:'700',dependentTaskId:'701'}]
+  const navigation=navigateCanvas(createCanvasNavigation(scope),{kind:'task',workspaceId:'w',taskId:'700'},'manual')
+  const result=projectCanvas({graphs:[entry],navigation,zoom:1,relationships:true,relatedOnly:true})
+  assert.deepEqual(new Set(result.nodes.filter(n=>n.kind==='task'&&!n.hidden).map(n=>n.recordId)),new Set(['699','700','701']))
+  assert.equal(result.edges.filter(e=>!e.hidden).length,2)
+  assert.equal(result.records.tasks.size,750)
+  for(const node of result.nodes.filter(n=>n.kind==='task'&&!n.hidden))assert.equal(node.relationship,true)
+})
+
 for (const count of [0, 1, 2, 4, 12, 13, 50]) test(`narrow workspace with ${count} tasks stays readable without changing canonical records`, () => {
   const entry = graph(Array.from({ length: count }, (_, i) => task(String(i))))
   if (count > 1) entry.graph.dependencies = [{ workspaceId: "w", prerequisiteTaskId: "0", dependentTaskId: "1" }]
@@ -225,4 +236,11 @@ test("removed authorization cannot retain inaccessible records or focus", () => 
 test("invalid camera scopes and zoom values fail instead of generating ambiguous state", () => {
   assert.throws(() => cameraStorageKey({ actorId: "", canvasId: "personal" }), /scope/i)
   for (const zoom of [0, -1, NaN, Infinity]) assert.throws(() => projectCanvas({ ...input([]), zoom }), /zoom/i)
+})
+
+test('compact relationship layout keeps the unfinished prerequisite next to selected work',()=>{
+const entry=graph([task('a-blocker'),task('b-done','w',true),task('c-done','w',true),task('focus')]);entry.graph.dependencies=['a-blocker','b-done','c-done'].map(id=>({workspaceId:'w',prerequisiteTaskId:id,dependentTaskId:'focus'}));
+const navigation=navigateCanvas(createCanvasNavigation(scope),{kind:'task',workspaceId:'w',taskId:'focus'},'manual');const result=projectCanvas({graphs:[entry],navigation,zoom:1,compact:true,relationships:true});
+const y=(id:string)=>result.nodes.find(n=>n.kind==='task'&&n.recordId===id)!.position.y;
+assert.equal(y('focus')-y('a-blocker'),160);assert.ok(y('a-blocker')>y('b-done'));assert.ok(y('a-blocker')>y('c-done'));
 })

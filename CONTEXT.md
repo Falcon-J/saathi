@@ -39,7 +39,11 @@ Saathi turns an intended outcome into a shared workspace where people can plan, 
 9. Durable mutations and their outbox events commit in the same PostgreSQL transaction.
 10. Empty workspace UI is shown only after an authenticated workspace query succeeds with zero rows.
 
-## Dashboard states
+## Primary interface
+
+Canvas is the signed-in home. A single task panel owns browsing, readiness filtering and inspection; explicit editing reuses the existing versioned editor and recovery paths. Focused React Flow tasks show bounded dependency context; the full authorized graph remains searchable. Ask Saathi has one workspace entry. Dashboard URLs remain available for compatibility.
+
+## Legacy Dashboard states
 
 - `auth-loading`: session is unresolved; show the page loader.
 - `workspace-loading`: session exists and workspace query is unresolved; show the workspace loader.

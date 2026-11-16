@@ -9,8 +9,14 @@ function fixture(overrides={}){
  const react={useState(initial){const i=cursor++;slots[i]??={value:initial};return [slots[i].value,v=>slots[i].value=typeof v==='function'?v(slots[i].value):v]},useRef(initial){const i=cursor++;slots[i]??={current:initial};return slots[i]},useCallback(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps))slots[i]={fn,deps};return slots[i].fn},useEffect:effect(false),useLayoutEffect:effect(true)}
  const api={getTasksPage:async()=>({success:true,tasks:[{id:'first'}],nextCursor:'next'}),getWorkspaceTaskAggregates:async()=>({success:true,aggregates:totals}),...overrides}
  const js=ts.transpileModule(fs.readFileSync('hooks/use-task-board.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,exports={};new Function('require','exports',js)(name=>name==='react'?react:api,exports)
- return {render(signal=0,workspaceId='workspace'){cursor=0;const r=exports.useTaskBoard(workspaceId,signal);const pending=effects;effects=[];pending.forEach(fn=>fn());return r},replayLayoutEffects(){for(const slot of slots){if(slot?.layout){slot.cleanup?.();slot.cleanup=slot.fn()}}},unmount(){slots.forEach(s=>s?.cleanup?.())}}
+ return {render(signal=0,workspaceId='workspace',enabled=true){cursor=0;const r=exports.useTaskBoard(workspaceId,signal,enabled);const pending=effects;effects=[];pending.forEach(fn=>fn());return r},replayLayoutEffects(){for(const slot of slots){if(slot?.layout){slot.cleanup?.();slot.cleanup=slot.fn()}}},unmount(){slots.forEach(s=>s?.cleanup?.())}}
 }
+
+test('editor-only canvas suppresses board page reads and can resume normal loading',async()=>{
+ let calls=0;const ui=fixture({getTasksPage:async()=>{calls++;return{success:true,tasks:[],nextCursor:null}}})
+ ui.render(0,'w',false);await tick();assert.equal(calls,0)
+ ui.render(0,'w',true);await tick();assert.equal(calls,1)
+})
 
 test('Suspense layout replay in the same scope lets the pending Board load settle',async()=>{
  const page=deferred(),aggregates=deferred();let pageCalls=0,totalCalls=0

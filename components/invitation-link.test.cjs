@@ -33,7 +33,7 @@ test('signup return restores pending token and waits for explicit join before ac
   const ui = fixture('components/join-invitation.tsx', 'JoinInvitation', { signedIn: true }, { getInvitationLinkPreview: async value => { assert.equal(value, token); return preview }, acceptInvitationLink: async value => { assert.equal(value, token); accepted++; return { success: true, workspaceId: 'workspace' } } }, stored)
   ui.window.location.hash = ''; ui.mount(); await tick(); assert.equal(accepted, 0)
   await ui.draw().find(node => node.type === 'Button' && node.props.children === 'Join workspace').props.onClick()
-  assert.equal(accepted, 1); assert.equal(stored.size, 0); assert.deepEqual(ui.routes, ['/dashboard?workspace=workspace'])
+  assert.equal(accepted, 1); assert.equal(stored.size, 0); assert.deepEqual(ui.routes, ['/canvas?workspace=workspace'])
 })
 test('expired link offers new-link guidance without a join control', async () => {
   const ui = fixture('components/join-invitation.tsx', 'JoinInvitation', { signedIn: true }, { getInvitationLinkPreview: async () => null })
@@ -64,7 +64,7 @@ test('duplicate acceptance is guarded and late completion after unmount does not
 })
 test('cancel removes the retained invitation token', async () => {
   const ui = fixture('components/join-invitation.tsx', 'JoinInvitation', { signedIn: false }, { getInvitationLinkPreview: async () => preview })
-  ui.mount(); await tick(); ui.draw().find(node => node.props?.children === 'Go to dashboard').props.onClick()
+  ui.mount(); await tick(); ui.draw().find(node => node.props?.children === 'Go to canvas').props.onClick()
   assert.equal(ui.stored.size, 0)
 })
 
@@ -112,7 +112,7 @@ test('revoking the displayed invite removes its copy control without hiding a di
 test('a reloaded accepted invitation offers the joined workspace without another acceptance', async () => {
  const ui=fixture('components/join-invitation.tsx','JoinInvitation',{signedIn:true},{getInvitationLinkPreview:async()=>({...preview,status:'accepted',workspaceId:'joined'})})
  ui.mount();await tick()
- assert.ok(ui.draw().some(node=>node.type==='Link'&&node.props.href==='/dashboard?workspace=joined'))
+ assert.ok(ui.draw().some(node=>node.type==='Link'&&node.props.href==='/canvas?workspace=joined'))
  assert.equal(ui.draw().some(node=>node.props?.children==='Join workspace'),false)
 })
 test('authorized terminal invitations render their known status without requiring a pending public preview', async () => {

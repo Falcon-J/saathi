@@ -43,7 +43,7 @@ export function ConfirmDialog({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isLoading}
-            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground disabled:opacity-50"
+            className="bg-destructive hover:bg-destructive hover:brightness-110 text-destructive-foreground disabled:opacity-50"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : actionLabel}
           </AlertDialogAction>
