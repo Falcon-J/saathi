@@ -272,6 +272,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await expect(focusedCanvas.getByRole('heading',{name:'Collect research',exact:true})).toHaveCount(0)
     await expect(focusedCanvas.getByRole('heading',{name:'Ready Waiting acceptance',exact:true})).toHaveCount(0)
     await expect(focusedCanvas.locator('.react-flow__node-task:visible')).toHaveCount(2)
+    await accessibility(page)
+    await page.screenshot({path:`${evidence}/canvas-focused-blockers-desktop.png`,fullPage:true})
     await focusedCanvas.getByRole('button',{name:'Open Approve brief',exact:true}).click()
     await expect(workArea.getByRole('region',{name:'Task summary',exact:true})).toContainText('Approve brief')
     await expect(focusedCanvas.locator('.react-flow__node-task:visible')).toHaveCount(1)

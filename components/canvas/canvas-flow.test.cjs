@@ -319,7 +319,7 @@ test('task focus removes workspace card chrome and unrelated hierarchy without c
  const ui=harness(),focus={kind:'task',workspaceId:'a',taskId:'task'};
  const flow=ui.render({projection:projectCanvas({graphs:[entry],navigation:{...navigation,focus},zoom:1,relationships:true}),focus});
  assert.deepEqual(flow.nodes.filter(n=>n.type!=='task').map(n=>n.id),['workspace:a']);
- const group=flow.nodes.find(n=>n.id==='workspace:a');assert.equal(group.focusable,false);assert.equal(flow.nodeTypes.workspace({data:group.data}),null);
+ const group=flow.nodes.find(n=>n.id==='workspace:a');assert.equal(group.focusable,false);assert.equal(group.ariaLabel,undefined);assert.equal(flow.nodeTypes.workspace({data:group.data}),null);
  const selected=flow.nodes.find(n=>n.id===taskNodeId('a','task'));assert.equal(selected.data.focused,true);
 })
 

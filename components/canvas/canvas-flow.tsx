@@ -100,7 +100,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     const contextGroup = Boolean(taskFocus && node.kind === "workspace")
     return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
       hidden: node.hidden, draggable: false, selectable: !contextGroup, focusable: !contextGroup, ...(contextGroup ? { style: { pointerEvents: "none" as const } } : {}), ...canvasNodeGeometry(node.width, node.height, node.relationship),
-      ariaLabel: `${task?.title ?? workspace.name}${subtitle ? `, ${subtitle}` : ""}`,
+      ariaLabel: contextGroup ? undefined : `${task?.title ?? workspace.name}${subtitle ? `, ${subtitle}` : ""}`,
       data: { title: task?.title ?? workspace.name, relationship: node.relationship, contextGroup, focused: taskFocus?.taskId === task?.id, description: grouped ? undefined : task?.description ?? workspace.summary,
         subtitle, representation: node.representation, kind: node.kind, expanded: node.expanded,
         open: () => events.current.onOpen(task ? { kind: "task", workspaceId: node.workspaceId, taskId: task.id } : { kind: "workspace", workspaceId: node.workspaceId }) } }
