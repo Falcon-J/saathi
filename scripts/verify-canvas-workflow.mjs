@@ -266,7 +266,11 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await page.screenshot({ path: `${evidence}/canvas-mobile.png`, fullPage: true })
     await page.setViewportSize({width:1280,height:900})
     await expect(workArea.getByRole('region',{name:'Task summary',exact:true})).toContainText('Publish handoff')
-    await expect.poll(()=>page.locator('.react-flow__edge:visible').count()).toBeGreaterThan(0)
+    // A vertical SVG path has zero bounding-box width; test its rendered geometry.
+    const blockerEdge=page.locator('.react-flow__edge-path')
+    await expect(blockerEdge).toHaveCount(1)
+    await expect.poll(()=>blockerEdge.evaluate(path=>path.getTotalLength())).toBeGreaterThan(0)
+    await expect(blockerEdge).toHaveCSS('stroke-width','1.5px')
     const focusedCanvas=page.getByRole('region',{name:'Workspace canvas',exact:true})
     await expectInsideCanvas(page,focusedCanvas.getByRole('heading',{name:'Approve brief',exact:true}))
     await expect(focusedCanvas.getByRole('heading',{name:'Collect research',exact:true})).toHaveCount(0)
