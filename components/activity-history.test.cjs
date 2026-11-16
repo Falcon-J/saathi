@@ -54,9 +54,9 @@ function fixture(readActivity) {
   }
   new Function("require", "exports", compiled)(name => dependencies[name], exports)
   return {
-    render(workspaceId, refreshSignal) {
+    render(workspaceId, refreshSignal, props = {}) {
       cursor = 0
-      const tree = exports.ActivityHistory({ workspaceId, refreshSignal })
+      const tree = exports.ActivityHistory({ workspaceId, refreshSignal, ...props })
       const pending = effects.splice(0)
       pending.forEach(effect => effect())
       return tree
@@ -65,6 +65,15 @@ function fixture(readActivity) {
 }
 
 const event = id => ({ id, actorUsername: id, actorEmail: `${id}@example.test`, eventType: "task-created", metadata: {}, createdAt: "2026-10-06T10:00:00.000Z" })
+
+test('archived history opens its existing read-only task dialog instead of leaving for Canvas', async () => {
+  const ui=fixture(async()=>({events:[{...event('archived'),entityType:'task',entityId:'archived-task',taskAvailable:true,metadata:{taskTitle:'Archived Brief'}}]}))
+  const opened=[];const props={onOpenTask:id=>opened.push(id)}
+  ui.render('archive',0,props);await tick();const tree=ui.render('archive',0,props)
+  assert.equal(nodes(tree).filter(node=>node.type==='a').length,0)
+  const action=nodes(tree).find(node=>node.type==='button');assert.ok(action)
+  action.props.onClick();assert.deepEqual(opened,['archived-task'])
+})
 
 test('History identifies task changes without lowercasing titles and links only available tasks', async () => {
   const ui = fixture(async () => ({ events: [

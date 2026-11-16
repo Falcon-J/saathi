@@ -104,7 +104,7 @@ export async function createWorkspaceRecord(userId: string, input: WorkspaceInpu
       await tx`INSERT INTO tasks (id, workspace_id, title, bucket, due_date, estimated_minutes, created_by_user_id)
         VALUES (${taskId}, ${id}, ${task.title.trim()}, ${task.bucket ?? null}, ${task.dueDate ?? null},
           ${task.estimatedMinutes ?? null}, ${userId})`
-      await appendDomainEvent(tx, { workspaceId: id, actorUserId: userId, type: "task-created", entityType: "task", entityId: taskId })
+      await appendDomainEvent(tx, { workspaceId: id, actorUserId: userId, type: "task-created", entityType: "task", entityId: taskId, metadata: { taskTitle: task.title.trim() } })
     }
     await appendDomainEvent(tx, { workspaceId: id, actorUserId: userId, type: "workspace-created", entityType: "workspace", entityId: id })
     return (await readWorkspace(id, userId, tx))!

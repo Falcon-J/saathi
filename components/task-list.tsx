@@ -679,7 +679,10 @@ export function TaskEditorDialog({
               </fieldset>
               </form>
 
-              <TaskComments taskId={task.id} draftScope={draftScope} key={`comments:${task.id}`} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+              <details key={`discussion:${task.id}`} aria-label="Task discussion" className="border-t border-border pt-2">
+                <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Comments</summary>
+                <TaskComments taskId={task.id} draftScope={draftScope} key={`comments:${task.id}`} readOnly={!canComment} refreshEvent={commentRefreshEvent} />
+              </details>
 
               <details
                 key={`details:${task.id}`}

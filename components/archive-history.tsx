@@ -77,7 +77,7 @@ export function ArchiveHistory() {
           </button></li>)}
         </ul>}
       </section>
-      {workspace && <ActivityHistory key={workspace.id} workspaceId={workspace.id} refreshSignal={revision} />}
+      {workspace && <ActivityHistory key={workspace.id} workspaceId={workspace.id} refreshSignal={revision} onOpenTask={setTaskId} />}
       <TaskEditorDialog task={task} draft={task ? toTaskEditorDraft(task) : null} canEdit={false} canComment={false} error={null} isSaving={false} members={workspace?.members ?? []} onDraftChange={() => {}} onClose={() => setTaskId(null)} onSubmit={event => event.preventDefault()} />
     </>}
   </div>

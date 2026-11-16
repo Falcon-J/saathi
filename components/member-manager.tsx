@@ -130,7 +130,7 @@ export function MemberManager({ workspaceId, members, currentUserEmail, workspac
     return isCurrentUser ? "Leave Workspace" : "Remove Member"
   }
 
-  const activeInvitation = (invitation: Invitation) => invitation.status === "pending" && new Date(invitation.expiresAt).getTime() > Date.now()
+  const activeInvitation = (invitation: Invitation) => invitation.status === "pending"
   const activeInvites = invitations.filter(activeInvitation)
   const pastInvites = invitations.filter(invitation => !activeInvitation(invitation))
   const invitationCard = (invitation: Invitation) => <div key={invitation.id} className="space-y-2 rounded border border-border p-3 text-sm"><p className="break-words font-medium">{invitation.kind === "link" ? "Single-use invite link" : invitation.inviteeEmail}</p><p className="text-xs text-muted-foreground">{invitation.status === "pending" && !activeInvitation(invitation) ? "expired" : invitation.status} · {activeInvitation(invitation) ? "Expires" : "Expiry"} {new Date(invitation.expiresAt).toLocaleDateString()}</p>{activeInvitation(invitation) && <Button size="sm" variant="ghost" disabled={Boolean(invitationOperation)} onClick={() => void revokePendingInvitation(invitation.id)}>Revoke</Button>}</div>

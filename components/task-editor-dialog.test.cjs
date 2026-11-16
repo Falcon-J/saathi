@@ -141,7 +141,7 @@ test("optional planning stays mounted behind a closed disclosure after discussio
   state = []
   const changes = []
   const parts = nodes(render(true, null, { onDraftChange: value => changes.push(value) }))
-  const details = parts.find(node => node.type === "details")
+  const details = parts.find(node => node.type === "details" && node.props["aria-label"] !== "Task discussion")
   assert.ok(details)
   assert.equal(Boolean(details.props.open), false)
   assert.equal(text(nodes(details).find(node => node.type === "summary")), "More details")
@@ -163,7 +163,7 @@ test("discussion owns its own form while disclosed controls still submit with th
   const parts = nodes(render(true, null, { canComment: true }))
   const form = parts.find(node => node.type === "form" && node.props.id === "task-editor-form")
   assert.equal(nodes(form).some(node => node.type === "TaskComments"), false)
-  const details = parts.find(node => node.type === "details")
+  const details = parts.find(node => node.type === "details" && node.props["aria-label"] !== "Task discussion")
   for (const control of nodes(details).filter(node => ["Input", "select"].includes(node.type))) {
     assert.equal(control.props.form, "task-editor-form")
   }
@@ -173,7 +173,7 @@ test("discussion and planning have distinct identities that both reset when swit
   state = []
   const identities = id => {
     const parts = nodes(render(true, null, { task: { id, draft } }))
-    return [parts.find(node => node.type === "TaskComments").key, parts.find(node => node.type === "details").key]
+    return [parts.find(node => node.type === "TaskComments").key, parts.find(node => node.type === "details" && node.props["aria-label"] !== "Task discussion").key]
   }
   const first = identities("first-task")
   const second = identities("second-task")
@@ -186,7 +186,7 @@ test("discussion and planning have distinct identities that both reset when swit
 test("invalid optional fields reveal themselves while conflict recovery remains outside the disclosure", () => {
   state = []
   const parts = nodes(render(true, "Estimate must be at most 1440 minutes", { latestTask: { draft } }))
-  const details = parts.find(node => node.type === "details")
+  const details = parts.find(node => node.type === "details" && node.props["aria-label"] !== "Task discussion")
   assert.ok(details)
   assert.equal(details.props.open, true)
   const element = { open: false }
@@ -202,7 +202,7 @@ test("native optional-field validation opens planning without replacing unsaved 
   const unsaved = { ...draft, dueDate: "2026-12-05", dueTime: "10:30", estimatedMinutes: "2000", priority: "high" }
   const changes = []
   const draw = () => nodes(render(true, null, { draft: unsaved, onDraftChange: value => changes.push(value) }))
-  const details = draw().find(node => node.type === "details")
+  const details = draw().find(node => node.type === "details" && node.props["aria-label"] !== "Task discussion")
   const element = { open: false }
   details.props.onInvalidCapture({ currentTarget: element })
   assert.equal(element.open, true)
@@ -368,3 +368,5 @@ let requested=0;const allowed=nodes(render(true,null,{onDelete:()=>requested++})
 allowed.find(n=>n.type==='Button'&&text(n)==='Delete task').props.onClick();assert.equal(requested,1);
 assert.equal(nodes(render(false,null)).some(n=>n.type==='Button'&&text(n)==='Delete task'),false);
 })
+
+test("discussion stays mounted in a closed disclosure while editing core fields",()=>{state=[];const parts=nodes(render(true,null,{canComment:true}));const discussion=parts.find(node=>node.type==="details"&&node.props["aria-label"]==="Task discussion");assert.ok(discussion);assert.equal(Boolean(discussion.props.open),false);assert.ok(nodes(discussion).some(node=>node.type==="TaskComments"));});

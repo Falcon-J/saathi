@@ -24,26 +24,26 @@
 
 ### Task 1: History
 Files: lib/data/tasks.ts, lib/data/activity.ts, components/activity-history.tsx and existing tests.
-- [ ] Add failing regression checks for task identity, preserved case, changed fields and legacy fallback.
-- [ ] Persist title/changed fields on successful mutations; join authorized current task for older events; render useful links and loaded-event filter.
+- [x] Add failing regression checks for task identity, preserved case, changed fields and legacy fallback.
+- [x] Persist title/changed fields on successful mutations; join authorized current task for older events; render useful links and loaded-event filter.
 - [ ] Run focused checks and database verification.
 
 ### Task 2: Connection recovery
 Files: app/connections/page.tsx, components/mcp/disconnect-form.tsx, new setup component, agent-activity.tsx and tests.
-- [ ] Add failing recovery/disabled endpoint tests.
-- [ ] Provide setup and reconnect instructions using configured endpoint; require explicit retained-consent cleanup; group permissions and retain exact capability labels.
-- [ ] Preserve existing revocation actions; add empty-run connection navigation; run checks.
+- [x] Add failing recovery/disabled endpoint tests.
+- [x] Provide setup and reconnect instructions using configured endpoint; require explicit retained-consent cleanup; group permissions and retain exact capability labels.
+- [x] Preserve existing revocation actions; add empty-run connection navigation; run checks.
 
 ### Task 3: Ask Saathi and zoom
 Files: canvas-shell.tsx, workspace-advisor.tsx, canvas-camera.tsx and tests.
-- [ ] Add failing tests for assistant heading/Send semantics and bounded automatic fit.
-- [ ] Fix panel state and Send label; bound fit using actual React Flow viewport geometry with maximum 1; preserve manual controls and recovery.
-- [ ] Run focused tests including camera, shell and advisor suites.
+- [x] Add failing tests for assistant heading/Send semantics and bounded automatic fit.
+- [x] Fix panel state and Send label; bound fit using actual React Flow viewport geometry with maximum 1; preserve manual controls and recovery.
+- [x] Run focused tests including camera, shell and advisor suites.
 
 ### Task 4: Remaining simplification
 Files: canvas task panel/shell/command bar, member manager/invitation list, settings, guide and existing tests.
-- [ ] Resolve duplicate controls/location entries and empty commands; group terminal invites; simplify settings and update help.
-- [ ] Adapt existing acceptance assertions to actual intended controls; retain all domain journeys.
+- [x] Resolve duplicate controls/location entries and empty commands; group terminal invites; simplify settings and update help.
+- [x] Adapt existing acceptance assertions to actual intended controls; retain all domain journeys.
 
 ### Task 5: Review and evidence
 - [ ] Run full type, lint, core, platform, database, e2e, production build, real OAuth/MCP, authenticated canvas and operations checks.
@@ -54,3 +54,12 @@ Files: canvas task panel/shell/command bar, member manager/invitation list, sett
 - Reused clean isolated codex/focused-blocker-canvas checkout at 1d581071; PR #29 already carries the no-deployment guard.
 - Ruling: proceed with the concrete walkthrough recommendations and prior no-questions instruction; no second design approval needed for this authorized reversible work.
 - Ruling: retain existing UI primitives rather than install another component library; follows repository reuse guidance and avoids styling regressions.
+
+- Focused regression cycle: four initial UI failures were observed; subsequent combined suites passed (141 checks; reviewer independently verified 145). Type-check passed.
+- Review: fixed Important archive-link routing with a RED → GREEN callback regression (10 history/archive checks pass). Extended immutable title snapshots to planned tasks and dependency events, adding SQL assertions. Corrected quick-add assignment instructions.
+- First CI lint found an impure render-time clock check in invitation grouping. Removed it: invitation expiry is already authoritative in the server DTO.
+- Real browser acceptance now captures history, assistant and overview framing. The disposable canvas runtime enables assistant presentation with no provider key and submits no AI request; existing advisor tests cover requests and uncertain draft confirmation.
+- Ruling: retain optional pre-workspace planning and its data disclosure. It serves the no-workspace state; the workspace assistant remains the single workspace AI entry.
+
+- Task editor: comments now stay mounted under a closed disclosure, keeping field edits focused and comment recovery/subscriptions intact. New disclosure regression was RED before implementation; planning-field tests target their own disclosure.
+- First real Auth/browser/MCP/recovery run passed (43898860065), including the new history/assistant/framing captures. Full CI requires a fresh run after the lint and review fixes.

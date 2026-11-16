@@ -44,4 +44,4 @@ test('an owned stored connection remains locally revocable after its client leav
  const f=fixture({allowedClientIds:''});assert.equal((await f.disconnect()).revoked,true);assert.equal(f.localRevoked(),true)
 })
 
-test('expired connections offer explicit client-initiated recovery without granting access',async()=>{const {html}=await renderConnections({enabled:true,expired:true});assert.match(html,/Reconnect/);assert.ok(html.includes('https://app.example.test/mcp'));assert.match(html,/approve/i);assert.ok(!html.includes('/oauth/authorize'));assert.match(html,/Expired/);});
+test('expired connections offer explicit client-initiated recovery without granting access',async()=>{const {html}=await renderConnections({enabled:true,expired:true});assert.match(html,/Reconnect/);assert.ok(html.includes('https://app.example.test/mcp'));assert.match(html,/approve/i);assert.ok(!html.includes('/oauth/authorize'));assert.match(html,/Expired/);assert.ok(!html.includes('data-client='),'provider-confirmed absent consent does not need another cleanup action');});

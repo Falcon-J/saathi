@@ -30,7 +30,7 @@ function describe(event: ActivityEvent): string {
   return description + (changed.length ? ` · ${changed.join(", ")}${status ? ` → ${status}` : ""}` : "")
 }
 
-export function ActivityHistory({ workspaceId, refreshSignal }: { workspaceId: string; refreshSignal?: number }) {
+export function ActivityHistory({ workspaceId, refreshSignal, onOpenTask }: { workspaceId: string; refreshSignal?: number; onOpenTask?: (taskId: string) => void }) {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [eventsWorkspaceId, setEventsWorkspaceId] = useState(workspaceId)
   const [loading, setLoading] = useState(false)
@@ -89,7 +89,7 @@ export function ActivityHistory({ workspaceId, refreshSignal }: { workspaceId: s
       </div>
       <div className="mt-4 border-t border-border pt-4">
         <input aria-label="Filter history" placeholder="Filter loaded history" value={filter} onChange={event => setFilter(event.target.value)} className="mb-4 h-11 w-full rounded-md border border-border bg-background px-3 text-base sm:text-sm" />
-        {filteredEvents.length > 0 && <ol className="space-y-3">{filteredEvents.map(event => <li key={event.id} className="flex gap-3 text-sm"><span className="mt-1 size-2 shrink-0 rounded-full bg-primary/60" /><div className="min-w-0 break-words"><p><span className="font-medium">{event.actorUsername || event.actorEmail}</span> {event.entityType === "task" && event.taskAvailable ? <a className="underline underline-offset-4" href={`/canvas?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(event.entityId)}&view=work`}>{describe(event)}</a> : describe(event)}</p><time className="text-xs text-muted-foreground" dateTime={event.createdAt}>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.createdAt))}</time></div></li>)}</ol>}
+        {filteredEvents.length > 0 && <ol className="space-y-3">{filteredEvents.map(event => <li key={event.id} className="flex gap-3 text-sm"><span className="mt-1 size-2 shrink-0 rounded-full bg-primary/60" /><div className="min-w-0 break-words"><p><span className="font-medium">{event.actorUsername || event.actorEmail}</span> {event.entityType === "task" && event.taskAvailable ? onOpenTask ? <button type="button" className="text-left underline underline-offset-4" onClick={() => onOpenTask(event.entityId)}>{describe(event)}</button> : <a className="underline underline-offset-4" href={`/canvas?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(event.entityId)}&view=work`}>{describe(event)}</a> : describe(event)}</p><time className="text-xs text-muted-foreground" dateTime={event.createdAt}>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.createdAt))}</time></div></li>)}</ol>}
         {visibleEvents.length > 0 && filteredEvents.length === 0 && <p role="status" className="text-sm text-muted-foreground">No matching loaded activity.</p>}
         {loading && <p role="status" className="mt-3 text-sm text-muted-foreground">Loading activity…</p>}
         {eventsWorkspaceId === workspaceId && error && <div role="alert" className="mt-3 flex items-center justify-between gap-3 text-sm text-destructive"><span>{error}</span><Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => void loadActivity(nextCursor ?? undefined)}><RefreshCw className="size-4" />Retry</Button></div>}
