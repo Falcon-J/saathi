@@ -254,6 +254,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     await workArea.getByLabel('Filter tasks',{exact:true}).selectOption('waiting')
     await expect(workArea.getByRole('region', { name: 'Workspace tasks', exact: true })).toContainText('Publish handoff')
     await workArea.getByRole('button',{name:'Open Publish handoff',exact:true}).click()
+    await expect(workArea.getByLabel('Task title',{exact:true})).not.toBeVisible()
     await expect(workArea.getByRole('region',{name:'Waiting for',exact:true})).toContainText('Approve brief')
     await expect.poll(async () => {
       const pane = await workArea.boundingBox()
@@ -496,7 +497,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         await page.getByRole('button', { name: 'Show canvas', exact: true }).click()
       })
       await phase('task-complete', async () => {
-        await page.getByRole('region', { name: 'Canvas commands', exact: true }).getByRole('button', { name: `Complete ${title}`, exact: true }).click()
+        await page.locator(`.react-flow__node[data-id="task:${workspace}:${agentTaskId}"]`).getByRole('button',{name:`Open ${title}`,exact:true}).click()
+        await workArea.getByRole('button', { name: 'Mark done', exact: true }).click()
         await expect.poll(async () => {
           const [row] = await db`SELECT status,version FROM tasks WHERE workspace_id=${workspace} AND id=${agentTaskId}`
           return row && { status: row.status, version: row.version }

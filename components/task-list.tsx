@@ -156,7 +156,7 @@ export const TaskList = memo(function TaskList({
     if (editorDirty && editingTask && editingDraft) writeDraft(draftKey, { task: editingTask, draft: editingDraft })
     else removeDraft(draftKey)
   }, [draftKey, restoredScope, editorDirty, editingTask, editingDraft])
-  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId), (editorDirty && editorPresented) || Boolean(operatingTaskId) || (quickAddDirty && (!compactToolbar || quickAddOpen)), editorDirty ? editingTask?.id : undefined) }, [quickAddDirty, quickAddOpen, compactToolbar, editorDirty, editorPresented, editingTask?.id, operatingTaskId, onDirtyChange])
+  useEffect(() => { onDirtyChange?.(quickAddDirty || editorDirty || Boolean(operatingTaskId), (editorDirty && editorPresented) || Boolean(operatingTaskId) || (quickAddDirty && (!compactToolbar || quickAddOpen) && (!editorOnly || (active && !openTaskId))), editorDirty ? editingTask?.id : undefined) }, [quickAddDirty, quickAddOpen, compactToolbar, editorOnly, active, openTaskId, editorDirty, editorPresented, editingTask?.id, operatingTaskId, onDirtyChange])
 
   useEffect(() => {
     if (draftKey && restoredScope !== draftKey) return
@@ -392,7 +392,7 @@ export const TaskList = memo(function TaskList({
     <div className={compactToolbar ? "@container space-y-3 p-3 sm:p-4" : "@container space-y-4 p-4 sm:p-5"}>
       {compactToolbar && <h2 ref={boardHeading} tabIndex={-1} className="sr-only">Tasks</h2>}
       {permitsCapability(capabilityCeiling, "create") && <>
-        <div aria-label="New task form" hidden={compactToolbar && !quickAddOpen}>
+        <div aria-label="New task form" hidden={(compactToolbar && !quickAddOpen) || (editorOnly && (!active || Boolean(openTaskId)))}>
           {compactToolbar && <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="min-h-11" aria-label="Close new task" onClick={() => { setQuickAddOpen(false); boardHeading.current?.focus() }}>Close</Button></div>}
           <TaskQuickAdd onAddTask={onAddTask} onReviewBoard={onReviewBoard} focusRequest={compactToolbar && !quickAddOpen ? undefined : focusQuickAdd} onDirtyChange={setQuickAddDirty} draftScope={draftScope} />
         </div>

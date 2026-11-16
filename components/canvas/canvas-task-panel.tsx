@@ -38,8 +38,7 @@ export function CanvasTaskPanel({ workspace, tasks, dependencies, readiness, sel
     const dependents = dependencies.filter(edge => edge.prerequisiteTaskId === selectedTask.id).map(edge => byId.get(edge.dependentTaskId)).filter((task): task is Task => Boolean(task))
     const waiting = prerequisites.filter(task => !task.completed && task.status !== "done")
     return <section aria-label="Task summary" className="space-y-5 p-4">
-      <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">Task</h2><Button variant="ghost" size="sm" onClick={onBack}>All tasks</Button></div>
-      <h3 className="break-words text-xl font-semibold">{selectedTask.title}</h3>
+      <div className="flex items-start justify-between gap-2"><h2 className="min-w-0 break-words text-xl font-semibold">{selectedTask.title}</h2><Button variant="ghost" size="sm" className="shrink-0" onClick={onBack}>All tasks</Button></div>
       <p className="text-sm text-muted-foreground">{labels[state.get(selectedTask.id) ?? "completed"]}</p>
       {selectedTask.description && <p className="whitespace-pre-wrap break-words text-sm">{selectedTask.description}</p>}
       <dl className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 text-sm"><dt className="text-muted-foreground">Assignee</dt><dd className="break-words">{assignee(selectedTask)}</dd><dt className="text-muted-foreground">Due</dt><dd>{formatTaskDue(selectedTask.dueAt, selectedTask.dueDate, workspace.timezone) || "No date"}</dd></dl>

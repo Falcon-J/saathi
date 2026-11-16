@@ -418,3 +418,11 @@ await Promise.resolve();await Promise.resolve();
 assert.ok(ui.calls.some(c=>Array.isArray(c)&&c[0]==='clear-drafts'&&c[1]==='saathi:draft:actor%40example.test:'));
 assert.ok(ui.calls.some(c=>Array.isArray(c)&&c[0]==='replace'&&c[1]==='/login'));
 })
+
+test('task inspection hides the retained new-task form while preserving its mounted recovery owner',()=>{
+const ui=harness({store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
+ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render().find(n=>n.type==='CanvasCommandBar').props.onCreate();
+assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.active,true);
+ui.render().find(n=>n.type==='CanvasCommandBar').props.onWorkspace();
+const tree=ui.render();assert.ok(tree.find(n=>n.props?.hidden===true&&nodes(n).some(c=>c.type==='WorkspaceBoard')));assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.active,false);
+})
