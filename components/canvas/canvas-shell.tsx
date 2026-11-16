@@ -68,6 +68,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const [tool, setTool] = useState<Tool>("work")
   const [readyGroup, setReadyGroup] = useState<CanvasReadiness | undefined>()
   const [tasksMounted, setTasksMounted] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [compactCanvas, setCompactCanvas] = useState(false)
   const reportCanvasWidth = useCallback((width: number) => setCompactCanvas(width < 640), [])
   const [createOpen, setCreateOpen] = useState(false)
@@ -334,7 +335,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
     }
   }, [workFocusRevision, showWorkArea, taskInspectorOpen])
   const dockClearance = "bottom-0"
-  const commands = <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} placement="header" scopeName={breadcrumbs.map(item => item.label).join(" / ")} scopeLabel={breadcrumbs.at(-1)?.label ?? "Canvas"}
+  const commands = <CanvasCommandBar key={`${account}:${workspace?.id ?? "none"}`} placement="header" onCreateWorkspace={focused.kind === "overview" ? beginCreateWorkspace : undefined} scopeName={breadcrumbs.map(item => item.label).join(" / ")} scopeLabel={breadcrumbs.at(-1)?.label ?? "Canvas"}
     searchScope={broadSearch ? focused.kind === "resource" ? { resourceId: focused.resourceId } : {} : undefined} searchRevision={JSON.stringify([actorId, store.realtime.eventRevision, revision, companies.resources, store.workspaces.map(item => item.id)])}
     tasks={tasks} selectedTask={selectedTask} canComplete={canComplete} canCreate={!broadSearch && (capabilityCeiling.create ?? false)} canEdit={capabilityCeiling.edit} canManage={isOwner && capabilityCeiling.manage} busy={saving} disabled={commandDisabled} onOpenTask={openTask} onCreate={createTask} onComplete={() => void complete()}
     onImport={!broadSearch && csvImportEnabled && capabilityCeiling.create ? () => { if (canLeave()) { stopFollowing(); setImportOpen(true) } } : undefined}
@@ -349,9 +350,9 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button ref={locationButton} variant="ghost" className="h-11 min-w-0 flex-1 justify-between gap-2 px-2 text-base font-semibold sm:flex-initial sm:max-w-xl" aria-label={"Canvas location: " + (breadcrumbs.at(-1)?.label ?? "Canvas")} aria-current="location" data-workspace-id={workspace?.id} title={breadcrumbs.map(item => item.label).join(" / ")}><span className="truncate">{breadcrumbs.at(-1)?.label ?? "Canvas"}</span><ChevronDown className="size-4 shrink-0 text-muted-foreground" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="start" aria-labelledby={undefined} aria-label="Canvas locations" className="w-[min(28rem,calc(100vw-1.5rem))]">
-            {breadcrumbs.map((item, index) => <DropdownMenuItem key={JSON.stringify(item.focus)} data-canvas-label={item.label} data-canvas-focus={JSON.stringify(item.focus)} aria-current={index === breadcrumbs.length - 1 ? "location" : undefined} className="block min-h-11 whitespace-normal break-words py-3" onSelect={() => { open(item.focus) }}>{breadcrumbs.slice(0, index + 1).map(ancestor => ancestor.label).join(" / ")}</DropdownMenuItem>)}
+            {breadcrumbs.map((item, index) => <DropdownMenuItem key={JSON.stringify(item.focus)} data-workspace-id={item.focus.kind === "workspace" ? item.focus.workspaceId : undefined} data-canvas-label={item.label} data-canvas-focus={JSON.stringify(item.focus)} aria-current={index === breadcrumbs.length - 1 ? "location" : undefined} className="block min-h-11 whitespace-normal break-words py-3" onSelect={() => { open(item.focus) }}>{breadcrumbs.slice(0, index + 1).map(ancestor => ancestor.label).join(" / ")}</DropdownMenuItem>)}
             {store.workspaces.length > 0 && <DropdownMenuSeparator />}
-            {store.workspaces.map(item => <DropdownMenuItem key={item.id} data-workspace-id={item.id} className="block min-h-11 whitespace-normal break-words py-3" disabled={saving} onSelect={() => changeWorkspace(item.id)}>{item.name}</DropdownMenuItem>)}
+            {store.workspaces.filter(item => !breadcrumbs.some(crumb => crumb.focus.kind === "workspace" && crumb.focus.workspaceId === item.id)).map(item => <DropdownMenuItem key={item.id} data-workspace-id={item.id} className="block min-h-11 whitespace-normal break-words py-3" disabled={saving} onSelect={() => changeWorkspace(item.id)}>{item.name}</DropdownMenuItem>)}
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
@@ -362,7 +363,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
       <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Canvas menu"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" aria-labelledby={undefined} aria-label="Canvas menu">
           <DropdownMenuItem className="min-h-11" disabled={store.loading || saving} onSelect={() => { void refreshAll() }}><RefreshCw className="size-4" />Refresh canvas</DropdownMenuItem>
-          <DropdownMenuItem className="min-h-11" aria-label="Manage canvas" onSelect={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" />Manage canvas</DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" aria-label="Company setup" onSelect={() => { if (canLeave()) { setCompanyResourceId(null); setCompanyOpen(true) } }}><Building2 className="size-4" />Company setup</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" aria-label="Create workspace" onSelect={beginCreateWorkspace}><Plus className="size-4" />Create workspace</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="min-h-11" onSelect={() => { if (canLeaveAll()) setInvitationsOpen(true) }}>Invitations</DropdownMenuItem>
@@ -374,7 +375,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
-    <div className={`absolute inset-x-0 top-28 grid grid-cols-1 overflow-y-auto sm:top-16 lg:overflow-hidden ${showWorkArea ? taskInspectorOpen ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : "lg:grid-cols-[minmax(0,1fr)_24rem]" : ""} ${dockClearance}`}>
+    <div className={`absolute inset-x-0 top-28 grid grid-cols-1 overflow-y-auto sm:top-16 lg:overflow-hidden ${showWorkArea ? taskInspectorOpen ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : askOpen || taskTool ? "lg:grid-cols-[minmax(0,1fr)_24rem]" : "lg:grid-cols-[minmax(0,1fr)_minmax(24rem,40rem)]" : ""} ${dockClearance}`}>
       {store.loading ? <p role="status" className="p-6">Loading workspaces…</p>
         : store.workspaceError ? <div role="alert" className="m-6 space-y-3"><p>{store.workspaceError}</p><Button onClick={() => void store.refreshWorkspaces()}>Try again</Button></div>
         : companies.loading ? <p role="status" className="p-6">Loading companies…</p>
@@ -392,7 +393,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
 
         </>}
       {workspace && graph.entry && capabilityCeiling.read && !workspaceUnavailable && workMounted && <aside aria-label="Workspace work area" className={`saathi-mobile-controls ${workOpen ? "" : "hidden"} relative z-10 min-h-80 w-full border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:h-full lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-t-0`}>
-        <div hidden={taskInspectorOpen} className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
+        <div hidden={taskInspectorOpen || askOpen} className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-card px-4 py-3">
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <select ref={workTools} aria-label="Workspace tools" value={taskTool ? "work" : tool} className="min-h-11 min-w-0 flex-1 rounded border border-border bg-card px-2 py-1 text-sm" onChange={event => changeTool(event.target.value as Tool)}>
               <option value="work">Tasks</option>
@@ -411,9 +412,9 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         <div hidden={askOpen || !taskTool}>
         {tasksMounted && <div hidden={tool !== "tasks"}><WorkspaceBoard editorOnly snapshotTasks={tasks} compactToolbar key={workspace.id} workspace={workspace} currentUserEmail={email}
           refreshSignal={store.realtime.eventRevision + revision} openTaskRequest={openTaskRequest} openTaskId={tool === "tasks" ? selectedTask?.id ?? null : null} commentRefreshEvent={store.realtime.lastEvent} capabilityCeiling={capabilityCeiling}
-          focusQuickAdd={quickAdd} draftScope={draftScope} onChanged={graph.reload} onOpenTask={openTask} active={workOpen && tool === "tasks" && !askOpen} onDirtyChange={(value, active = value, editorDraftTaskId) => { dirty.current.tasks = value; dirty.current.activeTasks = active; dirtyEditorTask.current = editorDraftTaskId }}
+          focusQuickAdd={quickAdd} onQuickAddOpenChange={setQuickAddOpen} draftScope={draftScope} onChanged={graph.reload} onOpenTask={openTask} active={workOpen && tool === "tasks" && !askOpen} onDirtyChange={(value, active = value, editorDraftTaskId) => { dirty.current.tasks = value; dirty.current.activeTasks = active; dirtyEditorTask.current = editorDraftTaskId }}
           onAddTask={async (...args) => { const result = await store.addTask(...args); if (!getMutationError(result)) setRevision(value => value + 1); return result }} /></div>}
-        {projection.readiness.get(workspace.id) && <CanvasTaskPanel key={`${actorId}:${workspace.id}`} backButtonRef={taskSummaryBack} workspace={workspace} tasks={tasks} dependencies={graph.entry.graph.dependencies} readiness={projection.readiness.get(workspace.id)!} selectedTask={selectedTask} group={readyGroup ?? null} onGroupChange={group => { if (canLeave()) { dismissPendingLocation(); stopFollowing(); setReadyGroup(group ?? undefined); setTool("work") } }} onInspect={inspectTask} onBack={openWorkspace} onEdit={openTask} onCreate={createTask} onComplete={() => void complete()} canCreate={capabilityCeiling.create} canEdit={canEditSelected} canComplete={canComplete} busy={saving || graph.loading} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} onChanged={graph.reload} />}
+        {projection.readiness.get(workspace.id) && <CanvasTaskPanel key={`${actorId}:${workspace.id}`} backButtonRef={taskSummaryBack} creating={tool === "tasks" && quickAddOpen} workspace={workspace} tasks={tasks} dependencies={graph.entry.graph.dependencies} readiness={projection.readiness.get(workspace.id)!} selectedTask={selectedTask} group={readyGroup ?? null} onGroupChange={group => { if (canLeave()) { dismissPendingLocation(); stopFollowing(); setReadyGroup(group ?? undefined); setTool("work") } }} onInspect={inspectTask} onBack={openWorkspace} onEdit={openTask} onCreate={createTask} onComplete={() => void complete()} canCreate={capabilityCeiling.create} canEdit={canEditSelected} canComplete={canComplete} busy={saving || graph.loading} currentUserEmail={email} refreshSignal={store.realtime.eventRevision + revision} onChanged={graph.reload} />}
         </div>
         {!askOpen && tool === "team" && <div className="p-4">{capabilityCeiling.manage ? <MemberManager workspaceId={workspace.id} members={workspace.members} currentUserEmail={email} workspaceOwnerId={workspace.ownerId} onAddMember={store.addMember} onRemoveMember={store.removeMember} onTransferOwnership={async id => { await transferWorkspaceOwnership(workspace.id, id, workspace.version); await refreshAll() }} />
           : <ul className="space-y-3">{workspace.members.map(member => <li key={member.userId} className="rounded-lg border border-border p-3"><p className="font-medium">{member.username || member.email}</p></li>)}</ul>}</div>}

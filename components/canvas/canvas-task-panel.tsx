@@ -15,11 +15,12 @@ export type TaskPanelGroup = CanvasReadiness | null
 const labels: Record<CanvasReadiness, string> = { ready: "Ready", waiting: "Waiting", completed: "Done", completed_inconsistent: "Review" }
 
 export function CanvasTaskPanel({ workspace, tasks, dependencies, readiness, selectedTask, group, onGroupChange, onInspect, onBack, onEdit, onCreate, onComplete,
-  canCreate, canEdit, canComplete, busy, currentUserEmail, refreshSignal, onChanged, backButtonRef }: {
+  canCreate, canEdit, canComplete, busy, currentUserEmail, refreshSignal, onChanged, backButtonRef, creating = false }: {
   workspace: Workspace; tasks: readonly Task[]; dependencies: readonly TaskDependency[]; readiness: NextWorkResult<Task>
   selectedTask: Task | null; group: TaskPanelGroup; onGroupChange: (group: TaskPanelGroup) => void
   onInspect: (id: string) => void; onBack: () => void; onEdit: (id: string) => void; onCreate: () => void; onComplete: () => void
   canCreate: boolean; canEdit: boolean; canComplete: boolean; busy: boolean; currentUserEmail: string; refreshSignal: number; onChanged: () => Promise<unknown>
+  creating?: boolean
   backButtonRef?: Ref<HTMLButtonElement>
 }) {
   const [query, setQuery] = useState("")
@@ -52,7 +53,7 @@ export function CanvasTaskPanel({ workspace, tasks, dependencies, readiness, sel
     </section>
   }
   return <section aria-label="Workspace tasks" className="space-y-3 p-4">
-    <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">Tasks</h2>{canCreate && <Button size="sm" onClick={onCreate} disabled={busy}>New task</Button>}</div>
+    <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">Tasks</h2>{canCreate && !creating && <Button size="sm" onClick={onCreate} disabled={busy}>New task</Button>}</div>
     <label className="sr-only" htmlFor="canvas-task-group">Filter tasks</label><select id="canvas-task-group" aria-label="Filter tasks" className="min-h-11 w-full rounded-md border border-border bg-card px-3 text-sm" value={group ?? "all"} onChange={event => { setPage(50); onGroupChange(event.target.value === "all" ? null : event.target.value as CanvasReadiness) }}><option value="all">All tasks</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
     <Input aria-label="Search workspace tasks" placeholder="Search tasks" value={query} onChange={event => { setQuery(event.target.value); setPage(50) }} />
     <div className="divide-y divide-border">{filtered.slice(0, page).map(task => <Button key={task.id} variant="ghost" data-task-row={task.id} aria-label={`Open ${task.title}`} className="h-auto min-h-16 w-full justify-start whitespace-normal rounded-none px-1 py-3 text-left" disabled={busy} onClick={() => onInspect(task.id)}><span className="min-w-0"><span className="block break-words font-medium">{task.title}</span><span className="mt-1 block text-xs text-muted-foreground">{labels[state.get(task.id) ?? "completed"]} · {assignee(task)}</span></span></Button>)}</div>

@@ -75,6 +75,13 @@ test('read-only command access preserves navigation while hiding task creation',
   assert.equal(ui.action('Open workspace').props.disabled, false)
 })
 
+test('overview commands prioritize workspace creation and omit empty task groups', () => {
+  let created=0
+  const ui=bar({searchScope:{},canCreate:false,onCreateWorkspace:()=>created++})
+  ui.action('Create workspace').props.onSelect();assert.equal(created,1)
+  assert.equal(ui.render().some(node=>node.type==='CommandGroup'&&node.props.heading==='Tasks'),false)
+})
+
 test('primary canvas command keeps readable contrast when saving ends', () => {
   for (const busy of [true, false]) {
     const ui = bar({ busy })

@@ -188,7 +188,7 @@ export async function createTaskRecord(actorId: string, workspaceId: string, inp
       VALUES (${id},${workspaceId},${data.title!},${data.description ?? null},${data.priority ?? "medium"},${data.bucket ?? null},
         ${deadline.instant},${deadline.date},${data.estimatedMinutes ?? null},${assignee},${actorId})`
     const created = await projectTask(tx, id)
-    await appendDomainEvent(tx, {workspaceId,actorUserId:actorId,type:"task-created",entityType:"task",entityId:id,payload:{task:created}})
+    await appendDomainEvent(tx, {workspaceId,actorUserId:actorId,type:"task-created",entityType:"task",entityId:id,metadata:{taskTitle:created.title},payload:{task:created}})
     if (commandId) await saveCommandReceipt(tx, workspaceId, actorId, commandId, "task-create", hash, created)
     return created
   })
@@ -211,7 +211,7 @@ export async function changeTaskRecord(actorId: string, id: string, action: "edi
       const [dependency] = await tx`SELECT dependent_task_id FROM task_dependencies WHERE workspace_id=${row.workspace_id} AND prerequisite_task_id=${id} LIMIT 1`
       if (dependency) throw new TaskError("Other tasks depend on this task. Remove their prerequisite links before deleting it.", "conflict")
       await tx`DELETE FROM tasks WHERE id=${id} AND version=${row.version}`
-      await appendDomainEvent(tx,{workspaceId:row.workspace_id,actorUserId:actorId,type:"task-deleted",entityType:"task",entityId:id,payload:{taskId:id}})
+      await appendDomainEvent(tx,{workspaceId:row.workspace_id,actorUserId:actorId,type:"task-deleted",entityType:"task",entityId:id,metadata:{taskTitle:old.title},payload:{taskId:id}})
       return old
     }
     const data: TaskUpdate = normalized
@@ -224,7 +224,8 @@ export async function changeTaskRecord(actorId: string, id: string, action: "edi
       estimated_minutes=${owns("estimatedMinutes") ? data.estimatedMinutes ?? null : row.estimated_minutes}, assignee_user_id=${assigned},
       version=version+1, updated_at=GREATEST(clock_timestamp(),updated_at + interval '1 millisecond') WHERE id=${id} AND version=${row.version}`
     const updated = await projectTask(tx,id)
-    await appendDomainEvent(tx,{workspaceId:row.workspace_id,actorUserId:actorId,type:action === "toggle" ? "task-toggled" : "task-updated",entityType:"task",entityId:id,metadata:{completed:!old.completed && updated.completed},payload:{task:updated}})
+    const changedFields = (["title", "description", "status", "priority", "assigneeEmail", "dueAt", "dueDate", "estimatedMinutes", "bucket"] as const).filter(key => (old[key] ?? null) !== (updated[key] ?? null))
+    await appendDomainEvent(tx,{workspaceId:row.workspace_id,actorUserId:actorId,type:action === "toggle" ? "task-toggled" : "task-updated",entityType:"task",entityId:id,metadata:{taskTitle:updated.title,changedFields,status:updated.status,completed:!old.completed && updated.completed},payload:{task:updated}})
     return updated
   })
   return task

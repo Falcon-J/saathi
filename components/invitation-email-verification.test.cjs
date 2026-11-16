@@ -21,7 +21,7 @@ function fixture(actions, callback = true) {
   const draw = () => { cursor = 0; return nodes(component.InvitationEmailVerification({ onVerified: callback ? () => { verified++ } : undefined })) }
   return { draw, mount() { draw(); effects.splice(0).forEach(effect => cleanups.push(effect())); return draw() }, unmount() { cleanups.forEach(cleanup => cleanup?.()) }, verified: () => verified, refreshed: () => refreshed,
     send() { return draw().find(node => node.type === 'Button' && node.props.type === 'button').props.onClick() },
-    submit() { draw().find(node => node.type === 'Input').props.onChange({ target: { value: '123456' } }); return draw().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }) },
+    submit() { const existing=draw().find(node=>node.type==='Button'&&node.props.children==='I already have a code');existing?.props.onClick();draw().find(node => node.type === 'Input').props.onChange({ target: { value: '123456' } }); return draw().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }) },
   }
 }
 test('verification guards hydration, sends no email argument, and confirms only the code', async () => {

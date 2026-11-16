@@ -30,6 +30,7 @@ function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitRes
     get viewportInitialized() { return ready },
     getNodesBounds: ids => { boundsRequests.push(ids); return getNodesBounds(ids, { nodeLookup: committedNodes, nodeOrigin: [0, 0] }) },
     fitBounds: (bounds, options) => { fits.push({ bounds, ...options }); return fitResult() },
+    fitView: options => { const ids=options.nodes.map(node=>node.id);boundsRequests.push(ids);const bounds=getNodesBounds(ids,{nodeLookup:committedNodes,nodeOrigin:[0,0]});fits.push({bounds,...options,viewport:getViewportForBounds(bounds,size.width,size.height,options.minZoom,options.maxZoom,options.padding)});return fitResult() },
     setViewport: viewport => { viewports.push(viewport); return Promise.resolve(true) }, zoomIn() {}, zoomOut() {}, zoomTo() {},
   }
   const dependencies = { react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next-themes': { useTheme: () => ({ resolvedTheme: 'light' }) },
@@ -49,6 +50,15 @@ function harness({ savedCamera = null, savedFocus = { kind: 'overview' }, fitRes
     resize(width, height) { size = { width, height }; this.commit(); return this.render() }, commit() { adoptUserNodes(renderedNodes, committedNodes, parents) },
     initialize() { this.render(); this.commit(); ready = true; fits.length = 0 }, measure() { queuedFits.splice(0).forEach(fit => fit()) }, fits, opens, boundsRequests, viewports, get manual() { return manual } }
 }
+
+test('automatic overview and workspace framing never magnifies cards past natural size', () => {
+  for (const focus of [{kind:'overview'}, {kind:'workspace',workspaceId:'a'}]) {
+    const ui=harness(); ui.render({projection:project([entry],focus),focus}); ui.initialize(); ui.resize(1800,1000); ui.render()
+    assert.ok(ui.fits.length>0)
+    assert.ok(ui.fits.every(fit=>fit.maxZoom===1), 'fitBounds must cap automatic magnification at 100%')
+    assert.ok(ui.fits.every(fit=>fit.viewport.zoom<=1))
+  }
+})
 
 test('actual React Flow preserves every connection across immutable refreshes and workspace resizing', () => {
   const ui = harness(), lookup = new Map(), parents = new Map()

@@ -269,8 +269,8 @@ test('exploring a section navigates the canvas instead of opening administration
 })
 
 test('canvas management accessible name includes its visible button label', () => {
-  const button = harness().render().find(node => node.type === 'DropdownMenuItem' && node.props['aria-label'] === 'Manage canvas')
-  const label = 'Manage canvas'
+  const button = harness().render().find(node => node.type === 'DropdownMenuItem' && node.props['aria-label'] === 'Company setup')
+  const label = 'Company setup'
   assert.ok(button.props['aria-label'].toLowerCase().includes(label.toLowerCase()))
 })
 
@@ -372,7 +372,7 @@ test('phone utility menu uses the existing guarded management and refresh action
  assert.ok(tree.some(n=>n.type==='Button'&&n.props['aria-label']==='Canvas menu'));
  await tree.find(n=>n.type==='DropdownMenuItem'&&n.props.children?.includes('Refresh canvas')).props.onSelect();
  assert.ok(ui.calls.includes('refresh-workspaces'));
- ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props.children?.includes('Manage canvas')).props.onSelect();
+ ui.render().find(n=>n.type==='DropdownMenuItem'&&n.props['aria-label']==='Company setup').props.onSelect();
  assert.equal(ui.render().filter(n=>n.type==='Dialog').at(-1).props.open,true);
 });
 test('phone locations expose authorized full paths and canonical navigation',()=>{
@@ -416,7 +416,9 @@ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',worksp
 const tree=ui.render(),commands=tree.find(n=>n.type==='CanvasCommandBar').props;
 assert.equal(commands.onAsk,undefined);assert.equal(typeof commands.onImport,'function');assert.equal(commands.canManage,true);
 tree.find(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi').props.onClick();
-assert.equal(ui.render().find(n=>n.type==='WorkspaceAdvisor').props.workspaceId,'w');
+const assistantTree=ui.render();assert.equal(assistantTree.find(n=>n.type==='WorkspaceAdvisor').props.workspaceId,'w');
+assert.equal(assistantTree.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work');
+assert.ok(assistantTree.some(n=>n.props.hidden&&nodes(n).some(c=>c.type==='select'&&c.props['aria-label']==='Workspace tools')),'assistant must not announce the Tasks picker');
 const disabled=harness({flags:{aiEnabled:false,csvImportEnabled:false},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
 disabled.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
 const off=disabled.render();assert.equal(off.find(n=>n.type==='CanvasCommandBar').props.onImport,undefined);assert.equal(off.some(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi'),false)

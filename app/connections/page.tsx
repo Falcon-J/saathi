@@ -7,6 +7,8 @@ import { createClient } from '../../lib/supabase/server'
 import { resolveMcpAccountConfiguration } from '../../components/mcp/account-boundary'
 import { listMcpConnections, recordedMcpClientIds } from '../../components/mcp/connections-data'
 import { McpDisconnectForm } from '../../components/mcp/disconnect-form'
+import { McpConnectionSetup } from '../../components/mcp/connection-setup'
+import { groupConnectionPermissions } from '../../components/mcp/permission-groups'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +46,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   return <main className="mx-auto min-h-screen max-w-3xl space-y-6 px-4 py-8 sm:px-6">
     <Link href="/canvas" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
     <h1 className="text-2xl font-semibold">Agent connections</h1>
+    {configuration.status === 'enabled' && <McpConnectionSetup resource={configuration.config.resource} />}
     {configuration.status !== 'enabled' && <p role="status" className="alert rounded-lg border border-border px-4 py-3 text-sm">{configuration.status === 'disabled' ? 'Agent access disabled' : 'Agent access unavailable'}</p>}
     {(provider.error || !recorded) && <p role="alert">OAuth connection details are unavailable. You can still stop application access below.</p>}
     {page.items.length === 0 && orphaned.length === 0 && <p>No agent connections.</p>}
@@ -51,15 +54,17 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       const expired = connection.expired
       const inactive = connection.revokedAt !== null || expired
       return <section key={connection.id} className="space-y-3 rounded-xl border border-border p-5">
-        <h2 className="break-all text-lg font-semibold">{names.get(connection.clientId) || connection.clientId}</h2>
-        <p>{connection.revokedAt ? 'Application access revoked' : expired ? 'Application access expired' : 'Application access active'}</p>
+        <h2 className="break-words text-lg font-semibold">{names.get(connection.clientId) || 'Agent connection'}</h2>
+        {!names.has(connection.clientId) && <p className="break-all font-mono text-xs text-muted-foreground">Client {connection.clientId}</p>}
+        <p className="text-sm font-medium">{connection.revokedAt ? 'Revoked' : expired ? 'Expired' : 'Active'}</p>
         {connection.workspaceIds === null ? <p className="text-sm">All currently authorized workspaces, including future workspaces</p>
           : <details><summary className="cursor-pointer text-sm">{connection.workspaceIds.length} selected workspaces</summary>
             {authorizedWorkspaces ? <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{connectionWorkspaceNames(connection.workspaceIds, authorizedWorkspaces).map((name, index) => <li key={index}>{name}</li>)}</ul> : <p role="alert">Workspace names unavailable. Reload connections.</p>}
           </details>}
-        {connection.expiresAt && <p className="text-sm">Expires {new Date(connection.expiresAt).toLocaleString('en-IN', { timeZone: 'UTC' })} UTC</p>}
-        <details><summary className="cursor-pointer text-sm">Permissions</summary><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{connection.capabilities.map(capability => { const [area, permission] = capability.split(':'); const verbs: Record<string, string> = { read: 'Read', write: 'Create and edit', delete: 'Delete', archive: 'Archive', transfer: 'Transfer ownership of', revoke: 'Revoke' }; return <li key={capability}>{permissionLabels[capability] ?? `${verbs[permission] ?? permission} ${area.replaceAll('_', ' ')}`}</li> })}</ul></details>
-        <McpDisconnectForm clientId={connection.clientId} cleanupOnly={inactive} />
+        {connection.expiresAt && <p className="text-sm">{expired ? 'Expired' : 'Expires'} <time dateTime={connection.expiresAt}>{new Date(connection.expiresAt).toLocaleString('en-IN', { timeZone: 'UTC' })} UTC</time></p>}
+        <details><summary className="cursor-pointer text-sm">Permissions</summary><div className="mt-3 space-y-4">{groupConnectionPermissions(connection.capabilities).map(group => <section key={group.label}><h3 className="text-sm font-medium">{group.label}</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{group.scopes.map(capability => { const [area, permission] = capability.split(':'); const verbs: Record<string, string> = { read: 'Read', write: 'Create and edit', delete: 'Delete', archive: 'Archive', transfer: 'Transfer ownership of', revoke: 'Revoke' }; return <li key={capability}>{permissionLabels[capability] ?? `${verbs[permission] ?? permission} ${area.replaceAll('_', ' ')}`}</li> })}</ul></section>)}</div></details>
+        {(!inactive || provider.error || names.has(connection.clientId)) && <McpDisconnectForm clientId={connection.clientId} cleanupOnly={inactive} />}
+        {inactive && configuration.status === 'enabled' && <McpConnectionSetup resource={configuration.config.resource} reconnect retainedConsent={Boolean(provider.error) || names.has(connection.clientId)} />}
       </section>
     })}
     {orphaned.map(grant => <section key={grant.client.id} className="space-y-3 rounded-xl border border-border p-5"><h2 className="text-lg font-semibold">{grant.client.name}</h2><p>No application access. Disconnect the retained OAuth consent before reconnecting.</p><McpDisconnectForm clientId={grant.client.id} cleanupOnly /></section>)}

@@ -56,6 +56,12 @@ function harness(onConfirmDraft, askWorkspaceAdvisor = async () => ({ response: 
 }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
+test('assistant has a stable Send action independent of the last capability', () => {
+  const ui = harness(async () => ({})); ui.render()
+  assert.doesNotMatch(ui.text(), /Send:/)
+  assert.match(ui.text(), /Ask Saathi/)
+})
+
 test('Send submits the typed question once and preserves input after failure', async () => {
   const calls = []; let finish
   const ui = harness(async () => ({}), (...args) => { calls.push(args); return new Promise(resolve => { finish = resolve }) })
@@ -78,7 +84,8 @@ test('Send retains the last selected capability', async () => {
   const calls = []
   const ui = harness(async () => ({}), async (...args) => { calls.push(args); return { error: 'Unavailable' } })
   ui.render(); ui.button('Draft a task').props.onClick(); await tick(); ui.render()
-  assert.match(JSON.stringify(ui.button('Send').props.children), /Draft a task/)
+  assert.equal(ui.button('Draft a task').props['aria-pressed'],true)
+  assert.doesNotMatch(JSON.stringify(ui.button('Send').props.children), /Send:/)
   ui.button('Send').props.onClick(); await tick()
   assert.deepEqual(calls.map(call => call[1]), ['draft_task', 'draft_task'])
 })

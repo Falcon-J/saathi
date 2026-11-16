@@ -66,6 +66,33 @@ function fixture(readActivity) {
 
 const event = id => ({ id, actorUsername: id, actorEmail: `${id}@example.test`, eventType: "task-created", metadata: {}, createdAt: "2026-10-06T10:00:00.000Z" })
 
+test('History identifies task changes without lowercasing titles and links only available tasks', async () => {
+  const ui = fixture(async () => ({ events: [
+    { ...event('edit'), entityType: 'task', entityId: 'task-1', taskAvailable: true, eventType: 'task-updated', metadata: { taskTitle: 'Launch API Brief', changedFields: ['description', 'status'], status: 'in-progress' } },
+    { ...event('deleted'), entityType: 'task', entityId: 'gone', taskAvailable: false, eventType: 'task-deleted', metadata: { taskTitle: 'Old API Plan' } },
+  ] }))
+  ui.render('workspace'); await tick(); const tree = ui.render('workspace')
+  const text = JSON.stringify(tree)
+  assert.match(text, /Launch API Brief/)
+  assert.match(text, /description/)
+  assert.match(text, /In progress/)
+  assert.match(text, /Old API Plan/)
+  const links = nodes(tree).filter(node => node.type === 'a')
+  assert.equal(links.length, 1)
+  assert.equal(links[0].props.href, '/canvas?workspace=workspace&task=task-1&view=work')
+})
+
+test('History keeps honest legacy fallback and filters loaded entries without discarding pagination', async () => {
+  const ui = fixture(async () => ({ events: [event('old'), { ...event('new'), entityType: 'task', metadata: { taskTitle: 'Launch API Brief' } }], nextCursor: 'next' }))
+  ui.render('workspace'); await tick(); let tree = ui.render('workspace')
+  assert.match(JSON.stringify(tree), /created a task/i)
+  const search = nodes(tree).find(node => node.props?.['aria-label'] === 'Filter history')
+  assert.ok(search)
+  search.props.onChange({ target: { value: 'Launch' } }); tree = ui.render('workspace')
+  assert.equal(nodes(tree).filter(node => node.type === 'li').length, 1)
+  assert.match(JSON.stringify(tree), /Load older activity/)
+})
+
 test("Activity ignores an old workspace response after the selected workspace changes", async () => {
   const oldRead = deferred()
   const currentRead = deferred()

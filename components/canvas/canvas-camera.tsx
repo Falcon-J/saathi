@@ -38,7 +38,7 @@ export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraK
   const internal = useInternalNode(input?.id ?? "")
   const layoutReady = (compact === undefined || compact === (width < 640)) && Boolean(input && internal && !internal.hidden && internal.internals.userNode === input)
   const resources = nodes.filter(node => node.type !== "task").map(node => node.id).join("|")
-  const fit = useCallback((ids: string[]) => ids.length ? flow.fitBounds(flow.getNodesBounds(ids), { padding: .15, duration: 0 }) : Promise.resolve(false), [flow])
+  const fit = useCallback((ids: string[]) => ids.length ? flow.fitView({ nodes: ids.map(id => ({ id })), padding: .15, duration: 0, minZoom: MIN_CANVAS_ZOOM, maxZoom: 1 }) : Promise.resolve(false), [flow])
   const fitContext = useCallback((ids: string[]) => width > 0 && height > 0
     ? flow.setViewport(getViewportForBounds(flow.getNodesBounds(ids), width, height, MIN_CANVAS_ZOOM, 1, .15), { duration: 0 })
     : Promise.resolve(false), [flow, width, height])

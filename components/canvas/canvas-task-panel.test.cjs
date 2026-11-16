@@ -13,6 +13,11 @@ function harness(extra={}){
  const props={workspace:{id:'w',name:'W',timezone:'UTC',members:[],ownerId:'owner@example.test'},tasks,dependencies,readiness:deriveNextWork(tasks,dependencies,'UTC',new Date('2026-11-16')),selectedTask:null,group:null,onGroupChange:g=>calls.push(['group',g]),onInspect:id=>calls.push(['inspect',id]),onEdit:id=>calls.push(['edit',id]),onCreate:()=>calls.push('create'),onBack:()=>calls.push('back'),onComplete:()=>calls.push('complete'),canCreate:true,canEdit:true,canComplete:true,busy:false,currentUserEmail:'owner@example.test',refreshSignal:0,onChanged:async()=>{},...extra}
  return {props,calls,render(){cursor=0;return nodes(exports.CanvasTaskPanel(props))}}
 }
+test('active quick-add keeps only one task-creation entry',()=>{
+ const ui=harness({creating:true});assert.equal(ui.render().some(node=>node.type==='Button'&&node.props.children==='New task'),false)
+ ui.props.creating=false;assert.equal(ui.render().some(node=>node.type==='Button'&&node.props.children==='New task'),true)
+})
+
 test('one task list filters canonical ready, waiting and completed work',()=>{
  const ui=harness();let tree=ui.render();assert.equal(tree.filter(n=>n.props?.['data-task-row']).length,3)
  const filter=tree.find(n=>n.type==='select');filter.props.onChange({target:{value:'waiting'}});assert.deepEqual(ui.calls,[['group','waiting']])

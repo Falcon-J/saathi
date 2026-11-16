@@ -11,6 +11,7 @@ export interface ActivityEvent {
   actorEmail: string
   metadata: Record<string, unknown>
   createdAt: string
+  taskAvailable?: boolean
 }
 
 function safeMetadata(value: unknown): Record<string, unknown> {
@@ -38,10 +39,11 @@ export async function listActivityEventsPage(actorId: string, workspaceId: strin
     }
 
     const rows = await tx`SELECT a.id, a.event_type, a.entity_type, a.entity_id, a.metadata, a.created_at,
-        p.username AS actor_username, u.email AS actor_email
+        p.username AS actor_username, u.email AS actor_email, t.id AS current_task_id, t.title AS current_task_title
       FROM activity_events a
       JOIN profiles p ON p.id = a.actor_user_id
       JOIN auth.users u ON u.id = a.actor_user_id
+      LEFT JOIN tasks t ON a.entity_type='task' AND t.id=a.entity_id AND t.workspace_id=a.workspace_id
       WHERE a.workspace_id = ${workspaceId}
         AND (${cursor ?? null}::uuid IS NULL OR (a.created_at, a.id) <
           (SELECT created_at, id FROM activity_events WHERE id=${cursor ?? null}::uuid AND workspace_id=${workspaceId}))
@@ -56,7 +58,8 @@ export async function listActivityEventsPage(actorId: string, workspaceId: strin
       entityId: row.entity_id,
       actorUsername: row.actor_username,
       actorEmail: row.actor_email,
-      metadata: safeMetadata(row.metadata),
+      metadata: { ...(row.current_task_title ? { taskTitle: row.current_task_title } : {}), ...safeMetadata(row.metadata) },
+      taskAvailable: Boolean(row.current_task_id),
       createdAt: new Date(row.created_at).toISOString(),
     })), nextCursor: rows.length > limit ? visible[visible.length - 1].id : null }
   })

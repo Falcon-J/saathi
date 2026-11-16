@@ -121,7 +121,7 @@ export function AgentActivity({ workspaceId, refreshSignal = 0, canReview = true
     {notice && <p role="status" className="text-sm">{notice}</p>}
     {unresolved && <div className="space-y-2 rounded-md border border-border p-3"><p className="text-sm">The last review outcome is uncertain. Keep this exact review until its result is confirmed.</p><Button type="button" disabled={saving} onClick={() => submit(unresolved)}>Retry same review</Button></div>}
     {loading && <p role="status" className="text-sm text-muted-foreground">Loading agent activity…</p>}
-    {!loading && !readError && visible.length === 0 && <p className="text-sm text-muted-foreground">No agent runs.</p>}
+    {!loading && !readError && visible.length === 0 && <div className="space-y-3"><p className="text-sm text-muted-foreground">No agent runs.</p><a href="/connections" className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Connect an agent</a></div>}
     {visible.map(run => <article key={run.id} className="space-y-3 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{run.task.title}</h3><p className="text-sm">{stateLabels[run.state]}</p></div>
       {onFollowTask && ['queued', 'running', 'awaiting_review'].includes(run.state) && <Button type="button" variant="outline" size="sm" disabled={followingTaskId === run.taskId} onClick={() => onFollowTask(run.taskId)}>{followingTaskId === run.taskId ? 'Following agent' : 'Follow agent'}</Button>}
