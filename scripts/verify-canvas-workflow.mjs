@@ -659,7 +659,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     const boundaryCanvasUrl = page.url(), boundaryMarker = randomUUID()
     await canvasHeaderAction(page, 'Connections')
     await expect(page).toHaveURL(base + '/connections')
-    await expect(page.getByRole('heading',{name:'Connections',exact:true})).toBeVisible()
+    await expect(page.getByRole('heading',{name:'Agent connections',exact:true})).toBeVisible()
     await page.evaluate(marker => window.history.replaceState({ qaCanvasBoundary: marker }, '', window.location.href), boundaryMarker)
     await page.goBack()
     await expect(page).toHaveURL(boundaryCanvasUrl)
