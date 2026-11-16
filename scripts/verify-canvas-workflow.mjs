@@ -541,7 +541,7 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
         })
       }
       if (viewport.width === 1280) await phase('reset-board-filter', async () => {
-        await navigateCanvas(page, journeyWorkspace.name)
+        await page.locator(`.react-flow__node[data-id="workspace:${workspace}"]`).getByRole('button', { name: `Open ${journeyWorkspace.name}`, exact: true }).click()
         await openWorkspaceTools(page)
         await workArea.getByLabel('Workspace tools', { exact: true }).selectOption('work')
         await filterTasks(workArea, '')
