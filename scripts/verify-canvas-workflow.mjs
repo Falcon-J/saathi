@@ -342,6 +342,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       return Boolean(referenceId)
     }).toBe(true)
     await panel.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(page.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toHaveCount(0)
+    await navigateCanvas(page, 'Canvas')
     await page.getByRole('button', { name: 'Fit View', exact: true }).click()
     await expect(page.locator(`.react-flow__edge[data-id="association:${referenceId}"]`)).toBeVisible()
     await accessibility(page)
