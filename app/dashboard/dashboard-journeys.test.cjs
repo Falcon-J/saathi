@@ -62,6 +62,19 @@ function fixture(workspaceOverrides = {}, options = {}) {
 const tick = () => new Promise(resolve => setImmediate(resolve))
 const component = (rows, name) => rows.find(node => node.type === name)
 
+test('collapsing the dashboard sidebar keeps workspace views reachable on desktop', async () => {
+  const ui = fixture()
+  ui.render(); await tick()
+  const hide = ui.render().find(node => node.type === 'DropdownMenuItem' && [].concat(node.props.children).includes('Collapse sidebar'))
+  hide.props.onSelect()
+  const rows = ui.render()
+  const compactNav = rows.find(node => node.type === 'DashboardNavigation' && node.props.mode === 'mobile')
+  const wrapper = rows.find(node => node.type === 'div' && node.props.children === compactNav)
+  assert.doesNotMatch(wrapper.props.className, /lg:hidden/)
+  compactNav.props.onOpenTeam()
+  assert.equal(ui.location.hash, '#team-panel')
+})
+
 test('joined-workspace query selects only an authorized workspace and preserves other URL state', async () => {
   for (const id of ['other', 'unavailable']) {
     const ui = fixture({ loading: false }, { search: `?workspace=${id}&keep=yes` })

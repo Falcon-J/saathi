@@ -342,7 +342,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
     onNavigate={path => { if (canLeaveAll()) router.push(path) }}
     onTool={next => { if (!broadSearch && workspace && !commandDisabled && canLeave()) { dismissPendingLocation(); stopFollowing(); setAskOpen(false); setTool(next); setWorkMounted(true); setWorkOpen(true); requestWorkFocus() } }}
     onWorkspace={openWorkspace} onList={openWorkspace} followingAgent={navigation.followingAgent} onStopFollowing={stopFollowing} />
-  return <main className="saathi-dashboard relative h-dvh overflow-hidden bg-background text-foreground">
+  return <main className="saathi-dashboard relative h-dvh min-h-0 overflow-hidden bg-background text-foreground">
     <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 flex h-28 flex-wrap items-center gap-x-2 border-b border-border bg-card px-3 sm:h-16 sm:flex-nowrap sm:px-5">
       <h1 className="sr-only">Canvas</h1>
       <nav aria-label="Canvas hierarchy" className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-[35%]">

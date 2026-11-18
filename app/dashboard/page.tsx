@@ -26,7 +26,6 @@ import { NextWorkView } from "@/components/next-work-view"
 import { permitsCapability } from "@/lib/capability-ceiling"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -410,7 +409,7 @@ export default function Dashboard() {
                 <DropdownMenuItem asChild><Link href="/canvas" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><LayoutGrid className="size-4" />Canvas</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/connections" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><Settings className="size-4" />Agent connections</Link></DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setShortcutsOpen(true)} aria-label="Keyboard shortcuts"><Keyboard className="size-4" />Keyboard shortcuts</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setSidebarOpen(open => !open)} className="hidden lg:flex"><PanelLeft className="size-4" />{sidebarOpen ? "Hide navigation" : "Show navigation"}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSidebarOpen(open => !open)} className="hidden lg:flex"><PanelLeft className="size-4" />{sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}</DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/guide" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><CircleHelp className="size-4" />Help and guide</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/archive" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><Archive className="size-4" />Archived workspaces</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -445,10 +444,9 @@ export default function Dashboard() {
       </Dialog>
 
       {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
-      <div className="lg:hidden"><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} /></div>
+      <div className={sidebarOpen ? "lg:hidden" : ""}><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} /></div>
       <div className="flex min-h-[calc(100vh-4rem)]">
         {sidebarOpen && <aside className="hidden w-40 shrink-0 border-r border-border bg-card px-2 py-4 lg:flex lg:flex-col">
-          <div className="mb-3 px-3 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Workspace</div>
           <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} />
         </aside>}
 
@@ -456,7 +454,7 @@ export default function Dashboard() {
           <div className="mx-auto max-w-[1240px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
 
             {workspaceError && currentWorkspace && <div role="alert" className="mb-4 rounded-lg border border-border p-4"><p>Workspace refresh failed. Showing previously loaded details; your unsaved changes are retained.</p><Button variant="outline" className="mt-2" onClick={() => void refreshWorkspaces()}>Try again</Button></div>}
-            {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." /> : workspaceError && !currentWorkspace ? (
+            {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." embedded /> : workspaceError && !currentWorkspace ? (
               <section className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-8 text-center" role="alert">
                 <h2 className="text-xl font-semibold">Workspace unavailable</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{workspaceError}. Your data was not changed.</p>
@@ -476,19 +474,16 @@ export default function Dashboard() {
               />
             ) : currentWorkspace ? (
               <>
-                <section id="workspace-header" aria-label="Workspace status and actions" className="mb-4 flex scroll-mt-24 flex-wrap items-center justify-between gap-3">
-                  <Badge variant="outline"><span className={"mr-1.5 size-2 rounded-full " + (realtime.isConnected ? "bg-[var(--saathi-success)]" : "bg-muted-foreground")} />{realtime.isConnected ? "Live" : "Offline"}</Badge>
-                  <div className="flex items-center gap-2">
-                    {aiWorkspaceEnabled && canCreateTask && <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)}><Sparkles className="size-4" />Ask Saathi</Button>}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Workspace menu" className={workspaceView === "activity" || workspaceView === "settings" ? "border-primary text-primary" : ""}>{workspaceView === "activity" ? "Activity" : workspaceView === "settings" ? "Settings" : "Workspace"}<ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => { if (confirmLeave()) { discardDrafts(); setCreatingWorkspace(true) } }}><Plus className="size-4" />New workspace</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleOpenActivity} aria-current={workspaceView === "activity" ? "page" : undefined}><History className="size-4" />Activity</DropdownMenuItem>
-                        {canOpenSettings && <DropdownMenuItem onSelect={handleOpenSettings} aria-current={workspaceView === "settings" ? "page" : undefined}><Settings className="size-4" />Settings</DropdownMenuItem>}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                <section id="workspace-header" aria-label="Workspace actions" className="mb-4 flex scroll-mt-24 flex-wrap items-center justify-end gap-2">
+                  {aiWorkspaceEnabled && canCreateTask && <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)}><Sparkles className="size-4" />Ask Saathi</Button>}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Workspace menu" className={workspaceView === "activity" || workspaceView === "settings" ? "border-primary text-primary" : ""}>Workspace<ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => { if (confirmLeave()) { discardDrafts(); setCreatingWorkspace(true) } }}><Plus className="size-4" />New workspace</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleOpenActivity} aria-current={workspaceView === "activity" ? "page" : undefined}><History className="size-4" />Activity</DropdownMenuItem>
+                      {canOpenSettings && <DropdownMenuItem onSelect={handleOpenSettings} aria-current={workspaceView === "settings" ? "page" : undefined}><Settings className="size-4" />Settings</DropdownMenuItem>}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </section>
 
                 {aiWorkspaceEnabled && canCreateTask && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor draftScope={draftScope} key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { if (!canCreateTask) return { error: "Task creation is not permitted in this workspace." }; const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (result.task) { setBoardRefreshRequest(value => value + 1); try { if (workspaceView === "overview" && !await refreshTasks()) return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } catch { return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } } return result }} /></DialogContent></Dialog>}
@@ -502,11 +497,11 @@ export default function Dashboard() {
                 )}
 
                 {workspaceView === "activity" ? (
-                  <section aria-labelledby="activity-title" className="space-y-4"><header><h2 id="activity-title" className="text-xl font-semibold">Activity</h2><p className="text-sm text-muted-foreground">Changes made in this workspace.</p></header><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></section>
+                  <section aria-labelledby="activity-title" className="space-y-4"><h2 id="activity-title" className="text-xl font-semibold">Activity</h2><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></section>
                 ) : workspaceView === "settings" && canOpenSettings ? (
                   <section id="settings-panel"><WorkspaceSettings draftScope={draftScope} onDirtyChange={onDirtyChange} key={currentWorkspace.id} workspace={currentWorkspace} onSaved={async () => { if (!await refreshWorkspaces()) throw new Error("Unable to reload settings. Your draft is retained.") }} onArchived={handleArchiveWorkspace} onDeleted={permitsCapability(currentWorkspace.capabilityCeiling, "delete") ? handleDeleteWorkspace : undefined} /></section>
                 ) : workspaceView === "team" ? (
-                  <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><p className="saathi-label text-primary">Team</p><CardTitle className="text-2xl tracking-[-0.04em]">Team members</CardTitle></CardHeader><CardContent className="p-5 sm:p-7">{canManageWorkspace ? <MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /> : <ul className="space-y-3">{currentWorkspace.members.map(member => <li key={member.userId} className="break-words">{member.username || member.email}</li>)}</ul>}</CardContent></Card>
+                  <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><h2 className="text-2xl font-semibold tracking-[-0.04em]">Team members</h2></CardHeader><CardContent className="p-5 sm:p-7">{canManageWorkspace ? <MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /> : <ul className="space-y-3">{currentWorkspace.members.map(member => <li key={member.userId} className="wrap-anywhere">{member.username || member.email}</li>)}</ul>}</CardContent></Card>
                 ) : workspaceView === "overview" || workspaceView === "settings" ? (
                   <>
 

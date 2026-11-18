@@ -59,10 +59,25 @@ export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, ta
   const completionAvailable = Boolean(!searchScope && selectedTask && canComplete && !selectedTask.completed && selectedTask.status !== "done")
   const matchesAction = (value: string) => !searchScope || value.includes(query.trim().toLowerCase())
   const run = (work: () => void) => { if (disabled || busy) return; setOpen(false); setQuery(""); work() }
-  return <section ref={root} aria-label="Canvas commands" className={placement === "header" ? "relative z-30 min-w-0 rounded-lg border border-border bg-card" : "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5"}>
+  return <section ref={root} aria-label="Canvas commands"
+    onBlur={event => {
+      // Result clicks can blur the input before cmdk receives the click.
+      if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false)
+    }}
+    className={placement === "header" ? "relative z-30 min-w-0 rounded-lg border border-border bg-card" : "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-xl sm:inset-x-6 sm:bottom-5"}>
     {placement === "dock" && <div className={`${followingAgent ? "flex" : "max-sm:sr-only sm:flex"} items-center justify-between gap-2 border-b border-border px-4 py-2`}><p role="status" className="min-w-0 truncate text-sm font-medium" aria-label="Command scope" title={scopeName}>{scopeLabel ?? scopeName}</p><div className="flex shrink-0 items-center gap-1">{followingAgent && onStopFollowing && <Button size="sm" variant="ghost" className="min-h-11 sm:min-h-0" onClick={onStopFollowing}>Stop following</Button>}{placement === "dock" && !searchScope && <Button size="sm" variant="ghost" className="hidden sm:inline-flex" disabled={disabled || busy} onClick={() => { if (!disabled && !busy) onList() }}>Task list</Button>}</div></div>}
     <Command label="Search commands and tasks" shouldFilter={!searchScope} loop className="relative overflow-visible rounded-b-2xl [&_[data-slot=command-item]]:min-h-11 sm:[&_[data-slot=command-item]]:min-h-0 [&_[data-slot=command-input-wrapper]]:h-12 sm:[&_[data-slot=command-input-wrapper]]:h-9"
-      onKeyDownCapture={event => { if ((event.target as HTMLElement | null)?.closest?.("button")) return; if (!open && event.key === "Enter") { event.preventDefault(); event.stopPropagation(); setOpen(true) } else if (!open && ["ArrowDown", "ArrowUp"].includes(event.key)) setOpen(true) }}
+      onKeyDownCapture={event => {
+        if (event.key === "Tab") setOpen(false)
+        if ((event.target as HTMLElement | null)?.closest?.("button") || open) return
+        if (event.key === "Enter") {
+          event.preventDefault()
+          event.stopPropagation()
+          setOpen(true)
+        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          setOpen(true)
+        }
+      }}
       onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setOpen(false) } }}>
       <CommandList hidden={!open} className={`absolute inset-x-0 ${placement === "header" ? "top-full mt-2" : `bottom-full ${followingAgent ? "mb-16" : "mb-2"} sm:mb-14`} max-h-[min(50dvh,360px)] rounded-xl border border-border bg-popover shadow-xl`}>
         {!remote.loading && !remote.error && <CommandEmpty>{searchScope && query.trim().length < 2 ? "Type at least 2 characters to search." : "No matching commands or tasks."}</CommandEmpty>}
@@ -95,7 +110,7 @@ export function CanvasCommandBar({ placement = "dock", scopeName, scopeLabel, ta
       <div className="flex items-center">
       <div className="min-w-0 flex-1">
       <CommandInput ref={input} maxLength={120} asChild className="h-12 min-w-0 text-base sm:h-10 sm:text-sm" placeholder={busy ? "Saving…" : "Search tasks or commands"}
-        value={query} onValueChange={value => { setQuery(value); setOpen(true) }} onFocus={() => setOpen(true)} disabled={disabled || busy}>
+        value={query} onValueChange={value => { setQuery(value); setOpen(true) }} onClick={() => setOpen(true)} onFocus={() => setOpen(true)} disabled={disabled || busy}>
         {/* eslint-disable-next-line jsx-a11y/role-has-required-aria-props -- cmdk supplies aria-controls through its supported Input asChild slot. */}
         <input role="combobox" aria-label="Search commands and tasks" aria-expanded={open} {...(!open ? { "aria-activedescendant": undefined } : {})} />
       </CommandInput>
