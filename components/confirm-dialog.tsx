@@ -36,7 +36,7 @@ export function ConfirmDialog({
       <AlertDialogContent className="bg-card border-border" onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogTitle className="text-foreground">{title}</AlertDialogTitle>
         <AlertDialogDescription className="text-muted-foreground">{description}</AlertDialogDescription>
-        <div className="flex gap-2 justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
           <AlertDialogCancel disabled={isLoading} className="border-border text-foreground hover:bg-secondary">
             Cancel
           </AlertDialogCancel>

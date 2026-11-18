@@ -60,8 +60,8 @@
   --muted-foreground: #66716f;
   --accent: #ddf4ee;
   --accent-foreground: #0f766e;
-  --destructive: #ff3b30;
-  --destructive-foreground: #111111;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
   --border: #e1e5ef;
   --input: #ffffff;
   --ring: #0f766e;
@@ -198,8 +198,7 @@
     --muted-foreground: #66716f;
     --accent: #ddf4ee;
     --accent-foreground: #0f766e;
-    --destructive: var(--saathi-danger);
-    --destructive-foreground: #111111;
+    --destructive-foreground: #ffffff;
     --border: var(--saathi-border-default);
     --input: var(--saathi-surface-default);
     --ring: var(--saathi-brand);

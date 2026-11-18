@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test"
 
 test("sign-in controls work with keyboard and password reveal", async ({ page }) => {
   await page.goto("/login")
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled()
 
   await page.keyboard.press("Tab")
   await expect(page.getByRole("link", { name: "Saathi home" })).toBeFocused()
@@ -28,6 +29,19 @@ test("sign-in page has no horizontal overflow", async ({ page }) => {
     viewportWidth: window.innerWidth,
   }))
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+})
+
+test("each account field label identifies only its input", async ({ page }) => {
+  await page.goto("/register")
+  const reveal = page.getByRole("button", { name: "Show password" })
+  await expect(reveal).toBeEnabled()
+  for (const name of ["Name", "Email", "Password"]) {
+    const field = page.getByLabel(name, { exact: true })
+    const id = await field.getAttribute("id")
+    expect(id).toBeTruthy()
+    await expect(page.locator(`label[for="${id}"]`)).toHaveText(name)
+  }
+  await expect(reveal.locator("xpath=ancestor::label")).toHaveCount(0)
 })
 
 test("protected dashboard redirects to sign-in", async ({ page }) => {
@@ -61,6 +75,7 @@ test("password recovery submit stays opaque before and after hydration", async (
   } finally {
     releaseHydration()
   }
+  await page.waitForLoadState("load")
   await expect(submit).toBeEnabled()
   await expect(submit).toHaveCSS("opacity", "1")
 })

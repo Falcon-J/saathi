@@ -7,10 +7,10 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { TaskQuickAdd } from "@/components/task-quick-add"
-import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, MoreHorizontal, SquarePen } from "lucide-react"
+import { CheckCircle2, Circle, Trash2, Loader2, Users, Calendar, Flag, Clock, AlertCircle, MoreHorizontal } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TaskFilter } from "@/components/task-filter"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { useTaskPermissions } from "@/hooks/usePermissions"
@@ -599,19 +599,9 @@ export function TaskEditorDialog({
 
   return (
     <Dialog open={Boolean(task && draft)} onOpenChange={(open) => !open && requestClose()}>
-      <DialogContent onOpenAutoFocus={event => { event.preventDefault(); headingRef.current?.focus() }} className="saathi-mobile-controls flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl max-sm:bottom-0 max-sm:left-0 max-sm:top-auto max-sm:max-h-[calc(100dvh-0.5rem)] max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:animate-none! max-sm:rounded-b-none max-sm:rounded-t-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
-        <DialogHeader className="border-b border-border bg-secondary/35 px-5 py-5 pr-12 sm:px-6">
-          <div className="flex items-start gap-3 text-left">
-            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-              <SquarePen className="size-5" />
-            </div>
-            <div>
-              <DialogTitle ref={headingRef} tabIndex={-1} className="text-xl outline-none">{canEdit ? "Edit task" : "Task details"}</DialogTitle>
-              <DialogDescription className="sr-only">
-                {canEdit ? "Update the details that help your team understand and move this work." : canComment ? "Review the task and discuss the work with your team below." : "Review the retained task details and discussion."}
-              </DialogDescription>
-            </div>
-          </div>
+      <DialogContent aria-describedby={undefined} onOpenAutoFocus={event => { event.preventDefault(); headingRef.current?.focus() }} className="saathi-mobile-controls flex flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-2xl max-sm:bottom-0 max-sm:left-0 max-sm:top-auto max-sm:max-h-[calc(100dvh-0.5rem)] max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:animate-none! max-sm:rounded-b-none max-sm:rounded-t-2xl sm:max-w-2xl" showCloseButton={!isSaving}>
+        <DialogHeader className="border-b border-border bg-secondary/35 py-5 pl-5 pr-12 sm:pl-6">
+          <DialogTitle ref={headingRef} tabIndex={-1} className="text-xl outline-none">{canEdit ? "Edit task" : "Task details"}</DialogTitle>
         </DialogHeader>
 
         {task && draft && (

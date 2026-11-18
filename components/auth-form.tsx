@@ -125,26 +125,26 @@ export function AuthForm({ mode }: AuthFormProps) {
 
               {confirmation ? (
                 <div role="status" className="mt-8 space-y-4 rounded-xl border border-[#dfe8e5] bg-[#f5faf8] p-5">
-                  <h3 className="font-semibold text-[#122039]">Check your email</h3>
+                  <h2 className="font-semibold text-[#122039]">Check your email</h2>
                   <p className="text-sm leading-6 text-[#66758d]">{confirmation}</p>
                   <Link href={signInHref} className="text-sm font-semibold text-[#0f766e] underline-offset-4 hover:underline">Return to sign in</Link>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} aria-busy={!hydrated || loading} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
                   {isSignup && (
-                    <FieldShell label="Name">
-                      <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
+                    <FieldShell label="Name" id="account-name">
+                      <Input id="account-name" type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-11 sm:px-3 sm:text-sm" />
                     </FieldShell>
                   )}
 
-                  <FieldShell label="Email">
-                    <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:text-sm" />
+                  <FieldShell label="Email" id="account-email">
+                    <Input id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 text-base sm:h-11 sm:px-3 sm:text-sm" />
                   </FieldShell>
 
-                  <FieldShell label="Password">
+                  <FieldShell label="Password" id="account-password">
                     <div className="relative">
-                      <Input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 pr-12 text-base sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:px-2 sm:pr-8 sm:text-[clamp(0.6rem,2.1vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:px-3 lg:pr-10 lg:text-sm" />
-                      <button type="button" disabled={!hydrated || loading} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#8290a5] transition-colors hover:text-[#0f766e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] lg:right-3 lg:p-2" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                      <Input id="account-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading} required className="h-14 rounded-xl border-[#cbd4df] px-4 pr-12 text-base sm:h-11 sm:pl-3 sm:text-sm" />
+                      <button type="button" disabled={!hydrated || loading} className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
                         {showPassword ? <EyeOff className="size-4 lg:size-5" aria-hidden="true" /> : <Eye className="size-4 lg:size-5" aria-hidden="true" />}
                       </button>
                     </div>
@@ -158,7 +158,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
                   {formError && <p role="alert" className="rounded-xl border border-[#f1b8b1] bg-[#fff4f1] px-4 py-3 text-sm leading-5 text-[#b42318]">{formError}</p>}
 
-                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] disabled:opacity-100 sm:h-[clamp(1.5rem,6vh,2.75rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:h-[clamp(2.5rem,5.5vh,3rem)] lg:text-sm" disabled={!hydrated || loading}>
+                  <Button type="submit" className="h-14 w-full rounded-xl bg-[#237f72] text-sm shadow-none hover:bg-[#1d6b60] disabled:opacity-100 sm:h-11" disabled={!hydrated || loading}>
                     {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
                   </Button>
                 </form>
@@ -176,11 +176,11 @@ export function AuthForm({ mode }: AuthFormProps) {
   )
 }
 
-function FieldShell({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldShell({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
-    <label className="block space-y-2 sm:space-y-[clamp(0.125rem,0.6vh,0.375rem)] lg:space-y-1">
-      <span className="flex items-center text-base font-medium text-[#122039] sm:text-[clamp(0.6rem,2.2vh,0.875rem)] lg:text-sm">{label}</span>
+    <div className="space-y-2 sm:space-y-1">
+      <label htmlFor={id} className="block text-base font-medium text-[#122039] sm:text-sm">{label}</label>
       {children}
-    </label>
+    </div>
   )
 }

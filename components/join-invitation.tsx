@@ -70,7 +70,7 @@ export function JoinInvitation({ signedIn }: { signedIn: boolean }) {
     finally { if (current()) { busy.current = false; setPending(false) } }
   }
   return <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-border bg-card p-6">
-    {loading ? <p role="status">Loading invitation…</p> : preview?.status === "accepted" && preview.workspaceId ? <>
+    {loading ? <><h1 className="text-2xl font-semibold">Workspace invitation</h1><p role="status">Loading invitation…</p></> : preview?.status === "accepted" && preview.workspaceId ? <>
       <h1 className="break-words text-2xl font-semibold">Joined {preview.workspaceName}</h1>
       <Link href={`/canvas?workspace=${encodeURIComponent(preview.workspaceId)}`} onClick={forgetToken} className="text-primary underline">Open workspace</Link>
     </> : preview ? <>

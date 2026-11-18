@@ -119,6 +119,20 @@ test('stopping agent follow remains available after write permissions are lost',
   assert.deepEqual(ui.calls, [])
 })
 
+test('leaving Canvas search closes results without interfering with pointer selection', () => {
+  const ui = bar()
+  const root = ui.render().find(node => node.props?.['aria-label'] === 'Canvas commands')
+  const currentTarget = { contains: () => false }
+  root.props.onBlur({ currentTarget, relatedTarget: null })
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
+  root.props.onBlur({ currentTarget, relatedTarget: {} })
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, true)
+  ui.render().find(node => node.type === 'CommandInput').props.onClick()
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, false)
+  ui.render().find(node => node.type === 'Command').props.onKeyDownCapture({ key: 'Tab' })
+  assert.equal(ui.render().find(node => node.type === 'CommandList').props.hidden, true)
+})
+
 test('Enter on a collapsed command bar opens results without executing a hidden action', () => {
   const ui = bar()
   ui.render().find(node => node.type === 'Command').props.onKeyDown({ key: 'Escape', stopPropagation() {} })
