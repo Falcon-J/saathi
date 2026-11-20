@@ -106,6 +106,41 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     assert.doesNotMatch(viewportMetadata, /user-scalable=no|maximum-scale=1(?:[,\s]|$)/)
     await selectWorkspace(page, workspace)
     await expect(page.getByRole('region', { name: 'Workspace canvas', exact: true })).toBeVisible()
+    log({ canvasStage: 'mobile-fit-view' })
+    const phone = await page.context().newPage()
+    try {
+      await phone.setViewportSize({ width: 390, height: 844 })
+      await phone.goto(page.url())
+      const canvas = phone.getByRole('region', { name: 'Workspace canvas', exact: true })
+      const fit = canvas.getByRole('button', { name: 'Fit View', exact: true })
+      const cards = canvas.locator('.react-flow__node-task')
+      const lines = canvas.locator('.react-flow__edge-path')
+      await expect(canvas.getByRole('button', { name: 'Open Waiting, 1 tasks', exact: true })).toBeVisible()
+      await expect(cards).toHaveCount(0)
+      const expectGraphFits = async () => {
+        await expect(cards).toHaveCount(3)
+        await expect(lines).toHaveCount(2)
+        await expect.poll(() => canvas.evaluate(element => {
+          const surface = element.querySelector('.react-flow').getBoundingClientRect()
+          const toolbar = element.querySelector('[aria-label="Canvas zoom"]').getBoundingClientRect()
+          return [...element.querySelectorAll('.react-flow__node-task, .react-flow__edge-path')].map(item => {
+            const box = item.getBoundingClientRect()
+            return box.left >= surface.left + 1 && box.right <= surface.right - 1
+              && box.top >= surface.top + 1 && box.bottom <= toolbar.top - 1
+              && box.width > 0 && box.height > 0
+          })
+        })).toEqual([true, true, true, true, true])
+        await expectNoHorizontalOverflow(phone)
+      }
+      await fit.click()
+      await expectGraphFits()
+      await phone.screenshot({ path: `${evidence}/mobile-canvas-fit-view.png`, animations: 'disabled' })
+      await canvas.getByRole('button', { name: 'Zoom in', exact: true }).click()
+      await fit.click()
+      await expectGraphFits()
+    } finally {
+      await phone.close()
+    }
     log({ canvasStage: 'overview-cross-workspace-search' })
     await navigateCanvas(page, 'Canvas')
     const search = page.getByRole('combobox', { name: 'Search commands and tasks', exact: true })
