@@ -12,8 +12,9 @@ export type CanvasTool = "select" | "pan"
 export type CanvasCameraHandle = { cancelPending: () => void; keyDown: (event: KeyboardEvent<HTMLDivElement>) => void }
 
 /** Store subscriptions stay below ReactFlow; camera updates never rebuild its controlled records. */
-export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
+export function CanvasCamera({ contextIds, onFitWorkspace, nodes, focus, followingAgent, cameraKey, initialCamera, controllerRef, tool, onToolChange, onZoom, onManualNavigation, onViewportWidthChange, ready = true, restoreReady = true, compact }: {
   contextIds?: string[]
+  onFitWorkspace?: () => boolean
   nodes: Node[]; focus: CanvasFocus; followingAgent: boolean; cameraKey: string; initialCamera: SavedCanvasCamera | null
   controllerRef: Ref<CanvasCameraHandle>; tool: CanvasTool; onToolChange: (tool: CanvasTool) => void
   onViewportWidthChange: (width: number) => void; ready?: boolean; restoreReady?: boolean; compact?: boolean
@@ -44,6 +45,20 @@ export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraK
     : Promise.resolve(false), [flow, width, height])
   const fitAll = useCallback(() => fit(nodes.filter(node => !node.hidden && node.data?.contextGroup !== true).map(node => node.id)), [nodes, fit])
   const cancelPending = useCallback(() => { manual.current = true; interacted.current = true; pending.current = null; generation.current++; onManualNavigation() }, [onManualNavigation])
+  const fitView = () => {
+    cancelPending()
+    if (compact && focus.kind === "workspace") {
+      if (onFitWorkspace?.()) {
+        // The adopted workspace will have new bounds once its task cards are visible.
+        manual.current = false
+        pending.current = key
+      } else {
+        void fitContext([focusId])
+      }
+      return
+    }
+    void fitAll()
+  }
   const setTool = useCallback((next: CanvasTool) => { cancelPending(); onToolChange(next) }, [cancelPending, onToolChange])
   useImperativeHandle(controllerRef, () => ({ cancelPending, keyDown(event) {
     const target = event.target as HTMLElement
@@ -93,7 +108,7 @@ export function CanvasCamera({ contextIds, nodes, focus, followingAgent, cameraK
       <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => { cancelPending(); void flow.zoomOut({ duration: 0 }) }}><Minus className="size-4" /></Button>
       <Button variant="ghost" size="sm" className="min-w-14 tabular-nums" aria-label={`Zoom ${formatCanvasZoom(zoom)}. Reset to 100%`} onClick={() => { cancelPending(); void flow.zoomTo(1, { duration: 0 }) }}>{formatCanvasZoom(zoom)}</Button>
       <Button variant="ghost" size="icon" aria-label="Zoom in" onClick={() => { cancelPending(); void flow.zoomIn({ duration: 0 }) }}><Plus className="size-4" /></Button>
-      <Button variant="ghost" size="icon" aria-label="Fit View" title="Fit canvas" onClick={() => { cancelPending(); void fitAll() }}><Maximize2 className="size-4" /></Button>
+      <Button variant="ghost" size="icon" aria-label="Fit View" title="Fit canvas" onClick={fitView}><Maximize2 className="size-4" /></Button>
       {(selectedIds.length > 0 || focusId) && <Button variant="ghost" size="icon" aria-label="Focus selected work" onClick={() => { cancelPending(); void fit(selectedIds.length ? selectedIds : [focusId]) }}><Focus className="size-4" /></Button>}
     </div></Panel>
     <Panel position="bottom-right" className="!m-3"><div role="toolbar" aria-label="Canvas tools" className="flex gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm">
