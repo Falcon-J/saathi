@@ -215,6 +215,7 @@ export function projectCanvas(input: {
       }
       nodes.push({ id, kind: "workspace", recordId: workspace.id, workspaceId: workspace.id,
         position: { x: columnX, y: rowY }, width, height, hidden: false, expanded,
+        ...(fitGraph ? { fitGraph: true } : {}),
         representation: expanded ? "detail" : input.zoom < 0.55 ? "compact" : "summary" })
       const orderedTasks = [...graph.tasks].sort((a, b) => textOrder(a.id, b.id))
       if (dense && !neighborhood) {

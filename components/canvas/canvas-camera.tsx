@@ -38,11 +38,23 @@ export function CanvasCamera({ contextIds, onFitWorkspace, nodes, focus, followi
   const input = focusId ? nodes.find(node => node.id === focusId) : nodes.find(node => !node.hidden)
   const internal = useInternalNode(input?.id ?? "")
   const layoutReady = (compact === undefined || compact === (width < 640)) && Boolean(input && internal && !internal.hidden && internal.internals.userNode === input)
+  const fittedWorkspace = focus.kind === "workspace" && input?.data?.fitGraph === true
+  const zoomToolbar = useRef<HTMLDivElement>(null)
   const resources = nodes.filter(node => node.type !== "task").map(node => node.id).join("|")
   const fit = useCallback((ids: string[]) => ids.length ? flow.fitView({ nodes: ids.map(id => ({ id })), padding: .15, duration: 0, minZoom: MIN_CANVAS_ZOOM, maxZoom: 1 }) : Promise.resolve(false), [flow])
   const fitContext = useCallback((ids: string[]) => width > 0 && height > 0
     ? flow.setViewport(getViewportForBounds(flow.getNodesBounds(ids), width, height, MIN_CANVAS_ZOOM, 1, .15), { duration: 0 })
     : Promise.resolve(false), [flow, width, height])
+  const fitWorkspace = useCallback(() => {
+    const toolbar = zoomToolbar.current
+    const canvas = toolbar?.closest(".react-flow")
+    const visibleHeight = toolbar && canvas
+      ? toolbar.getBoundingClientRect().top - canvas.getBoundingClientRect().top
+      : height
+    return width > 0 && visibleHeight > 0
+      ? flow.setViewport(getViewportForBounds(flow.getNodesBounds([focusId]), width, visibleHeight, MIN_CANVAS_ZOOM, 1, .15), { duration: 0 })
+      : Promise.resolve(false)
+  }, [flow, focusId, width, height])
   const fitAll = useCallback(() => fit(nodes.filter(node => !node.hidden && node.data?.contextGroup !== true).map(node => node.id)), [nodes, fit])
   const cancelPending = useCallback(() => { manual.current = true; interacted.current = true; pending.current = null; generation.current++; onManualNavigation() }, [onManualNavigation])
   const fitView = () => {
@@ -53,7 +65,7 @@ export function CanvasCamera({ contextIds, onFitWorkspace, nodes, focus, followi
         manual.current = false
         pending.current = key
       } else {
-        void fitContext([focusId])
+        void fitWorkspace()
       }
       return
     }
@@ -99,12 +111,12 @@ export function CanvasCamera({ contextIds, onFitWorkspace, nodes, focus, followi
     // Claim this camera intent before a synchronous viewport/store notification can re-enter.
     pending.current = null
     const request = generation.current
-    const result = focusId ? contextIds?.length ? fitContext(contextIds) : fit([focusId]) : fitAll()
+    const result = fittedWorkspace ? fitWorkspace() : focusId ? contextIds?.length ? fitContext(contextIds) : fit([focusId]) : fitAll()
     void result.then(applied => { if (!applied && request === generation.current && previous.current.key === key) pending.current = key })
       .catch(() => { if (request === generation.current && previous.current.key === key) pending.current = key })
-  }, [contextIds, compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitContext, fitAll, width, height, geometry])
+  }, [contextIds, compact, restoreReady, cameraKey, ready, key, focus.kind, focusId, followingAgent, resources, initialCamera, flow, layoutReady, internal, fit, fitContext, fitWorkspace, fittedWorkspace, fitAll, width, height, geometry])
   return <>
-    <Panel position="bottom-left" className="!m-3"><div role="toolbar" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm">
+    <Panel position="bottom-left" className="!m-3"><div ref={zoomToolbar} role="toolbar" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-xl border border-border bg-card p-1 shadow-sm">
       <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => { cancelPending(); void flow.zoomOut({ duration: 0 }) }}><Minus className="size-4" /></Button>
       <Button variant="ghost" size="sm" className="min-w-14 tabular-nums" aria-label={`Zoom ${formatCanvasZoom(zoom)}. Reset to 100%`} onClick={() => { cancelPending(); void flow.zoomTo(1, { duration: 0 }) }}>{formatCanvasZoom(zoom)}</Button>
       <Button variant="ghost" size="icon" aria-label="Zoom in" onClick={() => { cancelPending(); void flow.zoomIn({ duration: 0 }) }}><Plus className="size-4" /></Button>

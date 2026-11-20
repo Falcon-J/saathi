@@ -138,6 +138,9 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await canvas.getByRole('button', { name: 'Zoom in', exact: true }).click()
       await fit.click()
       await expectGraphFits()
+      await phone.setViewportSize({ width: 390, height: 500 })
+      await fit.click()
+      await expectGraphFits()
     } finally {
       await phone.close()
     }
