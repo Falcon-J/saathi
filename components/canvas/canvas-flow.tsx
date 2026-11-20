@@ -13,7 +13,7 @@ import type { CanvasReference } from "@/features/access/contracts"
 import type { Workspace } from "@/lib/data/workspaces"
 import { canvasHandleStyle, canvasNodeGeometry } from "./node-geometry"
 
-type NodeData = { title: string; subtitle?: string; description?: string; count?: number; relationship?: boolean; contextGroup?: boolean; focused?: boolean; representation: CanvasRepresentation; kind: "workspace" | "task" | "container" | "readiness"; expanded: boolean; open: () => void }
+type NodeData = { title: string; subtitle?: string; description?: string; count?: number; relationship?: boolean; fitGraph?: boolean; contextGroup?: boolean; focused?: boolean; representation: CanvasRepresentation; kind: "workspace" | "task" | "container" | "readiness"; expanded: boolean; open: () => void }
 type FlowNode = Node<NodeData, "workspace" | "task" | "container" | "readiness">
 
 const readinessLabels: Record<CanvasReadiness, string> = { ready: "Ready", waiting: "Waiting", completed_inconsistent: "Review", completed: "Completed" }
@@ -24,11 +24,11 @@ const CanvasRecord = memo(function CanvasRecord({ data }: NodeProps<FlowNode>) {
     <span>{data.title}</span><span className="tabular-nums">{data.count}</span>
   </Button>
   if (data.relationship) return <article className={`h-full w-full rounded-xl border bg-card shadow-sm ${data.focused ? "border-2 border-primary" : "border-border"}`}>
-    <Handle type="target" position={Position.Top} style={canvasHandleStyle} isConnectable={false} />
+    <Handle type="target" position={data.fitGraph ? Position.Right : Position.Top} style={canvasHandleStyle} isConnectable={false} />
     <Button variant="ghost" className="nodrag nopan h-full w-full flex-col items-start justify-center gap-3 whitespace-normal rounded-xl p-4 text-left" aria-label={`Open ${data.title}`} onClick={event => { event.stopPropagation(); data.open() }}>
       <h2 className="line-clamp-2 break-words text-base font-semibold">{data.title}</h2><span className="line-clamp-1 text-sm text-muted-foreground">{data.subtitle}</span>
     </Button>
-    <Handle type="source" position={Position.Bottom} style={canvasHandleStyle} isConnectable={false} />
+    <Handle type="source" position={data.fitGraph ? Position.Right : Position.Bottom} style={canvasHandleStyle} isConnectable={false} />
   </article>
   const workspace = data.kind !== "task"
   const container = data.kind === "container"
@@ -54,7 +54,7 @@ const ariaLabels = {
 
 import { CanvasCamera, type CanvasCameraHandle, type CanvasTool } from "./canvas-camera"
 import { readCanvasCamera, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM } from "./camera-utils"
-export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true, compact }: {
+export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup, onZoom, onViewportWidthChange, onManualNavigation, resources, references = [], onOpenResource, workspaces, focus, followingAgent, ready = true, restoreReady = true, compact, onFitWorkspace }: {
   projection: CanvasProjection
   cameraKey: string
   onOpen: (focus: CanvasFocus) => void
@@ -69,6 +69,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
   focus: CanvasFocus
   followingAgent: boolean
   compact?: boolean
+  onFitWorkspace?: () => boolean
   restoreReady?: boolean
   ready?: boolean
 }) {
@@ -90,7 +91,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     if (node.kind === "readiness") {
       const title = readinessLabels[node.readiness!]
       return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
-        hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height, node.relationship),
+        hidden: node.hidden, draggable: false, selectable: true, ...canvasNodeGeometry(node.width, node.height, node.fitGraph ? "right" : node.relationship ? "vertical" : "horizontal"),
         ariaLabel: `${title}, ${node.count} tasks`, data: { title, count: node.count, representation: node.representation,
           kind: node.kind, expanded: false, open: () => events.current.onOpenGroup(node.workspaceId, node.readiness!) } }
     }
@@ -99,9 +100,9 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
       : grouped ? undefined : `${readiness?.ready.length ?? 0} ready · ${readiness?.waiting.length ?? 0} waiting`
     const contextGroup = Boolean(taskFocus && node.kind === "workspace")
     return { id: node.id, type: node.kind, position: node.position, parentId: node.parentId,
-      hidden: node.hidden, draggable: false, selectable: !contextGroup, focusable: !contextGroup, ...(contextGroup ? { style: { pointerEvents: "none" as const } } : {}), ...canvasNodeGeometry(node.width, node.height, node.relationship),
+      hidden: node.hidden, draggable: false, selectable: !contextGroup, focusable: !contextGroup, ...(contextGroup ? { style: { pointerEvents: "none" as const } } : {}), ...canvasNodeGeometry(node.width, node.height, node.fitGraph ? "right" : node.relationship ? "vertical" : "horizontal"),
       ariaLabel: contextGroup ? undefined : `${task?.title ?? workspace.name}${subtitle ? `, ${subtitle}` : ""}`,
-      data: { title: task?.title ?? workspace.name, relationship: node.relationship, contextGroup, focused: taskFocus?.taskId === task?.id, description: grouped ? undefined : task?.description ?? workspace.summary,
+      data: { title: task?.title ?? workspace.name, relationship: node.relationship, fitGraph: node.fitGraph, contextGroup, focused: taskFocus?.taskId === task?.id, description: grouped ? undefined : task?.description ?? workspace.summary,
         subtitle, representation: node.representation, kind: node.kind, expanded: node.expanded,
         open: () => events.current.onOpen(task ? { kind: "task", workspaceId: node.workspaceId, taskId: task.id } : { kind: "workspace", workspaceId: node.workspaceId }) } }
     })
@@ -159,7 +160,7 @@ export default function CanvasFlow({ projection, cameraKey, onOpen, onOpenGroup,
     ariaLabelConfig={ariaLabels} proOptions={{ hideAttribution: false }}>
     <Background gap={24} size={1} />
     {Boolean(projection.omittedTaskCount) && <Panel position="top-right" className="!m-3 max-w-52"><p role="status" className="rounded-lg border border-border bg-card p-2 text-xs">{projection.omittedTaskCount} more blockers. Open Task details to inspect all prerequisites.</p></Panel>}
-    <CanvasCamera contextIds={contextIds} nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} compact={compact} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
+    <CanvasCamera onFitWorkspace={onFitWorkspace} contextIds={contextIds} nodes={nodes} focus={focus} followingAgent={followingAgent} cameraKey={cameraKey} initialCamera={initialCamera} compact={compact} restoreReady={restoreReady} ready={ready} onViewportWidthChange={onViewportWidthChange}
       controllerRef={controller} tool={tool} onToolChange={setTool} onZoom={onZoom} onManualNavigation={onManualNavigation} />
   </ReactFlow>
 }

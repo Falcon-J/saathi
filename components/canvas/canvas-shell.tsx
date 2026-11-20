@@ -70,6 +70,7 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const [tasksMounted, setTasksMounted] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [compactCanvas, setCompactCanvas] = useState(false)
+  const [fitWorkspaceId, setFitWorkspaceId] = useState<string>()
   const reportCanvasWidth = useCallback((width: number) => setCompactCanvas(width < 640), [])
   const [createOpen, setCreateOpen] = useState(false)
   const [createTarget, setCreateTarget] = useState<WorkspaceCreationTarget | null>(null)
@@ -84,9 +85,10 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
   const dirtyEditorTask = useRef<string | undefined>(undefined)
   const currentScope = useRef(workspace?.id)
   useLayoutEffect(() => { currentScope.current = workspace?.id }, [workspace?.id])
-  const projection = useMemo(() => projectCanvas({ graphs, resources: companies.resources, navigation: currentNavigation, zoom, compact: compactCanvas, relationships: true }), [graphs, companies.resources, currentNavigation, zoom, compactCanvas])
+  const projection = useMemo(() => projectCanvas({ graphs, resources: companies.resources, navigation: currentNavigation, zoom, compact: compactCanvas, fitWorkspaceId, relationships: true }), [graphs, companies.resources, currentNavigation, zoom, compactCanvas, fitWorkspaceId])
   const tasks = useMemo(() => graph.entry?.graph.tasks ?? [], [graph.entry])
   const focused = currentNavigation.focus
+  const fittedWorkspace = compactCanvas && focused.kind === "workspace" && fitWorkspaceId === focused.workspaceId
   const breadcrumbs = canvasBreadcrumbs(focused, companies.resources, store.workspaces, tasks)
   const locationButton = useRef<HTMLButtonElement | null>(null)
   const workTools = useRef<HTMLSelectElement | null>(null)
@@ -382,7 +384,11 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
         : companies.error ? <div role="alert" className="m-6 space-y-3"><p>{companies.error}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
         : !workspace && store.workspaces.length === 0 && companies.resources.length === 0 ? <div className="grid h-full place-items-center"><div className="space-y-4 text-center"><h2 className="text-2xl font-semibold">Create a workspace</h2><Button onClick={beginCreateWorkspace}>Create workspace</Button></div></div>
         : graph.error || accessDenied ? <div role="alert" className="m-6 space-y-3"><p>{graph.error ?? "Workspace unavailable or access denied"}</p><Button onClick={() => void refreshAll()}>Try again</Button></div>
-        : <><div role="region" aria-label="Workspace canvas" className={`relative min-w-0 ${showWorkArea ? "h-[min(55dvh,30rem)] min-h-80 lg:h-full lg:min-h-0" : "h-full min-h-80"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow compact={compactCanvas} restoreReady={locationInitialized} projection={projection} cameraKey={`${cameraStorageKey(scope)}:blockers-v1`} onOpen={focus => open(focus)} ready={!graph.loading && !companies.loading && !companies.error}
+        : <><div role="region" aria-label="Workspace canvas" className={`relative min-w-0 ${showWorkArea ? "h-[min(55dvh,30rem)] min-h-80 lg:h-full lg:min-h-0" : "h-full min-h-80"}`}><ReactFlowProvider key={`${actorId}:${scope.canvasId}`}><CanvasFlow onFitWorkspace={() => {
+            if (focused.kind !== "workspace" || fitWorkspaceId === focused.workspaceId) return false
+            setFitWorkspaceId(focused.workspaceId)
+            return true
+          }} compact={compactCanvas} restoreReady={locationInitialized} projection={projection} cameraKey={`${cameraStorageKey(scope)}:blockers-v1${fittedWorkspace ? ":workspace-graph" : ""}`} onOpen={focus => open(focus)} ready={!graph.loading && !companies.loading && !companies.error}
           resources={companies.resources} references={companies.references} workspaces={store.workspaces} focus={currentNavigation.focus} followingAgent={navigation.followingAgent} onOpenResource={id => open({ kind: "resource", resourceId: id })}
           onViewportWidthChange={reportCanvasWidth}
           onZoom={value => setZoom(previous => (previous < 0.55) === (value < 0.55) ? previous : value)}

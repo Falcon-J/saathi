@@ -244,3 +244,23 @@ const navigation=navigateCanvas(createCanvasNavigation(scope),{kind:'task',works
 const y=(id:string)=>result.nodes.find(n=>n.kind==='task'&&n.recordId===id)!.position.y;
 assert.equal(y('focus')-y('a-blocker'),160);assert.deepEqual(result.nodes.filter(n=>n.kind==='task'&&!n.hidden).map(n=>n.recordId).sort(),['a-blocker','focus']);
 })
+
+test("Fit View reveals the complete focused workspace graph below summary zoom", () => {
+  const entry = graph([task("brief"), task("notes"), task("handoff")])
+  entry.graph.dependencies = [
+    { workspaceId: "w", prerequisiteTaskId: "brief", dependentTaskId: "handoff" },
+    { workspaceId: "w", prerequisiteTaskId: "notes", dependentTaskId: "handoff" },
+  ]
+  const navigation = navigateCanvas(createCanvasNavigation(scope), { kind: "workspace", workspaceId: "w" }, "manual")
+  const options = { graphs: [entry, graph([task("elsewhere", "other")], "other")], navigation, zoom: 0.4, compact: true }
+  const fitted = projectCanvas({ ...options, fitWorkspaceId: "w" })
+  const cards = fitted.nodes.filter(node => node.kind === "task" && !node.hidden)
+  const frame = fitted.nodes.find(node => node.id === workspaceNodeId("w"))!
+  assert.deepEqual(cards.map(node => node.recordId).sort(), ["brief", "handoff", "notes"])
+  assert.equal(fitted.edges.filter(edge => !edge.hidden).length, 2)
+  assert.ok(cards.every(card => card.position.x + card.width + 32 <= frame.width &&
+    card.position.y + card.height < frame.height), "the frame contains the cards and their edge gutter")
+  assert.equal(fitted.nodes.some(node => node.kind === "readiness" && !node.hidden), false)
+  assert.equal(new Set(cards.map(card => card.position.x)).size, 1)
+  assert.equal(projectCanvas(options).nodes.filter(node => node.kind === "readiness" && !node.hidden).length, 4)
+})
