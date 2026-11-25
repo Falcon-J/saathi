@@ -47,7 +47,8 @@ function harness(options = {}) {
     go(delta){const next=position+delta;if(next<0||next>=entries.length)return;position=next;browser.dispatchEvent({type:'popstate',state:history.state})},
     back(){history.go(-1)},forward(){history.go(1)},
   }
-  const browser={history,get location(){return new URL(entries[position].url,'https://saathi.test')},dispatchEvent(event){let stopped=false;event.stopImmediatePropagation=()=>{stopped=true;event.cancelBubble=true};for(const item of [...(handlers.get(event.type)??[])]){if(stopped)break;if(handlers.get(event.type)?.includes(item))item.handler(event)}},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true },addEventListener(name,handler,options){listeners.set(name,handler);handlers.set(name,[...(handlers.get(name)??[]),{handler,capture:options?.capture??false}])},removeEventListener(name,handler,options){handlers.set(name,(handlers.get(name)??[]).filter(item=>item.handler!==handler||item.capture!==(options?.capture??false)))}}
+  const layoutStore={'saathi:layout':options.layout??'map'}
+  const browser={history,localStorage:{getItem:key=>layoutStore[key]??null,setItem(key,value){layoutStore[key]=String(value)}},get location(){return new URL(entries[position].url,'https://saathi.test')},dispatchEvent(event){let stopped=false;event.stopImmediatePropagation=()=>{stopped=true;event.cancelBubble=true};for(const item of [...(handlers.get(event.type)??[])]){if(stopped)break;if(handlers.get(event.type)?.includes(item))item.handler(event)}},confirm: () => { calls.push("confirm"); return options.confirm?.() ?? true },addEventListener(name,handler,options){listeners.set(name,handler);handlers.set(name,[...(handlers.get(name)??[]),{handler,capture:options?.capture??false}])},removeEventListener(name,handler,options){handlers.set(name,(handlers.get(name)??[]).filter(item=>item.handler!==handler||item.capture!==(options?.capture??false)))}}
   historyModule.installHistoryPositions(browser)
   if(options.nextUnmountsCanvas)browser.addEventListener('popstate',()=>{if(browser.location.pathname==='/dashboard'){calls.push('next-unmount');unmount()}})
   // Model installed Next's public history wrapper: marked writes bypass canonical restoration.
@@ -58,7 +59,7 @@ function harness(options = {}) {
   if(options.previousUrl)history.pushState({__NA:true,tree:['next']},'',options.url??'/canvas')
   const jsx = (type, props) => ({ type, props })
   const deps = { '@/features/canvas/view-state': { readCanvasView: scope => require('../../features/canvas/view-state.ts').readCanvasView(scope,options.preferences), saveCanvasView: (scope,focus) => require('../../features/canvas/view-state.ts').saveCanvasView(scope,focus,options.preferences) }, 'next/navigation': { useRouter: () => ({ push: path => calls.push(['navigate',path]), replace:path=>calls.push(['replace',path]) }) }, '@/app/actions/workspace-intent': { generateWorkspaceDraft: async () => ({}), createWorkspaceFromPlan: async () => ({}) }, '@/app/actions/workspace-advisor': { confirmWorkspaceAdvisorDraft: async () => ({}) }, react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/dynamic': { default: () => 'CanvasFlow' }, 'next/link': { default: 'Link' }, '@xyflow/react': { ReactFlowProvider: 'ReactFlowProvider' },
-    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map', 'Sparkles'].map(key => [key, key])),
+    'lucide-react': Object.fromEntries(['ArrowLeft', 'Building2', 'ChevronDown', 'List', 'MoreHorizontal', 'Plus', 'RefreshCw', 'X', 'Map', 'Sparkles', 'Columns3'].map(key => [key, key])),
     '@/hooks/use-workspaces': { useWorkspaces: () => store }, '@/hooks/use-canvas-graph': { useCanvasGraph: () => graph }, './use-canvas-resources': { useCanvasResources: () => companies },
     '@/features/canvas/model': require('../../features/canvas/model.ts'), '@/features/canvas/navigation-url': require('../../features/canvas/navigation-url.ts'), '@/lib/browser-history':historyModule, '@/lib/identity': require('../../lib/identity.ts'), '@/lib/mutation-result': require('../../lib/mutation-result.ts'), '@/lib/task-permission': require('../../lib/task-permission.ts'), '@/lib/capability-ceiling': require('../../lib/capability-ceiling.ts'), '@/features/access/contracts': { ACCESS_CAPABILITIES: ['read', 'create', 'edit', 'comment', 'manage', 'delete'] },
     '@/app/tasks/actions': { toggleTask() {} }, '@/app/actions/workspaces': { archiveWorkspace() {}, deleteWorkspace() {}, transferWorkspaceOwnership() {} },
@@ -66,6 +67,7 @@ function harness(options = {}) {
   for (const [path, exports] of Object.entries({ '@/components/workspace-board': ['WorkspaceBoard'], '@/components/theme-menu-items': ['ThemeMenuItems'], '@/components/workspace-create-form': ['WorkspaceCreateForm'], '@/components/workspace-advisor': ['WorkspaceAdvisor'], '@/components/task-import': ['TaskImport'], '@/components/next-work-view': ['NextWorkView'], '@/components/member-manager': ['MemberManager'], '@/components/workspace-settings': ['WorkspaceSettings'], '@/components/activity-history': ['ActivityHistory'], '@/components/ui/dropdown-menu': ['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem', 'DropdownMenuSeparator'], '@/components/ui/button': ['Button'], '@/components/ui/dialog': ['Dialog', 'DialogContent', 'DialogDescription', 'DialogHeader', 'DialogTitle'], './canvas-command-bar': ['CanvasCommandBar'], './company-panel': ['CompanyPanel'], './agent-activity': ['AgentActivity'], './contextual-workspace-create': ['ContextualWorkspaceCreate'] })) deps[path] = Object.fromEntries(exports.map(key => [key, key]))
   const exports = {}
   deps['./canvas-task-panel']={CanvasTaskPanel:'CanvasTaskPanel'}
+  deps['./work-board']={WorkBoard:'WorkBoard'}
   deps['@/components/invitation-notifications']={InvitationNotifications:'InvitationNotifications'}
   deps['@/lib/auth-simple']={logout:async()=>({success:true})}
   deps['@/lib/draft-storage']={clearAccountDrafts(prefix){calls.push(['clear-drafts',prefix])}}
@@ -434,4 +436,19 @@ ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',worksp
 assert.equal(ui.render().find(n=>n.type==='WorkspaceBoard').props.active,true);
 ui.render().find(n=>n.type==='CanvasCommandBar').props.onWorkspace();
 const tree=ui.render();assert.ok(tree.find(n=>n.props?.hidden===true&&nodes(n).some(c=>c.type==='WorkspaceBoard')));assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.active,false);
+})
+test('an opened workspace reads as lanes by default and Map brings the graph back',()=>{
+ const ui=harness({layout:'board',store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ let tree=ui.render();const board=tree.find(n=>n.type==='WorkBoard');assert.ok(board);assert.equal(tree.some(n=>n.type==='CanvasFlow'),false)
+ assert.equal(board.props.tasks.length>0,true);assert.equal(tree.find(n=>n.props?.['aria-label']==='Workspace layout')?.props.role,'group')
+ const map=tree.find(n=>n.type==='Button'&&n.props['aria-pressed']===false&&n.props.onClick&&JSON.stringify(n.props.children).includes('Map'))
+ map.props.onClick();tree=ui.render();assert.ok(tree.find(n=>n.type==='CanvasFlow'));assert.equal(tree.some(n=>n.type==='WorkBoard'),false)
+})
+test('the board hides the duplicate side list and opens the summary for a chosen task',()=>{
+ const ui=harness({layout:'board',store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ let tree=ui.render();const aside=tree.find(n=>n.type==='aside');assert.match(aside.props.className,/\bhidden\b/)
+ tree.find(n=>n.type==='WorkBoard').props.onInspect('t');tree=ui.render()
+ assert.doesNotMatch(tree.find(n=>n.type==='aside').props.className,/\bhidden\b/);assert.equal(tree.find(n=>n.type==='CanvasTaskPanel').props.selectedTask.id,'t')
 })

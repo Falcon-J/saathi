@@ -697,6 +697,8 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
     const sharedTaskUrl = base + '/canvas?workspace=' + workspace + '&task=' + agentTaskId + '&view=tasks'
     for (const user of [users[0], users[2]]) {
       const guestContext = await page.context().browser().newContext({ viewport: { width: 360, height: 800 } })
+  // These journeys drive the graph; the board has its own checks.
+  await guestContext.addInitScript(() => { try { localStorage.setItem('saathi:layout', 'map') } catch {} })
       try {
         const guest = await guestContext.newPage(), guestErrors = []
         guest.on('pageerror', () => guestErrors.push(true))
