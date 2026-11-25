@@ -238,7 +238,7 @@ test('company and overview commands never expose an unrelated workspace action',
 });
 
 test('native phone viewport keeps zoom available and opts into content resizing',()=>{
- const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/history-position-provider':{HistoryPositionProvider:'HistoryPositionProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'./globals.css':{}});
+ const layout=load('app/layout.tsx',{...runtime,'@/components/theme-provider':{ThemeProvider:'ThemeProvider'},'@/components/history-position-provider':{HistoryPositionProvider:'HistoryPositionProvider'},'@/components/ui/toaster':{Toaster:'Toaster'},'geist/font/mono':{GeistMono:{variable:'font-geist-mono'}},'@fontsource-variable/inter':{},'./globals.css':{}});
  assert.equal(layout.viewport.width,'device-width');assert.equal(layout.viewport.initialScale,1);
  assert.notEqual(layout.viewport.viewportFit,'cover');assert.equal(layout.viewport.interactiveWidget,'resizes-content');
  assert.notEqual(layout.viewport.userScalable,false);assert.equal(layout.viewport.maximumScale,undefined);
