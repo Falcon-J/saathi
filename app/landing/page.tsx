@@ -1,47 +1,48 @@
 import Link from "next/link"
-import { CanvasPreview } from "@/components/canvas-preview"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SaathiLogo } from "@/components/saathi-logo"
+import { LiveFlow } from "@/components/live-flow"
+
+const points = [
+  ["Tasks unlock themselves", "Say what waits on what. Finished work moves the next task to Up next."],
+  ["Agents work under a lease", "Agents claim ready tasks over MCP. If one crashes, its lease expires and the task comes back."],
+  ["You stay in charge", "Work an agent hands back waits for your review before it counts as done."],
+]
 
 export default function LandingPage() {
   return (
-    <main className="saathi-shell min-h-screen overflow-hidden">
-      <section id="product" className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-background">
-        <div className="absolute inset-y-0 right-0 z-0 hidden w-[58%] border-l border-border bg-muted lg:block"><CanvasPreview fit="meet" className="size-full" /></div>
-        <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-4 pt-5 sm:px-6 lg:px-8">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Saathi home">
-            <SaathiLogo className="size-9" priority />
-            <span className="text-lg font-semibold tracking-tight">Saathi</span>
+    <main id="product" className="grid min-h-[100svh] bg-background text-foreground lg:grid-cols-[minmax(26rem,36rem)_minmax(0,1fr)]">
+      <div className="flex min-h-[100svh] flex-col px-5 py-5 sm:px-8 lg:px-12">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Saathi home">
+            <SaathiLogo className="size-8 border-border bg-card p-1" priority />
+            <span className="saathi-display text-lg">Saathi</span>
           </Link>
-
+          <Link href="/login" className="inline-flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-foreground hover:bg-muted">Sign in</Link>
         </div>
-        <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 items-center justify-center px-4 pb-8 pt-8 text-center sm:px-6 lg:items-center lg:justify-start lg:px-8 lg:pb-16 lg:pt-0 lg:text-left">
-          <div className="w-full max-w-[20rem] sm:max-w-[22rem]">
-            <h1 className="max-w-[20rem] text-[clamp(2.75rem,12vw,3.75rem)] font-semibold leading-[0.98] tracking-[-0.06em] text-foreground sm:max-w-[22rem] sm:text-6xl lg:text-6xl">
+        <div className="flex flex-1 items-center py-12">
+          <div className="mx-auto w-full max-w-md">
+            <p className="saathi-label text-muted-foreground">Task coordination for people and agents</p>
+            <h1 className="mt-3 text-5xl leading-[1.02] sm:text-6xl">
               Turn shared intent into <span className="text-primary">clear progress.</span>
             </h1>
-            <div className="mt-8 flex flex-row flex-wrap items-center justify-center gap-2 sm:flex-nowrap lg:justify-start">
-              <Button asChild size="lg" className="rounded-full">
+            <div className="mt-8 flex flex-row flex-wrap items-center gap-2">
+              <Button asChild size="lg">
                 <Link href="/register">Create your workspace <ArrowRight className="size-4" /></Link>
               </Button>
-              <Link href="/login" className="inline-flex min-h-11 items-center px-4 text-sm font-medium text-foreground">Sign in</Link>
+              <Button asChild size="lg" variant="ghost"><Link href="/guide" className="whitespace-nowrap">See how it works</Link></Button>
             </div>
-            <div className="mt-6 flex justify-center lg:justify-start">
-              <Link href="/guide" className="whitespace-nowrap rounded-full border border-border bg-card/85 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur transition-colors hover:bg-card">
-                See how it works
-              </Link>
-            </div>
+            <ul className="mt-10 space-y-4 border-t border-border pt-6">
+              {points.map(([title, body]) => <li key={title}><p className="text-sm font-semibold">{title}</p><p className="mt-0.5 text-sm leading-6 text-muted-foreground">{body}</p></li>)}
+            </ul>
           </div>
-
         </div>
-
-        <div className="relative z-10 mx-4 mb-4 h-44 overflow-hidden rounded-[1.5rem] sm:h-52 lg:hidden" aria-hidden="true">
-          <CanvasPreview className="size-full" />
-        </div>
-
-      </section>
-
+      </div>
+      <aside aria-label="How Saathi coordinates work" className="relative hidden min-h-[100svh] flex-col justify-center gap-6 overflow-hidden border-l border-border bg-card/40 px-10 py-10 lg:flex">
+        <p className="saathi-label text-muted-foreground">Live path</p>
+        <LiveFlow className="h-auto max-h-[80svh] w-full" />
+      </aside>
     </main>
   )
 }

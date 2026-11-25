@@ -1,16 +1,15 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
-import { LiveFlow } from "@/components/live-flow"
+import { AuthShell } from "@/components/auth-shell"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 import { login, signup } from "@/lib/auth-simple"
 import { safeAuthRedirect } from "@/lib/supabase/auth-boundary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useNotifications } from "@/hooks/use-notifications"
-import { SaathiLogo } from "@/components/saathi-logo"
 
 interface AuthFormProps {
   mode: "login" | "signup"
@@ -90,27 +89,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   return (
-    <main className="grid min-h-[100svh] bg-background text-foreground lg:grid-cols-[minmax(26rem,34rem)_minmax(0,1fr)]">
-      <div className="flex min-h-[100svh] flex-col px-5 py-5 sm:px-8 lg:px-12">
-        <header className="flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Saathi home">
-            <SaathiLogo className="size-8 border-border bg-card p-1" priority />
-            <span className="saathi-display text-lg text-foreground">Saathi</span>
-          </Link>
-          <Link href="/" className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back
-          </Link>
-        </header>
-
-        <div className="flex flex-1 items-center py-10">
-          <section className="mx-auto w-full max-w-sm">
-            <div>
-              <p className="saathi-label text-muted-foreground">{isSignup ? "Get started" : "Welcome back"}</p>
-              <h1 className="mt-2 text-4xl leading-none text-foreground">{isSignup ? "Create an account" : "Sign in"}</h1>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{isSignup ? "One task graph for you and your agents." : "Pick up where your team and agents left off."}</p>
-            </div>
-
+    <AuthShell eyebrow={isSignup ? "Get started" : "Welcome back"} title={isSignup ? "Create an account" : "Sign in"} description={isSignup ? "One task graph for you and your agents." : "Pick up where your team and agents left off."}>
               {passwordResetComplete && !confirmation && <div role="status" className="mt-5 rounded-xl border border-primary/30 bg-accent p-4 text-sm leading-5 text-accent-foreground"><p className="font-semibold text-foreground">Password updated</p><p className="mt-1">Sign in with your new password.</p></div>}
 
               {confirmation ? (
@@ -158,18 +137,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 {isSignup ? "Already have an account?" : "New to Saathi?"}{" "}
                 <Link href={isSignup ? signInHref : registerHref} className="font-semibold text-primary hover:underline">{isSignup ? "Sign in" : "Create an account"}</Link>
               </p>
-          </section>
-        </div>
-      </div>
-      <aside aria-label="How Saathi coordinates work" className="relative hidden min-h-[100svh] flex-col justify-center gap-6 overflow-hidden border-l border-border bg-card/40 px-10 py-10 lg:flex">
-        <div className="max-w-xl">
-          <p className="saathi-label text-muted-foreground">Live path</p>
-          <p className="saathi-display mt-2 text-3xl leading-tight text-foreground">People and agents, one task graph.</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">Finished work unlocks the next task. Agents claim under a lease, so a crashed agent never holds work hostage.</p>
-        </div>
-        <LiveFlow className="h-auto max-h-[70svh] w-full" />
-      </aside>
-    </main>
+    </AuthShell>
   )
 }
 

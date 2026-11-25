@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AppPage } from '../../../components/app-page'
 import { redirect } from 'next/navigation'
 import { getSession } from '../../../lib/auth-simple'
 import { createClient } from '../../../lib/supabase/server'
@@ -28,11 +29,8 @@ export default async function McpConsentPage({ searchParams }: { searchParams: P
   } catch { return <main className="mx-auto max-w-2xl space-y-4 p-8"><h1 className="text-2xl font-semibold">Authorization unavailable</h1><p>Start a new connection from your agent. If you previously revoked access, disconnect it in Connections before reconnecting.</p><Link href="/connections" className="underline">Connections</Link></main> }
   if (destination) redirect(destination)
   const workspaces = [...await listWorkspaces(session.id), ...await listWorkspaces(session.id, true)].map(workspace => ({ id: workspace.id, name: workspace.name }))
-  return <main className="mx-auto min-h-screen max-w-2xl space-y-6 px-4 py-8 sm:px-6">
-    <Link href="/canvas" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
-    <h1 className="text-2xl font-semibold">Connect {details!.client.name}</h1>
-    <p className="break-all text-sm text-muted-foreground">Return to {new URL(details!.redirect_uri).origin}</p>
+  return <AppPage width="max-w-2xl" eyebrow="Connect an agent" title={`Connect ${details!.client.name}`} description={<span className="break-all">Return to {new URL(details!.redirect_uri).origin}</span>}>
     <McpConsentForm authorizationId={authorizationId} workspaces={workspaces} />
     <p className="text-sm">Identity information requested: {details!.scope || 'email'}. Application permissions are controlled separately above. Revoke access in <Link href="/connections" className="underline">Connections</Link>.</p>
-  </main>
+  </AppPage>
 }
