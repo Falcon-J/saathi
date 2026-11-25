@@ -1,11 +1,553 @@
-import { redirect } from "next/navigation"
-import { canvasUrl } from "@/features/canvas/navigation-url"
+"use client"
 
-export const dynamic = "force-dynamic"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Archive, ChevronDown, CircleHelp, History, Keyboard, LayoutGrid, LogOut, MoreHorizontal, PanelLeft, Plus, RefreshCw, Settings, Sparkles } from "lucide-react"
+import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
+import { archiveWorkspace, deleteWorkspace, transferWorkspaceOwnership } from "@/app/actions/workspaces"
+import { DashboardNavigation } from "@/components/dashboard-navigation"
+import { WorkspaceAdvisor } from "@/components/workspace-advisor"
+import { confirmWorkspaceAdvisorDraft } from "@/app/actions/workspace-advisor"
+import { workspaceViewFromHash, type WorkspaceView } from "@/lib/dashboard-navigation"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ActivityHistory } from "@/components/activity-history"
+import { MemberManager } from "@/components/member-manager"
+import { PageLoader } from "@/components/page-loader"
+import { SaathiLogo } from "@/components/saathi-logo"
+import { TaskImport } from "@/components/task-import"
+import { WorkspaceBoard } from "@/components/workspace-board"
+import { WorkspaceSettings } from "@/components/workspace-settings"
+import { getDashboardState } from "@/lib/dashboard-state"
+import type { WorkspacePlan } from "@/lib/workspace-intent"
+import { WorkspaceCreateForm } from "@/components/workspace-create-form"
+import { WorkspaceOverview } from "@/components/workspace-overview"
+import { NextWorkView } from "@/components/next-work-view"
+import { permitsCapability } from "@/lib/capability-ceiling"
+import { WorkspaceSwitcher } from "@/components/workspace-switcher"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useNotifications } from "@/hooks/use-notifications"
+import { useWorkspaces } from "@/hooks/use-workspaces"
+import { getSession, logout } from "@/lib/auth-simple"
+import { getFeatureCapabilities } from "@/app/actions/capabilities"
+import { normalizeEmail } from "@/lib/identity"
+import { removeDraft, clearAccountDrafts } from "@/lib/draft-storage"
+import { getMutationError, getThrownErrorMessage } from "@/lib/mutation-result"
 
-/** The legacy dashboard is retired: the canvas is Saathi's only home. Old links keep working. */
-export default async function DashboardRedirect({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
-  const params = await searchParams ?? {}
-  const workspace = typeof params.workspace === "string" && params.workspace ? params.workspace : undefined
-  redirect(workspace ? canvasUrl({ focus: { kind: "workspace", workspaceId: workspace }, view: null, group: null }) : "/canvas")
+type SessionUser = { id: string; email: string; username: string }
+export default function Dashboard() {
+  const [user, setUser] = useState<SessionUser | null>(null)
+  const creationActor = useRef(user?.id)
+  useLayoutEffect(() => { creationActor.current = user?.id }, [user?.id])
+  const [loading, setLoading] = useState(true)
+  const [askOpen, setAskOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => typeof window === "undefined" ? "overview" : workspaceViewFromHash(window.location.hash))
+  const viewRef = useRef(workspaceView)
+  useLayoutEffect(() => { viewRef.current = workspaceView }, [workspaceView])
+  const dirtyRef = useRef(false)
+  const draftScopeRef = useRef<string | undefined>(undefined)
+  const taskGraphRefresh = useRef<{ scope: string; refresh: () => Promise<boolean> } | null>(null)
+  const discardDrafts = useCallback(() => {
+    if (dirtyRef.current && draftScopeRef.current) {
+      const suffixes = viewRef.current === "settings" ? [":settings"] : viewRef.current === "board" ? [":quick-add", ":task-editor"] : [":quick-add"]
+      for (const suffix of suffixes) removeDraft(draftScopeRef.current + suffix)
+    }
+    dirtyRef.current = false
+  }, [])
+  const onDirtyChange = useCallback((dirty: boolean) => { dirtyRef.current = dirty }, [])
+  const confirmLeave = useCallback(() => {
+    if (dirtyRef.current && !window.confirm("Discard unsaved changes before leaving this view?")) return false
+    return true
+  }, [])
+  const navigateTo = useCallback((view: WorkspaceView) => {
+    if (view === viewRef.current) return true
+    if (!confirmLeave()) return false
+    discardDrafts()
+    const hash = { overview: "#workspace-header", board: "#project-board", team: "#team-panel", activity: "#activity-history", settings: "#settings-panel" }[view]
+    setWorkspaceView(view)
+    viewRef.current = view
+    if (window.location.hash !== hash) window.history.pushState(null, "", hash)
+    return true
+  }, [confirmLeave, discardDrafts])
+  const [taskToOpen, setTaskToOpen] = useState<string | null>(null)
+  const [quickAddRequest, setQuickAddRequest] = useState(0)
+  const [boardRefreshRequest, setBoardRefreshRequest] = useState(0)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isMac, setIsMac] = useState(false)
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState<string | null>(null)
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null)
+  const welcomeShownRef = useRef(false)
+  const [capabilities, setCapabilities] = useState({ aiWorkspace: false, csvImport: false })
+  const aiWorkspaceEnabled = capabilities.aiWorkspace
+  const router = useRouter()
+  const { success, error, info } = useNotifications()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const session = await getSession()
+        if (!session) {
+          router.replace("/login")
+          return
+        }
+        setUser(session)
+        try {
+          setCapabilities(await getFeatureCapabilities())
+        } catch {
+          setCapabilities({ aiWorkspace: false, csvImport: false })
+        }
+        const welcomeKey = `saathi:welcome:${session.email}`
+        try {
+          if (!sessionStorage.getItem(welcomeKey) && !welcomeShownRef.current) {
+            welcomeShownRef.current = true
+            info("Welcome back", `${session.username}, your workspace is ready.`)
+            sessionStorage.setItem(welcomeKey, "true")
+          }
+        } catch { /* Optional welcome storage must not block a valid session. */ }
+      } catch (authError) {
+        setAuthErrorMessage("Account service is temporarily unavailable.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void checkAuth()
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "auth-change") void checkAuth()
+    }
+    window.addEventListener("storage", handleStorageChange)
+    return () => window.removeEventListener("storage", handleStorageChange)
+  }, [info, router])
+
+  useEffect(() => {
+    setIsMac(navigator.platform.toUpperCase().includes("MAC") || navigator.userAgent.includes("Mac OS X"))
+  }, [])
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const next = workspaceViewFromHash(window.location.hash)
+      if (next === viewRef.current) return
+      if (!confirmLeave()) {
+        const hash = { overview: "#workspace-header", board: "#project-board", team: "#team-panel", activity: "#activity-history", settings: "#settings-panel" }[viewRef.current]
+        window.history.pushState(null, "", hash)
+        return
+      }
+      discardDrafts()
+      viewRef.current = next
+      setWorkspaceView(next)
+    }
+    window.addEventListener("hashchange", handleHashChange)
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (dirtyRef.current) { event.preventDefault(); event.returnValue = "" }
+    }
+    window.addEventListener("beforeunload", beforeUnload)
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange)
+      window.removeEventListener("beforeunload", beforeUnload)
+    }
+  }, [confirmLeave, discardDrafts])
+
+  const {
+    workspaces,
+    loading: workspacesLoading,
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    tasks,
+    createWorkspace,
+    addTask,
+    toggleTask,
+    addMember,
+    removeMember,
+    refreshWorkspaces,
+    workspaceError,
+    taskError,
+    tasksLoading,
+    realtime,
+  } = useWorkspaces(user?.email && !loading ? user.email : undefined, { loadTasks: false })
+
+  useEffect(() => {
+    if (!user || loading || workspacesLoading || workspaceError) return
+    const params = new URLSearchParams(window.location.search)
+    const requested = params.get("workspace")
+    if (!requested) return
+    if (workspaces.some(workspace => workspace.id === requested)) setCurrentWorkspaceId(requested)
+    params.delete("workspace")
+    const query = params.toString()
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`)
+  }, [user, loading, workspacesLoading, workspaceError, workspaces, setCurrentWorkspaceId])
+
+  const currentWorkspace = workspaces.find((workspace) => workspace.id === currentWorkspaceId)
+  const draftScope = user && currentWorkspace ? `saathi:draft:${normalizeEmail(user.email)}:${currentWorkspace.id}` : undefined
+  const registerGraphRefresh = useCallback((refresh: (() => Promise<boolean>) | null) => {
+    if (refresh && draftScope) taskGraphRefresh.current = { scope: draftScope, refresh }
+    else if (taskGraphRefresh.current?.scope === draftScope) taskGraphRefresh.current = null
+  }, [draftScope])
+  const refreshTasks = useCallback(async () => {
+    const target = taskGraphRefresh.current
+    if (!target || target.scope !== draftScope) return false
+    return target.refresh()
+  }, [draftScope])
+  useLayoutEffect(() => { draftScopeRef.current = draftScope }, [draftScope])
+  const isCurrentWorkspaceOwner = currentWorkspace && user
+    ? normalizeEmail(currentWorkspace.ownerId) === normalizeEmail(user.email)
+    : false
+  const canCreateTask = Boolean(currentWorkspace && permitsCapability(currentWorkspace.capabilityCeiling, "create"))
+  const canManageWorkspace = Boolean(currentWorkspace && permitsCapability(currentWorkspace.capabilityCeiling, "manage"))
+  const canOpenSettings = isCurrentWorkspaceOwner && canManageWorkspace
+
+  const handleAuthError = async (caughtError: unknown) => {
+    const candidate = caughtError as { message?: string; name?: string }
+    if (candidate?.message?.includes("Authentication") || candidate?.name === "AuthenticationError") {
+      error("Session expired", "Please sign in again to continue.")
+      router.push("/login")
+      return true
+    }
+    return false
+  }
+
+  const handleAddTask = async (title: string, description?: string, priority?: "low" | "medium" | "high", dueDate?: string, bucket?: "today" | "next", estimatedMinutes?: number, dueAt?: string) => {
+    if (!canCreateTask) return { error: "Task creation is not permitted in this workspace." }
+    try {
+      const result = await addTask(title, description, priority, dueDate, bucket, estimatedMinutes, dueAt)
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        error("Failed to create task", mutationError)
+        return result
+      }
+      success("Task created", `“${title}” is now in this workspace.`)
+      return result
+    } catch (caughtError) {
+      if (await handleAuthError(caughtError)) return { error: "Authentication required" }
+      const message = getThrownErrorMessage(caughtError, "Unable to create task. Please try again.")
+      error("Failed to create task", message)
+      return { error: message, unknownOutcome: true }
+    }
+  }
+
+  const handleToggleTask = async (id: string) => {
+    if (!currentWorkspace || !permitsCapability(currentWorkspace.capabilityCeiling, "edit")) return { error: "Task editing is not permitted in this workspace." }
+    try {
+      const task = tasks.find((item) => item.id === id)
+      const result = await toggleTask(id)
+      const mutationError = getMutationError(result)
+      if (mutationError) {
+        error("Failed to update task", mutationError)
+        return result
+      }
+      const status = task?.completed ? "reopened" : "completed"
+      success(`Task ${status}`, task ? `“${task.title}” has been ${status}.` : "Task status updated.")
+      return result
+    } catch (caughtError) {
+      if (await handleAuthError(caughtError)) return { error: "Authentication required" }
+      const message = getThrownErrorMessage(caughtError, "Unable to update task. Please try again.")
+      error("Failed to update task", message)
+      return { error: message }
+    }
+  }
+
+  const finishWorkspaceCreation = (workspaceId: string) => {
+    setCurrentWorkspaceId(workspaceId)
+    setCreatingWorkspace(false)
+    setWorkspaceView("overview")
+    window.history.replaceState(null, "", "#workspace-header")
+  }
+
+  const handleCreateWorkspace = async (name: string, details: { summary: string; targetDate: string | null }, commandId: string) => {
+    const actor = user?.id
+    const result = await createWorkspace(name, details, commandId, actor ?? "")
+    if (result?.error || !result?.workspace) return { error: result?.error ?? "Unable to confirm workspace creation.", rejected: result?.rejected }
+    if (actor !== creationActor.current) return {}
+    if (result.workspace.archivedAt) { setCreatingWorkspace(false); info("Workspace already created", "The workspace is now archived."); return {} }
+    finishWorkspaceCreation(result.workspace.id)
+    return {}
+  }
+
+  const handleArchiveWorkspace = async () => {
+    if (!currentWorkspace) return
+    await archiveWorkspace(currentWorkspace.id, currentWorkspace.version)
+    await refreshWorkspaces()
+    setWorkspaceView("board")
+  }
+
+  const handleDeleteWorkspace = async () => {
+    if (!currentWorkspace) return
+    await deleteWorkspace(currentWorkspace.id)
+    await refreshWorkspaces()
+    setWorkspaceView("board")
+  }
+
+  const handleTransferOwnership = async (memberUserId: string) => {
+    if (!currentWorkspace) return
+    await transferWorkspaceOwnership(currentWorkspace.id, memberUserId, currentWorkspace.version)
+    await refreshWorkspaces()
+  }
+
+  const handleApprovePlan = async (plan: WorkspacePlan, commandId: string) => {
+    const actor = user?.id
+    const result = await createWorkspaceFromPlan(plan, commandId, actor ?? "")
+    if (result.error || !result.workspace) return { error: result.error ?? "Unable to confirm workspace creation.", rejected: result.unknownOutcome === false }
+    if (actor !== creationActor.current) return {}
+    try {
+      await refreshWorkspaces()
+      if (actor !== creationActor.current) return {}
+      if (result.workspace.archivedAt) { setCreatingWorkspace(false); info("Workspace already created", "The workspace is now archived."); return {} }
+      finishWorkspaceCreation(result.workspace.id)
+    } catch { setCreatingWorkspace(false); info("Workspace created", "Refresh to see the workspace.") }
+    return {}
+  }
+
+  const handleSelectWorkspace = (workspaceId: string) => {
+    if (workspaceId === currentWorkspaceId || !confirmLeave()) return
+    discardDrafts()
+    setCurrentWorkspaceId(workspaceId)
+    setCreatingWorkspace(false)
+    setAskOpen(false)
+    setImportOpen(false)
+    setWorkspaceView("overview")
+    window.history.replaceState(null, "", "#workspace-header")
+  }
+
+  const handleOpenSettings = () => navigateTo("settings")
+
+  const handleOpenOverview = () => navigateTo("overview")
+
+  const handleOpenTeam = () => navigateTo("team")
+
+  const handleOpenActivity = () => navigateTo("activity")
+
+  const handleNewTask = () => {
+    if (!canCreateTask) return
+    if (workspaceView !== "board" && !handleOpenOverview()) return
+    setQuickAddRequest(request => request + 1)
+  }
+
+  useEffect(() => {
+    if (currentWorkspace && workspaceView === "settings" && !canOpenSettings) {
+      setWorkspaceView("overview")
+      window.history.replaceState(null, "", "#workspace-header")
+    }
+  }, [currentWorkspace, workspaceView, canOpenSettings])
+
+  const handleOpenBoard = useCallback(() => {
+    if (navigateTo("board")) setTaskToOpen(null)
+  }, [navigateTo])
+
+  useEffect(() => {
+    const handleKeyboardShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return
+      if (!(event.metaKey || event.ctrlKey) || !["k", "b"].includes(event.key.toLowerCase())) return
+      if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"], [role="alertdialog"]')) return
+      if (document.querySelector('[role="dialog"]:not([data-state="closed"]), [role="alertdialog"]:not([data-state="closed"]), dialog[open]')) return
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        handleOpenBoard()
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault()
+        setSidebarOpen((open) => !open)
+      }
+    }
+    window.addEventListener("keydown", handleKeyboardShortcut)
+    return () => window.removeEventListener("keydown", handleKeyboardShortcut)
+  }, [handleOpenBoard])
+
+  const handleOpenTask = (taskId: string) => {
+    if (navigateTo("board")) setTaskToOpen(taskId)
+  }
+
+  const handleLogout = async () => {
+    if (loggingOut || !confirmLeave()) return
+
+    setLoggingOut(true)
+    setLogoutError(null)
+    try {
+      const result = await logout()
+      if (result.error) {
+        setLogoutError(result.error)
+        return
+      }
+
+      if (user) clearAccountDrafts(`saathi:draft:${normalizeEmail(user.email)}:`)
+      try { window.localStorage.setItem("auth-change", Date.now().toString()) } catch { /* Cross-tab notification is optional after committed logout. */ }
+      router.replace("/login")
+    } catch (caughtError) {
+      setLogoutError(caughtError instanceof Error ? caughtError.message : "Unable to sign out. Please try again.")
+    } finally {
+      setLoggingOut(false)
+    }
+  }
+
+  if (authErrorMessage) return <main className='p-8'><p role='alert'>{authErrorMessage}</p><Button onClick={() => window.location.reload()}>Retry</Button></main>
+  if (loading || !user) {
+    return <PageLoader label="Loading your workspace..." />
+  }
+
+  const dashboardState = getDashboardState({ authenticated: Boolean(user), loading: workspacesLoading, error: currentWorkspace ? null : workspaceError, workspaceCount: workspaces.length, creating: creatingWorkspace })
+  const showWorkspace = dashboardState === "workspace" && Boolean(currentWorkspace)
+
+  return (
+    <main className="saathi-shell saathi-dashboard min-h-screen">
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="flex min-h-14 flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
+          <SaathiLogo className="size-8 shrink-0" priority />
+          <h1 className="sr-only">Saathi</h1>
+          {showWorkspace && <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1 sm:max-w-sm"><WorkspaceSwitcher workspaces={workspaces} currentWorkspaceId={currentWorkspaceId} onSelectWorkspace={handleSelectWorkspace} onStartNew={() => { if (confirmLeave()) { discardDrafts(); setCreatingWorkspace(true) } }} showCreate={false} /></div>}
+          <div className="ml-auto flex items-center gap-2">
+            {showWorkspace && canCreateTask && <Button onClick={handleNewTask}><Plus className="size-4" /><span>New task</span></Button>}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button variant="ghost" className="px-2" aria-label="Profile menu"><Avatar className="size-8"><AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback></Avatar><ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel><span className="block">{user.username}</span><span className="block text-xs font-normal text-muted-foreground">{user.email}</span></DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild><Link href="/canvas" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><LayoutGrid className="size-4" />Canvas</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/connections" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><Settings className="size-4" />Agent connections</Link></DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShortcutsOpen(true)} aria-label="Keyboard shortcuts"><Keyboard className="size-4" />Keyboard shortcuts</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSidebarOpen(open => !open)} className="hidden lg:flex"><PanelLeft className="size-4" />{sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}</DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/guide" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><CircleHelp className="size-4" />Help and guide</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/archive" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (!confirmLeave()) { event.preventDefault(); return } discardDrafts() }}><Archive className="size-4" />Archived workspaces</Link></DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void handleLogout()} disabled={loggingOut} aria-label="Logout" aria-busy={loggingOut}><LogOut className="size-4" />{loggingOut ? "Signing out..." : "Logout"}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
+      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <DialogContent className="border-border bg-card text-card-foreground sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Keyboard shortcuts</DialogTitle>
+            <DialogDescription>Use these shortcuts to move around Saathi faster.</DialogDescription>
+          </DialogHeader>
+          <div className="divide-y divide-border rounded-lg border border-border">
+            <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <span>Open task board</span>
+              <kbd className="rounded border border-border bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">{isMac ? "⌘ K" : "Ctrl K"}</kbd>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <span>Toggle sidebar</span>
+              <kbd className="rounded border border-border bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">{isMac ? "⌘ B" : "Ctrl B"}</kbd>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+              <span>Close an open dialog</span>
+              <kbd className="rounded border border-border bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">Esc</kbd>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {logoutError && <div className="mx-auto max-w-[1240px] px-4 pt-4 sm:px-6 lg:px-8"><div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{logoutError}. Please try again.</div></div>}
+      <div className={sidebarOpen ? "lg:hidden" : ""}><DashboardNavigation mode="mobile" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} /></div>
+      <div className="flex min-h-[calc(100vh-4rem)]">
+        {sidebarOpen && <aside className="hidden w-40 shrink-0 border-r border-border bg-card px-2 py-4 lg:flex lg:flex-col">
+          <DashboardNavigation mode="rail" hasWorkspace={showWorkspace} activeView={workspaceView} onOpenBoard={handleOpenBoard} onOpenOverview={handleOpenOverview} onOpenTeam={handleOpenTeam} />
+        </aside>}
+
+        <div className="min-w-0 flex-1">
+          <div className="mx-auto max-w-[1240px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
+
+            {workspaceError && currentWorkspace && <div role="alert" className="mb-4 rounded-lg border border-border p-4"><p>Workspace refresh failed. Showing previously loaded details; your unsaved changes are retained.</p><Button variant="outline" className="mt-2" onClick={() => void refreshWorkspaces()}>Try again</Button></div>}
+            {dashboardState === "workspace-loading" ? <PageLoader label="Loading your workspaces..." embedded /> : workspaceError && !currentWorkspace ? (
+              <section className="rounded-[var(--saathi-radius-container)] border border-border bg-card p-8 text-center" role="alert">
+                <h2 className="text-xl font-semibold">Workspace unavailable</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{workspaceError}. Your data was not changed.</p>
+                <Button onClick={() => void refreshWorkspaces()} variant="outline" className="mt-5"><RefreshCw className="size-4" />Try again</Button>
+              </section>
+            ) : !showWorkspace ? (
+              <WorkspaceCreateForm
+                key={`${user.id}:${creatingWorkspace ? "new" : "first"}`}
+                actorId={user.id}
+                account={user.email}
+                aiEnabled={aiWorkspaceEnabled}
+                canCancel={workspaces.length > 0}
+                onCancel={() => setCreatingWorkspace(false)}
+                onCreate={handleCreateWorkspace}
+                onSuggest={generateWorkspaceDraft}
+                onApprove={handleApprovePlan}
+              />
+            ) : currentWorkspace ? (
+              <>
+                <section id="workspace-header" aria-label="Workspace actions" className="mb-4 flex scroll-mt-24 flex-wrap items-center justify-end gap-2">
+                  {aiWorkspaceEnabled && canCreateTask && <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)}><Sparkles className="size-4" />Ask Saathi</Button>}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Workspace menu" className={workspaceView === "activity" || workspaceView === "settings" ? "border-primary text-primary" : ""}>Workspace<ChevronDown className="size-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => { if (confirmLeave()) { discardDrafts(); setCreatingWorkspace(true) } }}><Plus className="size-4" />New workspace</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleOpenActivity} aria-current={workspaceView === "activity" ? "page" : undefined}><History className="size-4" />Activity</DropdownMenuItem>
+                      {canOpenSettings && <DropdownMenuItem onSelect={handleOpenSettings} aria-current={workspaceView === "settings" ? "page" : undefined}><Settings className="size-4" />Settings</DropdownMenuItem>}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </section>
+
+                {aiWorkspaceEnabled && canCreateTask && <Dialog open={askOpen} onOpenChange={setAskOpen}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ask Saathi</DialogTitle><DialogDescription>Get help with this workspace. Review any proposed changes before confirming.</DialogDescription></DialogHeader><WorkspaceAdvisor draftScope={draftScope} key={currentWorkspace.id} workspaceId={currentWorkspace.id} timeZone={currentWorkspace.timezone} onConfirmDraft={async (draft, idempotencyKey) => { if (!canCreateTask) return { error: "Task creation is not permitted in this workspace." }; const result = await confirmWorkspaceAdvisorDraft(currentWorkspace.id, draft, idempotencyKey); if (result.task) { setBoardRefreshRequest(value => value + 1); try { if (workspaceView === "overview" && !await refreshTasks()) return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } catch { return { ...result, warning: "Task created. Refresh the workspace to see the latest tasks." } } } return result }} /></DialogContent></Dialog>}
+                {capabilities.csvImport && canCreateTask && <Dialog open={importOpen} onOpenChange={setImportOpen}><DialogContent><DialogHeader><DialogTitle>Import tasks</DialogTitle><DialogDescription>Choose a CSV file with task titles and optional details.</DialogDescription></DialogHeader><TaskImport key={currentWorkspace.id} workspaceId={currentWorkspace.id} onImported={async () => { setBoardRefreshRequest(value => value + 1); await refreshTasks() }} /></DialogContent></Dialog>}
+
+                {realtime.error && (
+                  <div role="status" className="mb-4 flex flex-col gap-3 rounded-lg border border-[var(--saathi-warning)]/40 bg-[var(--saathi-warning)]/10 px-4 py-3 text-sm text-[#8a4b00] sm:flex-row sm:items-center sm:justify-between">
+                    <span>Updates are paused. Reconnect to continue.</span>
+                    <Button onClick={realtime.connect} variant="outline" size="sm" className="w-fit bg-card"><RefreshCw className="size-4" />Reconnect</Button>
+                  </div>
+                )}
+
+                {workspaceView === "activity" ? (
+                  <section aria-labelledby="activity-title" className="space-y-4"><h2 id="activity-title" className="text-xl font-semibold">Activity</h2><ActivityHistory workspaceId={currentWorkspace.id} refreshSignal={realtime.eventRevision} /></section>
+                ) : workspaceView === "settings" && canOpenSettings ? (
+                  <section id="settings-panel"><WorkspaceSettings draftScope={draftScope} onDirtyChange={onDirtyChange} key={currentWorkspace.id} workspace={currentWorkspace} onSaved={async () => { if (!await refreshWorkspaces()) throw new Error("Unable to reload settings. Your draft is retained.") }} onArchived={handleArchiveWorkspace} onDeleted={permitsCapability(currentWorkspace.capabilityCeiling, "delete") ? handleDeleteWorkspace : undefined} /></section>
+                ) : workspaceView === "team" ? (
+                  <Card id="team-panel" className="overflow-hidden rounded-[var(--saathi-radius-container)]"><CardHeader className="border-b border-border bg-secondary/25 py-6"><h2 className="text-2xl font-semibold tracking-[-0.04em]">Team members</h2></CardHeader><CardContent className="p-5 sm:p-7">{canManageWorkspace ? <MemberManager key={currentWorkspace.id} workspaceId={currentWorkspace.id} members={currentWorkspace.members} currentUserEmail={user.email} workspaceOwnerId={currentWorkspace.ownerId} onAddMember={addMember} onRemoveMember={removeMember} onTransferOwnership={handleTransferOwnership} /> : <ul className="space-y-3">{currentWorkspace.members.map(member => <li key={member.userId} className="wrap-anywhere">{member.username || member.email}</li>)}</ul>}</CardContent></Card>
+                ) : workspaceView === "overview" || workspaceView === "settings" ? (
+                  <>
+
+                  {taskError && (
+                    <section className="rounded-xl border border-border bg-card p-8 text-center" role="alert">
+                      <p className="font-medium">Tasks unavailable</p><p className="mt-2 text-sm text-muted-foreground">{taskError}</p>
+                      <Button onClick={() => void refreshTasks()} variant="outline" className="mt-4"><RefreshCw className="size-4" />Try again</Button>
+                    </section>
+                  )}
+                    <WorkspaceOverview
+                      key={currentWorkspace.id}
+                      workspace={currentWorkspace}
+                      currentUserEmail={user.email}
+                      tasks={tasks}
+                      loading={tasksLoading}
+                      error={taskError}
+                      onDirtyChange={onDirtyChange}
+                      draftScope={draftScope}
+                      onToggleTask={handleToggleTask}
+                      onOpenTask={handleOpenTask}
+                      onAddTask={handleAddTask}
+                      onOpenBoard={handleOpenBoard}
+                      onReviewBoard={async () => { if (!await refreshTasks()) throw new Error("Tasks unavailable") }}
+                      focusQuickAdd={quickAddRequest}
+                      workContent={<NextWorkView key={`next-work-${currentWorkspace.id}`} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} taskRevision={tasks.map(task => `${task.id}:${task.version ?? task.updatedAt}`).join("|")} connected={realtime.isConnected} onOpenTask={handleOpenTask} onRefreshReady={registerGraphRefresh} />}
+                    />
+                  </>
+                ) : (
+                  <section className="min-w-0">
+                    <Card id="project-board" className="gap-0 overflow-hidden rounded-[var(--saathi-radius-container)] py-0">
+                        <CardHeader className="border-b border-border px-4 py-3 [.border-b]:pb-3">
+                          <div className="flex items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-lg"><LayoutGrid className="size-4 text-primary" />Board</CardTitle>
+                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Board actions"><MoreHorizontal className="size-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setBoardRefreshRequest(value => value + 1)}><RefreshCw className="size-4" />Refresh tasks</DropdownMenuItem>{capabilities.csvImport && canCreateTask && <DropdownMenuItem onSelect={() => setImportOpen(true)}>Import CSV</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <WorkspaceBoard capabilityCeiling={currentWorkspace.capabilityCeiling} draftScope={draftScope} onDirtyChange={onDirtyChange} key={currentWorkspace.id} workspace={currentWorkspace} currentUserEmail={user.email} refreshSignal={realtime.eventRevision + boardRefreshRequest} openTaskId={taskToOpen} commentRefreshEvent={realtime.lastEvent} onAddTask={handleAddTask} focusQuickAdd={quickAddRequest} />
+                        </CardContent>
+                    </Card>
+                  </section>
+                )}
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </main>
+  )
 }
