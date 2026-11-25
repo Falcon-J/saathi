@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
-import Image from "next/image"
+import { CanvasPreview } from "@/components/canvas-preview"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
@@ -91,14 +91,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <main className="relative isolate min-h-[100svh] overflow-x-hidden bg-background text-foreground">
-      <Image
-        src="/saathi-auth-background-v2.png"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="z-0 hidden object-cover object-center sm:block dark:brightness-[0.35] dark:saturate-50"
-      />
+      <CanvasPreview className="absolute inset-0 z-0 hidden size-full sm:block" />
       <div className="absolute inset-y-0 left-0 z-0 hidden w-[48%] bg-gradient-to-r from-background/45 to-transparent sm:block" />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1600px] flex-col px-4 py-5 sm:h-full sm:min-h-0 sm:px-5 sm:py-[clamp(0.75rem,2.5vh,1.5rem)]">

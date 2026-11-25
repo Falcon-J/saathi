@@ -34,7 +34,7 @@ test('account switches and confirmation retain only safe return destinations', a
       '@/lib/supabase/auth-boundary': boundary,
       '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
       '@/hooks/use-notifications': { useNotifications: () => ({ success() {} }) },
-      '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' },
+      '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' }, '@/components/canvas-preview': { CanvasPreview: 'CanvasPreview' },
     }
     const originalWindow = global.window
     global.window = { location: { search: `?redirect=${encodeURIComponent(destination)}` } }
@@ -119,8 +119,8 @@ test("signup preserves a safe return destination through email confirmation", ()
 })
 
 test("authentication suite follows the approved reference layout", () => {
-  assert.match(source, /src="\/saathi-auth-background-v2\.png"/)
-  assert.match(source, /fill/)
+  assert.match(source, /<CanvasPreview className="absolute inset-0/)
+  assert.doesNotMatch(source, /\.png/)
   assert.match(source, /flex min-w-0 flex-1 items-center/)
   assert.match(source, /sm:items-start/)
   assert.match(source, /w-\[48%\]/)
