@@ -65,7 +65,7 @@ export function PasswordRecoveryForm({ mode }: { mode: 'request' | 'update' }) {
               <label className="block space-y-2"><span className="text-sm font-medium">Confirm new password</span><Input className="h-11" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={confirm} onChange={event => setConfirm(event.target.value)} disabled={!hydrated || pending} /></label>
             </>}
             {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-            <Button size="lg" className="w-full" disabled={!hydrated || pending} loading={pending}>{pending ? 'Please wait' : requesting ? 'Send reset link' : 'Reset password'}</Button>
+            <Button size="lg" className="w-full disabled:opacity-100" disabled={!hydrated || pending} loading={pending}>{pending ? 'Please wait' : requesting ? 'Send reset link' : 'Reset password'}</Button>
           </form>}
         </div>
   </AuthShell>
