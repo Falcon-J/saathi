@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { isAiWorkspaceEnabled } from "@/lib/feature-flags"
 
 export const metadata: Metadata = { title: "How Saathi works", description: "Create work, connect blockers, and collaborate in Saathi." }
 export const dynamic = "force-dynamic"
@@ -14,12 +13,11 @@ const guides = [
 ]
 
 export default function GuidePage() {
-  const aiEnabled = isAiWorkspaceEnabled()
   return <main className="mx-auto min-h-screen max-w-4xl space-y-8 px-4 py-8 sm:px-6">
     <header className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-semibold">How Saathi works</h1><Button asChild variant="outline"><Link href="/canvas">Back to workspace</Link></Button></header>
-    <nav aria-label="Guide sections" className="flex flex-wrap gap-x-5 gap-y-3 text-sm text-primary">{guides.map(guide => <a key={guide.id} href={'#' + guide.id} className="underline underline-offset-4">{guide.title}</a>)}<a href="#connect-agent" className="underline underline-offset-4">Connect an agent</a><a href="#assistant" className="underline underline-offset-4">Ask Saathi</a></nav>
+    <nav aria-label="Guide sections" className="flex flex-wrap gap-x-5 gap-y-3 text-sm text-primary">{guides.map(guide => <a key={guide.id} href={'#' + guide.id} className="underline underline-offset-4">{guide.title}</a>)}<a href="#connect-agent" className="underline underline-offset-4">Connect an agent</a></nav>
     {guides.map(guide => <section key={guide.id} id={guide.id} className="scroll-mt-6 space-y-4 border-t border-border pt-6"><h2 className="text-xl font-semibold">{guide.title}</h2><ol className="list-decimal space-y-3 pl-5 text-sm leading-6">{guide.steps.map(step => <li key={step}>{step}</li>)}</ol></section>)}
     <section id="connect-agent" className="scroll-mt-6 space-y-4 border-t border-border pt-6"><h2 className="text-xl font-semibold">Connect an agent</h2><ol className="list-decimal space-y-3 pl-5 text-sm leading-6"><li>Open <Link href="/connections" className="text-primary underline">Agent connections</Link> and expand Connect an agent to find your server URL.</li><li>Add Saathi in a supported MCP client. Start sign-in there, then approve specific workspaces, permissions and an expiry in Saathi. A client that is not registered for Saathi needs administrator setup.</li><li>Agent runs shows progress and evidence. Follow moves the canvas to the task; Stop following changes your view without cancelling the run.</li><li>For expired or revoked access, use Reconnect on the connection. Disconnect retained consent first, then add the connection again in your client and approve fresh access.</li></ol></section>
-    <section id="assistant" className="scroll-mt-6 space-y-4 border-t border-border pt-6"><h2 className="text-xl font-semibold">Ask Saathi</h2>{!aiEnabled && <p role="status" className="text-sm">The built-in assistant is not enabled.</p>}<p className="text-sm leading-6">In a workspace, open Ask Saathi for a summary, attention items or a task draft. Enter a question and choose Send, or use a suggestion. Review a task draft before choosing Create task. Workspace creation also offers optional planning before you have a workspace.</p><p className="text-sm leading-6">Your workspace remains the source of truth. The assistant does not independently change tasks, assign people or manage access.</p><details className="rounded-lg border border-border p-4"><summary className="cursor-pointer font-medium">What the assistant receives</summary><p className="mt-3 text-sm leading-6">The AI provider receives the goal or compact workspace context needed for your request, including task titles, descriptions, status, priority and dates. Passwords, credentials, cookies and member email addresses are excluded. Raw prompts and responses are not stored by default.</p></details></section>
+    
   </main>
 }
