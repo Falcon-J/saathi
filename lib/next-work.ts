@@ -1,7 +1,8 @@
 import type { Task, TaskStatus } from "./task-contract.ts"
 import { calendarDateAt, calendarDateKey, todayCalendarDate } from "./task-time.ts"
 
-export type NextWorkTask = Pick<Task, "id" | "workspaceId" | "title" | "status" | "completed" | "dueDate" | "dueAt" | "assigneeEmail">
+export type NextWorkTask = Pick<Task, "id" | "workspaceId" | "title" | "status" | "completed" | "dueDate" | "dueAt" | "assigneeEmail"> & Partial<Pick<Task, "priority">>
+export type NextWorkPriority = NonNullable<Task["priority"]>
 export type TaskDependency = { workspaceId: string; dependentTaskId: string; prerequisiteTaskId: string }
 export type NextWorkDependency = TaskDependency
 export type NextWorkItem<T extends NextWorkTask = NextWorkTask> = {
@@ -9,6 +10,10 @@ export type NextWorkItem<T extends NextWorkTask = NextWorkTask> = {
   readiness: "ready" | "waiting" | "completed_inconsistent"
   prerequisites: Array<{ taskId: string; title: string; status: TaskStatus }>
   unassigned: boolean
+  /** Own priority raised to the highest open task that waits on this one. */
+  effectivePriority: NextWorkPriority
+  /** The open dependent that raised the priority, when it was raised. */
+  inheritedFrom?: { taskId: string; title: string }
 }
 export type NextWorkResult<T extends NextWorkTask = NextWorkTask> = {
   asOf: string
@@ -18,6 +23,7 @@ export type NextWorkResult<T extends NextWorkTask = NextWorkTask> = {
 }
 
 const compareText = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
+const PRIORITY_RANK: Record<NextWorkPriority, number> = { low: 0, medium: 1, high: 2 }
 const statusOf = (task: NextWorkTask): TaskStatus => task.completed || task.status === "done" ? "done" : task.status ?? "todo"
 
 // Callers must supply the complete authorized workspace graph from one consistent read.
@@ -55,6 +61,25 @@ export function deriveNextWork<T extends NextWorkTask>(
   }
   if (queue.length !== tasks.length) throw new Error("Next work graph contains a dependency cycle")
 
+  // Priority inheritance: walk the topological order backwards so every open
+  // dependent is settled before its prerequisites. A prerequisite takes the
+  // highest priority of any open task that waits on it, directly or not.
+  const effective = new Map<string, { priority: NextWorkPriority; from?: T }>()
+  for (let index = queue.length - 1; index >= 0; index--) {
+    const task = byId.get(queue[index])!
+    let best: { priority: NextWorkPriority; from?: T } = { priority: task.priority ?? "medium" }
+    for (const dependentId of dependents.get(task.id)!) {
+      const dependent = byId.get(dependentId)!
+      if (statusOf(dependent) === "done") continue
+      const inherited = effective.get(dependentId)!
+      if (PRIORITY_RANK[inherited.priority] > PRIORITY_RANK[best.priority]
+        || (inherited.priority === best.priority && best.from && compareText(dependent.id, best.from.id) < 0)) {
+        best = { priority: inherited.priority, from: inherited.from ?? dependent }
+      }
+    }
+    effective.set(task.id, best)
+  }
+
   const deadlines = new Map<string, { date: string; instant: number }>()
   for (const task of tasks) {
     if (task.dueAt && task.dueDate) throw new Error("Next work task deadline is invalid")
@@ -72,12 +97,17 @@ export function deriveNextWork<T extends NextWorkTask>(
       readiness: completed ? "completed_inconsistent" : waiting ? "waiting" : "ready",
       prerequisites: sources.map(source => ({ taskId: source.id, title: source.title, status: statusOf(source) })),
       unassigned: !task.assigneeEmail,
+      effectivePriority: effective.get(task.id)!.priority,
+      ...(effective.get(task.id)!.from ? { inheritedFrom: { taskId: effective.get(task.id)!.from!.id, title: effective.get(task.id)!.from!.title } } : {}),
     }
     if (completed) result.completedInconsistencies.push(item)
     else if (waiting) result.waiting.push(item)
     else result.ready.push(item)
   }
+  // Up next order: effective priority first, then deadline, then a stable id.
   const compare = (a: NextWorkItem<T>, b: NextWorkItem<T>) => {
+    const byPriority = PRIORITY_RANK[b.effectivePriority] - PRIORITY_RANK[a.effectivePriority]
+    if (byPriority) return byPriority
     const left = deadlines.get(a.task.id)!, right = deadlines.get(b.task.id)!
     if (!left.date || !right.date) return Number(!left.date) - Number(!right.date) || compareText(a.task.id, b.task.id)
     return compareText(left.date, right.date)

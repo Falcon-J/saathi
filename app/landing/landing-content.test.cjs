@@ -13,7 +13,7 @@ test("landing page stays a focused Saathi entry screen", () => {
   assert.match(source, /href="\/guide"/)
   assert.match(source, /See how it works/)
   assert.match(source, /saathi-landing-hero\.png/)
-  assert.match(source, /whitespace-nowrap rounded-full border border-border bg-white\/85/)
+  assert.match(source, /whitespace-nowrap rounded-full border border-border bg-card\/85/)
   assert.match(source, /lg:hidden/)
   assert.match(source, /object-\[72%_center\]/)
   assert.match(source, /flex-row flex-wrap items-center justify-center/)

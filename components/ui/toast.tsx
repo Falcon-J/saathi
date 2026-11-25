@@ -31,15 +31,15 @@ const toastVariants = cva(
     variants: {
       variant: {
         default:
-          'border-[#d2d2d7] bg-[#ffffff] text-[#1d1d1f]',
+          'border-border bg-popover text-popover-foreground',
         success:
-          'border-[#aee6bd] bg-[#f1fbf4] text-[#176b2c]',
+          'border-[var(--saathi-success)]/30 bg-[var(--saathi-success-soft)] text-[var(--saathi-success)]',
         info:
-          'border-[#a9d5ff] bg-[#f0f7ff] text-[#005ecb]',
+          'border-primary/30 bg-accent text-accent-foreground',
         warning:
-          'border-[#ffd391] bg-[#fff8ea] text-[#8a4b00]',
+          'border-[var(--saathi-warning)]/30 bg-[var(--saathi-warning-soft)] text-[var(--saathi-warning)]',
         destructive:
-          'destructive border-[#ffb3ad] bg-[#fff2f0] text-[#a61b13]',
+          'destructive border-destructive/30 bg-[var(--saathi-danger-soft)] text-[var(--saathi-danger)]',
       },
     },
     defaultVariants: {
@@ -71,7 +71,7 @@ const ToastAction = React.forwardRef<
   <ToastPrimitives.Action
     ref={ref}
     className={cn(
-      'inline-flex h-8 shrink-0 items-center justify-center rounded-[var(--saathi-radius-control,0.375rem)] border border-current/20 bg-transparent px-3 text-sm font-medium transition-colors hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-[#007aff] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+      'inline-flex h-8 shrink-0 items-center justify-center rounded-[var(--saathi-radius-control,0.375rem)] border border-current/20 bg-transparent px-3 text-sm font-medium transition-colors hover:bg-[var(--saathi-hover)] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
       className,
     )}
     {...props}
@@ -86,7 +86,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      'absolute right-2 top-2 rounded-[var(--saathi-radius-control,0.375rem)] p-1 text-current/60 opacity-0 transition-opacity hover:text-current focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#007aff] group-hover:opacity-100',
+      'absolute right-2 top-2 rounded-[var(--saathi-radius-control,0.375rem)] p-1 text-current/60 opacity-0 transition-opacity hover:text-current focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring group-hover:opacity-100',
       className,
     )}
     aria-label="Dismiss notification"

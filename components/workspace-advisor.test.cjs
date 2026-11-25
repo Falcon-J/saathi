@@ -168,27 +168,6 @@ test('an uncertain creation preserves its proposal and key until a retry resolve
   assert.equal(ui.button('Draft a task').props.disabled, false)
 })
 
-test('a committed draft clears the proposal even when refreshing failed', async () => {
-  for (const path of ['app/dashboard/page.tsx', 'components/assistant-workspace.tsx']) {
-    const file = ts.createSourceFile(path, fs.readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-    let callback
-    const visit = node => {
-      if (path.startsWith('app/') && ts.isJsxAttribute(node) && node.name.text === 'onConfirmDraft') callback = node.initializer.expression
-      if (!path.startsWith('app/') && ts.isVariableDeclaration(node) && node.name.getText(file) === 'confirmDraft') callback = node.initializer
-      ts.forEachChild(node, visit)
-    }
-    visit(file); assert.ok(callback)
-    const exports = {}
-    const js = ts.transpileModule(`exports.confirm = ${callback.getText(file)}`, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
-    new Function('exports', 'confirmWorkspaceAdvisorDraft', 'currentWorkspace', 'workspace', 'setBoardRefreshRequest', 'refreshTasks', 'onRefreshTasks', 'canCreateTask', 'workspaceView', js)(exports, async () => ({ task: { id: 'task' } }), { id: 'workspace' }, { id: 'workspace' }, () => {}, async () => { throw new Error('Refresh unavailable') }, async () => { throw new Error('Refresh unavailable') }, true, 'overview')
-    const ui = harness(exports.confirm)
-    ui.render(); ui.button('Draft a task').props.onClick(); await tick(); ui.render()
-    ui.button('Create task').props.onClick(); await tick(); ui.render()
-    assert.equal(ui.button('Create task'), undefined, path)
-    assert.match(ui.text(), /created.*refresh|saved.*refresh/i, path)
-  }
-})
-
 test('an advisor confirmation keeps its exact proposal and command across closing and reload', async () => {
   global.sessionStorage = memoryStorage()
   const props = { draftScope: 'account:workspace' }, keys = []

@@ -21,6 +21,7 @@ import { logout } from "@/lib/auth-simple"
 import { clearAccountDrafts } from "@/lib/draft-storage"
 import { MemberManager } from "@/components/member-manager"
 import { WorkspaceSettings } from "@/components/workspace-settings"
+import { ThemeMenuItems } from "@/components/theme-menu-items"
 import { ActivityHistory } from "@/components/activity-history"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -372,6 +373,8 @@ export function CanvasShell({ email, actorId, aiEnabled = false, csvImportEnable
           <DropdownMenuItem asChild className="min-h-11"><Link href="/connections" onClick={event => { if (!canLeaveAll()) event.preventDefault() }}>Connections</Link></DropdownMenuItem>
           <DropdownMenuItem asChild className="min-h-11"><Link href="/archive" onClick={event => { if (!canLeaveAll()) event.preventDefault() }}>Archive</Link></DropdownMenuItem>
           <DropdownMenuItem asChild className="min-h-11"><Link href="/guide" onClick={event => { if (!canLeaveAll()) event.preventDefault() }}>Help</Link></DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <ThemeMenuItems />
           <DropdownMenuSeparator />
           <DropdownMenuItem className="min-h-11" disabled={loggingOut} onSelect={() => void signOut()}>{loggingOut ? "Signing out…" : "Sign out"}</DropdownMenuItem>
         </DropdownMenuContent>

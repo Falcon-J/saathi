@@ -230,6 +230,7 @@ export function NextWorkView({ inspectorOnly = false, initialTaskId, workspace, 
             <div className="min-w-0 flex-1">
               <p className="break-words font-medium">{item.task.title}</p>
               <p className="mt-1 text-xs text-muted-foreground">{assigneeName(item.task.assigneeEmail)}{formatTaskDue(item.task.dueAt, item.task.dueDate, workspace.timezone) ? ` · ${formatTaskDue(item.task.dueAt, item.task.dueDate, workspace.timezone)}` : ""}</p>
+              {item.inheritedFrom && <p className="mt-1 text-xs font-medium text-primary">{item.effectivePriority === "high" ? "High" : "Medium"} priority, needed by {item.inheritedFrom.title}</p>}
             </div>
             <Button type="button" variant="outline" size="sm" aria-label={`Open ${item.task.title}`} disabled={Boolean(pending)} onClick={() => { if (!pendingChange.current) onOpenTask(item.task.id) }}>Open task</Button>
           </div>

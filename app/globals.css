@@ -46,59 +46,155 @@
 }
 
 :root {
-  --background: #f7f7f4;
-  --foreground: #202426;
+  color-scheme: light;
+  --background: #faf9f7;
+  --foreground: #1c1b19;
   --card: #ffffff;
-  --card-foreground: #202426;
+  --card-foreground: #1c1b19;
   --popover: #ffffff;
-  --popover-foreground: #202426;
-  --primary: #0f766e;
+  --popover-foreground: #1c1b19;
+  --primary: #2952cc;
   --primary-foreground: #ffffff;
-  --secondary: #edf3f1;
-  --secondary-foreground: #202426;
-  --muted: #edf3f1;
-  --muted-foreground: #66716f;
-  --accent: #ddf4ee;
-  --accent-foreground: #0f766e;
+  --secondary: #f2f1ee;
+  --secondary-foreground: #1c1b19;
+  --muted: #f2f1ee;
+  --muted-foreground: #64625c;
+  --accent: #eaf0fc;
+  --accent-foreground: #1f3fa3;
   --destructive: #b42318;
   --destructive-foreground: #ffffff;
-  --border: #e1e5ef;
+  --border: #e4e2dd;
   --input: #ffffff;
-  --ring: #0f766e;
-  --chart-1: #0f766e;
-  --chart-2: #34c759;
-  --chart-3: #ff9f0a;
-  --chart-4: #af52de;
-  --chart-5: #6e6e73;
-  --radius: 0.5rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #202426;
-  --sidebar-primary: #0f766e;
+  --ring: #2952cc;
+  --chart-1: #2952cc;
+  --chart-2: #15803d;
+  --chart-3: #b45309;
+  --chart-4: #6d28d9;
+  --chart-5: #8e8b84;
+  --sidebar: #faf9f7;
+  --sidebar-foreground: #1c1b19;
+  --sidebar-primary: #2952cc;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ddf4ee;
-  --sidebar-accent-foreground: #0f766e;
-  --sidebar-border: #e7e9f2;
-  --sidebar-ring: #0f766e;
-  --surface-lowest: #f7f7f4;
-  --surface-low: #edf3f1;
+  --sidebar-accent: #e9e7e2;
+  --sidebar-accent-foreground: #1c1b19;
+  --sidebar-border: #e4e2dd;
+  --sidebar-ring: #2952cc;
+  --surface-lowest: #faf9f7;
+  --surface-low: #f2f1ee;
   --surface: #ffffff;
   --surface-high: #ffffff;
-  --surface-highest: #dce8e4;
-  --saathi-success: #34c759;
-  --saathi-warning: #ff9f0a;
-  --saathi-danger: #ff3b30;
-  --saathi-brand-deep: #202426;
-  --saathi-brand-soft: #ddf4ee;
-  --saathi-surface-wash: #f1f8f5;
-  --saathi-shadow-card: 0 12px 32px rgb(44 50 89 / 0.08);
-  --saathi-shadow-float: 0 24px 64px rgb(15 118 110 / 0.16);
+  --surface-highest: #e9e7e2;
+  --saathi-brand: #2952cc;
+  --saathi-brand-hover: #1f3fa3;
+  --saathi-info: #2952cc;
+  --saathi-success: #15803d;
+  --saathi-success-soft: #dcfce7;
+  --saathi-warning: #b45309;
+  --saathi-warning-soft: #fef3c7;
+  --saathi-review: #6d28d9;
+  --saathi-review-soft: #ede9fe;
+  --saathi-danger: #b42318;
+  --saathi-danger-soft: #fee4e2;
+  --saathi-brand-deep: #1c1b19;
+  --saathi-brand-soft: #eaf0fc;
+  --saathi-surface-wash: #f2f1ee;
+  --saathi-hover: #e9e7e2;
+  --saathi-line-strong: #8e8b84;
+  --saathi-shadow-card: 0 1px 2px rgb(28 27 25 / 0.06);
+  --saathi-shadow-float: 0 12px 32px rgb(28 27 25 / 0.14);
+  --radius: 0.375rem;
   --saathi-width-rail: 15rem;
   --saathi-control-height: 2.75rem;
+  --saathi-space-1: 0.25rem;
+  --saathi-space-2: 0.5rem;
+  --saathi-space-3: 0.75rem;
+  --saathi-space-4: 1rem;
+  --saathi-space-6: 1.5rem;
+  --saathi-space-8: 2rem;
+  --saathi-radius-label: 0.25rem;
+  --saathi-radius-control: 0.375rem;
+  --saathi-radius-card: 0.5rem;
+  --saathi-radius-container: 0.75rem;
+  --saathi-type-page-title: 1.5rem;
+  --saathi-type-label: 0.75rem;
+  --saathi-duration-fast: 120ms;
+  --saathi-duration-base: 200ms;
+  --saathi-duration-slow: 320ms;
+  --saathi-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Dark theme: same names, so every component follows the theme switcher. */
+.dark {
+  color-scheme: dark;
+  --background: #141412;
+  --foreground: #edebe6;
+  --card: #1c1b19;
+  --card-foreground: #edebe6;
+  --popover: #1c1b19;
+  --popover-foreground: #edebe6;
+  --primary: #8fa8f5;
+  --primary-foreground: #141412;
+  --secondary: #24231f;
+  --secondary-foreground: #edebe6;
+  --muted: #24231f;
+  --muted-foreground: #a3a098;
+  --accent: #1e2747;
+  --accent-foreground: #8fa8f5;
+  --destructive: #ff9c8f;
+  --destructive-foreground: #141412;
+  --border: #33312c;
+  --input: #1c1b19;
+  --ring: #8fa8f5;
+  --chart-1: #8fa8f5;
+  --chart-2: #6ee7a0;
+  --chart-3: #fbbf5a;
+  --chart-4: #c9b8ff;
+  --chart-5: #77746b;
+  --sidebar: #141412;
+  --sidebar-foreground: #edebe6;
+  --sidebar-primary: #8fa8f5;
+  --sidebar-primary-foreground: #141412;
+  --sidebar-accent: #2c2b27;
+  --sidebar-accent-foreground: #edebe6;
+  --sidebar-border: #33312c;
+  --sidebar-ring: #8fa8f5;
+  --surface-lowest: #141412;
+  --surface-low: #24231f;
+  --surface: #1c1b19;
+  --surface-high: #24231f;
+  --surface-highest: #2c2b27;
+  --saathi-brand: #8fa8f5;
+  --saathi-brand-hover: #a9bcf7;
+  --saathi-info: #8fa8f5;
+  --saathi-success: #6ee7a0;
+  --saathi-success-soft: #173323;
+  --saathi-warning: #fbbf5a;
+  --saathi-warning-soft: #3a2a10;
+  --saathi-review: #c9b8ff;
+  --saathi-review-soft: #2c2348;
+  --saathi-danger: #ff9c8f;
+  --saathi-danger-soft: #3d1a16;
+  --saathi-brand-deep: #edebe6;
+  --saathi-brand-soft: #1e2747;
+  --saathi-surface-wash: #24231f;
+  --saathi-hover: #2c2b27;
+  --saathi-line-strong: #77746b;
+  --saathi-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --saathi-shadow-float: 0 12px 32px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @theme inline {
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -155,66 +251,7 @@
 
 @layer components {
   .saathi-dashboard {
-    --saathi-surface-page: #f7f7f4;
-    --saathi-surface-default: #ffffff;
-    --saathi-surface-navigation: #ffffff;
-    --saathi-surface-subtle: #edf3f1;
-    --saathi-border-subtle: #e7e9f2;
-    --saathi-border-default: #e1e5ef;
-    --saathi-brand: #0f766e;
-    --saathi-info: #0f766e;
-    --saathi-success: #34c759;
-    --saathi-warning: #ff9f0a;
-    --saathi-danger: #ff3b30;
-    --saathi-brand-deep: #202426;
-    --saathi-brand-soft: #ddf4ee;
-    --saathi-surface-wash: #f1f8f5;
-    --saathi-shadow-card: 0 12px 32px rgb(44 50 89 / 0.08);
-    --saathi-shadow-float: 0 24px 64px rgb(15 118 110 / 0.16);
-    --saathi-width-rail: 15rem;
-    --saathi-control-height: 2.75rem;
-    --saathi-space-1: 0.5rem;
-    --saathi-space-2: 1rem;
-    --saathi-space-3: 1.5rem;
-    --saathi-space-4: 2rem;
-    --saathi-space-6: 3rem;
-    --saathi-radius-label: 0.25rem;
-    --saathi-radius-control: 0.375rem;
-    --saathi-radius-card: 0.5rem;
-    --saathi-radius-container: 0.75rem;
-    --saathi-type-page-title: 1.5rem;
-    --saathi-type-label: 0.75rem;
-    --background: var(--saathi-surface-page);
-    --foreground: #202426;
-    --card: var(--saathi-surface-default);
-    --card-foreground: #202426;
-    --popover: var(--saathi-surface-default);
-    --popover-foreground: #202426;
-    --primary: var(--saathi-brand);
-    --primary-foreground: #ffffff;
-    --secondary: var(--saathi-surface-subtle);
-    --secondary-foreground: #202426;
-    --muted: var(--saathi-surface-subtle);
-    --muted-foreground: #66716f;
-    --accent: #ddf4ee;
-    --accent-foreground: #0f766e;
-    --destructive-foreground: #ffffff;
-    --border: var(--saathi-border-default);
-    --input: var(--saathi-surface-default);
-    --ring: var(--saathi-brand);
-    --sidebar: var(--saathi-surface-navigation);
-    --sidebar-foreground: #202426;
-    --sidebar-primary: var(--saathi-brand);
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: var(--saathi-surface-subtle);
-    --sidebar-accent-foreground: #0f766e;
-    --sidebar-border: var(--saathi-border-subtle);
-    --sidebar-ring: var(--saathi-brand);
-    --surface-lowest: var(--saathi-surface-page);
-    --surface-low: var(--saathi-surface-subtle);
-    --surface: var(--saathi-surface-default);
-    --surface-high: var(--saathi-surface-default);
-    --surface-highest: var(--saathi-border-subtle);
+    /* Tokens come from :root and .dark; no per-surface overrides. */
     min-height: 100vh;
     background: var(--background);
     color: var(--foreground);
@@ -227,7 +264,7 @@
   .saathi-dashboard .saathi-panel {
     background: var(--card);
     border-color: var(--border);
-    box-shadow: 0 10px 30px rgb(44 50 89 / 0.06);
+    box-shadow: var(--saathi-shadow-card);
     backdrop-filter: none;
   }
 
@@ -244,7 +281,7 @@
   .saathi-panel {
     background: var(--card);
     border: 1px solid var(--border);
-    box-shadow: 0 10px 30px rgb(44 50 89 / 0.06);
+    box-shadow: var(--saathi-shadow-card);
     backdrop-filter: none;
   }
 

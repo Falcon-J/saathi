@@ -3,12 +3,18 @@ import type { Metadata, Viewport } from "next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { HistoryPositionProvider } from "@/components/history-position-provider"
+import { GeistMono } from "geist/font/mono"
+import "@fontsource-variable/inter"
 import "./globals.css"
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#141412" },
+  ],
 }
 
 export const metadata: Metadata = {
@@ -16,7 +22,7 @@ export const metadata: Metadata = {
   title: "Saathi — Move from intention to action",
   description: "A focused collaborative workspace for planning what matters and moving it forward together.",
   icons: {
-    icon: "/saathi-logo-mark.png",
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/saathi-logo-mark.png", type: "image/png" }],
     apple: "/saathi-logo-mark.png",
   },
   openGraph: {
@@ -39,13 +45,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={GeistMono.variable} suppressHydrationWarning>
       <body className="antialiased">
         <HistoryPositionProvider />
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
+          defaultTheme="system"
+          enableSystem
           disableTransitionOnChange
         >
           {children}

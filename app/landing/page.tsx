@@ -16,7 +16,7 @@ export default function LandingPage() {
           sizes="100vw"
           className="z-0 hidden object-cover object-[60%_center] lg:block"
         />
-        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-[#f7f7f4] via-[#f7f7f4]/85 to-transparent lg:block lg:w-[64%]" />
+        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-background via-background/85 to-transparent lg:block lg:w-[64%]" />
         <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-4 pt-5 sm:px-6 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Saathi home">
             <SaathiLogo className="size-9" priority />
@@ -36,7 +36,7 @@ export default function LandingPage() {
               <Link href="/login" className="inline-flex min-h-11 items-center px-4 text-sm font-medium text-foreground">Sign in</Link>
             </div>
             <div className="mt-6 flex justify-center lg:justify-start">
-              <Link href="/guide" className="whitespace-nowrap rounded-full border border-border bg-white/85 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur transition-colors hover:bg-white">
+              <Link href="/guide" className="whitespace-nowrap rounded-full border border-border bg-card/85 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur transition-colors hover:bg-white">
                 See how it works
               </Link>
             </div>

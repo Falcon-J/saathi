@@ -101,3 +101,56 @@ test("invalid deadline data or timezone cannot silently become an undated ready 
   assert.throws(() => deriveNextWork([task("A", { dueAt: "2026-10-27T12:00:00Z", dueDate: "2026-10-27" })], [], "UTC", now), /deadline/i)
   assert.throws(() => deriveNextWork([], [], "Not/A_Timezone", now))
 })
+
+test("orders ready work by effective priority before deadlines", () => {
+  const result = deriveNextWork([
+    task("soon-low", { priority: "low", dueDate: "2026-10-27" }),
+    task("later-high", { priority: "high", dueDate: "2026-11-30" }),
+    task("undated-medium"),
+  ], [], "UTC", now)
+  assert.deepEqual(ids(result.ready), ["later-high", "undated-medium", "soon-low"])
+})
+
+test("a prerequisite inherits the highest priority of open work waiting on it", () => {
+  const result = deriveNextWork([
+    task("schema", { priority: "low" }),
+    task("api", { priority: "medium" }),
+    task("launch", { priority: "high", title: "Launch" }),
+    task("chore", { priority: "medium" }),
+  ], [edge("api", "schema"), edge("launch", "api")], "UTC", now)
+  assert.deepEqual(ids(result.ready), ["schema", "chore"])
+  assert.equal(result.ready[0].effectivePriority, "high")
+  assert.deepEqual(result.ready[0].inheritedFrom, { taskId: "launch", title: "Launch" })
+  assert.equal(result.ready[1].inheritedFrom, undefined)
+})
+
+test("finished dependents do not lift priority", () => {
+  const result = deriveNextWork([
+    task("fix", { priority: "low" }),
+    task("shipped", { priority: "high", status: "done", completed: true }),
+  ], [edge("shipped", "fix")], "UTC", now)
+  assert.equal(result.completedInconsistencies[0].task.id, "shipped")
+  assert.equal(result.ready[0].effectivePriority, "low")
+})
+
+test("property: ready order never puts lower effective priority above higher", () => {
+  const rank = { low: 0, medium: 1, high: 2 } as const
+  let seed = 7
+  const random = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648
+  const levels = ["low", "medium", "high"] as const
+  for (let run = 0; run < 200; run++) {
+    const size = 2 + Math.floor(random() * 10)
+    const tasks = Array.from({ length: size }, (_, index) => task(`t${index}`, { priority: levels[Math.floor(random() * 3)], ...(random() < 0.2 ? { status: "done" as const, completed: true } : {}) }))
+    const dependencies: TaskDependency[] = []
+    for (let to = 1; to < size; to++) for (let from = 0; from < to; from++) if (random() < 0.25) dependencies.push(edge(`t${to}`, `t${from}`))
+    const result = deriveNextWork(tasks, dependencies, "UTC", now)
+    for (const list of [result.ready, result.waiting]) {
+      for (let index = 1; index < list.length; index++) {
+        assert.ok(rank[list[index - 1].effectivePriority] >= rank[list[index].effectivePriority])
+      }
+    }
+    for (const item of [...result.ready, ...result.waiting]) {
+      assert.ok(rank[item.effectivePriority] >= rank[item.task.priority ?? "medium"])
+    }
+  }
+})
