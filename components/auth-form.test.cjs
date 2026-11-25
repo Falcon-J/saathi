@@ -34,7 +34,7 @@ test('account switches and confirmation retain only safe return destinations', a
       '@/lib/supabase/auth-boundary': boundary,
       '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
       '@/hooks/use-notifications': { useNotifications: () => ({ success() {} }) },
-      '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' }, '@/components/canvas-preview': { CanvasPreview: 'CanvasPreview' },
+      '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' }, '@/components/live-flow': { LiveFlow: 'LiveFlow' },
     }
     const originalWindow = global.window
     global.window = { location: { search: `?redirect=${encodeURIComponent(destination)}` } }
@@ -118,13 +118,11 @@ test("signup preserves a safe return destination through email confirmation", ()
   assert.match(authActions, /emailRedirectTo: getAuthCallbackUrl\(safeAuthRedirect\(next\)\)/)
 })
 
-test("authentication suite follows the approved reference layout", () => {
-  assert.match(source, /<CanvasPreview className="absolute inset-0/)
+test("authentication pairs a solid form column with the live path panel", () => {
+  assert.match(source, /<LiveFlow className=/)
+  assert.match(source, /aria-label="How Saathi coordinates work" className="relative hidden/)
+  assert.match(source, /lg:grid-cols-\[minmax\(26rem,34rem\)_minmax\(0,1fr\)\]/)
   assert.doesNotMatch(source, /\.png/)
-  assert.match(source, /flex min-w-0 flex-1 items-center/)
-  assert.match(source, /sm:items-start/)
-  assert.match(source, /w-\[48%\]/)
-  assert.match(source, /sm:w-\[clamp\(14rem,34vw,33\.75rem\)\]/)
   assert.doesNotMatch(source, /sm:h-\[100svh\] sm:overflow-hidden/)
   assert.match(source, /Forgot password\?/)
   assert.doesNotMatch(source, /loginWithGoogle|Continue with Google|or continue with/)

@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
-import { CanvasPreview } from "@/components/canvas-preview"
+import { LiveFlow } from "@/components/live-flow"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { login, signup } from "@/lib/auth-simple"
 import { safeAuthRedirect } from "@/lib/supabase/auth-boundary"
 import { Button } from "@/components/ui/button"
@@ -90,29 +90,26 @@ export function AuthForm({ mode }: AuthFormProps) {
   }
 
   return (
-    <main className="relative isolate min-h-[100svh] overflow-x-hidden bg-background text-foreground">
-      <CanvasPreview className="absolute inset-0 z-0 hidden size-full sm:block" />
-      <div className="absolute inset-y-0 left-0 z-0 hidden w-[48%] bg-gradient-to-r from-background/45 to-transparent sm:block" />
-
-      <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1600px] flex-col px-4 py-5 sm:h-full sm:min-h-0 sm:px-5 sm:py-[clamp(0.75rem,2.5vh,1.5rem)]">
-        <header>
-          <Link href="/" className="inline-flex items-center gap-3" aria-label="Saathi home">
-            <SaathiLogo className="size-10 border-border bg-card/80 p-1.5 sm:size-8 lg:size-10" priority />
-            <span className="text-[1.55rem] font-semibold tracking-[-0.04em] text-foreground sm:text-base lg:text-[1.55rem]">Saathi</span>
+    <main className="grid min-h-[100svh] bg-background text-foreground lg:grid-cols-[minmax(26rem,34rem)_minmax(0,1fr)]">
+      <div className="flex min-h-[100svh] flex-col px-5 py-5 sm:px-8 lg:px-12">
+        <header className="flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Saathi home">
+            <SaathiLogo className="size-8 border-border bg-card p-1" priority />
+            <span className="saathi-display text-lg text-foreground">Saathi</span>
+          </Link>
+          <Link href="/" className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back
           </Link>
         </header>
 
-        <div className="flex min-w-0 flex-1 items-center py-8 sm:min-h-0 sm:items-start sm:py-0 sm:pl-[clamp(3rem,9vw,8rem)] sm:pt-[clamp(2rem,6vh,4.5rem)]">
-          <section className="w-full min-w-0 sm:w-[clamp(14rem,34vw,33.75rem)]">
-            <div className="w-full rounded-[1.5rem] bg-card/95 p-5 shadow-[0_24px_70px_rgba(42,61,70,0.09)] sm:rounded-2xl sm:p-[clamp(0.625rem,2.5vh,2rem)] lg:rounded-[1.5rem] lg:p-[clamp(1.25rem,3vh,1.75rem)]">
-              <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:text-sm">
-                <ArrowLeft className="size-4 text-primary sm:size-3 lg:size-4" aria-hidden="true" />
-                Back
-              </Link>
-
-              <div className="mt-7 sm:mt-[clamp(0.5rem,2.5vh,1.25rem)] lg:mt-[clamp(1rem,2.5vh,1.5rem)]">
-                <h1 className="text-[2rem] font-semibold leading-none tracking-[-0.055em] text-foreground sm:text-[clamp(1.1rem,4.5vh,2.5rem)] lg:text-[clamp(1.75rem,4vh,2.25rem)]">{isSignup ? "Create an account" : "Sign in"}</h1>
-              </div>
+        <div className="flex flex-1 items-center py-10">
+          <section className="mx-auto w-full max-w-sm">
+            <div>
+              <p className="saathi-label text-muted-foreground">{isSignup ? "Get started" : "Welcome back"}</p>
+              <h1 className="mt-2 text-4xl leading-none text-foreground">{isSignup ? "Create an account" : "Sign in"}</h1>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">{isSignup ? "One task graph for you and your agents." : "Pick up where your team and agents left off."}</p>
+            </div>
 
               {passwordResetComplete && !confirmation && <div role="status" className="mt-5 rounded-xl border border-primary/30 bg-accent p-4 text-sm leading-5 text-accent-foreground"><p className="font-semibold text-foreground">Password updated</p><p className="mt-1">Sign in with your new password.</p></div>}
 
@@ -123,20 +120,20 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Link href={signInHref} className="text-sm font-semibold text-primary underline-offset-4 hover:underline">Return to sign in</Link>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} aria-busy={!hydrated || loading} className="mt-7 space-y-4 sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:space-y-[clamp(0.25rem,1vh,0.75rem)] lg:mt-[clamp(0.75rem,2vh,1.25rem)] lg:space-y-[clamp(0.5rem,1.2vh,0.875rem)]">
+                <form onSubmit={handleSubmit} aria-busy={!hydrated || loading} className="mt-8 space-y-4">
                   {isSignup && (
                     <FieldShell label="Name" id="account-name">
-                      <Input id="account-name" type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading} required className="h-14 rounded-xl border-border px-4 text-base sm:h-11 sm:px-3 sm:text-sm" />
+                      <Input id="account-name" type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" autoComplete="name" disabled={!hydrated || loading} required className="h-11" />
                     </FieldShell>
                   )}
 
                   <FieldShell label="Email" id="account-email">
-                    <Input id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading} required className="h-14 rounded-xl border-border px-4 text-base sm:h-11 sm:px-3 sm:text-sm" />
+                    <Input id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" autoComplete="email" disabled={!hydrated || loading} required className="h-11" />
                   </FieldShell>
 
                   <FieldShell label="Password" id="account-password">
                     <div className="relative">
-                      <Input id="account-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading} required className="h-14 rounded-xl border-border px-4 pr-12 text-base sm:h-11 sm:pl-3 sm:text-sm" />
+                      <Input id="account-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isSignup ? "Create a password" : "Enter your password"} autoComplete={isSignup ? "new-password" : "current-password"} disabled={!hydrated || loading} required className="h-11 pr-12" />
                       <button type="button" disabled={!hydrated || loading} className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"}>
                         {showPassword ? <EyeOff className="size-4 lg:size-5" aria-hidden="true" /> : <Eye className="size-4 lg:size-5" aria-hidden="true" />}
                       </button>
@@ -144,27 +141,34 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </FieldShell>
 
                   {!isSignup && (
-                    <div className="flex justify-end pt-1 text-xs lg:text-sm">
+                    <div className="-mt-1 flex justify-end text-sm">
                       <Link className="font-semibold text-primary hover:underline" href="/forgot-password">Forgot password?</Link>
                     </div>
                   )}
 
-                  {formError && <p role="alert" className="rounded-xl border border-destructive/30 bg-[var(--saathi-danger-soft)] px-4 py-3 text-sm leading-5 text-destructive">{formError}</p>}
+                  {formError && <p role="alert" className="rounded-md border border-destructive/30 bg-[var(--saathi-danger-soft)] px-3 py-2.5 text-sm leading-5 text-destructive">{formError}</p>}
 
-                  <Button type="submit" className="h-14 w-full rounded-xl bg-primary text-sm shadow-none hover:bg-[var(--saathi-brand-hover)] disabled:opacity-100 sm:h-11" disabled={!hydrated || loading}>
-                    {loading ? <><Loader2 className="size-4 animate-spin" />{isSignup ? "Creating account" : "Signing in"}</> : isSignup ? "Create account" : "Sign in"}
+                  <Button type="submit" size="lg" className="w-full" disabled={!hydrated || loading} loading={loading}>
+                    {loading ? (isSignup ? "Creating account" : "Signing in") : isSignup ? "Create account" : "Sign in"}
                   </Button>
                 </form>
               )}
 
-              <p className="mt-8 text-center text-sm text-muted-foreground sm:mt-[clamp(0.35rem,1.5vh,1rem)] sm:text-[clamp(0.65rem,2.3vh,0.875rem)] lg:mt-[clamp(0.75rem,1.5vh,1rem)] lg:text-sm">
+              <p className="mt-6 text-sm text-muted-foreground">
                 {isSignup ? "Already have an account?" : "New to Saathi?"}{" "}
                 <Link href={isSignup ? signInHref : registerHref} className="font-semibold text-primary hover:underline">{isSignup ? "Sign in" : "Create an account"}</Link>
               </p>
-            </div>
           </section>
         </div>
       </div>
+      <aside aria-label="How Saathi coordinates work" className="relative hidden min-h-[100svh] flex-col justify-center gap-6 overflow-hidden border-l border-border bg-card/40 px-10 py-10 lg:flex">
+        <div className="max-w-xl">
+          <p className="saathi-label text-muted-foreground">Live path</p>
+          <p className="saathi-display mt-2 text-3xl leading-tight text-foreground">People and agents, one task graph.</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Finished work unlocks the next task. Agents claim under a lease, so a crashed agent never holds work hostage.</p>
+        </div>
+        <LiveFlow className="h-auto max-h-[70svh] w-full" />
+      </aside>
     </main>
   )
 }
