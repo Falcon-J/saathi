@@ -68,6 +68,7 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest, onDirtyCh
     const dueAt = localDateTimeToIso(dueDate, dueTime)
     if (dueTime && !dueAt) { setError("This local time is invalid or occurs twice because of a clock change. Choose another time."); return }
     pendingRef.current = true
+    let refocus = false
     setSaving(true)
     setAdded(false)
     setError(null)
@@ -82,11 +83,16 @@ export function TaskQuickAdd({ onAddTask, onReviewBoard, focusRequest, onDirtyCh
         removeDraft(draftKey)
         setTitle(""); setDescription(""); setPriority("medium"); setDueDate(""); setDueTime(""); setEstimatedMinutes(""); setDetailsOpen(false)
         setAdded(true)
+        refocus = true
       }
     } catch {
       setNeedsReconciliation(true)
       setError("Unable to confirm the task was saved. Refresh the workspace before retrying.")
-    } finally { pendingRef.current = false; setSaving(false) }
+    } finally {
+      pendingRef.current = false; setSaving(false)
+      // Keep typing: the input was disabled while saving, so return focus for the next task.
+      if (refocus) setTimeout(() => inputRef.current?.focus(), 0)
+    }
   }
 
   const reviewBoard = async () => {

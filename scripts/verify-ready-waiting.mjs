@@ -49,6 +49,8 @@ const section = (p, name) => p.getByRole('region', { name, exact: true })
 const card = (p, name, title) => section(p, name).locator('article').filter({ has: p.locator('p').filter({ hasText: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) })
 async function login(user) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); contexts.push(context)
+  // These journeys drive the graph; the board has its own checks.
+  await context.addInitScript(() => { try { localStorage.setItem('saathi:layout', 'map') } catch {} })
   const p = await context.newPage(); p.setDefaultTimeout(30000)
   const recordBrowserError = value => {
     let detail = String(value)

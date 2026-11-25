@@ -34,6 +34,8 @@ function loopback(value, protocols) {
 }
 async function login(user, viewport = { width: 1280, height: 900 }) {
   const context = await browser.newContext({ viewport }); contexts.push(context)
+  // These journeys drive the graph; the board has its own checks.
+  await context.addInitScript(() => { try { localStorage.setItem('saathi:layout', 'map') } catch {} })
   const page = await context.newPage()
   const actionStatuses = []
   page.on('response', response => {
@@ -191,6 +193,8 @@ try {
   const inviteeUser = { role: 'invitee', email: `qa-${randomUUID()}@example.test`, password: `${randomUUID()}Aa9!` }
   users.push(inviteeUser)
   const inviteeContext = await browser.newContext({ viewport: { width: 360, height: 800 } }); contexts.push(inviteeContext)
+  // These journeys drive the graph; the board has its own checks.
+  await inviteeContext.addInitScript(() => { try { localStorage.setItem('saathi:layout', 'map') } catch {} })
   const invitee = await inviteeContext.newPage()
   await invitee.goto(first.link)
   await expect(invitee.getByRole('heading', { name: 'Join Disposable local acceptance', exact: true })).toBeVisible({ timeout: 30000 })
@@ -232,6 +236,8 @@ try {
   phase = 'existing-account-sign-in-and-link-acceptance'
   const third = await invite()
   const signInContext = await browser.newContext(); contexts.push(signInContext)
+  // These journeys drive the graph; the board has its own checks.
+  await signInContext.addInitScript(() => { try { localStorage.setItem('saathi:layout', 'map') } catch {} })
   const signInPage = await signInContext.newPage()
   await signInPage.goto(third.link)
   await expect(signInPage.getByRole('heading', { name: 'Join Disposable local acceptance', exact: true })).toBeVisible({ timeout: 30000 })
