@@ -1,15 +1,16 @@
 export const saathiDesign = {
+  // Mirrors the light tokens in app/globals.css. Prefer the CSS variables in components.
   colors: {
-    ink: "#111936",
-    inkMuted: "#66708f",
-    canvas: "#f7f8fc",
+    ink: "#1c1b19",
+    inkMuted: "#64625c",
+    canvas: "#faf9f7",
     surface: "#ffffff",
-    surfaceSubtle: "#f1f2f8",
-    violet: "#5b4df7",
-    violetSoft: "#eeecff",
-    green: "#34c759",
-    amber: "#ff9f0a",
-    red: "#ff3b30",
+    surfaceSubtle: "#f2f1ee",
+    accent: "#2952cc",
+    accentSoft: "#eaf0fc",
+    green: "#15803d",
+    amber: "#b45309",
+    red: "#b42318",
   },
   radii: {
     control: "0.375rem",
@@ -18,13 +19,15 @@ export const saathiDesign = {
     pill: "999px",
   },
   shadows: {
-    card: "0 10px 30px rgb(44 50 89 / 0.06)",
-    elevated: "0 24px 80px rgb(44 50 89 / 0.10)",
+    card: "0 1px 2px rgb(28 27 25 / 0.06)",
+    elevated: "0 12px 32px rgb(28 27 25 / 0.14)",
   },
 } as const
 
 export const saathiAssetManifest = {
-  logo: "/saathi-logo.png",
+  logo: "/saathi-lockup.svg",
+  logoDark: "/saathi-lockup-dark.svg",
+  icon: "/icon.svg",
   logoMark: "/saathi-logo-mark.png",
   heroTexture: "/saathi-hero-texture.png",
   authIllustration: "/saathi-auth-illustration.png",
