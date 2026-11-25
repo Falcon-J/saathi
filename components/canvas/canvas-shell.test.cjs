@@ -68,6 +68,7 @@ function harness(options = {}) {
   const exports = {}
   deps['./canvas-task-panel']={CanvasTaskPanel:'CanvasTaskPanel'}
   deps['./work-board']={WorkBoard:'WorkBoard'}
+  deps['./workspace-sidebar']={WorkspaceSidebar:'WorkspaceSidebar'}
   deps['@/components/invitation-notifications']={InvitationNotifications:'InvitationNotifications'}
   deps['@/lib/auth-simple']={logout:async()=>({success:true})}
   deps['@/lib/draft-storage']={clearAccountDrafts(prefix){calls.push(['clear-drafts',prefix])}}
@@ -451,4 +452,11 @@ test('the board hides the duplicate side list and opens the summary for a chosen
  let tree=ui.render();const aside=tree.find(n=>n.type==='aside');assert.match(aside.props.className,/\bhidden\b/)
  tree.find(n=>n.type==='WorkBoard').props.onInspect('t');tree=ui.render()
  assert.doesNotMatch(tree.find(n=>n.type==='aside').props.className,/\bhidden\b/);assert.equal(tree.find(n=>n.type==='CanvasTaskPanel').props.selectedTask.id,'t')
+})
+test('the sidebar marks the open workspace and the board lane hands review to agent runs',()=>{
+ const ui=harness({layout:'board',store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
+ ui.render();ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
+ let tree=ui.render();const sidebar=tree.find(n=>n.type==='WorkspaceSidebar');assert.equal(sidebar.props.currentWorkspaceId,'w');assert.equal(typeof sidebar.props.onAgents,'function')
+ tree.find(n=>n.type==='WorkBoard').props.onReview();tree=ui.render()
+ assert.doesNotMatch(tree.find(n=>n.type==='aside'&&n.props['aria-label']==='Workspace work area').props.className,/\bhidden\b/)
 })
