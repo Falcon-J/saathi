@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { getTaskGraph } from "@/app/actions/task-dependencies"
+import { getTaskGraph } from "@/lib/canvas-reads"
 import type { TaskGraph } from "@/lib/data/task-dependencies"
 import type { Workspace } from "@/lib/data/workspaces"
 import { deriveNextWork } from "@/lib/next-work"

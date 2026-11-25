@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { getCanvasResources } from "@/features/access/actions"
+import { getCanvasResources } from "@/lib/canvas-reads"
 import type { AuthorizedCanvasView } from "@/features/access/service"
 import { createCoalescedRefresh } from "@/lib/read-coordinator"
 

@@ -18,7 +18,7 @@ function harness(read) {
   }
   react.useLayoutEffect = react.useEffect
   const exports = {}
-  const deps = { react, '@/app/actions/task-dependencies': { getTaskGraph: read }, '@/lib/read-coordinator': require('../lib/read-coordinator.ts'), '@/lib/next-work': require('../lib/next-work.ts') }
+  const deps = { react, '@/lib/canvas-reads': { getTaskGraph: read }, '@/lib/read-coordinator': require('../lib/read-coordinator.ts'), '@/lib/next-work': require('../lib/next-work.ts') }
   const code = ts.transpileModule(fs.readFileSync('hooks/use-canvas-graph.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   new Function('require', 'exports', code)(name => { assert.ok(name in deps, name); return deps[name] }, exports)
   return { render(actor = 'actor', id = 'w', signal = 0) { cursor = 0; const result = exports.useCanvasGraph(actor, id ? workspace(id) : undefined, signal); effects.splice(0).forEach(fn => fn()); return result }, unmount() { slots.forEach(slot => slot?.cleanup?.()) } }
