@@ -34,7 +34,7 @@ test('account switches and confirmation retain only safe return destinations', a
       '@/lib/supabase/auth-boundary': boundary,
       '@/components/ui/button': { Button: 'Button' }, '@/components/ui/input': { Input: 'Input' },
       '@/hooks/use-notifications': { useNotifications: () => ({ success() {} }) },
-      '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' }, '@/components/live-flow': { LiveFlow: 'LiveFlow' },
+      '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' }, '@/components/live-flow': { LiveFlow: 'LiveFlow' }, '@/components/auth-shell':{AuthShell:p=>({type:'main',props:{children:[{type:'h1',props:{children:p.title}},p.children]}}),AuthFrame:p=>({type:'main',props:{children:p.children}})},
     }
     const originalWindow = global.window
     global.window = { location: { search: `?redirect=${encodeURIComponent(destination)}` } }
@@ -87,6 +87,7 @@ test('generic auth error offers sign in with a sanitized destination and recover
   const page = load('app/auth/error/page.tsx', {
     'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/link': { default: 'Link' }, 'next/image': { default: 'Image' },
     '@/components/saathi-logo': { SaathiLogo: 'SaathiLogo' }, '@/lib/supabase/auth-boundary': boundary,
+    '@/components/ui/button': { Button: 'Button' }, '@/components/auth-shell':{AuthShell:p=>({type:'main',props:{children:[{type:'h1',props:{children:p.title}},p.children]}}),AuthFrame:p=>({type:'main',props:{children:p.children}})},
   })
   for (const next of ['/dashboard?workspace=one', '//evil.test', ['/dashboard'], '/reset-password']) {
     const tree = await page.default({ searchParams: Promise.resolve({ next }) })
@@ -119,9 +120,11 @@ test("signup preserves a safe return destination through email confirmation", ()
 })
 
 test("authentication pairs a solid form column with the live path panel", () => {
-  assert.match(source, /<LiveFlow className=/)
-  assert.match(source, /aria-label="How Saathi coordinates work" className="relative hidden/)
-  assert.match(source, /lg:grid-cols-\[minmax\(26rem,34rem\)_minmax\(0,1fr\)\]/)
+  const shell = readFileSync(path.join(__dirname, 'auth-shell.tsx'), 'utf8')
+  assert.match(source, /<AuthShell eyebrow=/)
+  assert.match(shell, /<LiveFlow className=/)
+  assert.match(shell, /aria-label="How Saathi coordinates work" className="relative hidden/)
+  assert.match(shell, /lg:grid-cols-\[minmax\(26rem,34rem\)_minmax\(0,1fr\)\]/)
   assert.doesNotMatch(source, /\.png/)
   assert.doesNotMatch(source, /sm:h-\[100svh\] sm:overflow-hidden/)
   assert.match(source, /Forgot password\?/)
@@ -129,5 +132,5 @@ test("authentication pairs a solid form column with the live path panel", () => 
   assert.doesNotMatch(source, /GitHub|Github/)
   assert.doesNotMatch(source, /keepSignedIn|Keep me signed in/)
   assert.match(source, /Show password/)
-  assert.match(source, /Back/)
+  assert.match(shell, /backLabel = "Back"/)
 })

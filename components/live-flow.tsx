@@ -61,7 +61,7 @@ function Blink({ start, end, attr = "opacity" }: { start: number; end: number; a
 
 function anchor(id: string) {
   const node = NODES.find(item => item.id === id)!
-  return `${node.x + W - 14},${node.y + 14}`
+  return `${node.x + W - 2},${node.y + 2}`
 }
 
 const REST = { a: "700,20", b: "730,20", c: "760,20" }

@@ -1,6 +1,7 @@
 import { listWorkspaces } from "../../lib/data/workspaces"
 import { connectionWorkspaceNames } from "../../components/mcp/workspace-scope"
 import Link from 'next/link'
+import { AppPage } from '@/components/app-page'
 import { redirect } from 'next/navigation'
 import { getSession } from '../../lib/auth-simple'
 import { createClient } from '../../lib/supabase/server'
@@ -43,9 +44,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const names = new Map(grants.map(grant => [grant.client.id, grant.client.name]))
   const recorded = await recordedMcpClientIds(session.id).catch(() => null)
   const orphaned = recorded ? grants.filter(grant => configuration.allowedClientIds.includes(grant.client.id) && !recorded.has(grant.client.id)) : []
-  return <main className="mx-auto min-h-screen max-w-3xl space-y-6 px-4 py-8 sm:px-6">
-    <Link href="/canvas" className="text-sm text-primary underline underline-offset-4">Back to workspace</Link>
-    <h1 className="text-2xl font-semibold">Agent connections</h1>
+  return <AppPage width="max-w-3xl" eyebrow="Connections" title="Agent connections" description="Agents reach Saathi over MCP. Each connection lists what it may do, and you can revoke it at any time.">
     {configuration.status === 'enabled' && <McpConnectionSetup resource={configuration.config.resource} />}
     {configuration.status !== 'enabled' && <p role="status" className="alert rounded-lg border border-border px-4 py-3 text-sm">{configuration.status === 'disabled' ? 'Agent access disabled' : 'Agent access unavailable'}</p>}
     {(provider.error || !recorded) && <p role="alert">OAuth connection details are unavailable. You can still stop application access below.</p>}
@@ -69,5 +68,5 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
     })}
     {orphaned.map(grant => <section key={grant.client.id} className="space-y-3 rounded-xl border border-border p-5"><h2 className="text-lg font-semibold">{grant.client.name}</h2><p>No application access. Disconnect the retained OAuth consent before reconnecting.</p><McpDisconnectForm clientId={grant.client.id} cleanupOnly /></section>)}
     {page.next && <Link href={'/connections?after=' + encodeURIComponent(page.next)} className="text-primary underline">More connections</Link>}
-  </main>
+  </AppPage>
 }
