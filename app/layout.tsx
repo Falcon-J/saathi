@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { HistoryPositionProvider } from "@/components/history-position-provider"
 import { GeistMono } from "geist/font/mono"
+import { GeistPixelSquare } from "geist/font/pixel"
 import "@fontsource-variable/inter"
 import "./globals.css"
 
@@ -12,8 +13,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   interactiveWidget: "resizes-content",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#141412" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
   ],
 }
 
@@ -45,7 +46,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={GeistMono.variable} suppressHydrationWarning>
+    <html lang="en" className={`${GeistMono.variable} ${GeistPixelSquare.variable}`} suppressHydrationWarning>
       <body className="antialiased">
         <HistoryPositionProvider />
         <ThemeProvider
