@@ -26,6 +26,8 @@ export interface CoordinationSession {
     authorizeHuman(userId: string, workspaceId: string, capability?: "read" | "edit"): Promise<void>;
     authorizeOrigin(run: CoordinationRun): Promise<void>;
     task(workspaceId: string, taskId: string): Promise<CoordinationTask>;
+    /** Prerequisites of the task that are not done yet. A task with any is Waiting, not Ready. */
+    openPrerequisites(workspaceId: string, taskId: string): Promise<number>;
     run(runId: string): Promise<CoordinationRun | null>;
     list(workspaceId: string, input: Record<string, unknown>): Promise<CoordinationRun[]>;
     lease(workspaceId: string, taskId: string): Promise<TaskLease>;
@@ -38,12 +40,14 @@ export interface CoordinationSession {
 export interface CoordinationStore {
     transaction<T>(operation: (session: CoordinationSession) => Promise<T>): Promise<T>;
 }
-export type CoordinationErrorCode = 'invalid_input' | 'forbidden' | 'not_found' | 'invalid_state' | 'version_conflict' | 'lease_conflict' | 'lease_expired' | 'stale_fence';
+export type CoordinationErrorCode = 'invalid_input' | 'forbidden' | 'not_found' | 'invalid_state' | 'version_conflict' | 'lease_conflict' | 'lease_expired' | 'stale_fence' | 'task_blocked';
 export class CoordinationError extends Error {
     readonly code: CoordinationErrorCode;
     constructor(code: CoordinationErrorCode) { super(code); this.name = 'CoordinationError'; this.code = code; }
 }
 function deny(code: CoordinationErrorCode): never { throw new CoordinationError(code); }
+/** How long a hand-back holds its task while waiting for a person. */
+export const REVIEW_HOLD_MS = 30 * 24 * 60 * 60 * 1000;
 const terminal = new Set<CoordinationRun['state']>(['succeeded', 'failed', 'cancelled']);
 const identity = z.object({ userId: z.uuid(), clientId: z.string().min(1).max(200), grantId: z.uuid() });
 function permission(task: CoordinationTask, userId: string) { if (!canChangeTask(task, userId, 'toggle'))
@@ -87,6 +91,9 @@ export function createCoordinationService(store: CoordinationStore) {
                     deny('version_conflict');
                 if (task.status === 'done')
                     deny('invalid_state');
+                // Agents claim Ready work only: the same rule the board uses for Up next.
+                if (await session.openPrerequisites(workspaceId, task.id) > 0)
+                    deny('task_blocked');
                 const lease = await session.lease(workspaceId, task.id), now = await session.now();
                 if (lease.holderRunId && lease.leaseExpiresAt && Date.parse(lease.leaseExpiresAt) > now.getTime())
                     deny('lease_conflict');
@@ -146,6 +153,9 @@ export function createCoordinationService(store: CoordinationStore) {
                     deny('invalid_state');
                 updated.state = 'awaiting_review';
                 updated.evidence = input.evidence as CoordinationRun['evidence'];
+                // Review runs on human time: the hand-back holds the task for REVIEW_HOLD_MS, so the
+                // work is not lost to a lapsed heartbeat or taken by another agent while a person decides.
+                await session.saveLease({ ...lease, leaseExpiresAt: new Date(now.getTime() + REVIEW_HOLD_MS).toISOString() });
             }
             else if (name === 'agent_runs.cancel' || name === 'agent_runs.release') {
                 updated.state = 'cancelled';
@@ -183,7 +193,8 @@ export function createCoordinationService(store: CoordinationStore) {
             if (task.version !== input.expectedTaskVersion)
                 deny('version_conflict');
             const lease = await session.lease(input.workspaceId, task.id), now = await session.now();
-            activeLease(lease, run, run.fencingToken, now);
+            if (lease.holderRunId !== run.id || lease.fencingToken !== run.fencingToken)
+                deny('stale_fence');
             if (input.decision === 'approve')
                 await session.authorizeOrigin(run);
             if (input.decision === 'approve')

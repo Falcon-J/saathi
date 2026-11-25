@@ -38,6 +38,10 @@ function session(tx: Transaction): CoordinationSession {
                 throw new CoordinationError('not_found');
             return { id: row.id, workspaceId: row.workspace_id, version: row.version, status: row.status, ownerId: row.owner_user_id, creatorId: row.created_by_user_id, assigneeId: row.assignee_user_id };
         },
+        async openPrerequisites(workspaceId, taskId) {
+            const [row] = await tx `SELECT count(*)::int AS open FROM task_dependencies d JOIN tasks p ON p.id=d.prerequisite_task_id AND p.workspace_id=d.workspace_id WHERE d.workspace_id=${workspaceId} AND d.dependent_task_id=${taskId} AND p.status<>'done'`;
+            return Number(row?.open ?? 0);
+        },
         async run(runId) { const [row] = await tx `SELECT * FROM agent_runs WHERE id=${runId} FOR UPDATE`; return row ? project(row) : null; },
         async list(workspaceId, input) {
             const taskId = typeof input.taskId === "string" ? input.taskId : null, state = typeof input.state === "string" ? input.state : null, cursor = typeof input.cursor === "string" ? input.cursor : null;
@@ -95,5 +99,22 @@ export async function listCoordinationRunsForHuman(args: { userId: string; input
             const canReview = run.state === 'awaiting_review' && Boolean(row.lease_active) && access.capabilities.includes('edit') && canChangeTask({ ownerId: row.owner_user_id, creatorId: row.created_by_user_id, assigneeId: row.assignee_user_id }, args.userId, 'toggle');
             return { ...run, task: { id: run.taskId, title: String(row.task_title), version: Number(row.task_version), canReview } };
         }), nextCursor: rows.length > input.limit ? visible[visible.length - 1].id : null };
+    });
+}
+export type AgentHold = { taskId: string; runId: string; state: 'queued' | 'running' | 'awaiting_review'; agent: string; leaseActive: boolean; leaseExpiresAt: string | null };
+/**
+ * Which tasks agents hold right now, read from the lease table: the one record that
+ * decides who may write a task. Board lanes derive from this instead of paging runs.
+ */
+export async function listAgentHoldsForHuman(args: { userId: string; workspaceId: string }): Promise<AgentHold[]> {
+    z.uuid().parse(args.userId);
+    const workspaceId = z.uuid().parse(args.workspaceId);
+    return postgresCoordinationStore.transaction(async authorized => {
+        await authorized.authorizeHuman(args.userId, workspaceId, 'read');
+        const tx = getCurrentTransaction()!;
+        const rows = await tx`SELECT l.task_id,r.id AS run_id,r.state,r.client_id,l.lease_expires_at,COALESCE(l.lease_expires_at>clock_timestamp(),false) AS lease_active
+            FROM task_agent_leases l JOIN agent_runs r ON r.id=l.holder_run_id AND r.fencing_token=l.fencing_token
+            WHERE l.workspace_id=${workspaceId} AND r.state IN ('queued','running','awaiting_review')`;
+        return rows.map(row => ({ taskId: String(row.task_id), runId: String(row.run_id), state: row.state, agent: String(row.client_id), leaseActive: Boolean(row.lease_active), leaseExpiresAt: row.lease_expires_at ? iso(row.lease_expires_at) : null }));
     });
 }

@@ -353,20 +353,23 @@ export async function verifyMcpLocal({ log = value => console.log(JSON.stringify
     const held = { workspaceId, runId: firstRun.id, expectedVersion: null, fencingToken: firstRun.fencingToken }
     assert.equal((await tool(tokens.access_token, 'agent_runs.start', { ...held, commandId: randomUUID() })).data.state, 'running')
     await tool(tokens.access_token, 'agent_runs.report', { ...held, commandId: randomUUID(), progress: 'Synthetic MCP transport evidence prepared' })
-    const review = await tool(tokens.access_token, 'agent_runs.submit_review', { ...held, commandId: randomUUID(), evidence: [{ kind: 'text', text: 'Fixture-only evidence for human review' }] })
-    assert.equal(review.data.state, 'awaiting_review')
-    assert.notEqual((await tool(tokens.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).data.status, 'done')
-    // Exercise the actual minimum lease clock rather than changing SQL expiry facts.
+    // A working agent that stops heartbeating loses the task. Exercise the actual minimum lease clock.
     await delay(16_000)
-    const replacement = await tool(tokens.access_token, 'agent_runs.claim', { ...claimInputs[winner], commandId: randomUUID(), leaseSeconds: 60 })
+    const replacement = await tool(tokens.access_token, 'agent_runs.claim', { ...claimInputs[winner], commandId: randomUUID(), leaseSeconds: 15 })
     assert.equal(BigInt(replacement.data.fencingToken), BigInt(firstRun.fencingToken) + 1n)
     const stale = decodeTool(await rpc(tokens.access_token, 'tools/call', { name: 'agent_runs.report', arguments: { ...held, commandId: randomUUID(), progress: 'Must be rejected after takeover' } }))
     assert.equal(stale.state, 'rejected'); assert.equal(stale.error.code, 'stale_fence')
     const replacementHeld = { ...held, runId: replacement.data.id, fencingToken: replacement.data.fencingToken }
     await tool(tokens.access_token, 'agent_runs.start', { ...replacementHeld, commandId: randomUUID() })
-    await tool(tokens.access_token, 'agent_runs.submit_review', { ...replacementHeld, commandId: randomUUID(), evidence: [{ kind: 'text', text: 'Replacement fixture evidence remains advisory' }] })
+    const review = await tool(tokens.access_token, 'agent_runs.submit_review', { ...replacementHeld, commandId: randomUUID(), evidence: [{ kind: 'text', text: 'Fixture-only evidence for human review' }] })
+    assert.equal(review.data.state, 'awaiting_review')
     assert.notEqual((await tool(tokens.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).data.status, 'done')
-    report({ parallelClaimOneWinner: true, exactClaimRetry: true, reportedProgressAndEvidence: true, humanReviewRequired: true, actualLeaseExpiry: true, takeoverIncrementsFence: true, staleRunCannotPublish: true })
+    // A hand-back waits on human time: once the run's own lease would have lapsed, no agent can take the task.
+    await delay(Math.max(0, Date.parse(replacement.data.leaseExpiresAt) - Date.now()) + 1_000)
+    const heldForReview = decodeTool(await rpc(tokens.access_token, 'tools/call', { name: 'agent_runs.claim', arguments: { ...claimInputs[winner], commandId: randomUUID(), leaseSeconds: 15 } }))
+    assert.equal(heldForReview.state, 'rejected'); assert.equal(heldForReview.error.code, 'lease_conflict')
+    assert.notEqual((await tool(tokens.access_token, 'tasks.get', { workspaceId, taskId: createdTask.data.id })).data.status, 'done')
+    report({ parallelClaimOneWinner: true, exactClaimRetry: true, reportedProgressAndEvidence: true, humanReviewRequired: true, actualLeaseExpiry: true, takeoverIncrementsFence: true, staleRunCannotPublish: true, handBackHeldForReview: true })
     phase = 'real-runtime-durable-outbox'
     const { flushOutbox } = loadSource('../lib/data/events.ts'); await flushOutbox(workspaceId)
     const [published] = await db`SELECT count(*)::int AS count FROM outbox_events WHERE workspace_id=${workspaceId} AND published_at IS NOT NULL`; assert.ok(published.count >= 2)

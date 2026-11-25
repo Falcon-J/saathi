@@ -36,7 +36,7 @@ const messages: Record<PlatformError["code"], string> = {
   invalid_state: "This operation is unavailable in the current state.", dependency_cycle: "This connection would create a dependency cycle.",
   rate_limited: "Too many requests. Try again later.", unavailable: "The result could not be confirmed. Reconcile before retrying the same command.",
   unsupported: "This capability is not available.", command_conflict: "This command identifier was already used for a different request.",
-  lease_conflict: "Another run currently holds this task claim.", lease_expired: "The execution claim expired. Read the current run before continuing.", stale_fence: "This run no longer holds the current execution claim.",
+  lease_conflict: "Another run currently holds this task claim.", lease_expired: "The execution claim expired. Read the current run before continuing.", stale_fence: "This run no longer holds the current execution claim.", task_blocked: "This task still waits on unfinished prerequisites. Claim a Ready task instead.",
 }
 function failure(error: unknown): PlatformError {
   const candidate = error as { code?: string; retryAfterSeconds?: number }

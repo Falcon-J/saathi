@@ -1,30 +1,25 @@
 # Saathi
 
-Saathi is a collaborative task workspace for teams coordinating dependent work. Create and assign tasks, connect prerequisites, and use **Ready and Waiting** to see what can move forward and what needs attention from someone else.
+Saathi is one task graph that people and AI agents work from together. Say what waits on what; finished work unlocks the next task. Agents claim Ready tasks over MCP under a lease, so a crashed agent never holds work hostage, and anything an agent hands back waits for a person's review.
 
 [Open Saathi](https://saathi-ten.vercel.app) · [Product guide](https://saathi-ten.vercel.app/guide)
+
+## The three promises, and where the code keeps them
+
+| Promise | Rule | Enforced in |
+| --- | --- | --- |
+| **Tasks unlock themselves** | A task is Ready when every prerequisite is done, otherwise Waiting. One pure function derives this for the board, the map and agents. | `lib/next-work.ts` (`deriveNextWork`) |
+| **Agents work under a lease** | `agent_runs.claim` accepts Ready tasks only (`task_blocked` otherwise), grants one exclusive lease with a fencing token, and lets a new claim take over once the lease expires. Writes with an older token fail with `stale_fence`. | `features/coordination/service.ts`, `task_agent_leases` |
+| **You stay in charge** | An agent can only `submit_review`. Completing the task takes a person's approval, checked against the task version. | `reviewCoordinationRun` |
+
+The board reads the same truth: a task held under a live lease shows in **In progress** with the agent's name, a hand-back shows in **Needs review**, and a lease that lapsed is called out on the card so anyone can pick the work up.
 
 ## How it works
 
 1. Create a workspace and invite teammates with a private, expiring, single-use link.
-2. Add tasks, assign responsibility, and connect prerequisite tasks.
-3. Use **Ready and Waiting** to understand the next steps. Inspect prerequisites and the work depending on each task.
-4. Complete or reopen work. Teammates receive live updates, and readiness changes with the dependency graph.
-
-Readiness is guidance, not a restriction on completing a task. Completed work with unfinished prerequisites remains visible for review.
-
-## Capabilities
-
-- **Canvas:** zoom between workspace and task blocks, keep a scoped command bar within reach, and open existing task controls without losing the canvas.
-- **Overview and Board:** ready and waiting work, plus detailed status, priority, assignment, due dates, estimates, filters, and CSV import.
-- **Collaboration:** comments, activity history, live updates, and workspace membership management.
-- **Permissions:** company and section capabilities narrow workspace membership and existing owner, creator, and assignee rules. Access is enforced in reads, writes and live updates.
-- **Recovery:** retained drafts, version-conflict handling, duplicate-safe retries for supported commands, and reconciliation after interrupted connections.
-- **History:** archived workspaces and tasks retain a read-only record of past work.
-- **Agent connections:** authenticated MCP tools for workspace and task operations, dependencies, collaboration, access and agent coordination. Runs report progress and evidence; completing reviewed work requires a human decision. [OAuth setup](docs/operations/mcp-activation.md) is required before enabling connections.
-- **Optional AI assistance:** workspace planning, summaries, attention items, and task drafts. Task creation requires review; the assistant does not autonomously manage membership or assignments.
-
-The [product guide](https://saathi-ten.vercel.app/guide) explains current workflows and assistant limits.
+2. Add tasks and connect prerequisites. The board sorts them into Up next, In progress, Needs review, Waiting and Done; the Map shows the same graph.
+3. Connect an agent over MCP. It lists Ready work, claims a task, heartbeats to keep its lease, and submits evidence for review.
+4. Approve or send back agent work. Teammates see every change live.
 
 ## Architecture
 

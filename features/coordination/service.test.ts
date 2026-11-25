@@ -6,13 +6,13 @@ import type { CoordinationRun } from './contracts.ts';
 import type { HandlerContext } from '../platform/executor.ts';
 const actor = '11111111-1111-4111-8111-111111111111', workspaceId = '22222222-2222-4222-8222-222222222222', taskId = '33333333-3333-4333-8333-333333333333', grantId = '44444444-4444-4444-8444-444444444444';
 function fixture() {
-    let clock = new Date('2026-11-12T12:00:00Z'), authorized = true, version = 2, tail = Promise.resolve(), completions = 0;
+    let clock = new Date('2026-11-12T12:00:00Z'), authorized = true, version = 2, blockers = 0, tail = Promise.resolve(), completions = 0;
     const runs = new Map<string, CoordinationRun>(), leases = new Map<string, TaskLease>(), events: string[] = [];
     const task: CoordinationTask = { id: taskId, workspaceId, version: 2, status: 'todo', ownerId: actor, creatorId: actor, assigneeId: null };
     const session: CoordinationSession = { now: async () => clock, authorize: async () => { if (!authorized)
             throw Object.assign(new Error('Revoked'), { code: 'forbidden' }); }, authorizeHuman: async () => { }, authorizeOrigin: async () => { if (!authorized)
             throw Object.assign(new Error("Revoked"), { code: "forbidden" }); }, task: async (w, t) => { if (w !== workspaceId || t !== taskId)
-            throw Object.assign(new Error('Not found'), { code: 'not_found' }); return { ...task, version }; }, run: async (id) => structuredClone(runs.get(id) ?? null), list: async () => [...runs.values()], lease: async () => structuredClone(leases.get(taskId) ?? { workspaceId, taskId, holderRunId: null, fencingToken: '0', leaseExpiresAt: null }), saveLease: async (lease) => { leases.set(taskId, structuredClone(lease)); }, saveRun: async (run) => { runs.set(run.id, structuredClone(run)); }, comment: async () => { }, event: async (_run, action) => { events.push(action); }, completeTask: async (_actor, _task, expected) => { if (expected !== version)
+            throw Object.assign(new Error('Not found'), { code: 'not_found' }); return { ...task, version }; }, openPrerequisites: async () => blockers, run: async (id) => structuredClone(runs.get(id) ?? null), list: async () => [...runs.values()], lease: async () => structuredClone(leases.get(taskId) ?? { workspaceId, taskId, holderRunId: null, fencingToken: '0', leaseExpiresAt: null }), saveLease: async (lease) => { leases.set(taskId, structuredClone(lease)); }, saveRun: async (run) => { runs.set(run.id, structuredClone(run)); }, comment: async () => { }, event: async (_run, action) => { events.push(action); }, completeTask: async (_actor, _task, expected) => { if (expected !== version)
             throw Object.assign(new Error('Changed'), { code: 'version_conflict' }); version++; completions++; } };
     const store: CoordinationStore = { async transaction(operation) { const prior = tail; let release!: () => void; tail = new Promise<void>(resolve => { release = resolve; }); await prior; const before = structuredClone([...runs]), beforeLeases = structuredClone([...leases]); try {
             return await operation(session);
@@ -33,7 +33,7 @@ function fixture() {
     const context = (input: Record<string, unknown>): HandlerContext => ({ principal: { userId: actor, clientId: 'verified-client', grantId, capabilities: ['agent_runs:read', 'agent_runs:write'], workspaceIds: null }, input: { workspaceId, commandId: actor, expectedVersion: null, ...input } });
     const claim = () => service.call('agent_runs.claim', context({ taskId, expectedVersion: version, leaseSeconds: 60 }));
     const held = (run: CoordinationRun, extra: Record<string, unknown> = {}) => context({ runId: run.id, fencingToken: run.fencingToken, ...extra });
-    return { service, claim, held, context, runs, leases, events, task, setClock: (value: string) => { clock = new Date(value); }, revoke: () => { authorized = false; }, bump: () => { version++; }, completions: () => completions };
+    return { service, claim, held, context, runs, leases, events, task, setClock: (value: string) => { clock = new Date(value); }, revoke: () => { authorized = false; }, bump: () => { version++; }, block: (count: number) => { blockers = count; }, completions: () => completions };
 }
 test('double claim grants one exclusive lease and expired takeover fences old holder', async () => {
     const f = fixture(), results = await Promise.allSettled([f.claim(), f.claim()]);
@@ -91,3 +91,23 @@ for(const name of ['agent_runs.cancel','agent_runs.release'] as const)test(`ordi
  context.principal.capabilities=[...context.principal.capabilities,name==='agent_runs.cancel'?'agent_runs:cancel':'agent_runs:release']
  assert.equal((await f.service.call(name,context)).state,'cancelled')
 })
+
+test('agents can only claim Ready work: unfinished prerequisites block the claim', async () => {
+    const f = fixture();
+    f.block(1);
+    await assert.rejects(f.claim(), (error: { code?: string }) => error.code === 'task_blocked');
+    assert.equal(f.runs.size, 0);
+    f.block(0);
+    const run = await f.claim() as CoordinationRun;
+    assert.equal(run.state, 'queued');
+});
+test('a hand-back waits on human time: approval works after the run lease would have lapsed and no agent can take the task', async () => {
+    const f = fixture(), run = await f.claim() as CoordinationRun;
+    await f.service.call('agent_runs.start', f.held(run));
+    await f.service.call('agent_runs.submit_review', f.held(run, { evidence: [{ kind: 'text', text: 'Checks passed' }] }));
+    f.setClock('2026-11-13T09:00:00Z');
+    await assert.rejects(f.claim(), (error: { code?: string }) => error.code === 'lease_conflict');
+    const reviewed = await f.service.review({ reviewerUserId: actor, input: { workspaceId, runId: run.id, decision: 'approve', expectedTaskVersion: 2, commandId: grantId } });
+    assert.equal(reviewed.state, 'succeeded');
+    assert.equal(f.completions(), 1);
+});

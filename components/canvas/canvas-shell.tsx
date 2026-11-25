@@ -7,7 +7,7 @@ import { readCanvasView, saveCanvasView } from "@/features/canvas/view-state"
 import { generateWorkspaceDraft, createWorkspaceFromPlan } from "@/app/actions/workspace-intent"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ReactFlowProvider } from "@xyflow/react"
-import { ArrowLeft, Building2, ChevronDown, Columns3, List, Map as MapIcon, MoreHorizontal, Plus, RefreshCw } from "lucide-react"
+import { Building2, ChevronDown, Columns3, List, Map as MapIcon, MoreHorizontal, Plus, RefreshCw } from "lucide-react"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { useCanvasGraph } from "@/hooks/use-canvas-graph"
 import { WorkspaceBoard } from "@/components/workspace-board"
@@ -30,7 +30,7 @@ import { ContextualWorkspaceCreate, type WorkspaceCreationTarget } from "./conte
 import { CompanyPanel } from "./company-panel"
 import { useCanvasResources } from "./use-canvas-resources"
 import { AgentActivity } from "./agent-activity"
-import { canvasBreadcrumbs, cameraStorageKey, createCanvasNavigation, navigateCanvas, parentCanvasFocus, projectCanvas,
+import { canvasBreadcrumbs, cameraStorageKey, createCanvasNavigation, navigateCanvas, projectCanvas,
   reconcileCanvasNavigation, resourcePath, type CanvasFocus, type CanvasReadiness } from "@/features/canvas/model"
 import { normalizeEmail } from "@/lib/identity"
 import { getMutationError } from "@/lib/mutation-result"
@@ -361,7 +361,6 @@ export function CanvasShell({ email, actorId, aiEnabled = false }: { email: stri
     <header onPointerDownCapture={stopFollowing} className="absolute inset-x-0 top-0 z-20 lg:left-60 flex h-28 flex-wrap items-center gap-x-2 border-b border-border bg-card px-3 sm:h-16 sm:flex-nowrap sm:px-5">
       <h1 className="sr-only">Canvas</h1>
       <nav aria-label="Canvas hierarchy" className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-[35%]">
-        <Button size="sm" variant="ghost" className="size-11 shrink-0 px-0 sm:w-auto sm:px-3" aria-label="Back" title="Back" disabled={focused.kind === "overview"} onClick={() => open(parentCanvasFocus(focused, companies.resources))}><ArrowLeft className="size-4" /><span className="hidden sm:inline">Back</span></Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button ref={locationButton} variant="ghost" className="h-11 min-w-0 flex-1 justify-between gap-2 px-2 text-base font-semibold sm:flex-initial sm:max-w-xl" aria-label={"Canvas location: " + (breadcrumbs.at(-1)?.label ?? "Canvas")} aria-current="location" data-workspace-id={workspace?.id} title={breadcrumbs.map(item => item.label).join(" / ")}><span className="truncate">{breadcrumbs.at(-1)?.label ?? "Canvas"}</span><ChevronDown className="size-4 shrink-0 text-muted-foreground" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="start" aria-labelledby={undefined} aria-label="Canvas locations" className="w-[min(28rem,calc(100vw-1.5rem))]">

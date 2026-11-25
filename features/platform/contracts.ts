@@ -5,7 +5,7 @@ import { coordinationToolSchemas } from "../coordination/contracts.ts"
 export const resourceIdSchema = z.uuid()
 export const actorSchema = z.strictObject({ userId: resourceIdSchema, source: z.enum(["verified_session", "verified_token"]) })
 export type PlatformActor = z.infer<typeof actorSchema>
-export const errorCodeSchema = z.enum(["invalid_input", "unauthenticated", "forbidden", "not_found", "version_conflict", "invalid_state", "dependency_cycle", "rate_limited", "unavailable", "unsupported", "command_conflict", "lease_conflict", "lease_expired", "stale_fence"])
+export const errorCodeSchema = z.enum(["invalid_input", "unauthenticated", "forbidden", "not_found", "version_conflict", "invalid_state", "dependency_cycle", "rate_limited", "unavailable", "unsupported", "command_conflict", "lease_conflict", "lease_expired", "stale_fence", "task_blocked"])
 export const platformErrorSchema = z.strictObject({ code: errorCodeSchema, message: z.string().min(1).max(500), retryAfterSeconds: z.number().int().nonnegative().optional() })
 export type PlatformError = z.infer<typeof platformErrorSchema>
 /** Only authoritative persistence may produce committed. Transport failures are unconfirmed. */

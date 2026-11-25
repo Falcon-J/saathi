@@ -628,7 +628,6 @@ export async function verifyCanvasWorkflow({ page, member, db, bridge, workspace
       await expect(workspaceLocation).toHaveText(`Canvas / ${companyName} / ${spaceName} / ${sectionName} / ${journeyWorkspace.name}`)
       await page.keyboard.press('Escape')
       await expectTouchControl(page.getByRole('button', { name: 'Show canvas', exact: true }))
-      await expectTouchControl(hierarchy.getByRole('button', { name: 'Back', exact: true }))
       const dock = page.getByRole('region', { name: 'Canvas commands', exact: true })
       await expectTouchControl(workArea.getByRole('button', { name: 'New task', exact: true }))
       const searchBox = await search.boundingBox(), dockBox = await dock.boundingBox()
