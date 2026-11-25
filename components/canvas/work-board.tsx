@@ -9,13 +9,13 @@ import { formatTaskDue } from "@/lib/task-time"
 import type { Workspace } from "@/app/actions/workspaces"
 import type { Task } from "@/lib/task-contract"
 import type { NextWorkItem, NextWorkResult, TaskDependency } from "@/lib/next-work"
-import { getAgentActivity } from "@/app/actions/coordination"
+import { getAgentHolds, type AgentHold } from "@/app/actions/coordination"
 import { initials } from "./workspace-sidebar"
 
 type Lane = { id: "next" | "progress" | "review" | "waiting" | "done"; title: string; hint: string; state: TaskState; empty: string }
 const LANES: Lane[] = [
   { id: "next", title: "Up next", hint: "Nothing blocks these. Start at the top.", state: "ready", empty: "Nothing is ready. Finish a waiting task's blockers to unlock it." },
-  { id: "progress", title: "In progress", hint: "Someone, or an agent, is on it.", state: "in_progress", empty: "Nobody has started anything yet." },
+  { id: "progress", title: "In progress", hint: "A person or an agent holding a lease is on it.", state: "in_progress", empty: "Nobody has started anything yet." },
   { id: "review", title: "Needs review", hint: "Agent work waiting for your call.", state: "awaiting_review", empty: "No agent work is waiting for you." },
   { id: "waiting", title: "Waiting", hint: "Each one names what it waits on.", state: "waiting", empty: "Nothing is blocked." },
   { id: "done", title: "Done", hint: "Finished work unlocks the next task.", state: "done", empty: "No finished work yet." },
@@ -34,19 +34,18 @@ export function WorkBoard({ workspace, tasks, dependencies, readiness, selectedT
   onInspect: (id: string) => void; onCreate: () => void; onReview?: () => void
 }) {
   const [showAllDone, setShowAllDone] = useState(false)
-  // Agent hand-backs live on runs, not tasks. A task with a run awaiting review moves to its own lane.
-  const [review, setReview] = useState<{ workspaceId: string; runs: Map<string, string> } | null>(null)
+  // Agent work lives on leases, not task status. The lease table says who holds a task now.
+  const [loaded, setLoaded] = useState<{ workspaceId: string; holds: Map<string, AgentHold> } | null>(null)
   useEffect(() => {
     let current = true
-    void getAgentActivity(workspace.id).then(result => {
-      if (!current || !result.runs) return
-      const runs = new Map<string, string>()
-      for (const run of result.runs) if (run.state === "awaiting_review" && run.task?.id) runs.set(run.task.id, run.clientId || "An agent")
-      setReview({ workspaceId: workspace.id, runs })
-    }).catch(() => { /* The lane stays empty; the Agents panel reports load errors. */ })
+    void getAgentHolds(workspace.id).then(result => {
+      if (!current || !result.holds) return
+      setLoaded({ workspaceId: workspace.id, holds: new Map(result.holds.map(hold => [hold.taskId, hold])) })
+    }).catch(() => { /* Lanes fall back to task status; the Agents panel reports load errors. */ })
     return () => { current = false }
   }, [workspace.id, refreshSignal])
-  const reviewRuns = review?.workspaceId === workspace.id ? review.runs : null
+  const holds = loaded?.workspaceId === workspace.id ? loaded.holds : null
+  const heldBy = (task: Task) => { const hold = holds?.get(task.id); return hold && (hold.state === "awaiting_review" || hold.leaseActive) ? hold : null }
   const lanes = useMemo(() => {
     const unblocks = new Map<string, number>()
     for (const edge of dependencies) unblocks.set(edge.prerequisiteTaskId, (unblocks.get(edge.prerequisiteTaskId) ?? 0) + 1)
@@ -56,8 +55,8 @@ export function WorkBoard({ workspace, tasks, dependencies, readiness, selectedT
     const next: Task[] = [], progress: Task[] = [], review: Task[] = [], waiting: Task[] = [], done: Task[] = []
     for (const task of tasks) {
       if (!open(task)) done.push(task)
-      else if (reviewRuns?.has(task.id)) review.push(task)
-      else if (task.status === "in-progress") progress.push(task)
+      else if (heldBy(task)?.state === "awaiting_review") review.push(task)
+      else if (task.status === "in-progress" || heldBy(task)) progress.push(task)
       else if (items.get(task.id)?.readiness === "waiting") waiting.push(task)
       else next.push(task)
     }
@@ -65,14 +64,17 @@ export function WorkBoard({ workspace, tasks, dependencies, readiness, selectedT
     const rank = new Map(readiness.ready.map((item, index) => [item.task.id, index]))
     next.sort((a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9) || (unblocks.get(b.id) ?? 0) - (unblocks.get(a.id) ?? 0))
     return { next, progress, review, waiting, done, unblocks, items }
-  }, [tasks, dependencies, readiness, reviewRuns])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- heldBy reads holds
+  }, [tasks, dependencies, readiness, holds])
 
   const who = (task: Task) => {
     if (!task.assigneeEmail) return null
     return workspace.members.find(member => normalizeEmail(member.email) === normalizeEmail(task.assigneeEmail ?? ""))?.username || task.assigneeEmail
   }
   const note = (task: Task, lane: Lane["id"]) => {
-    if (lane === "review") return `${reviewRuns?.get(task.id) ?? "An agent"} handed this back`
+    const hold = holds?.get(task.id)
+    if (lane === "review") return `${hold?.agent ?? "An agent"} handed this back`
+    if (hold && !hold.leaseActive && hold.state !== "awaiting_review") return `${hold.agent} stopped responding. Its lease expired, so any agent can claim this.`
     if (lane !== "waiting") return null
     const blockers = lanes.items.get(task.id)?.prerequisites.filter(item => item.status !== "done").map(item => item.title) ?? []
     return blockers.length ? "Waits on " + (blockers.length > 2 ? `${blockers.slice(0, 2).join(", ")} +${blockers.length - 2}` : blockers.join(", ")) : null
@@ -101,7 +103,7 @@ export function WorkBoard({ workspace, tasks, dependencies, readiness, selectedT
           {lane.id === "review" && onReview && list.length > 0 && <Button variant="outline" size="sm" className="justify-start" onClick={onReview} disabled={busy}><Bot className="size-4" />Review in Agent runs</Button>}
           <ul className="flex flex-col gap-2">
             {visible.map(task => {
-              const person = who(task), count = lane.id === "done" ? 0 : lanes.unblocks.get(task.id) ?? 0, detail = note(task, lane.id)
+              const agent = lane.id === "done" ? null : heldBy(task), person = who(task) ?? agent?.agent ?? null, count = lane.id === "done" ? 0 : lanes.unblocks.get(task.id) ?? 0, detail = note(task, lane.id)
               const due = lane.id !== "done" ? formatTaskDue(task.dueAt, task.dueDate, workspace.timezone) : null
               return <li key={task.id}>
                 <button type="button" data-task-card={task.id} aria-current={selectedTaskId === task.id ? "true" : undefined} disabled={busy} onClick={() => onInspect(task.id)}
@@ -109,7 +111,7 @@ export function WorkBoard({ workspace, tasks, dependencies, readiness, selectedT
                   <span className="flex flex-wrap items-center gap-1.5">
                     <StatusChip state={lane.state} />
                     {lane.id !== "done" && task.priority === "high" && <span className="inline-flex h-6 items-center rounded-[var(--saathi-radius-label)] bg-[var(--saathi-danger-soft)] px-2 font-mono text-xs text-[var(--saathi-danger)]">{PRIORITY.high}</span>}
-                    {lane.id === "review" && <span className="inline-flex h-6 items-center gap-1 rounded-[var(--saathi-radius-label)] bg-muted px-2 font-mono text-xs text-foreground"><Bot className="size-3" aria-hidden="true" />Agent</span>}
+                    {agent && <span className="inline-flex h-6 items-center gap-1 rounded-[var(--saathi-radius-label)] bg-muted px-2 font-mono text-xs text-foreground"><Bot className="size-3" aria-hidden="true" />Agent</span>}
                     {count > 0 && <span className="font-mono text-xs text-muted-foreground">Unblocks {count}</span>}
                   </span>
                   <span className={"block break-words text-sm font-semibold leading-5 " + (lane.id === "done" ? "text-muted-foreground line-through decoration-1" : "text-foreground")}>{task.title}</span>

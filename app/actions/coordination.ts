@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth-simple'
 import { afterDomainCommit } from '@/lib/post-commit'
 import { coordinationToolSchemas, humanReviewInputSchema } from '@/features/coordination/contracts'
 import type { CoordinationRun, HumanReviewInput } from '@/features/coordination/contracts'
-import { listCoordinationRunsForHuman, reviewCoordinationRun } from '@/features/coordination/handlers'
+import { listAgentHoldsForHuman, listCoordinationRunsForHuman, reviewCoordinationRun, type AgentHold } from '@/features/coordination/handlers'
 
 export type AgentActivityRun = CoordinationRun & { task: { id: string; title: string; version: number; canReview: boolean } }
 export type AgentActivityResult = { runs?: AgentActivityRun[]; nextCursor?: string | null; error?: string }
@@ -19,8 +19,20 @@ const reviewMessages: Record<string, string> = {
   invalid_input: 'Review details are invalid. Refresh agent activity.',
   lease_expired: 'The run lease expired. Refresh agent activity.',
   stale_fence: 'Another run took over this task. Refresh agent activity.',
+  task_blocked: 'This task waits on unfinished prerequisites.',
   lease_conflict: 'Another run holds this task. Refresh agent activity.',
   command_conflict: 'This review identifier was already used. Refresh agent activity.',
+}
+
+export type { AgentHold }
+
+/** Tasks agents hold now, for the board's In progress and Needs review lanes. */
+export async function getAgentHolds(workspaceId: string): Promise<{ holds?: AgentHold[]; error?: string }> {
+  try {
+    const session = await getSession()
+    if (!session) return { error: 'Sign in to view agent activity.' }
+    return { holds: await listAgentHoldsForHuman({ userId: session.id, workspaceId }) }
+  } catch { return { error: 'Unable to load agent activity. Refresh to try again.' } }
 }
 
 export async function getAgentActivity(workspaceId: string, cursor?: string): Promise<AgentActivityResult> {

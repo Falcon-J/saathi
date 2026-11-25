@@ -27,5 +27,5 @@ export async function reviewCoordinationRun(args: {
         execute: () => service.review(args),
     });
 }
-export { listCoordinationRunsForHuman } from './postgres.ts';
+export { listCoordinationRunsForHuman, listAgentHoldsForHuman, type AgentHold } from './postgres.ts';
 export type { HumanCoordinationRun } from './postgres.ts';
