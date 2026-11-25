@@ -17,11 +17,11 @@ const luminance = hex => hex.slice(1).match(/../g).map(v => parseInt(v, 16) / 25
   .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0)
 const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
 
-test("light theme uses the ink-blue accent on warm neutrals", () => {
-  assert.equal(light.primary, "#2952cc")
-  assert.equal(light.background, "#faf9f7")
-  assert.equal(light.foreground, "#1c1b19")
-  assert.equal(light["saathi-brand"], "#2952cc")
+test("light theme uses the violet accent on black and white", () => {
+  assert.equal(light.primary, "#6936f5")
+  assert.equal(light.background, "#fafafa")
+  assert.equal(light.foreground, "#0a0a0b")
+  assert.equal(light["saathi-brand"], "#6936f5")
 })
 
 test("dark theme defines every light token so nothing falls back to light values", () => {
@@ -30,7 +30,7 @@ test("dark theme defines every light token so nothing falls back to light values
 })
 
 test("no teal remains in the palette", () => {
-  assert.doesNotMatch(globalsCss, /#0f766e|#ddf4ee|#237f72/i)
+  assert.doesNotMatch(globalsCss, /#0f766e|#ddf4ee|#237f72|#2952cc|#8fa8f5/i)
 })
 
 for (const [theme, tokens] of [["light", light], ["dark", dark]]) {

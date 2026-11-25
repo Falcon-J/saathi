@@ -92,8 +92,11 @@ export function WorkspaceSettings({ workspace, onSaved, onArchived, onDeleted, o
     } finally { setSaving(false) }
   }
 
+  const [confirming, setConfirming] = useState<"archive" | "delete" | null>(null)
+
   const handleArchive = async () => {
-    if (!onArchived || !window.confirm("Archive this workspace? It will leave your active workspace list while its history is retained.")) return
+    if (!onArchived) return
+    setConfirming(null)
     setArchiving(true)
     setError(null)
     try {
@@ -105,7 +108,8 @@ export function WorkspaceSettings({ workspace, onSaved, onArchived, onDeleted, o
   }
 
   const handleDelete = async () => {
-    if (!onDeleted || !window.confirm("Permanently delete this workspace? Its tasks, comments, and members will be removed.")) return
+    if (!onDeleted) return
+    setConfirming(null)
     setDeleting(true)
     setError(null)
     try {
@@ -130,5 +134,5 @@ export function WorkspaceSettings({ workspace, onSaved, onArchived, onDeleted, o
     </section>}
     {saved && <p role="status" className="text-sm text-muted-foreground">Workspace settings saved.</p>}
     <Button disabled={saving || archiving || deleting || !name.trim()} type="submit">{saving ? "Saving..." : "Save changes"}</Button>
-  </form>{(onArchived || onDeleted) && <div className="mt-10 space-y-6 border-t border-border pt-6">{onArchived && <div><p className="text-sm font-semibold">Archive workspace</p><p className="mt-1 text-sm text-muted-foreground">Remove it from active work while retaining its history.</p><Button type="button" variant="outline" className="mt-3" disabled={saving || archiving || deleting} onClick={() => void handleArchive()}>{archiving ? "Archiving..." : "Archive workspace"}</Button></div>}{onDeleted && <div><p className="text-sm font-semibold text-destructive">Delete workspace</p><p className="mt-1 text-sm text-muted-foreground">Permanently remove this workspace, its tasks, comments, and memberships.</p><Button type="button" variant="destructive" className="mt-3" disabled={saving || archiving || deleting} onClick={() => void handleDelete()}>{deleting ? "Deleting..." : "Delete workspace"}</Button></div>}</div>}</section>
+  </form>{(onArchived || onDeleted) && <div className="mt-10 space-y-6 border-t border-border pt-6">{onArchived && <div><p className="text-sm font-semibold">Archive workspace</p><p className="mt-1 text-sm text-muted-foreground">Remove it from active work while retaining its history.</p>{confirming === "archive" ? <div role="group" aria-label="Confirm archive" className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted p-3"><p className="w-full text-sm">Archive this workspace? It leaves your active list and keeps its history.</p><Button type="button" disabled={archiving} onClick={() => void handleArchive()}>Archive</Button><Button type="button" variant="ghost" onClick={() => setConfirming(null)}>Cancel</Button></div> : <Button type="button" variant="outline" className="mt-3" disabled={saving || archiving || deleting} onClick={() => setConfirming("archive")}>{archiving ? "Archiving..." : "Archive workspace"}</Button>}</div>}{onDeleted && <div><p className="text-sm font-semibold text-destructive">Delete workspace</p><p className="mt-1 text-sm text-muted-foreground">Permanently remove this workspace, its tasks, comments, and memberships.</p>{confirming === "delete" ? <div role="group" aria-label="Confirm delete" className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-[var(--saathi-danger-soft)] p-3"><p className="w-full text-sm">Delete this workspace for good? Its tasks, comments and members are removed, and this cannot be undone.</p><Button type="button" variant="destructive" disabled={deleting} onClick={() => void handleDelete()}>Delete for good</Button><Button type="button" variant="ghost" onClick={() => setConfirming(null)}>Cancel</Button></div> : <Button type="button" variant="destructive" className="mt-3" disabled={saving || archiving || deleting} onClick={() => setConfirming("delete")}>{deleting ? "Deleting..." : "Delete workspace"}</Button>}</div>}</div>}</section>
 }

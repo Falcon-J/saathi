@@ -1,5 +1,5 @@
 import Link from "next/link"
-import Image from "next/image"
+import { CanvasPreview } from "@/components/canvas-preview"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SaathiLogo } from "@/components/saathi-logo"
@@ -7,16 +7,8 @@ import { SaathiLogo } from "@/components/saathi-logo"
 export default function LandingPage() {
   return (
     <main className="saathi-shell min-h-screen overflow-hidden">
-      <section id="product" className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-[#f7f7f4]">
-        <Image
-          src="/saathi-landing-hero.png"
-          alt="A team turning shared intent into clear next steps"
-          fill
-          priority
-          sizes="100vw"
-          className="z-0 hidden object-cover object-[60%_center] lg:block"
-        />
-        <div className="absolute inset-0 z-0 hidden bg-gradient-to-r from-background via-background/85 to-transparent lg:block lg:w-[64%]" />
+      <section id="product" className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-background">
+        <div className="absolute inset-y-0 right-0 z-0 hidden w-[58%] border-l border-border bg-muted lg:block"><CanvasPreview fit="meet" className="size-full" /></div>
         <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-4 pt-5 sm:px-6 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Saathi home">
             <SaathiLogo className="size-9" priority />
@@ -36,7 +28,7 @@ export default function LandingPage() {
               <Link href="/login" className="inline-flex min-h-11 items-center px-4 text-sm font-medium text-foreground">Sign in</Link>
             </div>
             <div className="mt-6 flex justify-center lg:justify-start">
-              <Link href="/guide" className="whitespace-nowrap rounded-full border border-border bg-card/85 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur transition-colors hover:bg-white">
+              <Link href="/guide" className="whitespace-nowrap rounded-full border border-border bg-card/85 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur transition-colors hover:bg-card">
                 See how it works
               </Link>
             </div>
@@ -45,14 +37,7 @@ export default function LandingPage() {
         </div>
 
         <div className="relative z-10 mx-4 mb-4 h-44 overflow-hidden rounded-[1.5rem] sm:h-52 lg:hidden" aria-hidden="true">
-          <Image
-            src="/saathi-landing-hero.png"
-            alt=""
-            fill
-            sizes="calc(100vw - 2rem)"
-            className="object-cover object-[72%_center]"
-          />
-
+          <CanvasPreview className="size-full" />
         </div>
 
       </section>
