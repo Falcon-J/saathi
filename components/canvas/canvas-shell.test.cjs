@@ -103,11 +103,11 @@ test('node inspection opens the single task panel and explicit edit reuses the r
  assert.match(ui.url(),/view=work/);assert.equal(tree.find(n=>n.type==='WorkspaceBoard')?.props.openTaskId??null,null)
  panel.props.onEdit('t');tree=ui.render();assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.openTaskId,'t');assert.equal(tree.find(n=>n.type==='WorkspaceBoard').props.editorOnly,true)
 })
-test('task list, readiness groups and header AI share the work panel without a second list dialog',()=>{
+test('task list and readiness groups share the work panel without a second list dialog',()=>{
  const ui=harness({flags:{aiEnabled:true},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}})
  ui.render();ui.render();ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});ui.render()
  const tree=ui.render();assert.equal(tree.filter(n=>n.type==='CanvasTaskPanel').length,1);assert.equal(tree.find(n=>n.type==='CanvasCommandBar').props.placement,'header')
- assert.equal(tree.find(n=>n.type==='CanvasCommandBar').props.onAsk,undefined);assert.equal(tree.filter(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi').length,1)
+ assert.equal(tree.find(n=>n.type==='CanvasCommandBar').props.onAsk,undefined);assert.equal(tree.filter(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi').length,0)
  assert.equal(tree.some(n=>n.type==='Link'&&n.props.href==='/dashboard'),false)
 })
 test('initial task URL waits for lists and current graph without overwriting the deep link',()=>{
@@ -410,18 +410,12 @@ test('one canonical location control replaces competing workspace and breadcrumb
  assert.equal(tree.filter(n=>n.type==='nav'&&n.props['aria-label']==='Canvas hierarchy').length,1);
 });
 
-test('canvas workspace actions preserve feature flags and current scope',()=>{
-const ui=harness({flags:{aiEnabled:true,csvImportEnabled:true},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
+test('canvas workspace actions keep scope and offer no chat panel or CSV import',()=>{
+const ui=harness({flags:{aiEnabled:true},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
 ui.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
 const tree=ui.render(),commands=tree.find(n=>n.type==='CanvasCommandBar').props;
-assert.equal(commands.onAsk,undefined);assert.equal(typeof commands.onImport,'function');assert.equal(commands.canManage,true);
-tree.find(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi').props.onClick();
-const assistantTree=ui.render();assert.equal(assistantTree.find(n=>n.type==='WorkspaceAdvisor').props.workspaceId,'w');
-assert.equal(assistantTree.find(n=>n.type==='select'&&n.props['aria-label']==='Workspace tools').props.value,'work');
-assert.ok(assistantTree.some(n=>n.props.hidden&&nodes(n).some(c=>c.type==='select'&&c.props['aria-label']==='Workspace tools')),'assistant must not announce the Tasks picker');
-const disabled=harness({flags:{aiEnabled:false,csvImportEnabled:false},store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});
-disabled.render().find(n=>n.type==='CanvasFlow').props.onOpen({kind:'workspace',workspaceId:'w'});
-const off=disabled.render();assert.equal(off.find(n=>n.type==='CanvasCommandBar').props.onImport,undefined);assert.equal(off.some(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi'),false)
+assert.equal(commands.onAsk,undefined);assert.equal(commands.onImport,undefined);assert.equal(commands.canManage,true);
+assert.equal(tree.some(n=>n.type==='Button'&&n.props['aria-label']==='Ask Saathi'),false);assert.equal(tree.some(n=>n.type==='WorkspaceAdvisor'||n.type==='TaskImport'),false)
 })
 
 test('remembered canvas focus waits for current access and never restores agent following',()=>{const values=new Map(),preferences={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};require('../../features/canvas/view-state.ts').saveCanvasView({actorId:'actor',canvasId:'personal'},{kind:'workspace',workspaceId:'w'},preferences);const ui=harness({preferences,store:{workspaces:[historyWorkspace()],currentWorkspaceId:'w'},graph:{entry:historyGraph()}});ui.render();ui.render();const flow=ui.render().find(n=>n.type==='CanvasFlow');assert.deepEqual(flow.props.focus,{kind:'workspace',workspaceId:'w'});assert.equal(flow.props.followingAgent,false);const denied=harness({preferences,store:{workspaces:[],currentWorkspaceId:null}});denied.render();denied.render();assert.equal(denied.url(),'/canvas');denied.render();assert.deepEqual(require('../../features/canvas/view-state.ts').readCanvasView({actorId:'actor',canvasId:'personal'},preferences).focus,{kind:'overview'})})

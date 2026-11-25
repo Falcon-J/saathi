@@ -19,5 +19,5 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
   if (session === undefined) return <main className="grid min-h-screen place-items-center bg-background p-6"><section role="alert" className="max-w-md space-y-4"><h1 className="text-xl font-semibold">Account unavailable</h1><p>We could not verify your account. Try again.</p><a href={destination} className="underline">Retry</a></section></main>
   if (!session) redirect("/login?redirect=" + encodeURIComponent(destination))
   const flags = resolveFeatureFlags(process.env)
-  return <CanvasShell email={session.email} actorId={session.id} aiEnabled={flags.aiWorkspace} csvImportEnabled={flags.csvImport} />
+  return <CanvasShell email={session.email} actorId={session.id} aiEnabled={flags.aiWorkspace} />
 }
