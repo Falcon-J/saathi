@@ -38,8 +38,32 @@ jobs:
         with:
           version: latest
       - run: npm ci
+      - name: Start the GitHub stand-in that local Auth signs in against
+        run: node tests/e2e/github-mock.ts &
       - name: Start a local Supabase with only what the tests need
-        run: supabase start -x studio,imgproxy,storage-api,edge-runtime,logflare,vector,supavisor,postgres-meta,mailpit
+        run: supabase start -x studio,imgproxy,storage-api,edge-runtime,logflare,vector,supavisor,postgres-meta
+        env:
+          SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID: mock
+          SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET: mock
+          SUPABASE_AUTH_EXTERNAL_GITHUB_URL: http://172.17.0.1:54399
       - name: Export local keys
-        run: supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.secret_key=SUPABASE_SECRET_KEY --override-name db.url=SUPABASE_DB_URL | grep -E '^(SUPABASE_URL|SUPABASE_SECRET_KEY|SUPABASE_DB_URL)=' | tr -d '"' >> "$GITHUB_ENV"
+        run: >-
+          supabase status -o env --override-name api.url=SUPABASE_URL --override-name auth.secret_key=SUPABASE_SECRET_KEY
+          --override-name db.url=SUPABASE_DB_URL --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+          | grep -E '^(SUPABASE_URL|SUPABASE_SECRET_KEY|SUPABASE_DB_URL|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|MAILPIT_URL)=' | tr -d '"' >> "$GITHUB_ENV"
       - run: npm run test:db
+      - name: Build the app against local Supabase
+        run: NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+      - name: Keep the design screenshots and the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
