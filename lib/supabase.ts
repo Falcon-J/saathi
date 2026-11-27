@@ -28,7 +28,7 @@ export async function bootstrap(supabase: Awaited<ReturnType<typeof serverClient
   return false
 }
 
-export type Workspace = { id: string; name: string; prefix: string; role: "owner" | "member"; needs_you: number }
+export type Workspace = { id: string; name: string; prefix: string; role: "owner" | "member"; needs_you: number; silent: number }
 export type Me = { name: string; avatar_url: string | null; workspaces: Workspace[] }
 
 // Who is signed in. Cached per request, so the frame and the page share one call.
