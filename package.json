@@ -12,9 +12,11 @@
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "test": "node --test \"tests/unit/**/*.test.ts\""
+    "test": "node --test \"tests/unit/**/*.test.ts\"",
+    "test:db": "supabase test db && node --test \"tests/db/**/*.test.ts\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.119.2",
     "geist": "1.9.2",
     "next": "16.4.6",
     "react": "19.3.1",
