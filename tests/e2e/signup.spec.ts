@@ -43,6 +43,17 @@ test("the email link signs you up once, and signs you in after that", async ({ p
               where u.email = '${email}'`)).toBe("Fix the typo in README:ready, Add a CHANGELOG entry:waiting")
 })
 
+test("the hosted default email link (a code back to /auth/callback) signs you in too", async ({ page }) => {
+  // Supabase's built-in mailer sends {{ .ConfirmationURL }}: /auth/v1/verify, which redirects with a PKCE code.
+  const email = `e2e-default-${Date.now()}@example.com`
+  await page.goto("/signup")
+  const tokenHash = new URL(await requestLink(page, email)).searchParams.get("token_hash")!
+  const api = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:55321"
+  await page.goto(`${api}/auth/v1/verify?token=${tokenHash}&type=signup&redirect_to=${encodeURIComponent("http://localhost:3000/auth/callback")}`)
+  await expect(page).toHaveURL(/\/home$/)
+  await expect(page.getByRole("heading", { name: `${email.split("@")[0]}'s workspace` })).toBeVisible()
+})
+
 test("a used email link says so", async ({ page }) => {
   await page.goto("/auth/confirm?token_hash=used&type=email")
   await expect(page.getByText("That link expired or was already used. Send a new one.")).toBeVisible()

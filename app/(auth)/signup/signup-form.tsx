@@ -73,7 +73,9 @@ export function SignupForm({ error }: { error: string }) {
       setInvalid(true); setNote("Enter an email like you@company.com."); emailRef.current!.focus(); return
     }
     setInvalid(false); setSending(true)
-    const { error } = await supabase.current.auth.signInWithOtp({ email })
+    // Hosted projects on Supabase's built-in mailer can't edit templates, so their link carries a code
+    // back to /auth/callback. Our own template (local, or custom SMTP) links to /auth/confirm instead.
+    const { error } = await supabase.current.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/auth/callback` } })
     setSending(false)
     if (error) return setNote(error.status === 429 ? "Too many links sent. Try again in a minute." : "Couldn't send the link. Try again.")
     show("sent", notes.idle)
