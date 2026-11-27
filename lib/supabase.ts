@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { cache } from "react"
 
 export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 export const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -26,3 +27,12 @@ export async function bootstrap(supabase: Awaited<ReturnType<typeof serverClient
   await supabase.auth.signOut()
   return false
 }
+
+export type Workspace = { id: string; name: string; prefix: string; role: "owner" | "member"; needs_you: number }
+export type Me = { name: string; avatar_url: string | null; workspaces: Workspace[] }
+
+// Who is signed in. Cached per request, so the frame and the page share one call.
+export const getMe = cache(async () => {
+  const { data } = await (await serverClient()).rpc("whoami")
+  return data as Me | null
+})

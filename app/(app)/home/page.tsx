@@ -1,21 +1,27 @@
-import { serverClient } from "@/lib/supabase"
+import { getMe, serverClient } from "@/lib/supabase"
+import { Home, type Row, type TaskView } from "./home"
+import s from "../app.module.css"
 
 export const metadata = { title: "Home" }
 
-type Me = { name: string; workspaces: { id: string; name: string }[] }
-
-// A stand-in until Home lands: proves the session and the first-run workspace.
-export default async function Page() {
+// Home: one read for the list and one for the open task (?task=SAA-14, or the first that needs you).
+export default async function Page({ searchParams }: { searchParams: Promise<{ task?: string }> }) {
+  // Signed in but unreadable: throw to error.tsx (a redirect to /signup would bounce straight back here).
+  const ws = (await getMe())?.workspaces[0]
+  if (!ws) throw new Error("No workspace to show")
   const supabase = await serverClient()
-  const { data } = await supabase.rpc("whoami")
-  const me = data as Me | null
+  const asked = (await searchParams).task
+  const view = (ref: string) => supabase.rpc("task_view", { p_ws: ws.id, p_task: ref })
+  const [home, picked] = await Promise.all([supabase.rpc("home_view", { p_ws: ws.id }), asked ? view(asked) : null])
+  if (home.error || !home.data) throw new Error("home_view failed")
+  const tasks = ((home.data as { tasks?: Row[] } | null)?.tasks ?? [])
+  const first = tasks.find(t => t.group === "you") ?? tasks[0]
+  const open = asked ? picked : first ? await view(first.ref) : null
+  const task = (open?.data as { ok: boolean; task?: TaskView } | null)?.task ?? null
   return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-4 p-6">
-      <h1 className="font-pixel text-3xl">{me?.workspaces[0]?.name ?? "Your workspace"}</h1>
-      <p className="text-muted">Signed in as {me?.name}. A demo agent and two tasks are waiting for you.</p>
-      <form action="/auth/signout" method="post">
-        <button className="h-9 rounded-lg px-3.5 font-medium shadow-[inset_0_0_0_1px_var(--border)] hover:bg-surface-2">Sign out</button>
-      </form>
-    </main>
+    <>
+      <header className={s.tb}><h1>Home</h1></header>
+      <Home ws={ws.id} tasks={tasks} task={task} />
+    </>
   )
 }

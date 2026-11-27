@@ -30,13 +30,12 @@ test("the email link signs you up once, and signs you in after that", async ({ p
 
   await page.goto(await requestLink(page, email))
   await expect(page).toHaveURL(/\/home$/)
-  const name = `${email.split("@")[0]}'s workspace`
-  await expect(page.getByRole("heading", { name })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^SAA-1, Fix the typo in README/ })).toBeVisible()
 
   await page.getByRole("button", { name: "Sign out" }).click()
   await expect(page.getByText("Sign in", { exact: true }).first()).toBeVisible()
   await page.goto(await requestLink(page, email))
-  await expect(page.getByRole("heading", { name })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^SAA-1, Fix the typo in README/ })).toBeVisible()
   expect(workspacesOf(email)).toBe("1")
   expect(sql(`select string_agg(t.title || ':' || t.status, ', ' order by t.number) from app.tasks t
               join app.members m on m.workspace_id = t.workspace_id join auth.users u on u.id = m.user_id
@@ -51,7 +50,7 @@ test("the hosted default email link (a code back to /auth/callback) signs you in
   const api = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:55321"
   await page.goto(`${api}/auth/v1/verify?token=${tokenHash}&type=signup&redirect_to=${encodeURIComponent("http://localhost:3000/auth/callback")}`)
   await expect(page).toHaveURL(/\/home$/)
-  await expect(page.getByRole("heading", { name: `${email.split("@")[0]}'s workspace` })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^SAA-1, Fix the typo in README/ })).toBeVisible()
 })
 
 test("a used email link says so", async ({ page }) => {
@@ -68,7 +67,9 @@ test("GitHub signs you in from a popup", async ({ page }) => {
   await expect(page.getByText("Finish in the GitHub tab.")).toBeVisible()
   await github.getByRole("link", { name: "Authorize" }).click()
   await expect(page).toHaveURL(/\/home$/)
-  await expect(page.getByRole("heading", { name: "Falcon J's workspace" })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^SAA-1, Fix the typo in README/ })).toBeVisible()
+  expect(sql(`select name from app.workspaces w join app.members m on m.workspace_id = w.id join auth.users u on u.id = m.user_id
+              where u.email = 'falcon@example.com'`)).toBe("Falcon J's workspace")
   expect(workspacesOf("falcon@example.com")).toBe("1")
 })
 
