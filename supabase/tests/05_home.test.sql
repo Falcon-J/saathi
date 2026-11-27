@@ -1,7 +1,7 @@
 -- Home and the task pane: groups, order, the review proof, the open question, and who may read them.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 truncate app.workspaces cascade; -- local e2e runs leave workspaces behind
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role) values
@@ -35,6 +35,7 @@ create temp table p as select public.task_view((select id from ws), 'SAA-1') -> 
 select is((select v -> 'review' ->> 'summary' from p), 'Fixed two typos.', 'the pane shows the summary');
 select is((select (v -> 'review' ->> 'passed') || '/' || (v -> 'review' ->> 'total') from p), '1/2', 'and checks passed out of total');
 select is((select v -> 'after' ->> 'ref' from p), 'SAA-2', 'and what approving unlocks');
+select is((select (v -> 'after' ->> 'last')::boolean from p), true, 'which it alone holds back');
 select is((select jsonb_array_length(v -> 'log') from p), 2, 'and the progress log');
 select is(public.task_view((select id from ws), 'SAA-3') -> 'task' -> 'question' ->> 'text', 'Which region?', 'a question shows its text');
 select is(public.task_view((select id from ws), 'SAA-2') -> 'task' -> 'before' ->> 'ref', 'SAA-1', 'a waiting task shows what it waits on');

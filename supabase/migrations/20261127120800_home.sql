@@ -8,9 +8,11 @@ language sql immutable set search_path = '' as $$
 $$;
 
 -- The first open task this one waits on, or the first task it unlocks.
+-- `last` says this task is the only thing the other still waits on, so approving it starts the other.
 create function app.neighbour(p_task uuid, p_before boolean) returns jsonb
 language sql stable set search_path = '' as $$
-  select jsonb_build_object('ref', w.prefix || '-' || o.number, 'title', o.title, 'group', app.group_of(o.status))
+  select jsonb_build_object('ref', w.prefix || '-' || o.number, 'title', o.title, 'group', app.group_of(o.status),
+                            'last', o.waits_left = 1)
     from app.task_links l
     join app.tasks o on o.id = case when p_before then l.before_id else l.after_id end
     join app.workspaces w on w.id = o.workspace_id

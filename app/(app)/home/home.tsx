@@ -1,13 +1,13 @@
 "use client"
 // Home from home-v1: what needs you on top, the open task beside the list.
-// Approve, Send back and Answer wait 5 s so Undo can cancel them; leaving the page sends them at once.
+// Approve, Send back and Answer wait 5 s so Undo can cancel them; leaving the page sends them at once (keepalive).
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { decide, type Decision } from "../actions"
 import s from "../app.module.css"
 
 type Group = "you" | "work" | "wait" | "done"
-type Link = { ref: string; title: string; group: Group }
+type Link = { ref: string; title: string; group: Group; last?: boolean }
 export type Row = {
   ref: string; title: string; group: Group; status: string; agent: string | null
   steps_done: number; steps_total: number; waits_on: string | null; done_at: string | null; updated_at: string
@@ -23,7 +23,7 @@ export type TaskView = Row & {
 
 const SECTIONS: [Group, string][] = [["you", "Needs you"], ["work", "Working"], ["wait", "Waiting"], ["done", "Done today"]]
 const LABEL: Record<Group, string> = { you: "needs you", work: "working", wait: "waiting", done: "done" }
-type Moved = Record<string, { from: Group; to: Group }>
+type Moved = Record<string, { from: Group; to: Group; at: string }>
 const without = (m: Moved, ref: string) => { const c = { ...m }; delete c[ref]; return c }
 const time = (at: string | null) => at ? new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""
 function ago(at: string) {
@@ -38,7 +38,7 @@ function Glyph({ g }: { g: Group }) {
       {g === "you" && <rect {...r} fill="var(--primary-text)" />}
       {g === "work" && <><rect {...r} fill="none" stroke="var(--ink)" strokeWidth="1.5" /><rect x="5" y="5" width="4" height="4" rx="1" fill="var(--ink)" /></>}
       {g === "wait" && <rect {...r} fill="none" stroke="var(--info-text)" strokeWidth="1.5" strokeDasharray="2.5 2" />}
-      {g === "done" && <><rect {...r} fill="var(--success)" /><path d="m4.5 7 1.8 1.8L9.6 5.4" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></>}
+      {g === "done" && <><rect {...r} fill="var(--success)" /><path d="m4.5 7 1.8 1.8L9.6 5.4" fill="none" stroke="var(--bg)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></>}
     </svg>
   )
 }
@@ -77,11 +77,13 @@ export function Home({ ws, tasks, task }: { ws: string; tasks: Row[]; task: Task
   const [showAll, setShowAll] = useState(false)
   const [draft, setDraft] = useState<{ ref?: string; note: string | null; reply: string }>({ note: null, reply: "" })
   const [toast, setToast] = useState<{ text: string; undo: boolean } | null>(null)
-  const pending = useRef<{ ref: string; d: Decision; timer: number } | null>(null)
+  const pending = useRef<{ ref: string; d: Decision; timer: number; text: string } | null>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
-  // A decision moves its row at once, until the server's next read shows the move itself.
-  const rows = SECTIONS.flatMap(([g]) => tasks.map(t => ({ ...t, group: moved[t.ref]?.from === t.group ? moved[t.ref].to : t.group }))
+  // A decision moves its row at once. It holds only while the server row is the one we decided on:
+  // once the task changes (saved, or moved on by its agent), the server's group wins.
+  const held = (t: Row) => moved[t.ref]?.at === t.updated_at
+  const rows = SECTIONS.flatMap(([g]) => tasks.map(t => ({ ...t, group: held(t) ? moved[t.ref].to : t.group }))
                                             .filter(t => t.group === g))
   // The send-back note and a typed answer belong to the open task.
   const note = draft.ref === task?.ref ? draft.note : null
@@ -99,18 +101,29 @@ export function Home({ ws, tasks, task }: { ws: string; tasks: Row[]; task: Task
     if (!p) return
     pending.current = null
     clearTimeout(p.timer)
-    const r = await decide(ws, p.ref, p.d)
+    const r = await decide(ws, p.ref, p.d).catch(() => ({ ok: false, message: undefined }))
     if (!r.ok) {
       setMoved(m => without(m, p.ref))
-      setToast({ text: r.message ?? "Couldn't save that. Try again.", undo: false })
+      // Keep the Undo of a decision still waiting to be sent.
+      const err = r.message ?? "Couldn't save that. Try again."
+      const still = pending.current as typeof p | null // a later decision may have been queued while this one saved
+      setToast(still ? { text: `${err} ${still.text}`, undo: true } : { text: err, undo: false })
     }
   }, [ws])
 
   useEffect(() => {
-    const flush = () => { if (pending.current) void send() }
+    // A normal request is cancelled as the page unloads, so send with keepalive to the decide route.
+    const flush = () => {
+      const p = pending.current
+      if (!p) return
+      pending.current = null
+      clearTimeout(p.timer)
+      void fetch("/home/decide", { method: "POST", keepalive: true, headers: { "content-type": "application/json" },
+                                   body: JSON.stringify({ ws, task: p.ref, d: p.d }) })
+    }
     addEventListener("pagehide", flush)
     return () => removeEventListener("pagehide", flush)
-  }, [send])
+  }, [ws])
   useEffect(() => {
     if (!toast || pending.current) return
     const t = setTimeout(() => setToast(null), 5000)
@@ -121,13 +134,14 @@ export function Home({ ws, tasks, task }: { ws: string; tasks: Row[]; task: Task
     if (!task) return
     if (pending.current) void send()
     const group: Group = d.kind === "approve" ? "done" : d.kind === "answer" ? "work" : "wait"
-    setMoved(m => ({ ...m, [task.ref]: { from: task.group, to: group } }))
+    setMoved(m => ({ ...m, [task.ref]: { from: task.group, to: group, at: task.updated_at } }))
     const next = rows.find(t => t.group === "you" && t.ref !== task.ref)
     if (next) select(next.ref, open); else setOpen(false)
     const done = { approve: "Approved", send_back: "Sent back", answer: "Answered" }[d.kind]
-    const unlocks = d.kind === "approve" && task.after?.group === "wait" ? ` ${task.after.ref} unlocked.` : ""
-    pending.current = { ref: task.ref, d, timer: window.setTimeout(() => { setToast(null); void send() }, 5000) }
-    setToast({ text: `${done} ${task.ref}.${unlocks}`, undo: true })
+    const unlocks = d.kind === "approve" && task.after?.group === "wait" && task.after.last ? ` ${task.after.ref} unlocked.` : ""
+    const text = `${done} ${task.ref}.${unlocks}`
+    pending.current = { ref: task.ref, d, text, timer: window.setTimeout(() => { setToast(null); void send() }, 5000) }
+    setToast({ text, undo: true })
   }
   const undo = () => {
     const p = pending.current
@@ -143,7 +157,8 @@ export function Home({ ws, tasks, task }: { ws: string; tasks: Row[]; task: Task
     if (!note.trim()) { noteRef.current?.focus(); return }
     act({ kind: "send_back", note: note.trim() })
   }
-  const reviewing = task && task.status === "review" && moved[task.ref]?.from !== "you"
+  const decided = !!task && held(task)
+  const reviewing = task && task.status === "review" && !decided
 
   const move = (step: number) => {
     const i = visible.findIndex(t => t.ref === task?.ref)
@@ -238,7 +253,7 @@ export function Home({ ws, tasks, task }: { ws: string; tasks: Row[]; task: Task
                 </form>
               )}
             </>}
-            {task.question && <>
+            {task.question && !decided && <>
               <p className={s.who}><b>{task.agent}</b> asked · <span suppressHydrationWarning>{ago(task.question.at)}</span></p>
               <p className={s.say}>{task.question.text}</p>
               {task.question.options.length ? (

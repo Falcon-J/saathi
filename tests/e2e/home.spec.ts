@@ -56,11 +56,19 @@ test("Approve waits 5 s so Undo can cancel it, then unlocks what waited", async 
   await page.waitForTimeout(5500)
   expect(status(1)).toBe("review")
 
+  // Leaving inside the 5 s still saves: the page sends it with keepalive as it unloads.
   await page.getByRole("button", { name: "Approve" }).click()
+  await page.reload()
   await expect.poll(() => status(1), { timeout: 10_000 }).toBe("done")
   expect(status(2)).toBe("ready")
+  await page.reload() // the first reload can render before the save lands
   await expect(page.getByRole("heading", { name: "All clear" })).toBeVisible()
   await expect(page.getByRole("region", { name: /Done today/ })).toContainText("SAA-1")
+})
+
+test("the unload route only takes this site's own posts", async () => {
+  const r = await page.request.post("/home/decide", { data: { ws: "x", task: "SAA-1", d: { kind: "approve" } } })
+  expect(r.status()).toBe(403)
 })
 
 test("Send back asks what should change, and the agent gets the note", async () => {
