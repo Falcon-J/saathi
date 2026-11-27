@@ -1,7 +1,7 @@
 -- Who can reach what: tables are closed, agents need a live key, people need membership.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 truncate app.workspaces cascade; -- local e2e runs leave workspaces behind
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role) values
@@ -35,6 +35,10 @@ reset role;
 set local role anon;
 select throws_ok($$ select public.create_task('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Anon') $$, '42501', null, 'anonymous callers get nothing');
 reset role;
+select is((select string_agg(p.proname, ', ') from pg_proc p where p.pronamespace = 'public'::regnamespace
+           and has_function_privilege('anon', p.oid, 'execute')), null, 'signed-out callers can execute no public function');
+create function public.zz_probe() returns int language sql as 'select 1';
+select is(has_function_privilege('anon', 'public.zz_probe()', 'execute'), false, 'and new functions start closed');
 
 select * from finish();
 rollback;
