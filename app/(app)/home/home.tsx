@@ -262,6 +262,13 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
       <dt>Created</dt><dd className={`${s.mono} ${s["c-fa"]}`} suppressHydrationWarning>{since(task.created_at)}</dd>
     </dl>
   )
+  const offBanner = offline && (
+    <div className={s.off} role="status">
+      <p suppressHydrationWarning>Can&apos;t reach Saathi. Showing what you had at {time(at)}.</p>
+      <span className={s.mono}>Trying again in {retryIn} s</span>
+      <button className={`${s.btn} ${s["btn-line"]}`} type="button" onClick={() => router.refresh()}>Retry now</button>
+    </div>
+  )
   return (
     <>
       <header className={s.tb}>
@@ -276,13 +283,7 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
       <div className={`${s.split} ${full ? s.full : ""}`}>
         <div className={s.list}>
           <div className={s.wrap}>
-            {offline && (
-              <div className={s.off} role="status">
-                <p suppressHydrationWarning>Can&apos;t reach Saathi. Showing what you had at {time(at)}.</p>
-                <span className={s.mono}>Trying again in {retryIn} s</span>
-                <button className={`${s.btn} ${s["btn-line"]}`} type="button" onClick={() => router.refresh()}>Retry now</button>
-              </div>
-            )}
+            {!full && offBanner}
             {showSince && !offline && (
               <div className={s.since}>
                 <p suppressHydrationWarning><b>Since {since(data.since.at)}:</b> {data.since.done} done, {data.since.unlocked} unlocked.</p>
@@ -333,6 +334,7 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
           <div className={s["p-bd"]} aria-live="polite">
             {!task ? <p className={s["p-none"]}>Pick a task to see it here.</p> : <>
               <div className={s.main}>
+                {full && offBanner}
                 <h2>{task.title}</h2>
                 <p className={s.tags}>
                   <span className={s[CLS[task.group]]}><Glyph g={task.group} />{cap(LABEL[task.group])}</span>
@@ -393,7 +395,7 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
                 {task.group === "done" && <p className={s.calm} suppressHydrationWarning>Approved by {task.approved_by ?? "you"} at {time(task.done_at)}.</p>}
                 <p className={s.h3}>History</p>
                 <ol className={s.hist}>{task.history.map((e, i) => { const [text, c] = line(e)
-                  return <li key={i} className={c ? s[c] : undefined}><span className={s.mono} suppressHydrationWarning>{time(e.at)}</span><span>{text}</span></li> })}</ol>
+                  return <li key={i} className={c ? s[c] : undefined}><span className={s.mono} suppressHydrationWarning>{since(e.at)}</span><span>{text}</span></li> })}</ol>
               </div>
               <div className={s.side}>{full ? side : <><p className={s.h3}>Details</p>{side}</>}</div>
             </>}
@@ -417,7 +419,11 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
       </div>
       <NewTask ref={dialog} ws={ws} offline={offline} agents={data.agents}
                open={data.tasks.filter(t => t.group !== "done")}
-               onCreated={(ref, waitsOn) => setToast({ text: `${ref} created.${waitsOn ? ` It waits on ${waitsOn}.` : ""}`, undo: false, open: ref })} />
+               onCreated={(ref, waitsOn) => {
+                 const text = `${ref} created.${waitsOn ? ` It waits on ${waitsOn}.` : ""}`
+                 // A decision still in its undo window keeps its Undo.
+                 setToast(pending.current ? { text: `${pending.current.text} ${text}`, undo: true, open: ref } : { text, undo: false, open: ref })
+               }} />
     </>
   )
 }

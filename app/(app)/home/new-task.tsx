@@ -35,7 +35,7 @@ export function NewTask({ ref, ws, open, agents, offline, onCreated }: {
   }
 
   return (
-    <dialog ref={ref} className={s.dlg} aria-labelledby="d-l" onMouseDown={e => { if (e.target === e.currentTarget) ref.current?.close() }}>
+    <dialog ref={ref} className={s.dlg} aria-labelledby="d-l" onClose={() => setErr({})} onMouseDown={e => { if (e.target === e.currentTarget) ref.current?.close() }}>
       <form noValidate onSubmit={e => { e.preventDefault(); void submit(e.currentTarget) }}
             onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}>
         <div className={s["d-hd"]}><span id="d-l">New task</span>
@@ -43,11 +43,11 @@ export function NewTask({ ref, ws, open, agents, offline, onCreated }: {
         </div>
         <div className={s["d-bd"]}>
           <input className={s["d-title"]} name="title" placeholder={err.title ? "Give it a title first" : "Task title"} aria-label="Task title"
-                 aria-invalid={err.title || undefined} maxLength={200} autoComplete="off" autoFocus onInput={() => err.title && setErr({})} />
+                 aria-invalid={err.title || undefined} maxLength={200} autoComplete="off" autoFocus onInput={() => err.title && setErr(e => ({ ...e, title: false }))} />
           <div className={`${s["d-dw"]} ${err.doneWhen ? s.bad : ""}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg>
             <input name="doneWhen" placeholder="Done when… what the agent must show to finish" aria-label="Done when" maxLength={1000} autoComplete="off"
-                   aria-invalid={err.doneWhen || undefined} aria-describedby={err.doneWhen ? "d-err" : undefined} onInput={() => err.doneWhen && setErr({})} />
+                   aria-invalid={err.doneWhen || undefined} aria-describedby={err.doneWhen ? "d-err" : undefined} onInput={() => err.doneWhen && setErr(e => ({ ...e, doneWhen: false }))} />
           </div>
           {err.doneWhen && <p className={s.err} id="d-err">Agents only pick up tasks with a Done when. Add one, or give it to yourself.</p>}
           {err.server && <p className={s.err} role="alert">{err.server}</p>}
@@ -63,7 +63,7 @@ export function NewTask({ ref, ws, open, agents, offline, onCreated }: {
             <label className={`${s.chip} ${f.agent ? s.set : ""}`}>
               <span className={s.av} style={{ width: 18, height: 18, fontSize: 10 }} aria-hidden="true">{agentName?.[0] ?? "·"}</span>
               <span>{agentName ?? "Any agent"}</span>
-              <select aria-label="Who" value={f.agent} onChange={e => { setF({ ...f, agent: e.target.value }); setErr({}) }}>
+              <select aria-label="Who" value={f.agent} onChange={e => { setF({ ...f, agent: e.target.value }); setErr(x => ({ ...x, doneWhen: false })) }}>
                 <option value="">Any agent</option>{agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}<option value="me">Me</option>
               </select>
             </label>

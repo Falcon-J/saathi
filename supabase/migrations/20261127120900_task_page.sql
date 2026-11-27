@@ -95,7 +95,8 @@ begin
     'after', app.neighbour(t.id, false))));
 end $$;
 
--- Home gains the catch-up line (done and unlocked since your last visit) and the agents for the new-task dialog.
+-- Home gains the catch-up line and the agents for the new-task dialog.
+-- The line counts what others and agents did since your last visit: your own approvals aren't news to you.
 create or replace function public.home_view(p_ws uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare me uuid := app.require_member(p_ws); seen timestamptz;
@@ -110,8 +111,11 @@ begin
     select jsonb_build_object(
       'workspace', (select jsonb_build_object('id', id, 'name', name) from app.workspaces where id = p_ws),
       'since', jsonb_build_object('at', seen,
-        'done', (select count(*) from app.tasks where workspace_id = p_ws and done_at > seen),
-        'unlocked', (select count(*) from app.events where workspace_id = p_ws and kind = 'task.unlocked' and created_at > seen)),
+        'done', (select count(*) from app.tasks d where d.workspace_id = p_ws and d.done_at > seen
+                    and not exists (select 1 from app.events a where a.task_id = d.id and a.kind = 'task.approved' and a.user_id = me)),
+        'unlocked', (select count(*) from app.events u where u.workspace_id = p_ws and u.kind = 'task.unlocked' and u.created_at > seen
+                     and not exists (select 1 from app.events a where a.task_id = app.find_task(p_ws, u.data ->> 'by')
+                                                                   and a.kind = 'task.approved' and a.user_id = me))),
       'agents', coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'name', a.name) order by a.name)
                           from app.agents a where a.workspace_id = p_ws), '[]'),
       'tasks', coalesce(jsonb_agg(jsonb_build_object(
