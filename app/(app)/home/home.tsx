@@ -2,12 +2,12 @@
 // Home from home-v1 and the task view from task-v1: what needs you on top, the open task beside the list or full width.
 // Approve, Stop, Send back and Answer wait 5 s so Undo can cancel them; leaving the page sends them at once (keepalive).
 // Any event in the workspace nudges a re-read, so other tabs and agents show up live.
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@supabase/ssr"
 import { decide, markVisit, type Decision } from "../actions"
 import { NewTask } from "./new-task"
+import { useLive } from "../live"
 import s from "../app.module.css"
 
 type Group = "you" | "work" | "wait" | "done"
@@ -67,8 +67,6 @@ function line(e: Event): [string, string] {
   }
 }
 
-// Online or not, read straight from the browser.
-const onLine = (cb: () => void) => { addEventListener("online", cb); addEventListener("offline", cb); return () => { removeEventListener("online", cb); removeEventListener("offline", cb) } }
 
 function Glyph({ g }: { g: Group | "next" }) {
   const r = { x: 1.5, y: 1.5, width: 11, height: 11, rx: 3 }
@@ -115,11 +113,10 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
   const [draft, setDraft] = useState<{ ref?: string; note: string | null; reply: string }>({ note: null, reply: "" })
   const [toast, setToast] = useState<{ text: string; undo: boolean; open?: string } | null>(null)
   const [sinceSeen, setSinceSeen] = useState<string | null>(null)
-  const [tick, setTick] = useState(0)
   const pending = useRef<{ ref: string; d: Decision; timer: number; text: string } | null>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
   const dialog = useRef<HTMLDialogElement>(null)
-  const offline = !useSyncExternalStore(onLine, () => navigator.onLine, () => true)
+  const { offline, retryIn, retry } = useLive(ws)
 
   // A decision moves its row at once. It holds only while the server row is the one we decided on:
   // once the task changes (saved, or moved on by its agent), the server's group wins.
@@ -172,25 +169,6 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
     return () => clearTimeout(t)
   }, [toast])
 
-  // Live: the workspace's private channel carries a nudge per event; re-read, at most every 300 ms.
-  useEffect(() => {
-    const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!)
-    let timer = 0
-    const nudge = () => { clearTimeout(timer); timer = window.setTimeout(() => router.refresh(), 300) }
-    const channel = supabase.channel(`ws:${ws}`, { config: { private: true } }).on("broadcast", { event: "*" }, nudge)
-    void supabase.realtime.setAuth().then(() => channel.subscribe())
-    return () => { clearTimeout(timer); void supabase.removeChannel(channel) }
-  }, [ws, router])
-  // Offline: count down to the next try, and re-read when the browser is back.
-  const wasOffline = useRef(false)
-  useEffect(() => {
-    if (!offline) { if (wasOffline.current) router.refresh(); wasOffline.current = false; return }
-    wasOffline.current = true
-    let n = 0
-    const t = setInterval(() => { n++; setTick(n); if (n % 8 === 0) router.refresh() }, 1000)
-    return () => clearInterval(t)
-  }, [offline, router])
-  const retryIn = 8 - (tick % 8)
 
   const act = (d: Decision) => {
     if (!task || offline) return
@@ -266,7 +244,7 @@ export function Home({ ws, data, task, at, full = false }: { ws: string; data: H
     <div className={s.off} role="status">
       <p suppressHydrationWarning>Can&apos;t reach Saathi. Showing what you had at {time(at)}.</p>
       <span className={s.mono}>Trying again in {retryIn} s</span>
-      <button className={`${s.btn} ${s["btn-line"]}`} type="button" onClick={() => router.refresh()}>Retry now</button>
+      <button className={`${s.btn} ${s["btn-line"]}`} type="button" onClick={retry}>Retry now</button>
     </div>
   )
   return (
