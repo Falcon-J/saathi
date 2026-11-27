@@ -1,7 +1,7 @@
 -- Who can reach what: tables are closed, agents need a live key, people need membership.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 truncate app.workspaces cascade; -- local e2e runs leave workspaces behind
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role) values
@@ -21,10 +21,12 @@ select public.create_task('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Secret task')
 select matches((select key from k), '^sk_live_[A-Za-z0-9]{32}$', 'keys look like sk_live_ plus 32 characters');
 select is((select count(*)::int from app.agent_keys where hash = app.key_hash((select key from k))), 1, 'only the hash is stored');
 select is(public.agent_next_task('sk_live_' || repeat('x', 32)) ->> 'code', 'unauthorized', 'a wrong key gets nothing');
+select is(public.agent_hello('sk_live_' || repeat('x', 32)) ->> 'code', 'unauthorized', 'nor passes the connect check');
 
 set local role authenticated;
 select throws_ok($$ select * from app.tasks $$, '42501', null, 'people cannot read tables directly');
 select throws_ok($$ select public.agent_next_task((select key from k)) $$, '42501', null, 'people cannot call the agent API');
+select throws_ok($$ select public.agent_hello((select key from k)) $$, '42501', null, 'or its connect check');
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 select throws_ok($$ select public.create_task('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Sneaky') $$, '42501', 'forbidden', 'an outsider cannot add tasks');
 select throws_ok($$ select public.approve_task('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'SAA-1') $$, '42501', 'forbidden', 'or approve them');
