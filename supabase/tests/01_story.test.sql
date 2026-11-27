@@ -2,6 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(22);
+truncate app.workspaces cascade; -- local e2e runs leave workspaces behind
 
 insert into auth.users (id, email, raw_user_meta_data, aud, role) values
   ('11111111-1111-1111-1111-111111111111', 'you@example.com', '{"full_name":"You"}', 'authenticated', 'authenticated');
