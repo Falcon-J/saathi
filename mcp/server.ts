@@ -15,6 +15,10 @@ export async function rpc(fn: string, args: Record<string, unknown>): Promise<Re
   db ??= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!,
                       { auth: { persistSession: false, autoRefreshToken: false } })
   const { data, error } = await db.rpc(fn, args)
+  // Postgres data and constraint errors (22xxx, 23xxx) mean the input was wrong: retrying won't help.
+  if (error && /^2[23]/.test(error.code)) {
+    return { ok: false, code: "invalid", message: "Saathi refused one of the values you sent.", hint: "Check the input against the tool's schema." }
+  }
   if (error || !data) {
     console.error(`mcp: ${fn} failed`, error?.code, error?.message)
     return { ok: false, code: "unavailable", message: "Saathi can't reach its database right now.", hint: "Try again in a few seconds." }

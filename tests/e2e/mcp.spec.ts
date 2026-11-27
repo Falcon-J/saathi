@@ -123,6 +123,20 @@ test("bad input comes back as a readable tool error", async () => {
   await a.close()
 })
 
+test("odd input gets a clear answer, never a crash", async () => {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream",
+    "mcp-protocol-version": "2025-06-18", authorization: `bearer ${keyB}` },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize",
+                           params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: 42, version: "1" } } }) })
+  expect(r.status).toBe(200)
+  const b = await connect(keyB)
+  const claim = await call(b, "next_task", { lease: 1e12 })
+  expect(claim.out).toMatchObject({ task: { ref: "SAA-2" } })
+  expect((await call(b, "heartbeat", { task: "SAA-2", fence: claim.out.fence, done: -5, lease: 1e12 })).error).toBe(false)
+  expect((await call(b, "heartbeat", { task: "SAA-2", fence: "abc" })).out.code).toBe("fenced")
+  await b.close()
+})
+
 test("too many calls in a minute get a 429 with retry_after", async () => {
   sql(`update app.agents a set rate_window = now(), rate_count = 120 from app.agent_keys k
        where k.agent_id = a.id and k.hash = app.key_hash('${keyA}')`)

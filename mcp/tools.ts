@@ -13,8 +13,8 @@ const fence = z.coerce.string()
 const lease = z.number().optional().describe("Seconds, 60-3600, default 900")
 const held = { task, fence }
 const asFence = (f: string) => /^\d{1,15}$/.test(f) ? Number(f) : -1
-// Whole numbers without zod's .int(), which adds a long min/max to every schema.
-const int = (n?: number) => n === undefined ? undefined : Math.round(n)
+// Whole numbers in range without zod's .int().min().max(), which add bytes to every schema. The SQL clamps further.
+const int = (n: number | undefined, max: number) => n === undefined ? undefined : Math.min(Math.max(Math.round(n), 0), max)
 
 // Success: the fields without `ok`. Failure: isError with {code, message, hint}, so the agent knows what to do next.
 function toResult({ ok, ...out }: Result): CallToolResult {
@@ -31,12 +31,14 @@ export function registerTools(server: McpServer, call: Call, client?: string) {
       lease,
       request_id: z.string().max(100).optional().describe("Retry with it to get the same claim"),
     }),
-  }, async ({ task, wait = 0, lease, request_id }) => {
-    const args = { p_task: task, p_lease: int(lease), p_request_id: request_id, p_client: client }
+  }, async ({ task, wait = 0, lease, request_id }, ctx) => {
+    const args = { p_task: task, p_lease: int(lease, 3600), p_request_id: request_id, p_client: client }
     const until = Date.now() + wait * 1000
     let r = await call("agent_next_task", args)
+    // Stop once the caller has gone, so nobody claims a task whose answer can't be delivered.
     while (r.ok && r.task === null && Date.now() + 2000 <= until) {
       await sleep(2000)
+      if (ctx.mcpReq.signal.aborted) break
       r = await call("agent_next_task", args)
     }
     return toResult(r)
@@ -53,7 +55,7 @@ export function registerTools(server: McpServer, call: Call, client?: string) {
     }),
     annotations: { idempotentHint: true },
   }, async ({ task, fence, steps, done, now, lease }) => toResult(await call("agent_heartbeat", {
-    p_task: task, p_fence: asFence(fence), p_steps: steps, p_done: int(done), p_now: now, p_lease: int(lease) })))
+    p_task: task, p_fence: asFence(fence), p_steps: steps, p_done: int(done, 20), p_now: now, p_lease: int(lease, 3600) })))
 
   server.registerTool("ask", {
     description: "Ask a person a question about your task. The answer arrives in heartbeat.",

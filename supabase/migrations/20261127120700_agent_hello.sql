@@ -7,7 +7,11 @@ declare
   gate jsonb := app.agent_gate(a);
 begin
   if gate is not null then return gate; end if;
-  perform app.name_agent(a, p_client, null);
+  -- Two new agents from the same client can race for one name; the loser keeps its name until its next call.
+  begin
+    perform app.name_agent(a, p_client, null);
+  exception when unique_violation then null;
+  end;
   return app.ok();
 end $$;
 
