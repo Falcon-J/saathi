@@ -1,7 +1,7 @@
 // The same decisions as the server action, for the page's last moments: a keepalive POST survives unload.
 import { decide, type Decision } from "../../actions"
 
-const kinds = new Set(["approve", "send_back", "answer"])
+const kinds = new Set(["approve", "stop", "send_back", "answer"])
 
 export async function POST(req: Request) {
   // Cookies ride along with any cross-site POST, so only this site's own pages may call it.
