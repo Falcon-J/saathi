@@ -14,7 +14,7 @@ begin
   return app.ok(jsonb_build_object('agents', coalesce((select jsonb_agg(jsonb_build_object(
       'id', a.id, 'name', a.name, 'client', a.client, 'host', a.host, 'max_at_once', a.max_at_once,
       'paused', a.paused_at is not null, 'seen_at', a.last_seen_at, 'listening', a.listening_until > now(), 'created_at', a.created_at,
-      'holding', coalesce((select jsonb_agg(jsonb_build_object('ref', app.ref(t.id), 'title', t.title, 'silent_at', t.silent_at,
+      'holding', coalesce((select jsonb_agg(jsonb_build_object('ref', app.ref(t.id), 'title', t.title, 'status', t.status, 'silent_at', t.silent_at,
                                                                'steps_done', t.steps_done, 'steps_total', jsonb_array_length(t.steps)) order by t.number)
                             from app.tasks t where t.holder_agent_id = a.id and t.status in ('working', 'question')), '[]'),
       'key', (select jsonb_build_object('last4', k.last4, 'created_at', k.created_at, 'used_at', k.last_used_at)
