@@ -1,0 +1,72 @@
+/* Saathi tokens, taken from the accepted page sheets in plan/ (27 Nov).
+   Mode: follows the OS, or <html data-theme="light|dark">.
+   Colour has a meaning: primary (violet) = needs you, success (green) = done and proven,
+   ink = the main button. Components use these names only. */
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#ffffff, #141417);
+  --surface: light-dark(#f9f9f9, #1a1a1e);
+  --surface-2: light-dark(#f0f0f0, #232328);
+  --frame: light-dark(#f1f1f3, #1c1c21);
+  --dot: light-dark(#e2e2e2, #26262b);
+  --border: light-dark(#e8e8e8, #2c2c32);
+  --border-strong: light-dark(#bbbbbb, #606060);
+  --text: light-dark(#202020, #eeeeee);
+  --text-muted: light-dark(#646464, #b4b4b4);
+  --text-faint: light-dark(#707070, #9f9f9f);
+  --ink: light-dark(#202020, #eeeeee);
+  --ink-hover: light-dark(#3a3a3a, #d0d0d0);
+  --on-ink: light-dark(#ffffff, #111111);
+  --primary: light-dark(#5b5bd6, #6e6ade);
+  --primary-text: light-dark(#5753c6, #b1a9ff);
+  --primary-soft: light-dark(#eef0fd, #1d1f3d);
+  --success: #29a383;
+  --success-text: light-dark(#1d7a60, #1fd8a4);
+  --success-soft: light-dark(#e6f6f0, #0f2e25);
+  --info: #0090ff;
+  --info-text: light-dark(#0b65b5, #70b8ff);
+  --info-soft: light-dark(#e6f4fe, #0d2847);
+  --danger: #e54666;
+  --danger-fill: #ca244d;
+  --danger-text: light-dark(#ce2c31, #ff9592);
+  --danger-soft: light-dark(#feebec, #3b1219);
+  --shadow: light-dark(rgb(0 0 0 / 0.06), transparent);
+  --lift: light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.5));
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-frame: var(--frame);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-ink: var(--ink);
+  --color-ink-hover: var(--ink-hover);
+  --color-on-ink: var(--on-ink);
+  --color-primary: var(--primary);
+  --color-primary-text: var(--primary-text);
+  --color-primary-soft: var(--primary-soft);
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-success-soft: var(--success-soft);
+  --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-info-soft: var(--info-soft);
+  --color-danger: var(--danger);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-text: var(--danger-text);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-pixel: var(--font-geist-pixel-square), var(--font-geist-sans), sans-serif;
+  --shadow-card: 0 1px 2px var(--shadow);
+  --shadow-lift: 0 24px 60px var(--lift);
+  --ease-out-soft: var(--ease);
+}

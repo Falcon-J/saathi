@@ -1,19 +1,9 @@
 import { defineConfig, globalIgnores } from "eslint/config"
 import nextVitals from "eslint-config-next/core-web-vitals"
+import nextTs from "eslint-config-next/typescript"
 
 export default defineConfig([
   ...nextVitals,
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-    ".local-test/**",
-  ]),
-  {
-    rules: {
-      // Existing data-fetching effects intentionally synchronize local UI state.
-      "react-hooks/set-state-in-effect": "off",
-    },
-  },
+  ...nextTs,
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ])
